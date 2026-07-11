@@ -6,17 +6,30 @@ import {
 } from 'lucide-react';
 import './index.css';
 
+const API_TOKEN = 'dashboard-secret-token';
+const apiFetch = (url: string, options: any = {}) => {
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${API_TOKEN}`
+    }
+  });
+};
+
 function App() {
   const [projects, setProjects] = useState<any[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [showTasks, setShowTasks] = useState(false);
+  const [useBrowserTerminal, setUseBrowserTerminal] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [deploying, setDeploying] = useState<string | null>(null);
   const [customLlmUrl, setCustomLlmUrl] = useState('');
   const [customApiKey, setCustomApiKey] = useState('');
   const [settingsSaved, setSettingsSaved] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/projects')
+    apiFetch('http://localhost:3001/api/projects')
       .then(res => res.json())
       .then(data => {
         if (data.length) {
@@ -26,7 +39,7 @@ function App() {
       })
       .catch(console.error);
 
-    fetch('http://localhost:3001/api/settings')
+    apiFetch('http://localhost:3001/api/settings')
       .then(res => res.json())
       .then(data => {
         if (data.llmUrl) setCustomLlmUrl(data.llmUrl);
@@ -35,11 +48,15 @@ function App() {
       .catch(console.error);
   }, []);
 
+  useEffect(() => {
+    setSelectedTaskIds([]);
+  }, [activeProjectId]);
+
   const activeProject = projects.find(p => p.id === activeProjectId) || null;
 
   const saveSettings = async () => {
     try {
-      await fetch('http://localhost:3001/api/settings', {
+      await apiFetch('http://localhost:3001/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ llmUrl: customLlmUrl, apiKey: customApiKey })
@@ -55,10 +72,18 @@ function App() {
     if (!activeProject) return;
     setDeploying(agent);
     try {
-      await fetch('http://localhost:3001/api/deploy', {
+      const selectedTasks = (activeProject.tasks || []).filter((t: any) => selectedTaskIds.includes(t.id));
+      await apiFetch('http://localhost:3001/api/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent, directory: activeProject.path, llmUrl: customLlmUrl, apiKey: customApiKey })
+        body: JSON.stringify({ 
+          agent, 
+          directory: activeProject.path, 
+          llmUrl: customLlmUrl, 
+          apiKey: customApiKey,
+          tasks: selectedTasks,
+          useBrowserTerminal
+        })
       });
     } catch (err) {
       console.error(err);
@@ -69,7 +94,7 @@ function App() {
   const analyzeProject = async () => {
     if (!activeProject) return;
     try {
-      const res = await fetch('http://localhost:3001/api/analyze', {
+      const res = await apiFetch('http://localhost:3001/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ directory: activeProject.path })
@@ -77,15 +102,15 @@ function App() {
       const data = await res.json();
       if (!data.error) {
         const updatedComplete = data.tasks.length ? 33 : 0;
-        await fetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
+        await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tech: data.tech, tasks: data.tasks, complete: updatedComplete })
+          body: JSON.stringify({ tech: data.tech, tasks: data.tasks, complete: updatedComplete, branch: data.branch || null })
         });
         
         setProjects(projects.map(p => 
           p.id === activeProject.id 
-            ? { ...p, tech: data.tech, tasks: data.tasks, complete: updatedComplete }
+            ? { ...p, tech: data.tech, tasks: data.tasks, complete: updatedComplete, branch: data.branch || null }
             : p
         ));
         setShowTasks(true);
@@ -95,9 +120,33 @@ function App() {
     }
   };
 
+  const initGit = async () => {
+    if (!activeProject) return;
+    try {
+      const res = await apiFetch('http://localhost:3001/api/init-git', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ directory: activeProject.path })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch: data.branch })
+        });
+        setProjects(projects.map(p => 
+          p.id === activeProject.id ? { ...p, branch: data.branch } : p
+        ));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleAddProject = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/pick-folder');
+      const res = await apiFetch('http://localhost:3001/api/pick-folder');
       if (res.status === 204) return;
       
       const data = await res.json();
@@ -106,7 +155,7 @@ function App() {
       const path = data.path;
       const folderName = path.split('/').pop() || path.split('\\').pop() || `New Project`;
       
-      const createRes = await fetch('http://localhost:3001/api/projects', {
+      const createRes = await apiFetch('http://localhost:3001/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: folderName, desc: 'Local workspace', path })
@@ -204,6 +253,17 @@ function App() {
                   {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
                 </button>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem', width: '100%' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={useBrowserTerminal}
+                    onChange={(e) => setUseBrowserTerminal(e.target.checked)}
+                    style={{ accentColor: 'var(--primary)' }}
+                  />
+                  Use Browser Terminal (Experimental)
+                </label>
+              </div>
             </header>
 
             <main>
@@ -240,7 +300,13 @@ function App() {
                   </div>
                   <div className="info-value" style={{ fontSize: '1rem', marginTop: '0.5rem' }}>
                     <GitBranch size={20} color="#F59E0B" />
-                    {activeProject.branch}
+                    {activeProject.branch ? (
+                      activeProject.branch
+                    ) : (
+                      <button className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={initGit}>
+                        Create Git
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -251,7 +317,23 @@ function App() {
                     <Clock size={24} color="var(--primary)" />
                     Current Tasks ({(activeProject.tasks || []).length})
                   </h2>
-                  <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {showTasks && (
+                      <button 
+                        className="btn-add-project" 
+                        style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (selectedTaskIds.length === (activeProject.tasks || []).length && activeProject.tasks.length > 0) {
+                            setSelectedTaskIds([]);
+                          } else {
+                            setSelectedTaskIds((activeProject.tasks || []).map((t: any) => t.id));
+                          }
+                        }}
+                      >
+                        {selectedTaskIds.length === (activeProject.tasks || []).length && activeProject.tasks?.length > 0 ? 'Uncheck All' : 'Check All'}
+                      </button>
+                    )}
                     {showTasks ? <ChevronUp size={24} color="var(--text-muted)" /> : <ChevronDown size={24} color="var(--text-muted)" />}
                   </div>
                 </div>
@@ -259,10 +341,33 @@ function App() {
                 {showTasks && (
                   <div className="task-list animate-in">
                     {(activeProject.tasks || []).map((task: any) => (
-                      <div className="task-item" key={task.id}>
-                        <div className="task-info">
-                          <span className="task-title">{task.title}</span>
-                          <span className="task-meta">{task.meta}</span>
+                      <div 
+                        className="task-item" 
+                        key={task.id}
+                        onClick={() => {
+                          if (selectedTaskIds.includes(task.id)) {
+                            setSelectedTaskIds(selectedTaskIds.filter(id => id !== task.id));
+                          } else {
+                            setSelectedTaskIds([...selectedTaskIds, task.id]);
+                          }
+                        }}
+                        style={{ 
+                          cursor: 'pointer', 
+                          border: selectedTaskIds.includes(task.id) ? '1px solid var(--primary)' : '1px solid transparent',
+                          background: selectedTaskIds.includes(task.id) ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.02)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedTaskIds.includes(task.id)}
+                            readOnly
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                          />
+                          <div className="task-info">
+                            <span className="task-title">{task.title}</span>
+                            <span className="task-meta">{task.meta}</span>
+                          </div>
                         </div>
                         <div className="task-status">
                           {task.status === 'completed' && (

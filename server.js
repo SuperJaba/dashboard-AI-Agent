@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { spawn, exec } from 'child_process';
+import { spawn, exec, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import pkg from 'pg';
@@ -15,6 +15,24 @@ const port = 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// API Auth Middleware
+const authMiddleware = (req, res, next) => {
+  // Allow OPTIONS requests for CORS
+  if (req.method === 'OPTIONS') return next();
+  
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const token = authHeader.split(' ')[1];
+  if (token !== (process.env.API_TOKEN || 'dashboard-secret-token')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+};
+
+app.use('/api', authMiddleware);
 
 // DB Connection
 const pool = new Pool({
@@ -136,20 +154,45 @@ app.post('/api/projects', async (req, res) => {
 
 // Update Project
 app.put('/api/projects/:id', async (req, res) => {
-  const { tech, tasks, complete } = req.body;
+  const { tech, tasks, complete, branch } = req.body;
+  
+  let query = 'UPDATE projects SET tech = $1, tasks = $2, complete = $3';
+  let values = [tech, JSON.stringify(tasks), complete];
+  
+  if (branch !== undefined) {
+    query += ', branch = $4 WHERE id = $5 RETURNING *';
+    values.push(branch, req.params.id);
+  } else {
+    query += ' WHERE id = $4 RETURNING *';
+    values.push(req.params.id);
+  }
+  
   try {
-    const { rows } = await pool.query(
-      'UPDATE projects SET tech = $1, tasks = $2, complete = $3 WHERE id = $4 RETURNING *',
-      [tech, JSON.stringify(tasks), complete, req.params.id]
-    );
+    const { rows } = await pool.query(query, values);
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// Init Git
+app.post('/api/init-git', (req, res) => {
+  let { directory } = req.body;
+  if (!directory) return res.status(400).json({ error: 'Missing directory' });
+  
+  if (directory.startsWith('~/')) {
+    const home = process.env.HOME || process.env.USERPROFILE;
+    directory = path.join(home, directory.slice(2));
+  }
+  
+  exec(`git -C "${directory}" init && git -C "${directory}" branch -m main`, (error) => {
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, branch: 'main' });
+  });
+});
+
 app.post('/api/deploy', (req, res) => {
-  const { agent, directory, llmUrl, apiKey } = req.body;
+  const { agent, directory, llmUrl, apiKey, tasks } = req.body;
   let targetDir = directory || process.cwd();
   
   if (targetDir.startsWith('~/')) {
@@ -173,13 +216,26 @@ app.post('/api/deploy', (req, res) => {
       env.OPENAI_API_KEY = apiKey;
     }
 
-    if (agent === 'claude') {
-      if (!env.ANTHROPIC_BASE_URL) env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+    if (tasks && tasks.length > 0) {
+      const list = tasks.map(t => `- [ ] ${t.title}`).join('\n');
+      const promptFile = path.join(targetDir, '.ai_tasks.md');
+      fs.writeFileSync(promptFile, `# Zadania do wykonania\n\n${list}\n`);
+    }
+
+    if (agent === 'claude' || agent === 'agy') {
+      if (agent === 'claude' && !env.ANTHROPIC_BASE_URL) {
+        env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+      }
+      const scriptPath = path.join(targetDir, '.start_agent.sh');
+      const promptArg = (tasks && tasks.length > 0) ? ' "Zrealizuj zadania z pliku .ai_tasks.md. Kiedy skończysz, oznacz je jako wykonane."' : '';
+      const agentCmd = agent === 'claude' ? `claude${promptArg}` : `agy${tasks && tasks.length > 0 ? ' -i' + promptArg : ''}`;
+      
+      const scriptContent = `#!/bin/bash\ncd "${targetDir}"\n${agentCmd}\nexec bash\n`;
+      fs.writeFileSync(scriptPath, scriptContent);
+      fs.chmodSync(scriptPath, '755');
+      
       command = 'x-terminal-emulator';
-      args = ['-e', `bash -c "cd ${targetDir} && claude; exec bash"`];
-    } else if (agent === 'agy') {
-      command = 'x-terminal-emulator';
-      args = ['-e', `bash -c "cd ${targetDir} && agy; exec bash"`];
+      args = ['-e', scriptPath];
     } else {
       return res.status(400).json({ error: 'Unknown agent' });
     }
@@ -208,7 +264,7 @@ app.get('/api/pick-folder', (req, res) => {
   });
 });
 
-app.post('/api/analyze', (req, res) => {
+app.post('/api/analyze', async (req, res) => {
   let { directory } = req.body;
   if (!directory) return res.status(400).json({ error: 'Missing directory' });
   
@@ -245,18 +301,125 @@ app.post('/api/analyze', (req, res) => {
       techStack = 'Go';
     }
 
-    if (techStack !== 'Unknown') {
-      tasks.push({ id: 1, title: 'Analiza zależności projektu', meta: 'Discovery', status: 'completed' });
-      tasks.push({ id: 2, title: 'Uruchomienie serwera dev', meta: 'Setup', status: 'pending' });
-      tasks.push({ id: 3, title: 'Wdrożenie zmian', meta: 'DevOps', status: 'pending' });
+    let tasks = [];
+    let idCounter = 1;
+
+    // 1. Markdown checklists (tasks.md, TODO.md, README.md)
+    const mdFiles = ['tasks.md', 'TODO.md', 'README.md'];
+    for (const mdFile of mdFiles) {
+      const mdPath = path.join(directory, mdFile);
+      if (fs.existsSync(mdPath)) {
+        const content = fs.readFileSync(mdPath, 'utf8');
+        const lines = content.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line.startsWith('- [ ]') || line.startsWith('* [ ]')) {
+            let taskTitle = line.substring(5).trim();
+            tasks.push({ id: idCounter++, title: taskTitle, meta: mdFile, status: 'pending' });
+          } else if (line.startsWith('- [x]') || line.startsWith('* [x]')) {
+             // Optional: read completed tasks too? Let's skip them for now or add them as completed
+             let taskTitle = line.substring(5).trim();
+             tasks.push({ id: idCounter++, title: taskTitle, meta: mdFile, status: 'completed' });
+          }
+        }
+      }
     }
 
-    res.json({ tech: techStack, tasks });
+    // 2. Scan for TODO / FIXME in code
+    try {
+      const stdout = execSync(
+        `grep -rnE --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist "TOD[O]:|FIXM[E]:" "${directory}" | head -n 15`,
+        { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }
+      );
+      const lines = stdout.split('\n').filter(Boolean);
+      lines.forEach(line => {
+        const match = line.match(/^([^:]+):(\d+):(.*)$/);
+        if (match) {
+           const file = path.basename(match[1]);
+           let text = match[3].replace(/TOD[O]:/g, '').replace(/FIXM[E]:/g, '').trim();
+           if (text.startsWith('//')) text = text.substring(2).trim();
+           if (text.startsWith('*')) text = text.substring(1).trim();
+           if (text.length > 60) text = text.substring(0, 57) + '...';
+           if (text && !tasks.find(t => t.title === text)) {
+             tasks.push({ id: idCounter++, title: text, meta: `Code: ${file}`, status: 'pending' });
+           }
+        }
+      });
+    } catch(e) {}
+
+    // 3. Fallback to Package.json scripts only if no real tasks found
+    if (tasks.length === 0 && fs.existsSync(path.join(directory, 'package.json'))) {
+      const pkg = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
+      if (pkg.scripts) {
+        for (const scriptName of Object.keys(pkg.scripts)) {
+          tasks.push({ id: idCounter++, title: `NPM Script: ${scriptName}`, meta: 'Scripts', status: 'pending' });
+        }
+      }
+    }
+
+    // 3. LLM Integration
+    try {
+      const { rows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('llmUrl', 'apiKey')");
+      let llmUrl, apiKey;
+      rows.forEach(r => {
+        if (r.key === 'llmUrl') llmUrl = r.value;
+        if (r.key === 'apiKey') apiKey = decrypt(r.value);
+      });
+
+      if (llmUrl && apiKey) {
+        const url = llmUrl.endsWith('/chat/completions') ? llmUrl : (llmUrl.endsWith('/') ? llmUrl.slice(0, -1) : llmUrl) + '/chat/completions';
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF', // Generic fallback
+            messages: [{
+              role: 'user', 
+              content: `Zasugeruj 2 zadania (tablica JSON stringów np. ["Zrób A", "Zrób B"]) dla projektu w technologii: ${techStack}. Pomiń formatowanie i komentarze, wypisz samo JSON.`
+            }],
+            temperature: 0.3
+          })
+        });
+        if (res.ok) {
+          const llmData = await res.json();
+          const content = llmData.choices[0].message.content;
+          const jsonMatch = content.match(/\[.*\]/s);
+          if (jsonMatch) {
+            const aiTasks = JSON.parse(jsonMatch[0]);
+            aiTasks.forEach(aiTask => {
+              tasks.push({ id: idCounter++, title: aiTask, meta: 'AI Suggestion', status: 'pending' });
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("LLM error in analyze:", e);
+    }
+
+    if (tasks.length === 0) {
+      tasks.push({ id: 1, title: 'Inicjalizacja środowiska', meta: 'Setup', status: 'pending' });
+    }
+
+    let branch = null;
+    try {
+      if (fs.existsSync(path.join(directory, '.git'))) {
+        const stdout = execSync(`git -C "${directory}" branch --show-current`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+        branch = stdout.trim() || 'DETACHED';
+      }
+    } catch (e) {
+      console.error('GIT BRANCH ERROR:', e.message, e.stderr);
+    }
+
+    res.json({ tech: techStack, tasks, branch });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Backend API running on http://localhost:${port}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Backend API running on http://localhost:${port}`);
+  });
+}
+
+export default app;
