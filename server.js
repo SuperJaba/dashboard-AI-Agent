@@ -108,6 +108,15 @@ function decrypt(text) {
   return decrypted.toString();
 }
 
+// Helper: buduje bazowy ciąg komendy SSH — klucz lub hasło
+function sshCmd(s, remoteCmd) {
+  const pass = s.ssh_password ? decrypt(s.ssh_password) : null;
+  const base = pass
+    ? `sshpass -p ${JSON.stringify(pass)} ssh -o StrictHostKeyChecking=accept-new -o PasswordAuthentication=yes -o BatchMode=no -p ${s.port} ${s.username}@${s.host}`
+    : `ssh -i ~/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes -p ${s.port} ${s.username}@${s.host}`;
+  return remoteCmd ? `${base} ${remoteCmd}` : base;
+}
+
 // Init DB
 async function initDB() {
   try {
@@ -132,8 +141,12 @@ async function initDB() {
         name VARCHAR(255) NOT NULL,
         host VARCHAR(255) NOT NULL,
         username VARCHAR(255) NOT NULL,
-        port INTEGER DEFAULT 22
+        port INTEGER DEFAULT 22,
+        use_devil BOOLEAN DEFAULT false,
+        ssh_password TEXT
       );
+      ALTER TABLE servers ADD COLUMN IF NOT EXISTS use_devil BOOLEAN DEFAULT false;
+      ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;
       CREATE TABLE IF NOT EXISTS cli_agents (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
@@ -222,20 +235,42 @@ app.delete('/api/projects/:id', async (req, res) => {
 app.get('/api/servers', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM servers ORDER BY id ASC');
-    res.json(rows);
+    // Nie ujawniaj zaszyfrowanego hasła — zamień na flagę has_password
+    const safe = rows.map(r => ({ ...r, ssh_password: undefined, has_password: !!r.ssh_password }));
+    res.json(safe);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.post('/api/servers', async (req, res) => {
-  const { name, host, username, port } = req.body;
+  const { name, host, username, port, use_devil, ssh_password } = req.body;
   try {
+    const encPass = ssh_password ? encrypt(ssh_password) : null;
     const { rows } = await pool.query(
-      'INSERT INTO servers (name, host, username, port) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, host, username, port || 22]
+      'INSERT INTO servers (name, host, username, port, use_devil, ssh_password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name, host, username, port || 22, use_devil === true, encPass]
     );
-    res.json(rows[0]);
+    // Nie zwracaj zaszyfrowanego hasła do frontendu
+    const row = { ...rows[0], ssh_password: undefined, has_password: !!encPass };
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/servers/:id', async (req, res) => {
+  const { name, host, username, port, use_devil, ssh_password } = req.body;
+  try {
+    const encPass = ssh_password !== undefined ? (ssh_password ? encrypt(ssh_password) : null) : undefined;
+    const fields = ['name=$2','host=$3','username=$4','port=$5','use_devil=$6'];
+    const vals = [req.params.id, name, host, username, port || 22, use_devil === true];
+    if (encPass !== undefined) { fields.push(`ssh_password=$${vals.length + 1}`); vals.push(encPass); }
+    const { rows } = await pool.query(
+      `UPDATE servers SET ${fields.join(',')} WHERE id=$1 RETURNING *`, vals
+    );
+    const row = { ...rows[0], ssh_password: undefined, has_password: !!rows[0].ssh_password };
+    res.json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -691,7 +726,7 @@ app.get('/api/system-stats', async (req, res) => {
         const s = serverRes.rows[0];
         const nodeScript = `const os = require('os'); const totalMem = os.totalmem(); const freeMem = os.freemem(); console.log(JSON.stringify({ cpu: { cores: os.cpus().length, model: os.cpus()[0]?.model, load1: os.loadavg()[0], load5: os.loadavg()[1], load15: os.loadavg()[2] }, memory: { total: totalMem, free: freeMem, used: totalMem - freeMem, usagePercent: ((totalMem - freeMem) / totalMem) * 100 }, os: { platform: os.platform(), release: os.release(), uptime: os.uptime() } }));`;
         
-        const cmd = `ssh -i ~/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes -p ${s.port} ${s.username}@${s.host} "node -e \\"${nodeScript}\\""`;
+        const cmd = sshCmd(s, `"node -e \\"${nodeScript}\\""`);
         
         exec(cmd, (error, stdout) => {
           if (error) {
@@ -740,33 +775,76 @@ app.get('/api/system-stats', async (req, res) => {
   }
 });
 
-// App Scanner API (Find running Node.js apps)
+// App Scanner API (Find running Node.js/web apps)
+// On MyDevil.net (ct8.pl) hosting, Node.js apps run in isolated process jails
+// and are NOT visible via `ps aux`. Use `devil www list` instead.
 app.get('/api/apps-scan', async (req, res) => {
   try {
     const { serverId } = req.query;
-    let cmd = 'ps aux | grep node | grep -v grep';
-    
+
     if (serverId) {
       const serverRes = await pool.query('SELECT * FROM servers WHERE id = $1', [serverId]);
       if (serverRes.rows.length > 0) {
         const s = serverRes.rows[0];
-        cmd = `ssh -i ~/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes -p ${s.port} ${s.username}@${s.host} "${cmd}"`;
+        const sshBase = sshCmd(s);
+
+        if (s.use_devil) {
+          // MyDevil.net hosting — Node.js apps run in process jails, invisible to ps aux
+          // Use `devil www list` to enumerate all web apps
+          exec(`${sshBase} "devil www list 2>/dev/null"`, (err, out) => {
+            const apps = (!err && out)
+              ? out.trim().split('\n')
+                  .filter(line => /nodejs|python|ruby/.test(line))
+                  .map(line => {
+                    const parts = line.trim().split(/\s+/);
+                    return {
+                      user: s.username,
+                      pid: '-', cpu: '-', mem: '-',
+                      command: `${parts[1] || 'nodejs'}: ${parts[0] || ''}`,
+                      domain: parts[0] || '',
+                      type:   parts[1] || 'nodejs',
+                      dir:    parts.slice(2).join(' ') || '',
+                      source: 'devil'
+                    };
+                  })
+              : [];
+            res.json({ apps });
+          });
+        } else {
+          // Standard Linux server — use ps aux
+          exec(`${sshBase} "ps aux | grep node | grep -v grep"`, (err, out) => {
+            const apps = (!err && out)
+              ? out.trim().split('\n').filter(Boolean).map(line => {
+                  const parts = line.split(/\s+/);
+                  return {
+                    user: parts[0], pid: parts[1], cpu: parts[2], mem: parts[3],
+                    command: parts.slice(10).join(' '),
+                    source: 'ps'
+                  };
+                })
+              : [];
+            res.json({ apps });
+          });
+        }
+        return;
       }
     }
 
-    exec(cmd, (error, stdout) => {
+    // Local fallback (no serverId)
+    exec('ps aux | grep node | grep -v grep', (error, stdout) => {
       let apps = [];
       if (!error && stdout) {
-         apps = stdout.trim().split('\n').filter(Boolean).map(line => {
-           const parts = line.split(/\s+/);
-           return {
-             user: parts[0],
-             pid: parts[1],
-             cpu: parts[2],
-             mem: parts[3],
-             command: parts.slice(10).join(' ')
-           };
-         });
+        apps = stdout.trim().split('\n').filter(Boolean).map(line => {
+          const parts = line.split(/\s+/);
+          return {
+            user: parts[0],
+            pid: parts[1],
+            cpu: parts[2],
+            mem: parts[3],
+            command: parts.slice(10).join(' '),
+            source: 'ps'
+          };
+        });
       }
       res.json({ apps });
     });
@@ -839,7 +917,7 @@ app.get('/api/widgets/:id/run', async (req, res) => {
       if (serverRes.rows.length > 0) {
         const s = serverRes.rows[0];
         // Use bash to execute the command correctly remotely, wrapping in quotes
-        const cmd = `ssh -i ~/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes -p ${s.port} ${s.username}@${s.host} "bash -c '${widget.command.replace(/'/g, "'\\''")}'"`;
+        const cmd = sshCmd(s, `"bash -c '${widget.command.replace(/'/g, "'\\''")}'"`);
         exec(cmd, (error, stdout, stderr) => {
           if (error) {
             return res.status(500).json({ error: 'Remote execution failed: ' + (stderr || error.message) });
@@ -918,6 +996,32 @@ app.post('/api/git/github', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+app.post('/api/git/cancel-ci', async (req, res) => {
+  try {
+    const { directory } = req.body;
+    if (!fs.existsSync(path.join(directory, '.git'))) {
+      return res.status(400).json({ error: 'Not a git repository' });
+    }
+    
+    // Find running CI jobs
+    const runsOut = execSync(`gh run list --status in_progress --json databaseId -q ".[].databaseId"`, { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const runIds = runsOut.trim().split('\\n').filter(Boolean);
+    
+    if (runIds.length === 0) {
+      return res.json({ success: true, message: 'No running CI jobs found' });
+    }
+    
+    for (const id of runIds) {
+      execSync(`gh run cancel ${id}`, { cwd: directory });
+    }
+    
+    res.json({ success: true, canceledCount: runIds.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/git/deploy', async (req, res) => {
   try {
     const { directory } = req.body;
@@ -932,7 +1036,12 @@ app.post('/api/git/deploy', async (req, res) => {
       execSync(`git -C "${directory}" commit -m "Auto deploy from dashboard"`);
     }
 
-    // 2. Push to remote
+    // 2. Pull and Push to remote
+    try {
+      execSync(`git -C "${directory}" pull --rebase`);
+    } catch (pullError) {
+      console.warn('Git pull failed, pushing anyway (might be a new branch):', pullError.message);
+    }
     execSync(`git -C "${directory}" push`);
 
     let deployLog = "Pushed successfully.\\n";

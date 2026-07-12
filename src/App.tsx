@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed 
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, Pencil, X
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -11,6 +11,7 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
 import CustomWidgets from './CustomWidgets';
+import { AgentsView } from './AgentsView';
 
 import { apiFetch } from './api';
 
@@ -18,9 +19,11 @@ function App() {
   const [activeView, setActiveView] = useState<'dashboard' | 'agents'>('dashboard');
   const [projects, setProjects] = useState<any[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
+  const token = localStorage.getItem('token') || '';
   const [servers, setServers] = useState<any[]>([]);
   const [showAddServer, setShowAddServer] = useState(false);
-  const [newServer, setNewServer] = useState({ name: '', host: '', username: '', port: 22 });
+  const [newServer, setNewServer] = useState({ name: '', host: '', username: '', port: 22, use_devil: false, ssh_password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [remotePrompt, setRemotePrompt] = useState('');
   const [isWorkspacesExpanded, setIsWorkspacesExpanded] = useState(true);
   const [isRemoteExpanded, setIsRemoteExpanded] = useState(true);
@@ -285,7 +288,8 @@ function App() {
       const data = await res.json();
       setServers([...servers, data]);
       setShowAddServer(false);
-      setNewServer({ name: '', host: '', username: '', port: 22 });
+      setNewServer({ name: '', host: '', username: '', port: 22, use_devil: false, ssh_password: '' });
+      setShowPassword(false);
     } catch (e) { console.error(e); }
   };
   
@@ -295,6 +299,31 @@ function App() {
       await apiFetch(`http://localhost:3001/api/servers/${id}`, { method: 'DELETE' });
       setServers(servers.filter(s => s.id !== id));
       if (activeProjectId === `server-${id}`) setActiveProjectId(null);
+    } catch (e) { console.error(e); }
+  };
+
+  const [editServer, setEditServer] = useState<any>(null);
+  const [editServerPwd, setEditServerPwd] = useState('');
+  const [editShowPwd, setEditShowPwd] = useState(false);
+
+  const handleUpdateServer = async () => {
+    if (!editServer) return;
+    try {
+      const body: any = {
+        name: editServer.name, host: editServer.host,
+        username: editServer.username, port: editServer.port,
+        use_devil: editServer.use_devil,
+      };
+      if (editServerPwd !== '') body.ssh_password = editServerPwd;
+      const res = await apiFetch(`http://localhost:3001/api/servers/${editServer.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      setServers(servers.map(s => s.id === data.id ? data : s));
+      setEditServer(null);
+      setEditServerPwd('');
     } catch (e) { console.error(e); }
   };
 
@@ -327,7 +356,25 @@ function App() {
   return (
     <div className="layout">
       {/* Sidebar */}
-            <aside className="sidebar">
+      <aside className="sidebar">
+        {/* Navigation Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
+          <div 
+            className={`project-item ${activeView === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveView('dashboard')}
+          >
+            <LayoutDashboard size={18} />
+            <span>Dashboard</span>
+          </div>
+          <div 
+            className={`project-item ${activeView === 'agents' ? 'active' : ''}`}
+            onClick={() => setActiveView('agents')}
+          >
+            <Bot size={18} />
+            <span>Agenci AI</span>
+          </div>
+        </div>
+
         {/* Workspaces Section */}
         <div 
           className="sidebar-title" 
@@ -386,12 +433,22 @@ function App() {
                   <Activity size={18} />
                   <span>{server.name}</span>
                 </div>
-                <button 
-                  onClick={(e) => deleteServer(server.id, e)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditServer({...server}); setEditServerPwd(''); setEditShowPwd(false); }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}
+                    title="Edytuj serwer"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={(e) => deleteServer(server.id, e)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}
+                    title="Usuń serwer"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
             ))}
             <button className="btn-add-project" onClick={() => setShowAddServer(true)}>
@@ -430,7 +487,9 @@ function App() {
 
       {/* Main Area */}
       <div className="dashboard-container">
-        {activeServer ? (
+        {activeView === 'agents' ? (
+          <AgentsView />
+        ) : activeServer ? (
           <div style={{ height: '100%', overflowY: 'auto' }}>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
@@ -510,15 +569,16 @@ function App() {
                     {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
                   </button>
                 </div>
-                
-                {terminalConfig && (
-                  <TerminalView
-                    config={terminalConfig}
-                    onClose={() => setTerminalConfig(null)}
-                  />
-                )}
               </div>
             </div>
+            {terminalConfig && (
+              <div style={{ marginBottom: '2rem' }}>
+                <TerminalView
+                  config={terminalConfig}
+                  onClose={() => setTerminalConfig(null)}
+                />
+              </div>
+            )}
           </div>
         ) : activeProject ? (
           <>
@@ -557,14 +617,17 @@ function App() {
                     Use Browser Terminal
                   </label>
                 </div>
-                {terminalConfig && (
-                  <TerminalView
-                    config={terminalConfig}
-                    onClose={() => setTerminalConfig(null)}
-                  />
-                )}
               </div>
             </header>
+
+            {terminalConfig && (
+              <div style={{ marginBottom: '2rem' }}>
+                <TerminalView
+                  config={terminalConfig}
+                  onClose={() => setTerminalConfig(null)}
+                />
+              </div>
+            )}
 
             <main>
               <AnalyticsPanel />
@@ -617,7 +680,7 @@ function App() {
                 </div>
               </div>
 
-              <RepoStatus directory={activeProject.path} />
+              <RepoStatus directory={activeProject.path} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
               <section className="glass-card animate-in delay-3">
                 <div className="tasks-header" onClick={() => setShowTasks(!showTasks)}>
@@ -802,6 +865,44 @@ function App() {
                     placeholder="22"
                     style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
                   />
+                </div>
+              </div>
+              {/* MyDevil toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                <input
+                  id="use_devil_toggle"
+                  type="checkbox"
+                  checked={newServer.use_devil}
+                  onChange={e => setNewServer({...newServer, use_devil: e.target.checked})}
+                  style={{ width: '1rem', height: '1rem', accentColor: '#34d399', cursor: 'pointer' }}
+                />
+                <label htmlFor="use_devil_toggle" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                  <span style={{ color: 'white', fontSize: '0.875rem', fontWeight: 500 }}>MyDevil.net hosting (devil CLI)</span>
+                  <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>Używa <code style={{ color: '#34d399' }}>devil www list</code> zamiast <code style={{ color: '#9ca3af' }}>ps aux</code></span>
+                </label>
+              </div>
+              {/* Hasło SSH */}
+              <div>
+                <label className="info-label">
+                  Hasło SSH&nbsp;<span style={{ color: '#6b7280', fontWeight: 400, fontSize: '0.75rem' }}>(opcjonalne — zamiast klucza)</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newServer.ssh_password}
+                    onChange={e => setNewServer({...newServer, ssh_password: e.target.value})}
+                    className="config-input"
+                    placeholder="Zostaw puste jeśli używasz klucza SSH"
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem 2.75rem 0.5rem 0.5rem', color: 'white', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(p => !p)}
+                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '0.2rem 0.3rem', lineHeight: 1 }}
+                    title={showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>

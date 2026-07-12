@@ -128,123 +128,184 @@ export function AgentsView() {
       </div>
 
       {isAdding && (
-        <div className="bg-slate-800 border border-slate-600 p-6 rounded-xl mb-8">
-          <h3 className="text-xl text-white mb-4">Dodaj ręcznie Agenta</h3>
-          <form onSubmit={handleAddAgent} className="grid grid-cols-2 gap-4">
-            <input required placeholder="Nazwa (np. Mój Agent)" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input placeholder="Opis" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input required placeholder="Ścieżka binarnego" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input placeholder="Config URI" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input placeholder="LLM Model (gpt-4o)" value={newAgent.llm_model} onChange={e => setNewAgent({...newAgent, llm_model: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <div className="flex gap-2">
-              <input type="number" step="0.1" placeholder="Temp" value={newAgent.temperature} onChange={e => setNewAgent({...newAgent, temperature: parseFloat(e.target.value)})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white w-1/2" />
-              <input type="number" placeholder="Tokens" value={newAgent.max_tokens} onChange={e => setNewAgent({...newAgent, max_tokens: parseInt(e.target.value)})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white w-1/2" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-2xl w-full">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Bot className="w-6 h-6 text-blue-400" />
+                Dodaj Agenta
+              </h3>
+              <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
             </div>
-            <div className="col-span-2 flex justify-end mt-2">
-              <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Zapisz</button>
-            </div>
-          </form>
+            <form onSubmit={handleAddAgent} className="grid grid-cols-2 gap-5">
+              <div className="space-y-1">
+                <label className="text-sm text-gray-400 ml-1">Nazwa Agenta</label>
+                <input required placeholder="np. Code Reviewer" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-400 ml-1">Opis (opcjonalnie)</label>
+                <input placeholder="np. Sprawdza PR-y" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition" />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <label className="text-sm text-gray-400 ml-1">Ścieżka pliku binarnego</label>
+                <input required placeholder="np. /usr/local/bin/agent" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition font-mono text-sm" />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <label className="text-sm text-gray-400 ml-1">Config URI</label>
+                <input placeholder="np. /home/user/.agent.json" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition font-mono text-sm" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-400 ml-1">Model LLM</label>
+                <input placeholder="np. gpt-4o" value={newAgent.llm_model} onChange={e => setNewAgent({...newAgent, llm_model: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition" />
+              </div>
+              <div className="flex gap-4">
+                <div className="space-y-1 w-1/2">
+                  <label className="text-sm text-gray-400 ml-1">Temperature</label>
+                  <input type="number" step="0.1" placeholder="0.7" value={newAgent.temperature} onChange={e => setNewAgent({...newAgent, temperature: parseFloat(e.target.value)})} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition" />
+                </div>
+                <div className="space-y-1 w-1/2">
+                  <label className="text-sm text-gray-400 ml-1">Max Tokens</label>
+                  <input type="number" placeholder="4096" value={newAgent.max_tokens} onChange={e => setNewAgent({...newAgent, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition" />
+                </div>
+              </div>
+              <div className="col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-slate-800">
+                <button type="button" onClick={() => setIsAdding(false)} className="px-5 py-2.5 rounded-xl text-gray-300 hover:bg-slate-800 transition font-medium">Anuluj</button>
+                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl transition font-medium shadow-lg shadow-blue-500/20">Dodaj Agenta</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm">
-        <table className="w-full text-left">
-          <thead className="bg-slate-900/50 text-gray-400 text-sm">
-            <tr>
-              <th className="px-6 py-4 font-medium">Nazwa Agenta</th>
-              <th className="px-6 py-4 font-medium">Ścieżka (Binary)</th>
-              <th className="px-6 py-4 font-medium">Status</th>
-              <th className="px-6 py-4 font-medium">Config & LLM</th>
-              <th className="px-6 py-4 font-medium text-right">Akcje</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700">
-            {agents.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                  Brak zainstalowanych agentów. Kliknij "Skanuj system", aby wyszukać.
-                </td>
-              </tr>
-            ) : (
-              agents.map(agent => (
-                <tr key={agent.id} className="hover:bg-slate-800/30 transition">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-white">{agent.name}</div>
-                    <div className="text-sm text-gray-500">{agent.description}</div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-400 font-mono">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {agents.length === 0 ? (
+          <div className="col-span-full p-12 text-center text-gray-500 bg-slate-800/30 border border-slate-700/50 rounded-2xl">
+            <Bot className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+            <p className="text-lg">Brak zainstalowanych agentów.</p>
+            <p className="text-sm mt-1">Kliknij "Skanuj system", aby wyszukać automatycznie lub dodaj agenta ręcznie.</p>
+          </div>
+        ) : (
+          agents.map(agent => (
+            <div key={agent.id} className="bg-slate-800/40 border border-slate-700/80 rounded-2xl p-6 backdrop-blur-sm hover:bg-slate-800/60 transition duration-300 shadow-xl shadow-black/20 flex flex-col h-full">
+              
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-400 mt-1">
+                    <Bot className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      {agent.name}
+                      {agent.installed ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Missing
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-slate-400 mt-1">{agent.description || 'Brak opisu'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  {editingId === agent.id ? (
+                    <button 
+                      onClick={() => handleSaveConfig(agent.id)}
+                      className="text-emerald-400 hover:text-emerald-300 p-2 bg-emerald-400/10 hover:bg-emerald-400/20 rounded-lg transition"
+                      title="Zapisz"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        setEditingId(agent.id);
+                        setEditConfig({
+                          config_uri: agent.config_uri || '',
+                          llm_model: agent.llm_model || 'gpt-4o',
+                          temperature: agent.temperature ?? 0.7,
+                          max_tokens: agent.max_tokens ?? 4096
+                        });
+                      }}
+                      className="text-blue-400 hover:text-blue-300 p-2 bg-blue-400/10 hover:bg-blue-400/20 rounded-lg transition"
+                      title="Edytuj"
+                    >
+                      <Save className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleDeleteAgent(agent.id)}
+                    className="text-rose-400 hover:text-rose-300 p-2 bg-rose-400/10 hover:bg-rose-400/20 rounded-lg transition"
+                    title="Usuń"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-2 space-y-4 flex-grow">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Ścieżka binarna</div>
+                  <div className="bg-slate-900/80 px-3 py-2 rounded-lg border border-slate-800 text-xs text-slate-300 font-mono overflow-x-auto">
                     {agent.path}
-                  </td>
-                  <td className="px-6 py-4">
-                    {agent.installed ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                        Zainstalowany
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-                        Brak
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    {editingId === agent.id ? (
-                      <div className="flex flex-col gap-2">
-                        <input type="text" value={editConfig.config_uri} onChange={(e) => setEditConfig({...editConfig, config_uri: e.target.value})} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Config URI" />
-                        <input type="text" value={editConfig.llm_model} onChange={(e) => setEditConfig({...editConfig, llm_model: e.target.value})} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Model (gpt-4o)" />
-                        <div className="flex gap-2">
-                          <input type="number" step="0.1" value={editConfig.temperature} onChange={(e) => setEditConfig({...editConfig, temperature: parseFloat(e.target.value)})} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white w-20 focus:outline-none" placeholder="Temp" />
-                          <input type="number" value={editConfig.max_tokens} onChange={(e) => setEditConfig({...editConfig, max_tokens: parseInt(e.target.value)})} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white w-24 focus:outline-none" placeholder="Tokens" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-3">Konfiguracja</div>
+                  
+                  {editingId === agent.id ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-slate-400 block mb-1">Config URI</label>
+                        <input type="text" value={editConfig.config_uri} onChange={(e) => setEditConfig({...editConfig, config_uri: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition" placeholder="np. ~/.agent.json" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-400 block mb-1">LLM Model</label>
+                        <input type="text" value={editConfig.llm_model} onChange={(e) => setEditConfig({...editConfig, llm_model: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition" placeholder="gpt-4o" />
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs text-slate-400 block mb-1">Temp</label>
+                          <input type="number" step="0.1" value={editConfig.temperature} onChange={(e) => setEditConfig({...editConfig, temperature: parseFloat(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition" />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs text-slate-400 block mb-1">Tokens</label>
+                          <input type="number" value={editConfig.max_tokens} onChange={(e) => setEditConfig({...editConfig, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition" />
                         </div>
                       </div>
-                    ) : (
-                      <div className="text-sm text-gray-400 font-mono space-y-1">
-                        <div>URI: {agent.config_uri || <span className="text-gray-600 italic">Brak</span>}</div>
-                        <div>Model: <span className="text-blue-300">{agent.llm_model || 'gpt-4o'}</span></div>
-                        <div>Temp: {agent.temperature ?? 0.7} | Tokens: {agent.max_tokens ?? 4096}</div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-[10px] uppercase text-slate-500 mb-0.5">Model</div>
+                        <div className="text-sm font-medium text-blue-300">{agent.llm_model || 'gpt-4o'}</div>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    {editingId === agent.id ? (
-                      <button 
-                        onClick={() => handleSaveConfig(agent.id)}
-                        className="text-green-400 hover:text-green-300 p-1.5 bg-green-400/10 hover:bg-green-400/20 rounded transition"
-                        title="Zapisz"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => {
-                          setEditingId(agent.id);
-                          setEditConfig({
-                            config_uri: agent.config_uri || '',
-                            llm_model: agent.llm_model || 'gpt-4o',
-                            temperature: agent.temperature ?? 0.7,
-                            max_tokens: agent.max_tokens ?? 4096
-                          });
-                        }}
-                        className="text-blue-400 hover:text-blue-300 p-1.5 bg-blue-400/10 hover:bg-blue-400/20 rounded transition"
-                        title="Edytuj konfigurację"
-                      >
-                        <Save className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => handleDeleteAgent(agent.id)}
-                      className="text-red-400 hover:text-red-300 p-1.5 bg-red-400/10 hover:bg-red-400/20 rounded transition"
-                      title="Usuń agenta"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                      <div>
+                        <div className="text-[10px] uppercase text-slate-500 mb-0.5">URI</div>
+                        <div className="text-sm text-slate-300 font-mono truncate" title={agent.config_uri}>{agent.config_uri || <span className="text-slate-600 italic">Brak</span>}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase text-slate-500 mb-0.5">Temp</div>
+                        <div className="text-sm text-slate-300">{agent.temperature ?? 0.7}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase text-slate-500 mb-0.5">Tokens</div>
+                        <div className="text-sm text-slate-300">{agent.max_tokens ?? 4096}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
