@@ -62,19 +62,19 @@ Before beginning the implementation, we will perform the following Git operation
 3. Checkout a new branch for these new features (e.g., `feature/agents-stats`).
 ## Tasks
 - [x] Update App.tsx with AgentsView navigation
-- [ ] Implement System Stats API in server.js
-- [ ] Render System Stats in App.tsx remote view
-- [ ] Store LLM config in DB
-- [ ] Create config UI in AgentsView
-- [ ] Implement full user authentication (login view, sessions, passwords) /skill auth-implementation-patterns
+- [x] Implement System Stats API in server.js
+- [x] Render System Stats in App.tsx remote view
+- [x] Store LLM config in DB
+- [x] Create config UI in AgentsView
+- [x] Implement full user authentication (login view, sessions, passwords) /skill auth-implementation-patterns
 - [ ] Deploy dashboard to a remote server
 - [ ] Integrate Git repositories directly into the dashboard
 - [ ] Implement remote coding capabilities (containers / GitHub workspaces)
-- [ ] Generate Dashboard-specific SSH keys for Agent remote access and store in DB
+- [x] Generate Dashboard-specific SSH keys for Agent remote access and store in DB
   - **Workflow dla zdalnego agenta w razie błędu braku klucza (BatchMode=yes fails):**
     1. Wykrycie błędu autoryzacji z serwerem.
     2. Propozycja pracy na kodzie lokalnym (np. repo z gita).
     3. Po wyrażeniu zgody: wygenerowanie nowego klucza lokalnie dla Agenta (`ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_antigravity -N ""`).
     4. Wygenerowanie i przekazanie użytkownikowi komendy `ssh-copy-id` do przeklejenia w jego interaktywnym terminalu (ponieważ Agent nie obsłuży promptu o hasło).
     5. Po potwierdzeniu `ssh-copy-id` przez usera – powrót do automatycznego połączenia (`-i ~/.ssh/id_ed25519_antigravity`).
-- [ ] Poprawić logikę dodawania/parsowania zadań w plikach md (obsługa błędnych znaków nowej linii)
+- [x] Poprawić logikę dodawania/parsowania zadań w plikach md (obsługa błędnych znaków nowej linii)
