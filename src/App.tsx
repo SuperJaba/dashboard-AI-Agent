@@ -5,23 +5,22 @@ import {
   Trash2, PlusCircle, LayoutDashboard, CircleDashed 
 } from 'lucide-react';
 import './index.css';
-import { TerminalModal } from './TerminalModal';
+import { TerminalView } from './TerminalView';
 import { AnalyticsPanel } from './AnalyticsPanel';
+import { AgentsView } from './AgentsView';
 
-const API_TOKEN = 'dashboard-secret-token';
-const apiFetch = (url: string, options: any = {}) => {
-  return fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Authorization': `Bearer ${API_TOKEN}`
-    }
-  });
-};
+import { apiFetch } from './api';
 
 function App() {
+  const [activeView, setActiveView] = useState<'dashboard' | 'agents'>('dashboard');
   const [projects, setProjects] = useState<any[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
+  const [servers, setServers] = useState<any[]>([]);
+  const [showAddServer, setShowAddServer] = useState(false);
+  const [newServer, setNewServer] = useState({ name: '', host: '', username: '', port: 22 });
+  const [remotePrompt, setRemotePrompt] = useState('');
+  const [isWorkspacesExpanded, setIsWorkspacesExpanded] = useState(true);
+  const [isRemoteExpanded, setIsRemoteExpanded] = useState(true);
   const [showTasks, setShowTasks] = useState(false);
   const [useBrowserTerminal, setUseBrowserTerminal] = useState(false);
   const [terminalConfig, setTerminalConfig] = useState<any>(null);
@@ -40,6 +39,13 @@ function App() {
           setProjects(data);
           setActiveProjectId(data[0].id);
         }
+      })
+      .catch(console.error);
+
+    apiFetch('http://localhost:3001/api/servers')
+      .then(res => res.json())
+      .then(data => {
+        if (data.length) setServers(data);
       })
       .catch(console.error);
 
@@ -64,7 +70,10 @@ function App() {
     setSelectedTaskIds([]);
   }, [activeProjectId]);
 
-  const activeProject = projects.find(p => p.id === activeProjectId) || null;
+  const activeProject = typeof activeProjectId === 'number' ? projects.find(p => p.id === activeProjectId) || null : null;
+  const activeServer = typeof activeProjectId === 'string' && activeProjectId.startsWith('server-') 
+    ? servers.find(s => s.id === parseInt(activeProjectId.replace('server-', ''))) || null
+    : null;
 
   const saveSettings = async () => {
     try {
@@ -122,6 +131,39 @@ function App() {
     setDeploying(null);
   };
 
+
+  const deployRemoteAgent = async (agent: string, server: any) => {
+    setDeploying(agent);
+    try {
+      const sshCmd = `ssh -p ${server.port} ${server.username}@${server.host}`;
+      const res = await apiFetch('http://localhost:3001/api/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          agent, 
+          directory: '', 
+          llmUrl: customLlmUrl, 
+          apiKey: customApiKey,
+          sshCmd,
+          remotePrompt,
+          useBrowserTerminal
+        })
+      });
+      const data = await res.json();
+      if (data.browserTerminal) {
+        setTerminalConfig({
+          command: data.command,
+          args: data.args,
+          cwd: data.cwd,
+          env: data.env
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setDeploying(null);
+  };
+
   const analyzeProject = async () => {
     if (!activeProject) return;
     try {
@@ -150,7 +192,7 @@ function App() {
           body: JSON.stringify({ tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null })
         });
         
-        setProjects(projects.map(p => 
+        setProjects(prevProjects => prevProjects.map(p => 
           p.id === activeProject.id 
             ? { ...p, tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null }
             : p
@@ -187,7 +229,7 @@ function App() {
   const deleteTask = async (taskId: number) => {
     if (!activeProject) return;
     const mergedTasks = (activeProject.tasks || []).filter((t: any) => t.id !== taskId);
-    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter((t: any) => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
     
     await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
       method: 'PUT',
@@ -225,6 +267,30 @@ function App() {
     }
   };
 
+
+  const handleAddServer = async () => {
+    try {
+      const res = await apiFetch('http://localhost:3001/api/servers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newServer)
+      });
+      const data = await res.json();
+      setServers([...servers, data]);
+      setShowAddServer(false);
+      setNewServer({ name: '', host: '', username: '', port: 22 });
+    } catch (e) { console.error(e); }
+  };
+  
+  const deleteServer = async (id: number, e: any) => {
+    e.stopPropagation();
+    try {
+      await apiFetch(`http://localhost:3001/api/servers/${id}`, { method: 'DELETE' });
+      setServers(servers.filter(s => s.id !== id));
+      if (activeProjectId === `server-${id}`) setActiveProjectId(null);
+    } catch (e) { console.error(e); }
+  };
+
   const handleAddProject = async () => {
     try {
       const res = await apiFetch('http://localhost:3001/api/pick-folder');
@@ -254,29 +320,79 @@ function App() {
   return (
     <div className="layout">
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-title">
-          <LayoutDashboard size={24} />
-          Workspaces
+            <aside className="sidebar">
+        {/* Workspaces Section */}
+        <div 
+          className="sidebar-title" 
+          onClick={() => setIsWorkspacesExpanded(!isWorkspacesExpanded)}
+          style={{ cursor: 'pointer', userSelect: 'none' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <LayoutDashboard size={20} />
+            Workspaces
+          </div>
+          {isWorkspacesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
         
-        <div className="projects-list">
-          {projects.map(proj => (
-            <div 
-              key={proj.id} 
-              className={`project-item ${activeProjectId === proj.id ? 'active' : ''}`}
-              onClick={() => setActiveProjectId(proj.id)}
-            >
-              <Folder size={18} />
-              <span>{proj.name}</span>
-            </div>
-          ))}
-          
-          <button className="btn-add-project" onClick={handleAddProject}>
-            <Plus size={18} />
-            Add Project
-          </button>
+        {isWorkspacesExpanded && (
+          <div className="projects-list">
+            {projects.map(proj => (
+              <div 
+                key={proj.id} 
+                className={`project-item ${activeProjectId === proj.id ? 'active' : ''}`}
+                onClick={() => setActiveProjectId(proj.id)}
+              >
+                <Folder size={18} />
+                <span>{proj.name}</span>
+              </div>
+            ))}
+            <button className="btn-add-project" onClick={handleAddProject}>
+              <Plus size={18} />
+              Add Project
+            </button>
+          </div>
+        )}
+
+        {/* Remote Servers Section */}
+        <div 
+          className="sidebar-title" 
+          onClick={() => setIsRemoteExpanded(!isRemoteExpanded)}
+          style={{ cursor: 'pointer', userSelect: 'none', marginTop: '1rem' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <TerminalSquare size={20} />
+            Remote
+          </div>
+          {isRemoteExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
+        
+        {isRemoteExpanded && (
+          <div className="projects-list">
+            {servers.map(server => (
+              <div 
+                key={server.id} 
+                className={`project-item ${activeProjectId === `server-${server.id}` ? 'active' : ''}`}
+                onClick={() => setActiveProjectId(`server-${server.id}`)}
+                style={{ justifyContent: 'space-between' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Activity size={18} />
+                  <span>{server.name}</span>
+                </div>
+                <button 
+                  onClick={(e) => deleteServer(server.id, e)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            <button className="btn-add-project" onClick={() => setShowAddServer(true)}>
+              <Plus size={18} />
+              Add Server
+            </button>
+          </div>
+        )}
 
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <span className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0' }}>Custom LLM (LM Studio)</span>
@@ -307,7 +423,93 @@ function App() {
 
       {/* Main Area */}
       <div className="dashboard-container">
-        {activeProject ? (
+        {activeServer ? (
+          <div style={{ height: '100%', overflowY: 'auto' }}>
+            <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
+              <div>
+                <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <TerminalSquare size={28} color="var(--primary)" />
+                  {activeServer.name}
+                </h1>
+                <p style={{ color: 'var(--text-muted)' }}>{activeServer.username}@{activeServer.host}:{activeServer.port}</p>
+              </div>
+            </header>
+            
+            <div className="grid-top" style={{ marginBottom: '2rem' }}>
+              <div className="glass-card animate-in delay-2" style={{ gridColumn: '1 / -1' }}>
+                <span className="info-label" style={{ marginBottom: '1rem', display: 'block' }}>Agent Operations</span>
+                
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                  <button 
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    onClick={() => setRemotePrompt('Skopiuj wybrane pliki i foldery do określonej ścieżki na tym serwerze.')}
+                  >
+                    📂 Copy Files
+                  </button>
+                  <button 
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    onClick={() => setRemotePrompt('Uruchom skrypt aktualizacji na tym serwerze i zaraportuj wyniki.')}
+                  >
+                    ⚡ Run Script
+                  </button>
+                  <button 
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    onClick={() => setRemotePrompt('Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.')}
+                  >
+                    📋 Analyze Logs
+                  </button>
+                  <button 
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236,72,153,0.2)' }}
+                    onClick={() => setRemotePrompt('Użyj skilla grafana-dashboards, aby przygotować pliki konfiguracyjne. Następnie połącz się przez SSH z tym serwerem, zainstaluj Dockera (jeśli nie ma) i uruchom stos Prometheus + Grafana za pomocą docker-compose z wygenerowanymi dashboardami na porcie 3000.')}
+                  >
+                    🔥 Deploy Grafana Stack
+                  </button>
+                </div>
+
+                <textarea 
+                  value={remotePrompt}
+                  onChange={e => setRemotePrompt(e.target.value)}
+                  placeholder="e.g., Check PHP logs for errors, update packages, or install Grafana..."
+                  style={{ 
+                    width: '100%', minHeight: '100px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', 
+                    borderRadius: '6px', padding: '0.75rem', color: 'var(--text-main)', marginBottom: '1rem', resize: 'vertical'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => deployRemoteAgent('claude', activeServer)}
+                    disabled={deploying !== null || !remotePrompt.trim()}
+                    style={{ opacity: (deploying === 'claude' || !remotePrompt.trim()) ? 0.7 : 1 }}
+                  >
+                    <Rocket size={18} />
+                    {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
+                  </button>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => deployRemoteAgent('agy', activeServer)}
+                    disabled={deploying !== null || !remotePrompt.trim()}
+                    style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: (deploying === 'agy' || !remotePrompt.trim()) ? 0.7 : 1 }}
+                  >
+                    <Rocket size={18} />
+                    {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
+                  </button>
+                </div>
+                
+                {terminalConfig && (
+                  <TerminalView
+                    config={terminalConfig}
+                    onClose={() => setTerminalConfig(null)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        ) : activeProject ? (
           <>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
@@ -334,16 +536,22 @@ function App() {
                     <Rocket size={20} />
                     {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
                   </button>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={useBrowserTerminal}
+                      onChange={(e) => handleTerminalToggle(e.target.checked)}
+                      style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
+                    />
+                    Use Browser Terminal
+                  </label>
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={useBrowserTerminal}
-                    onChange={(e) => handleTerminalToggle(e.target.checked)}
-                    style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
+                {terminalConfig && (
+                  <TerminalView
+                    config={terminalConfig}
+                    onClose={() => setTerminalConfig(null)}
                   />
-                  Use Browser Terminal
-                </label>
+                )}
               </div>
             </header>
 
@@ -369,8 +577,13 @@ function App() {
                       {activeProject.tech}
                     </div>
                   </div>
-                  <button className="btn-add-project" style={{ marginTop: '1rem', width: 'fit-content', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} onClick={analyzeProject}>
-                    Analyze Workspace
+                  <button 
+                    className="btn-add-project" 
+                    style={{ marginTop: '1rem', width: 'fit-content', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                    onClick={analyzeProject}
+                    disabled={deploying === 'analyze'}
+                  >
+                    {deploying === 'analyze' ? 'Analyzing...' : 'Analyze Workspace'}
                   </button>
                 </div>
 
@@ -527,11 +740,66 @@ function App() {
         )}
       </div>
 
-      <TerminalModal 
-        isOpen={!!terminalConfig} 
-        onClose={() => setTerminalConfig(null)} 
-        config={terminalConfig} 
-      />
+      {showAddServer && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div className="glass-card" style={{ width: '400px', maxWidth: '90vw' }}>
+            <h2 style={{ marginBottom: '1.5rem' }}>Add Remote Server</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label className="info-label">Name</label>
+                <input 
+                  type="text" 
+                  value={newServer.name}
+                  onChange={e => setNewServer({...newServer, name: e.target.value})}
+                  className="config-input" 
+                  placeholder="Production Server"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                />
+              </div>
+              <div>
+                <label className="info-label">Host (IP or Domain)</label>
+                <input 
+                  type="text" 
+                  value={newServer.host}
+                  onChange={e => setNewServer({...newServer, host: e.target.value})}
+                  className="config-input" 
+                  placeholder="192.168.1.100"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: '1rem' }}>
+                <div>
+                  <label className="info-label">Username</label>
+                  <input 
+                    type="text" 
+                    value={newServer.username}
+                    onChange={e => setNewServer({...newServer, username: e.target.value})}
+                    className="config-input" 
+                    placeholder="root"
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                  />
+                </div>
+                <div>
+                  <label className="info-label">Port</label>
+                  <input 
+                    type="number" 
+                    value={newServer.port}
+                    onChange={e => setNewServer({...newServer, port: parseInt(e.target.value)})}
+                    className="config-input" 
+                    placeholder="22"
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button className="btn-secondary" style={{ flex: 1, padding: '0.5rem' }} onClick={() => setShowAddServer(false)}>Cancel</button>
+                <button className="btn-primary" style={{ flex: 1, padding: '0.5rem' }} onClick={handleAddServer}>Add Server</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

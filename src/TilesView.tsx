@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import {
   Folder, Star, Zap, Clock,
   ArrowUpRight, Play, CheckCircle2,
-  Settings, Layers, X, ChevronRight
+  Settings, Layers, ChevronRight, Search
 } from 'lucide-react';
 import './index.css';
-import { apiFetch } from './App';
+import { apiFetch } from './api';
 
 interface ProjectData {
   id: number;
@@ -113,7 +113,7 @@ interface DashboardTilesProps {
   onProjectClick: (projectId: number) => void;
 }
 
-export function DashboardTiles({ projects, activeProjectId, onProjectClick }: DashboardTilesProps) {
+export function DashboardTiles({ projects, onProjectClick }: DashboardTilesProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTiles, setSelectedTiles] = useState<number[]>([]);
 

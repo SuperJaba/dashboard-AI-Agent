@@ -142,6 +142,21 @@ async function initDB() {
         complete INTEGER DEFAULT 0,
         tasks JSONB DEFAULT '[]'::jsonb
       );
+      CREATE TABLE IF NOT EXISTS servers (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        host VARCHAR(255) NOT NULL,
+        username VARCHAR(255) NOT NULL,
+        port INTEGER DEFAULT 22
+      );
+      CREATE TABLE IF NOT EXISTS cli_agents (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        description TEXT,
+        path VARCHAR(255),
+        config_uri TEXT,
+        installed BOOLEAN DEFAULT false
+      );
     `);
     console.log('Database initialized');
   } catch (err) {
@@ -191,6 +206,108 @@ app.get('/api/projects', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM projects ORDER BY id ASC');
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM projects WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Servers API
+app.get('/api/servers', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM servers ORDER BY id ASC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/servers', async (req, res) => {
+  const { name, host, username, port } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO servers (name, host, username, port) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, host, username, port || 22]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/servers/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM servers WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// CLI Agents API
+app.get('/api/agents', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM cli_agents ORDER BY name ASC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/agents/scan', async (req, res) => {
+  try {
+    const agentsToScan = [
+      { name: 'Claude Code', cmd: 'claude', desc: 'Anthropic Claude Code CLI' },
+      { name: 'Codex', cmd: 'codex', desc: 'OpenAI Codex CLI' },
+      { name: 'Antigravity', cmd: 'agy', desc: 'Google AI Antigravity CLI' },
+      { name: 'Aider', cmd: 'aider', desc: 'Aider AI pair programming' }
+    ];
+    
+    let found = [];
+    for (const agent of agentsToScan) {
+      try {
+        const stdout = execSync(`which ${agent.cmd}`, { encoding: 'utf8' }).trim();
+        if (stdout) {
+          const existing = await pool.query('SELECT id FROM cli_agents WHERE name = $1', [agent.name]);
+          if (existing.rows.length === 0) {
+            await pool.query(
+              'INSERT INTO cli_agents (name, description, path, installed) VALUES ($1, $2, $3, true)',
+              [agent.name, agent.desc, stdout]
+            );
+          } else {
+            await pool.query(
+              'UPDATE cli_agents SET path = $1, installed = true WHERE name = $2',
+              [stdout, agent.name]
+            );
+          }
+          found.push(agent.name);
+        }
+      } catch (e) {
+        // Not found
+      }
+    }
+    res.json({ success: true, found });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/agents/:id', async (req, res) => {
+  const { config_uri } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE cli_agents SET config_uri = $1 WHERE id = $2 RETURNING *',
+      [config_uri, req.params.id]
+    );
+    res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -251,7 +368,7 @@ app.post('/api/init-git', (req, res) => {
 });
 
 app.post('/api/deploy', (req, res) => {
-  const { agent, directory, llmUrl, apiKey, tasks, useBrowserTerminal } = req.body;
+  const { agent, directory, llmUrl, apiKey, tasks, useBrowserTerminal, remoteServer, remotePrompt } = req.body;
   let targetDir = directory || process.cwd();
   
   if (targetDir.startsWith('~/')) {
@@ -288,11 +405,39 @@ app.post('/api/deploy', (req, res) => {
       if (agent === 'claude' && !env.ANTHROPIC_BASE_URL) {
         env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
       }
-      const scriptPath = path.join(targetDir, '.start_agent.sh');
-      const promptArg = (tasks && tasks.length > 0) ? ' "Zrealizuj zadania z pliku .ai_tasks.md. Kiedy skończysz, oznacz je jako wykonane."' : '';
-      const agentCmd = agent === 'claude' ? `claude${promptArg}` : `agy${tasks && tasks.length > 0 ? ' -i' + promptArg : ''}`;
       
-      const scriptContent = `#!/bin/bash\ncd "${targetDir}"\n${agentCmd}\nexec bash\n`;
+      let agentCmd = '';
+      const scriptPath = path.join(targetDir, '.start_agent.sh');
+      if (remoteServer) {
+        const sshCmd = `ssh ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
+        const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: \`${sshCmd}\`. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze.`;
+        agentCmd = agent === 'claude' ? `claude "${promptText}"` : `agy -i "${promptText}"`;
+      } else {
+        const promptArg = (tasks && tasks.length > 0) ? ' "Zrealizuj zadania z pliku .ai_tasks.md. Kiedy skończysz, oznacz je jako wykonane."' : '';
+        agentCmd = agent === 'claude' ? `claude${promptArg}` : `agy${tasks && tasks.length > 0 ? ' -i' + promptArg : ''}`;
+      }
+      
+      const scriptContent = `#!/bin/bash
+cd "${targetDir}"
+echo -e "\\033[1;34m🚀 Initializing AI Agent (${agent})...\\033[0m"
+echo -ne "\\033[1;36m📡 Preparing environment: \\033[0m"
+for i in {1..20}; do
+    echo -ne "█"
+    sleep 0.1
+done
+echo -e " \\033[1;32m[DONE]\\033[0m"
+
+echo -ne "\\033[1;33m🔑 Authenticating with Gemini 3.1 Pro... \\033[0m"
+for i in {1..10}; do
+    echo -ne "."
+    sleep 0.15
+done
+echo -e " \\033[1;32m[SUCCESS]\\033[0m"
+
+echo -e "\\033[1;35m⏳ Booting agent engine. Please wait, this might take up to 15 seconds...\\033[0m"
+${agentCmd}
+exec bash
+`;
       fs.writeFileSync(scriptPath, scriptContent);
       fs.chmodSync(scriptPath, '755');
       

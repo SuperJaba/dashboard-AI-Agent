@@ -46,7 +46,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .sidebar {
-  width: 280px;
+  width: 320px;
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(20px);
   border-right: 1px solid var(--glass-border);
@@ -62,7 +62,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .sidebar-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   background: linear-gradient(to right, #818cf8, #c084fc);
   -webkit-background-clip: text;
