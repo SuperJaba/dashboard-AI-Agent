@@ -1,0 +1,48 @@
+import { pool } from '../db.js';
+import { encrypt, decrypt } from '../utils/crypto.js';
+
+export async function getSettings() {
+  const { rows } = await pool.query('SELECT key, value FROM settings');
+  const settings = {};
+  for (let row of rows) {
+    if (row.key === 'apiKey') {
+      settings[row.key] = decrypt(row.value);
+    } else {
+      settings[row.key] = row.value;
+    }
+  }
+  return settings;
+}
+
+export async function saveSettings({ llmUrl, apiKey, useBrowserTerminal }) {
+  if (llmUrl !== undefined) {
+    await pool.query(
+      'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+      ['llmUrl', llmUrl]
+    );
+  }
+  if (apiKey !== undefined) {
+    await pool.query(
+      'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+      ['apiKey', encrypt(apiKey)]
+    );
+  }
+  if (useBrowserTerminal !== undefined) {
+    await pool.query(
+      'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+      ['useBrowserTerminal', String(useBrowserTerminal)]
+    );
+  }
+  return { success: true };
+}
+
+export async function getLlmCredentials() {
+  const settingsRes = await pool.query("SELECT key, value FROM settings WHERE key IN ('llmUrl', 'apiKey')");
+  let llmUrl = '';
+  let apiKey = '';
+  settingsRes.rows.forEach(r => {
+    if (r.key === 'llmUrl') llmUrl = r.value;
+    if (r.key === 'apiKey') apiKey = decrypt(r.value);
+  });
+  return { llmUrl, apiKey };
+}
