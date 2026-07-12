@@ -339,5 +339,6 @@ export function AgentsView() {
         )}
       </div>
     </div>
+</>
   );
 }

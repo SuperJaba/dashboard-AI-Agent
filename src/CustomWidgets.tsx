@@ -139,7 +139,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
         {widgets.map(w => (
-          <div key={w.id} className="glass-panel" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div key={w.id} aria-label={`Widget ${w.name}`} className="glass-panel" style={{ position: 'relative', overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: w.color }} />
@@ -184,7 +184,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
       </div>
 
       {showModal && (
-        <div style={{ 
+        <div role="dialog" aria-modal="true" style={{ 
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
           background: 'rgba(0,0,0,0.7)', zIndex: 100,
           display: 'flex', justifyContent: 'center', alignItems: 'center'
@@ -192,6 +192,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
           <div className="glass-panel" style={{ width: '400px', padding: '1.5rem', position: 'relative' }}>
             <button 
               onClick={() => setShowModal(false)}
+              aria-label="Close modal"
               style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
             >
               <X size={20} />
@@ -246,7 +247,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
                 </div>
               </div>
               
-              <button 
+              <button type="button"
                 onClick={addWidget}
                 style={{ 
                   marginTop: '0.5rem', background: 'var(--primary)', color: 'white', 

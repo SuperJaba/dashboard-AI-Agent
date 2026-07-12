@@ -16,5 +16,5 @@ done
 echo -e " \033[1;32m[SUCCESS]\033[0m"
 
 echo -e "\033[1;35m⏳ Booting agent engine. Please wait, this might take up to 15 seconds...\033[0m"
-agy -i "Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: 'ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes root@10.10.10.100 -p 22'. Następnie wykonaj zadanie: jaki jest url na grafane? . Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes)."
+agy -i "Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: 'ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes root@10.10.10.100 -p 22'. Następnie wykonaj zadanie: stworz widget z aktywnymi node apkami; uruchomionymi kontenerami docker . Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes)."
 exec bash
