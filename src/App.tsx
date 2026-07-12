@@ -10,6 +10,7 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
+import CustomWidgets from './CustomWidgets';
 
 import { apiFetch } from './api';
 
@@ -442,6 +443,8 @@ function App() {
             </header>
             
             <ServerStats serverId={activeServer.id} />
+            
+            <CustomWidgets token={token!} />
             
             <div className="grid-top" style={{ marginBottom: '2rem' }}>
               <div className="glass-card animate-in delay-2" style={{ gridColumn: '1 / -1' }}>
