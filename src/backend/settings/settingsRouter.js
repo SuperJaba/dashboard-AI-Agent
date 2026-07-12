@@ -2,7 +2,15 @@ import express from 'express';
 import os from 'os';
 import { execSync } from 'child_process';
 import * as settingsRepo from './settingsRepository.js';
-import { SettingsSchema } from '../../shared/api-client/schemas.js';
+import { z } from 'zod';
+
+const SettingsSchema = z.object({
+  llmUrl: z.string().optional().or(z.literal('')),
+  apiKey: z.string().optional().or(z.literal('')),
+  llmName: z.string().optional(),
+  llmModel: z.string().optional(),
+  useBrowserTerminal: z.union([z.boolean(), z.string()]).optional()
+}).passthrough();
 
 export const settingsRouter = express.Router();
 
