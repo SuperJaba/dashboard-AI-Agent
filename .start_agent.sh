@@ -1,6 +1,6 @@
 #!/bin/bash
 cd "/home/seba/Documents/dashboard"
-echo -e "\033[1;34m🚀 Initializing AI Agent (claude)...\033[0m"
+echo -e "\033[1;34m🚀 Initializing AI Agent (agy)...\033[0m"
 echo -ne "\033[1;36m📡 Preparing environment: \033[0m"
 for i in {1..20}; do
     echo -ne "█"
@@ -16,5 +16,5 @@ done
 echo -e " \033[1;32m[SUCCESS]\033[0m"
 
 echo -e "\033[1;35m⏳ Booting agent engine. Please wait, this might take up to 15 seconds...\033[0m"
-claude "Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: 'ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes root@10.10.10.100 -p 22'. Następnie wykonaj zadanie: Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes)."
+agy -i "Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: 'ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes root@10.10.10.100 -p 22'. Następnie wykonaj zadanie: jaki jest url na grafane? . Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes)."
 exec bash
