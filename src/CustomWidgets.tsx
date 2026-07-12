@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiClient } from './shared/api-client';
 import { 
   Plus, X, Activity, Terminal, RefreshCw, BarChart2, 
   Trash2, Cpu, Database, HardDrive, Globe, AlertTriangle
@@ -14,7 +15,7 @@ interface Widget {
 }
 
 interface CustomWidgetsProps {
-  token: string;
+  token?: string; // Kept for backwards compatibility if needed, but not used
 }
 
 const COLOR_PRESETS = [
@@ -27,7 +28,7 @@ const COLOR_PRESETS = [
   { value: '#ef4444', label: 'Red' },
 ];
 
-const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
+const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [results, setResults] = useState<{ [key: number]: any }>({});
@@ -57,13 +58,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
 
   const fetchWidgets = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/widgets', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setWidgets(data);
-      }
+      const data = await apiClient.get<Widget[]>('/api/widgets');
+      setWidgets(data);
     } catch (e) {
       console.error('Failed to fetch widgets', e);
     }
@@ -72,15 +68,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
   const runWidget = async (id: number) => {
     setLoading(prev => ({ ...prev, [id]: true }));
     try {
-      const res = await fetch(`http://localhost:3001/api/widgets/${id}/run`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setResults(prev => ({ ...prev, [id]: data.result }));
-      } else {
-        setResults(prev => ({ ...prev, [id]: 'Error' }));
-      }
+      const data = await apiClient.get<any>(`/api/widgets/${id}/run`);
+      setResults(prev => ({ ...prev, [id]: data.result }));
     } catch (e) {
       setResults(prev => ({ ...prev, [id]: 'Error' }));
     } finally {
@@ -92,28 +81,19 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
     if (!newName || !newCommand) return;
     
     try {
-      const res = await fetch('http://localhost:3001/api/widgets', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({
-          name: newName,
-          command: newCommand,
-          type: newType,
-          color: newColor
-        })
+      await apiClient.post<any>('/api/widgets', {
+        name: newName,
+        command: newCommand,
+        type: newType,
+        color: newColor
       });
       
-      if (res.ok) {
-        setShowModal(false);
-        setNewName('');
-        setNewCommand('');
-        setNewType('number');
-        setNewColor('#6366f1');
-        fetchWidgets();
-      }
+      setShowModal(false);
+      setNewName('');
+      setNewCommand('');
+      setNewType('number');
+      setNewColor('#6366f1');
+      fetchWidgets();
     } catch (e) {
       console.error('Failed to add widget', e);
     }
@@ -121,10 +101,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
 
   const deleteWidget = async (id: number) => {
     try {
-      await fetch(`http://localhost:3001/api/widgets/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await apiClient.delete<any>(`/api/widgets/${id}`);
       setWidgets(prev => prev.filter(w => w.id !== id));
     } catch (e) {
       console.error('Failed to delete widget', e);

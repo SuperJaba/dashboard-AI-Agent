@@ -273,12 +273,12 @@ export function useDashboardState() {
     try {
       const data = await apiClient.post<any>(`/api/servers/${serverId}/setup-ssh`);
       if (data.copyCommand) {
-        alert(`Skopiuj poniższą komendę i uruchom ją w swoim terminalu, aby dodać klucz SSH do serwera:\n\n${data.copyCommand}`);
+        prompt('Skopiuj poniższą komendę i uruchom ją w swoim terminalu, aby dodać klucz SSH do serwera:', data.copyCommand);
       } else {
-        alert('Błąd konfiguracji klucza SSH.');
+        console.error('Błąd konfiguracji klucza SSH.');
       }
     } catch (err: any) {
-      alert(`Błąd: ${err.message}`);
+      console.error(`Błąd klucza SSH: ${err.message}`);
     }
   };
 

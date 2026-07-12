@@ -141,10 +141,10 @@ function App() {
                       e.stopPropagation();
                       setupSshKey(server.id);
                     }}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
+                    style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
                     title="Skonfiguruj klucz SSH dla Agenta"
-                    onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
-                    onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                    onMouseOver={(e) => e.currentTarget.style.color = '#34D399'}
+                    onMouseOut={(e) => e.currentTarget.style.color = '#10B981'}
                   >
                     <Key size={13} />
                   </button>
