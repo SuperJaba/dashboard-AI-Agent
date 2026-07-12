@@ -1,4 +1,6 @@
 import express from 'express';
+import client from 'prom-client';
+import fetch from 'node-fetch';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
@@ -19,6 +21,10 @@ dotenv.config();
 
 const app = express();
 const port = 3001;
+
+// Initialize Prometheus client
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -75,6 +81,34 @@ io.on('connection', (socket) => {
 
 app.use(cors());
 app.use(express.json());
+// Serve static assets from the public directory
+app.use(express.static('public'));
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (ex) {
+    res.status(500).end(ex);
+  }
+});
+
+// Proxy llama-server metrics
+app.get('/v1/metrics', async (req, res) => {
+  const model = req.query.model;
+  if (!model) {
+    return res.status(400).json({ error: 'Missing model query parameter' });
+  }
+  try {
+    const response = await fetch(`http://127.0.0.1:1337/v1/metrics?model=${model}`);
+    const body = await response.text();
+    res.set('Content-Type', response.headers.get('content-type') || 'text/plain');
+    res.status(response.status).send(body);
+  } catch (err) {
+    res.status(502).json({ error: 'Failed to proxy metrics', details: err.message });
+  }
+});
 
 // --- Auth Routes ---
 app.use('/api/auth', authRouter);
@@ -157,6 +191,7 @@ initDB();
 if (process.env.NODE_ENV !== 'test') {
   httpServer.listen(port, () => {
     console.log(`Backend API running on http://localhost:${port}`);
+    console.log(`Prometheus metrics available at http://localhost:${port}/metrics`);
   });
 }
 

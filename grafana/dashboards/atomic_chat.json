@@ -1,0 +1,28 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "atomic-chat-dashboard",
+    "title": "AtomicChat Metrics",
+    "tags": ["atomic", "chat"],
+    "timezone": "browser",
+    "schemaVersion": 30,
+    "version": 1,
+    "refresh": "5s",
+    "panels": [
+      {
+        "type": "graph",
+        "title": "Requests per Second",
+        "datasource": "AtomicChat",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[1m])",
+            "legendFormat": "{{handler}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 9}
+      }
+    ]
+  },
+  "overwrite": false
+}

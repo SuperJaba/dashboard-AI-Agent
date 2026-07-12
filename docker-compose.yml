@@ -1,0 +1,47 @@
+version: '3.9'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  llama_proxy:
+    image: nginx:alpine
+    container_name: llama_proxy
+    command: >
+      sh -c "echo 'server { listen 80; location /metrics { proxy_pass \"http://host.docker.internal:1337/v1/metrics?model=AtomicChat/qwen35-4b-Q8_0\"; } }' > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  playwright:
+    image: mcr.microsoft.com/playwright:focal
+    container_name: playwright
+    depends_on:
+      - grafana
+      - prometheus
+    working_dir: /workspace/playwright
+    volumes:
+      - ./:/workspace
+    command: ["npx", "playwright", "test"]
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=0
+    restart: "no"
