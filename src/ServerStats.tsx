@@ -81,8 +81,12 @@ export function ServerStats({ serverId }: { serverId?: number }) {
               style={{ 
                 height: '100%', 
                 width: `${stats.memory.usagePercent}%`, 
-                background: 'linear-gradient(90deg, #10b981, #34d399)',
-                transition: 'width 0.5s ease-in-out'
+                background: stats.memory.usagePercent > 80 
+                  ? 'linear-gradient(90deg, #ef4444, #f87171)' // Red
+                  : stats.memory.usagePercent >= 50 
+                    ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' // Orange
+                    : 'linear-gradient(90deg, #10b981, #34d399)', // Green
+                transition: 'width 0.5s ease-in-out, background 0.5s ease-in-out'
               }} 
             />
           </div>
