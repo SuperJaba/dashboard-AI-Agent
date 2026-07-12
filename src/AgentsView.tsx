@@ -168,9 +168,9 @@ export function AgentsView() {
   };
 
   if (loading) return (
-    <div className="p-8 text-center text-gray-400 flex items-center justify-center min-h-[50vh]" role="status" aria-live="polite">
-      <RefreshCw className="w-6 h-6 mr-2 animate-spin text-blue-500" /> 
-      <span className="font-medium">Wyszukiwanie agentów...</span>
+    <div className="p-8 text-center flex flex-col gap-3 items-center justify-center min-h-[50vh]" role="status" aria-live="polite">
+      <RefreshCw className="w-8 h-8 animate-spin" style={{ color: 'var(--primary)' }} /> 
+      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Wyszukiwanie agentów...</span>
     </div>
   );
 
@@ -189,20 +189,13 @@ export function AgentsView() {
       
       <div className="p-8 max-w-6xl mx-auto">
         {/* Title and Top Panel */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '2rem',
-          flexWrap: 'wrap',
-          gap: '1rem'
-        }}>
+        <header className="header animate-in delay-1" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
           <div>
-            <h2 className="text-3xl font-extrabold text-white flex items-center gap-3" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              <Bot className="w-9 h-9 text-blue-500" style={{ filter: 'drop-shadow(0 0 8px rgba(59,130,246,0.4))' }} />
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.875rem' }}>
+              <Bot size={28} color="var(--primary)" style={{ filter: 'drop-shadow(0 0 8px rgba(79,70,229,0.4))' }} />
               Lokalni Agenci AI
-            </h2>
-            <p className="text-gray-400 mt-2 text-sm">
+            </h1>
+            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem', fontSize: '0.875rem' }}>
               Zarządzaj konfiguracją CLI lokalnych agentów AI oraz optymalizuj parametry ich modeli.
             </p>
           </div>
@@ -210,7 +203,10 @@ export function AgentsView() {
           <div className="flex gap-3 flex-wrap">
             <button
               onClick={handleAutoTuneLLM}
-              className="bg-slate-800 hover:bg-slate-700 text-purple-400 border border-purple-500/20 px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-semibold text-sm shadow-md"
+              className="px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-semibold text-sm shadow-md"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: '#c084fc', cursor: 'pointer' }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
             >
               <Gauge className="w-4 h-4" />
               Strojenie LLM Server
@@ -218,7 +214,10 @@ export function AgentsView() {
             
             <button
               onClick={() => setIsAdding(!isAdding)}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2.5 rounded-xl flex items-center transition font-semibold text-sm shadow-md"
+              className="px-4 py-2.5 rounded-xl flex items-center transition font-semibold text-sm shadow-md"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', cursor: 'pointer' }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
             >
               {isAdding ? 'Anuluj' : 'Dodaj Agenta'}
             </button>
@@ -226,13 +225,16 @@ export function AgentsView() {
             <button
               onClick={handleScan}
               disabled={scanning}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-semibold text-sm shadow-lg shadow-blue-500/20 disabled:opacity-50"
+              className="px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-semibold text-sm shadow-lg disabled:opacity-50"
+              style={{ background: 'var(--primary)', border: 'none', color: 'white', cursor: 'pointer' }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'var(--primary-hover)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'var(--primary)'}
             >
               {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               Skanuj system
             </button>
           </div>
-        </div>
+        </header>
 
         {/* Add Agent Modal Overlay */}
         {isAdding && (
