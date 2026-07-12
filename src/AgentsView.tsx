@@ -107,6 +107,7 @@ export function AgentsView() {
   };
 
   const handleAutoTuneAgent = async (id: number) => {
+    if (!confirm('Czy chcesz automatycznie dostroić parametry tego agenta? Nadpisze to obecny model, temperaturę i limit tokenów.')) return;
     setTuningAgentId(id);
     try {
       const res = await apiFetch(`/api/agents/${id}/tune`, { method: 'POST' });
