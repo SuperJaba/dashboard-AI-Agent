@@ -12,18 +12,32 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/auth/check-setup')
-      .then(res => res.json())
-      .then(data => {
-        if (data.needsSetup) {
-          setNeedsSetup(true);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+    let active = true;
+    let retryTimeout: any;
+
+    const checkSetup = () => {
+      fetch('http://localhost:3001/api/auth/check-setup')
+        .then(res => res.json())
+        .then(data => {
+          if (!active) return;
+          if (data.needsSetup) {
+            setNeedsSetup(true);
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          if (!active) return;
+          // Silent warning instead of console error, retry in 1s
+          retryTimeout = setTimeout(checkSetup, 1000);
+        });
+    };
+
+    checkSetup();
+
+    return () => {
+      active = false;
+      if (retryTimeout) clearTimeout(retryTimeout);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
