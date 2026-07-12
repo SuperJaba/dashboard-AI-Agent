@@ -19,9 +19,17 @@ export function AgentsView() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [notification, setNotification] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editConfig, setEditConfig] = useState({ config_uri: '', llm_model: '', temperature: 0.7, max_tokens: 4096 });
   const [newAgent, setNewAgent] = useState({ name: '', description: '', path: '', config_uri: '', llm_model: 'gpt-4o', temperature: 0.7, max_tokens: 4096 });
+  // Effect to auto-clear notification after 3 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const fetchAgents = async () => {
     try {
@@ -65,6 +73,7 @@ export function AgentsView() {
         })
       });
       setEditingId(null);
+      setNotification('Configuration saved');
       fetchAgents();
     } catch (e) {
       console.error('Failed to save config', e);
@@ -75,6 +84,7 @@ export function AgentsView() {
     if (!confirm('Czy na pewno chcesz usunąć tego agenta?')) return;
     try {
       await apiFetch(`/api/agents/${id}`, { method: 'DELETE' });
+      setNotification('Agent deleted');
       fetchAgents();
     } catch (e) {
       console.error('Failed to delete agent', e);
@@ -90,17 +100,38 @@ export function AgentsView() {
         body: JSON.stringify(newAgent)
       });
       setIsAdding(false);
-      setNewAgent({ name: '', description: '', path: '', config_uri: '', llm_model: 'gpt-4o', temperature: 0.7, max_tokens: 4096 });
+      setNotification('Agent added');
+      setNewAgent({
+        name: '',
+        description: '',
+        path: '',
+        config_uri: '',
+        llm_model: 'gpt-4o',
+        temperature: 0.7,
+        max_tokens: 4096
+      });
       fetchAgents();
     } catch (e) {
       console.error('Failed to add agent', e);
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-400">Ładowanie agentów...</div>;
+  if (loading) return (
+  <div className="p-8 text-center text-gray-400 flex items-center justify-center" role="status" aria-live="polite">
+    <RefreshCw className="w-5 h-5 mr-2 animate-spin" /> Loading agents...
+  </div>
+);
+
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <>
+      {notification && (
+        <div className="fixed top-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded shadow-lg" role="alert" aria-live="assertive">
+          {notification}
+        </div>
+      )}
+      <div className="p-8 max-w-6xl mx-auto">
+
       <div className="flex justify-between items-center mb-8">
         <div>
           <h2 className="text-3xl font-bold text-white flex items-center gap-3">
