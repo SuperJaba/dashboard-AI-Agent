@@ -5,6 +5,7 @@ import { spawn, exec, execSync } from 'child_process';
 import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import * as gitService from '../git/gitService.js';
+import { getBestAvailableModel } from '../utils/llm.js';
 
 export const projectsRouter = express.Router();
 
@@ -181,11 +182,12 @@ projectsRouter.post('/analyze', async (req, res) => {
 
       if (llmUrl && apiKey) {
         const url = llmUrl.endsWith('/chat/completions') ? llmUrl : (llmUrl.endsWith('/') ? llmUrl.slice(0, -1) : llmUrl) + '/chat/completions';
+        const activeModel = await getBestAvailableModel(llmUrl, apiKey);
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
           body: JSON.stringify({
-            model: 'lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF', // Generic fallback
+            model: activeModel,
             messages: [{
               role: 'user', 
               content: `Zasugeruj 2 zadania (tablica JSON stringów np. ["Zrób A", "Zrób B"]) dla projektu w technologii: ${techStack}. Pomiń formatowanie i komentarze, wypisz samo JSON.`

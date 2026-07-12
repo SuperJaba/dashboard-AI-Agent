@@ -3,6 +3,7 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import * as agentsRepo from './agentsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
+import { getBestAvailableModel } from '../utils/llm.js';
 
 export const agentsRouter = express.Router();
 
@@ -128,11 +129,12 @@ agentsRouter.post('/:id/tune', async (req, res) => {
     if (llmUrl && apiKey) {
       const url = llmUrl.endsWith('/chat/completions') ? llmUrl : (llmUrl.endsWith('/') ? llmUrl.slice(0, -1) : llmUrl) + '/chat/completions';
       try {
+        const activeModel = await getBestAvailableModel(llmUrl, apiKey);
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
           body: JSON.stringify({
-            model: 'lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF',
+            model: activeModel,
             messages: [{
               role: 'user',
               content: `Optimize parameters for AI Agent. Name: "${agent.name}", Description: "${agent.description || ''}".
