@@ -23,6 +23,12 @@ interface LLMTuningResult {
   type: string;
   latency: number | null;
   speed: number | null;
+  loadedModel?: string;
+  systemResources?: {
+    cpu: string;
+    ram: string;
+    gpu: string;
+  };
   recommendations: string[];
 }
 
@@ -506,6 +512,37 @@ export function AgentsView() {
                         {llmTuneResult.llmUrl || 'Brak skonfigurowanego serwera'}
                       </div>
                     </div>
+
+                    {/* Loaded Model */}
+                    <div>
+                      <div className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0.25rem' }}>Załadowany Model</div>
+                      <div className="agent-path-box" style={{ marginTop: '0', color: 'var(--primary)', fontWeight: 'bold' }}>
+                        {llmTuneResult.loadedModel || 'Brak aktywnych modeli w pamięci'}
+                      </div>
+                    </div>
+
+                    {/* Resources */}
+                    {llmTuneResult.systemResources && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Zasoby systemowe</div>
+                        <div className="diagnostics-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span className="text-slate-400">Procesor:</span>
+                            <span className="text-white font-semibold">{llmTuneResult.systemResources.cpu}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span className="text-slate-400">Pamięć RAM:</span>
+                            <span className="text-white font-semibold">{llmTuneResult.systemResources.ram}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span className="text-slate-400">Karta graficzna:</span>
+                            <span className="text-purple-300 font-semibold" style={{ maxWidth: '60%', textAlign: 'right', wordBreak: 'break-word' }}>
+                              {llmTuneResult.systemResources.gpu}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Recommendations list */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

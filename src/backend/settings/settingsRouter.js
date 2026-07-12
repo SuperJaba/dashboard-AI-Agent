@@ -1,4 +1,6 @@
 import express from 'express';
+import os from 'os';
+import { execSync } from 'child_process';
 import * as settingsRepo from './settingsRepository.js';
 
 export const settingsRouter = express.Router();
@@ -117,6 +119,72 @@ settingsRouter.post('/llm/tune', async (req, res) => {
       }
     }
 
+    // 1. Detect currently loaded model
+    let loadedModel = 'Brak / Nie wykryto';
+    const targetUrl = autoDetectedUrl || currentUrl;
+    if (status === 'success' && targetUrl) {
+      if (autoDetectedType === 'Ollama' || targetUrl.includes('11434')) {
+        try {
+          const psRes = await fetch(`${targetUrl}/api/ps`);
+          if (psRes.ok) {
+            const psData = await psRes.json();
+            if (psData.models && psData.models.length > 0) {
+              loadedModel = psData.models.map(m => m.name).join(', ');
+            } else {
+              const tagsRes = await fetch(`${targetUrl}/api/tags`);
+              if (tagsRes.ok) {
+                const tagsData = await tagsRes.json();
+                if (tagsData.models && tagsData.models.length > 0) {
+                  loadedModel = `${tagsData.models[0].name} (Standby)`;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Fallback
+        }
+      } else {
+        try {
+          const base = targetUrl.endsWith('/chat/completions') ? targetUrl.replace('/chat/completions', '') : targetUrl;
+          const modelsRes = await fetch(`${base}/v1/models`);
+          if (modelsRes.ok) {
+            const modelsData = await modelsRes.json();
+            if (modelsData.data && modelsData.data.length > 0) {
+              loadedModel = modelsData.data[0].id;
+            }
+          }
+        } catch (e) {
+          // Fallback
+        }
+      }
+    }
+
+    // 2. Fetch system resources (CPU, RAM, GPU/VRAM)
+    let gpuInfo = 'Brak GPU NVIDIA / brak sterowników';
+    try {
+      const smi = execSync('nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free --format=csv,noheader,nounits', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+      if (smi) {
+        gpuInfo = smi.trim().split('\n').map(line => {
+          const parts = line.split(',');
+          if (parts.length >= 3) {
+            const name = parts[0].trim();
+            const total = parseInt(parts[1].trim());
+            const used = parseInt(parts[2].trim());
+            return `${name} (${used}/${total} MB VRAM)`;
+          }
+          return line.trim();
+        }).join(', ');
+      }
+    } catch (e) {
+      // No nvidia-smi
+    }
+
+    const systemResources = {
+      cpu: `${os.cpus().length}x Cores (${os.cpus()[0]?.model || 'Unknown CPU'})`,
+      ram: `${((os.totalmem() - os.freemem()) / (1024 ** 3)).toFixed(1)} / ${(os.totalmem() / (1024 ** 3)).toFixed(1)} GB`,
+      gpu: gpuInfo
+    };
+
     res.json({
       success: true,
       status,
@@ -124,6 +192,8 @@ settingsRouter.post('/llm/tune', async (req, res) => {
       type: autoDetectedType || 'Unknown',
       latency,
       speed,
+      loadedModel,
+      systemResources,
       recommendations
     });
 
