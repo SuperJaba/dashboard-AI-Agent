@@ -21,10 +21,10 @@ echo "🤖  Invoking CI‑TDD‑Bot for $REPO_URL on branch $BRANCH"
 
 # For demo purposes we just add a simple test that always passes
 mkdir -p src/__tests__
-cat > src/__tests__/ci_tdd_bot.generated.test.ts <<'EOF'
+cat > src/__tests__/ci_tdd_bot.generated.test.ts <<EOF
 import { describe, it, expect } from 'vitest';
 
-describe('CI‑TDD‑Bot placeholder test', () => {
+describe('CI‑TDD‑Bot placeholder test ($(date +%s))', () => {
   it('passes', () => {
     expect(1 + 1).toBe(2);
   });
