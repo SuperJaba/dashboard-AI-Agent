@@ -853,6 +853,35 @@ app.get('/api/apps-scan', async (req, res) => {
   }
 });
 
+// Kill App API
+app.post('/api/kill-app', async (req, res) => {
+  try {
+    const { serverId, pid, domain, source } = req.body;
+    if (!serverId) return res.status(400).json({ error: 'Missing serverId' });
+    
+    const serverRes = await pool.query('SELECT * FROM servers WHERE id = $1', [serverId]);
+    if (serverRes.rows.length === 0) return res.status(404).json({ error: 'Server not found' });
+    const s = serverRes.rows[0];
+    const sshBase = sshCmd(s);
+    
+    let killCmd = '';
+    if (s.use_devil && source === 'devil') {
+       if (!domain) return res.status(400).json({ error: 'Missing domain' });
+       killCmd = `${sshBase} "devil www restart ${domain}"`;
+    } else {
+       if (!pid || pid === '-') return res.status(400).json({ error: 'Missing PID' });
+       killCmd = `${sshBase} "kill -9 ${pid}"`;
+    }
+
+    exec(killCmd, (err, out) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, message: 'App killed/restarted' });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/analytics', async (req, res) => {
   try {
     const totalProjectsRes = await pool.query('SELECT COUNT(*) as count FROM projects');

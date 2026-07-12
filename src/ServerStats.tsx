@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from './api';
-import { Activity, Cpu, Server, HardDrive } from 'lucide-react';
+import { Activity, Cpu, Server, HardDrive, PowerOff } from 'lucide-react';
 
 export function ServerStats({ serverId }: { serverId?: number }) {
   const [stats, setStats] = useState<any>(null);
@@ -29,6 +29,26 @@ export function ServerStats({ serverId }: { serverId?: number }) {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [serverId]);
+
+  const handleKillApp = async (app: any) => {
+    if (!confirm('Na pewno chcesz zakończyć proces / zrestartować aplikację?')) return;
+    try {
+      await apiFetch('/api/kill-app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serverId,
+          pid: app.pid,
+          domain: app.domain,
+          source: app.source
+        })
+      });
+      alert('Polecenie zostało wysłane');
+    } catch (e) {
+      console.error(e);
+      alert('Wystąpił błąd');
+    }
+  };
 
   if (loading) return <div className="text-gray-400 p-4">Loading system stats...</div>;
   if (!stats || stats.error || !stats.cpu) return (
@@ -160,9 +180,18 @@ export function ServerStats({ serverId }: { serverId?: number }) {
                 </div>
 
                 {app.source === 'devil' ? (
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <span>user:</span>
-                    <span style={{ color: '#e5e7eb' }}>{app.user}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span>user:</span>
+                      <span style={{ color: '#e5e7eb' }}>{app.user}</span>
+                    </div>
+                    <button 
+                      onClick={() => handleKillApp(app)}
+                      style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                    >
+                      <PowerOff size={12} />
+                      Kill
+                    </button>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>

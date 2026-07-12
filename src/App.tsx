@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, Pencil, X
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -302,30 +302,7 @@ function App() {
     } catch (e) { console.error(e); }
   };
 
-  const [editServer, setEditServer] = useState<any>(null);
-  const [editServerPwd, setEditServerPwd] = useState('');
-  const [editShowPwd, setEditShowPwd] = useState(false);
 
-  const handleUpdateServer = async () => {
-    if (!editServer) return;
-    try {
-      const body: any = {
-        name: editServer.name, host: editServer.host,
-        username: editServer.username, port: editServer.port,
-        use_devil: editServer.use_devil,
-      };
-      if (editServerPwd !== '') body.ssh_password = editServerPwd;
-      const res = await apiFetch(`http://localhost:3001/api/servers/${editServer.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      setServers(servers.map(s => s.id === data.id ? data : s));
-      setEditServer(null);
-      setEditServerPwd('');
-    } catch (e) { console.error(e); }
-  };
 
   const handleAddProject = async () => {
     try {
@@ -434,13 +411,7 @@ function App() {
                   <span>{server.name}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditServer({...server}); setEditServerPwd(''); setEditShowPwd(false); }}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}
-                    title="Edytuj serwer"
-                  >
-                    <Pencil size={12} />
-                  </button>
+
                   <button
                     onClick={(e) => deleteServer(server.id, e)}
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}
