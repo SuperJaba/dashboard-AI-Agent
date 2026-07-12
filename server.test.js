@@ -29,11 +29,16 @@ vi.mock('pg', () => {
   return { default: { Pool } };
 });
 
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
+const testToken = jwt.sign({ id: 1, username: 'testuser' }, JWT_SECRET, { expiresIn: '1h' });
+
 describe('Backend API Tests', () => {
   it('GET /api/projects should return an array', async () => {
     const res = await request(app)
       .get('/api/projects')
-      .set('Authorization', 'Bearer dashboard-secret-token');
+      .set('Authorization', `Bearer ${testToken}`);
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
@@ -41,7 +46,7 @@ describe('Backend API Tests', () => {
   it('GET /api/pick-folder should return a mocked path', async () => {
     const res = await request(app)
       .get('/api/pick-folder')
-      .set('Authorization', 'Bearer dashboard-secret-token');
+      .set('Authorization', `Bearer ${testToken}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.path).toBe('/mocked/path');
   });
@@ -49,7 +54,7 @@ describe('Backend API Tests', () => {
   it('POST /api/analyze should fail if no directory provided', async () => {
     const res = await request(app)
       .post('/api/analyze')
-      .set('Authorization', 'Bearer dashboard-secret-token')
+      .set('Authorization', `Bearer ${testToken}`)
       .send({});
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe('Missing directory');
