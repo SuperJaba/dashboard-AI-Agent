@@ -1,7 +1,7 @@
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -172,6 +172,18 @@ function App() {
           >
             {settingsSaved ? <CheckCircle2 size={16} /> : <Save size={16} />}
             {settingsSaved ? 'Saved to DB!' : 'Save Settings'}
+          </button>
+          <button 
+            onClick={() => {
+              localStorage.removeItem('dashboard_token');
+              window.location.reload();
+            }}
+            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.5rem', borderRadius: '8px', color: '#f87171', cursor: 'pointer', marginTop: '0.5rem', transition: '0.3s' }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+          >
+            <LogOut size={16} />
+            Sign Out
           </button>
         </div>
       </aside>
