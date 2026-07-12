@@ -13,9 +13,12 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import pty from 'node-pty';
 
+import { pool } from './src/backend/db.js';
+import { authRouter } from './src/backend/auth/authRouter.js';
+import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+
 dotenv.config();
 
-const { Pool } = pkg;
 const app = express();
 const port = 3001;
 
@@ -76,100 +79,10 @@ app.use(cors());
 app.use(express.json());
 
 // --- Auth Routes ---
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
-
-app.post('/api/auth/setup', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-    
-    // Check if any user exists
-    const result = await pool.query('SELECT COUNT(*) FROM users');
-    if (parseInt(result.rows[0].count) > 0) {
-      return res.status(400).json({ error: 'System already initialized' });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-    
-    await pool.query('INSERT INTO users (username, password_hash) VALUES ($1, $2)', [username, hash]);
-    res.json({ success: true, message: 'Admin user created successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-
-    const result = await pool.query('SELECT id, password_hash FROM users WHERE username = $1', [username]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
-    
-    if (!match) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ success: true, token });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/auth/check-setup', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT COUNT(*) FROM users');
-    res.json({ needsSetup: parseInt(result.rows[0].count) === 0 });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+app.use('/api/auth', authRouter);
 
 // API Auth Middleware
-const authMiddleware = (req, res, next) => {
-  // Allow OPTIONS requests for CORS
-  if (req.method === 'OPTIONS') return next();
-  
-  let token;
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.split(' ')[1];
-  } else if (req.query.token) {
-    // Keep fallback for quick tests if needed, but validate it as JWT
-    token = req.query.token;
-  }
-
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  try {
-    // If it's the old hardcoded token, we might reject it, but let's strictly use JWT now
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
 app.use('/api', authMiddleware);
-
-// DB Connection
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
 
 // Crypto Helpers for API Keys
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex'); // Must be 256 bits (32 characters)
