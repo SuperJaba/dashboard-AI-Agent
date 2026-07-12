@@ -1,7 +1,7 @@
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -47,7 +47,8 @@ function App() {
     initGit,
     handleAddServer,
     deleteServer,
-    handleAddProject
+    handleAddProject,
+    setupSshKey
   } = useDashboardState();
   const token = localStorage.getItem('token') || '';
   return (
@@ -132,6 +133,18 @@ function App() {
                 </div>
                 <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
 
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setupSshKey(server.id);
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
+                    title="Skonfiguruj klucz SSH dla Agenta"
+                    onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
+                    onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                  >
+                    <Key size={13} />
+                  </button>
                   <button
                     onClick={(e) => deleteServer(server.id, e)}
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}

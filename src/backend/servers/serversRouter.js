@@ -1,5 +1,7 @@
 import express from 'express';
 import os from 'os';
+import fs from 'fs';
+import path from 'path';
 import { exec } from 'child_process';
 import * as serversRepo from './serversRepository.js';
 import { sshCmd } from '../utils/ssh.js';
@@ -43,6 +45,48 @@ serversRouter.delete('/servers/:id', async (req, res) => {
   try {
     const result = await serversRepo.deleteServer(req.params.id);
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Setup Agent SSH Keys for a server
+serversRouter.post('/servers/:id/setup-ssh', async (req, res) => {
+  try {
+    const s = await serversRepo.getServerById(req.params.id);
+    if (!s) return res.status(404).json({ error: 'Server not found' });
+
+    const home = os.homedir();
+    const sshDir = path.join(home, '.ssh');
+    const keyPath = path.join(sshDir, 'id_ed25519_antigravity');
+    const pubKeyPath = keyPath + '.pub';
+
+    if (!fs.existsSync(sshDir)) {
+      fs.mkdirSync(sshDir, { recursive: true, mode: 0o700 });
+    }
+
+    const generateKey = () => {
+      return new Promise((resolve, reject) => {
+        if (fs.existsSync(keyPath)) {
+          return resolve();
+        }
+        exec(`ssh-keygen -t ed25519 -f "${keyPath}" -N ""`, (error) => {
+          if (error) return reject(error);
+          resolve();
+        });
+      });
+    };
+
+    await generateKey();
+
+    const pubKey = fs.readFileSync(pubKeyPath, 'utf8').trim();
+    const copyCommand = `ssh-copy-id -i "${pubKeyPath}" -p ${s.port} ${s.username}@${s.host}`;
+
+    res.json({
+      success: true,
+      publicKey: pubKey,
+      copyCommand
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
