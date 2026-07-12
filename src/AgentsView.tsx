@@ -177,13 +177,9 @@ export function AgentsView() {
   return (
     <>
       {notification && (
-        <div 
-          className="fixed top-4 right-4 z-50 bg-emerald-600 border border-emerald-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-in fade-in duration-300" 
-          role="alert" 
-          aria-live="assertive"
-        >
-          <Check className="w-5 h-5 text-emerald-100" />
-          <span className="font-semibold text-sm">{notification}</span>
+        <div className="toast-notification" role="alert" aria-live="assertive">
+          <Check size={18} />
+          <span>{notification}</span>
         </div>
       )}
       
@@ -442,18 +438,17 @@ export function AgentsView() {
         </div>
       </div>
 
-      {/* LLM Server Auto-Tuner & Diagnostics Modal */}
       {showLLMModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-          <div className="glass-card max-w-lg w-full p-8 border border-white/10" style={{ position: 'relative' }}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <button 
               onClick={() => setShowLLMModal(false)} 
-              className="absolute top-4 right-4 p-1.5 bg-slate-800/40 border border-slate-700/50 rounded-lg text-gray-400 hover:text-white transition"
+              className="modal-close-btn"
             >
-              <X className="w-5 h-5" />
+              <X size={18} />
             </button>
             
-            <h3 className="text-2xl font-bold text-white flex items-center gap-2.5 mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>
+            <h3 className="text-2xl font-bold text-white flex items-center gap-2.5 mb-6">
               <Gauge className="w-6 h-6 text-purple-400" />
               Diagnostyka LLM Server
             </h3>
@@ -467,26 +462,25 @@ export function AgentsView() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-5">
+              <div className="diagnostics-panel">
                 {llmTuneResult && (
                   <>
                     {/* Status Badge & Server Type */}
-                    <div className="flex justify-between items-center bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                    <div className="flex justify-between items-center diagnostics-card">
                       <div>
-                        <div className="text-[10px] uppercase font-bold text-slate-500">Wykryty Serwer</div>
+                        <div className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0.25rem' }}>Wykryty Serwer</div>
                         <div className="text-base font-bold text-white mt-0.5">{llmTuneResult.type}</div>
                       </div>
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${llmTuneResult.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
-                        <span className={`w-2 h-2 rounded-full ${llmTuneResult.status === 'success' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                      <span className={`agent-badge ${llmTuneResult.status === 'success' ? 'agent-badge-active' : 'agent-badge-missing'}`}>
                         {llmTuneResult.status === 'success' ? 'Online' : 'Offline'}
                       </span>
                     </div>
 
                     {/* Latency and Throughput metrics */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
-                        <div className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
-                          <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    <div className="diagnostics-grid">
+                      <div className="diagnostics-card">
+                        <div className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Zap size={12} color="var(--warning)" />
                           Opóźnienie (TTFT)
                         </div>
                         <div className="text-xl font-extrabold text-white mt-1">
@@ -494,9 +488,9 @@ export function AgentsView() {
                         </div>
                       </div>
                       
-                      <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
-                        <div className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
-                          <Gauge className="w-3.5 h-3.5 text-blue-500" />
+                      <div className="diagnostics-card">
+                        <div className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Gauge size={12} color="var(--primary)" />
                           Przepustowość
                         </div>
                         <div className="text-xl font-extrabold text-white mt-1">
@@ -507,22 +501,22 @@ export function AgentsView() {
 
                     {/* URL */}
                     <div>
-                      <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Adres URL Serwera</div>
-                      <div className="bg-slate-950/80 px-3.5 py-2 rounded-lg border border-slate-850 text-xs text-purple-300 font-mono truncate">
+                      <div className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0.25rem' }}>Adres URL Serwera</div>
+                      <div className="agent-path-box" style={{ marginTop: '0' }}>
                         {llmTuneResult.llmUrl || 'Brak skonfigurowanego serwera'}
                       </div>
                     </div>
 
                     {/* Recommendations list */}
-                    <div className="space-y-2">
-                      <div className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
-                        <Info className="w-3.5 h-3.5 text-blue-400" />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Info size={12} color="#93c5fd" />
                         Zalecenia i Wynik strojenia
                       </div>
                       
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/50 space-y-2">
+                      <div className="diagnostics-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {llmTuneResult.recommendations.map((rec, index) => (
-                          <div key={index} className="text-xs text-slate-300 flex items-start gap-2">
+                          <div key={index} className="text-xs text-slate-350 flex items-start gap-2">
                             <span className="text-purple-400 font-bold">•</span>
                             <span>{rec}</span>
                           </div>
@@ -532,17 +526,19 @@ export function AgentsView() {
                   </>
                 )}
                 
-                <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-800" style={{ marginTop: '0.5rem' }}>
                   <button
                     onClick={handleAutoTuneLLM}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition text-sm font-semibold flex items-center gap-1.5"
+                    className="btn btn-tune text-sm"
+                    style={{ padding: '0.5rem 1.25rem', borderRadius: '12px' }}
                   >
-                    <RefreshCw className="w-4 h-4" />
+                    <RefreshCw size={14} />
                     Ponów strojenie
                   </button>
                   <button 
                     onClick={() => setShowLLMModal(false)} 
-                    className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition text-sm font-semibold"
+                    className="btn btn-secondary text-sm"
+                    style={{ padding: '0.5rem 1.25rem', borderRadius: '12px' }}
                   >
                     Zamknij
                   </button>
