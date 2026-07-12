@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud, ChevronDown, ChevronUp, X, CheckCircle2 } from 'lucide-react';
+import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud, ChevronDown, ChevronUp, X, CheckCircle2, Rocket } from 'lucide-react';
 import { apiFetch } from './api';
 import './index.css';
 
 interface RepoStatusProps {
   directory: string;
+  onLaunchTerminal?: (config: any) => void;
 }
 
-export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
+export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTerminal }) => {
   const [gitStatus, setGitStatus] = useState<any>(null);
   const [githubData, setGithubData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -135,10 +136,14 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
 
           {/* GitHub PRs & CI */}
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div 
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', cursor: 'pointer' }} 
+              onClick={() => setShowPRs(!showPRs)}
+            >
               <h3 style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <GitPullRequest size={18} />
                 Pull Requests
+                {showPRs ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </h3>
               {githubData?.latestRun && (
                 <div style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem', borderRadius: '12px', background: githubData.latestRun.conclusion === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: githubData.latestRun.conclusion === 'success' ? '#10B981' : '#F59E0B' }}>
@@ -147,19 +152,21 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
               )}
             </div>
 
-            {githubData?.prs?.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {githubData.prs.map((pr: any, i: number) => (
-                  <a key={i} href={pr.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
-                    <div style={{ fontSize: '0.85rem', background: 'rgba(255,255,255,0.03)', padding: '0.5rem', borderRadius: '4px', borderLeft: '2px solid #10B981', transition: 'background 0.2s' }}>
-                      <div style={{ color: 'var(--text-main)', marginBottom: '4px' }}>{pr.title}</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>#{pr.number} • {pr.state}</div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No open pull requests found or gh not authenticated.</div>
+            {showPRs && (
+              githubData?.prs?.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {githubData.prs.map((pr: any, i: number) => (
+                    <a key={i} href={pr.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+                      <div style={{ fontSize: '0.85rem', background: 'rgba(255,255,255,0.03)', padding: '0.5rem', borderRadius: '4px', borderLeft: '2px solid #10B981', transition: 'background 0.2s' }}>
+                        <div style={{ color: 'var(--text-main)', marginBottom: '4px' }}>{pr.title}</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>#{pr.number} • {pr.state}</div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No open pull requests found or gh not authenticated.</div>
+              )
             )}
             
             <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center' }}>
@@ -242,7 +249,42 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
             }}>
               {deployModal.content}
             </div>
-            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              {deployModal.isError && onLaunchTerminal && (
+                <button 
+                  onClick={async () => {
+                    try {
+                      const res = await apiFetch('http://localhost:3001/api/deploy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          agent: 'agy', 
+                          directory, 
+                          tasks: [{ id: 'error-fix', title: `Fix this deployment error:\n\n${deployModal.content}`, status: 'pending' }],
+                          useBrowserTerminal: true
+                        })
+                      });
+                      const data = await res.json();
+                      if (data.browserTerminal) {
+                        onLaunchTerminal({
+                          command: data.command,
+                          args: data.args,
+                          cwd: data.cwd,
+                          env: data.env
+                        });
+                        setDeployModal(null);
+                      }
+                    } catch (e) {
+                      console.error('Failed to launch agent', e);
+                    }
+                  }}
+                  className="btn btn-primary"
+                  style={{ background: '#3b82f6' }}
+                >
+                  <Rocket size={16} style={{ marginRight: '0.25rem' }} />
+                  Wyślij do Agenta
+                </button>
+              )}
               <button 
                 onClick={() => setDeployModal(null)}
                 className="btn btn-primary"
