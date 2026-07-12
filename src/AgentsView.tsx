@@ -15,8 +15,8 @@ export function AgentsView() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editConfigUri, setEditConfigUri] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [newAgent, setNewAgent] = useState({ name: '', description: '', path: '', config_uri: '' });
 
   const fetchAgents = async () => {
     try {
@@ -61,6 +61,32 @@ export function AgentsView() {
     }
   };
 
+  const handleDeleteAgent = async (id: number) => {
+    if (!confirm('Czy na pewno chcesz usunąć tego agenta?')) return;
+    try {
+      await apiFetch(`/api/agents/${id}`, { method: 'DELETE' });
+      fetchAgents();
+    } catch (e) {
+      console.error('Failed to delete agent', e);
+    }
+  };
+
+  const handleAddAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiFetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAgent)
+      });
+      setIsAdding(false);
+      setNewAgent({ name: '', description: '', path: '', config_uri: '' });
+      fetchAgents();
+    } catch (e) {
+      console.error('Failed to add agent', e);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-400">Ładowanie agentów...</div>;
 
   return (
@@ -73,15 +99,38 @@ export function AgentsView() {
           </h2>
           <p className="text-gray-400 mt-2">Zarządzaj ustawieniami agentów CLI w systemie.</p>
         </div>
-        <button
-          onClick={handleScan}
-          disabled={scanning}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
-        >
-          {scanning ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-          Skanuj system
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setIsAdding(!isAdding)}
+            className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center transition"
+          >
+            {isAdding ? 'Anuluj' : 'Dodaj Agenta'}
+          </button>
+          <button
+            onClick={handleScan}
+            disabled={scanning}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+          >
+            {scanning ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+            Skanuj system
+          </button>
+        </div>
       </div>
+
+      {isAdding && (
+        <div className="bg-slate-800 border border-slate-600 p-6 rounded-xl mb-8">
+          <h3 className="text-xl text-white mb-4">Dodaj ręcznie Agenta</h3>
+          <form onSubmit={handleAddAgent} className="grid grid-cols-2 gap-4">
+            <input required placeholder="Nazwa (np. Mój Agent)" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
+            <input placeholder="Opis" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
+            <input required placeholder="Ścieżka do pliku binarnego (np. /usr/local/bin/agent)" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
+            <input placeholder="Config URI (np. /home/user/.agent.json)" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
+            <div className="col-span-2 flex justify-end">
+              <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Zapisz</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm">
         <table className="w-full text-left">
@@ -139,7 +188,7 @@ export function AgentsView() {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right flex justify-end gap-2">
                     {editingId === agent.id ? (
                       <button 
                         onClick={() => handleSaveConfigUri(agent.id)}
@@ -160,6 +209,13 @@ export function AgentsView() {
                         <Save className="w-4 h-4" />
                       </button>
                     )}
+                    <button 
+                      onClick={() => handleDeleteAgent(agent.id)}
+                      className="text-red-400 hover:text-red-300 p-1.5 bg-red-400/10 hover:bg-red-400/20 rounded transition"
+                      title="Usuń agenta"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                    </button>
                   </td>
                 </tr>
               ))

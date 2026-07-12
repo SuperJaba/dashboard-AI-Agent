@@ -7,7 +7,8 @@ import {
 import './index.css';
 import { TerminalView } from './TerminalView';
 import { AnalyticsPanel } from './AnalyticsPanel';
-import { AgentsView } from './AgentsView';
+
+import { ServerStats } from './ServerStats';
 
 import { apiFetch } from './api';
 
@@ -135,7 +136,6 @@ function App() {
   const deployRemoteAgent = async (agent: string, server: any) => {
     setDeploying(agent);
     try {
-      const sshCmd = `ssh -p ${server.port} ${server.username}@${server.host}`;
       const res = await apiFetch('http://localhost:3001/api/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,7 +144,7 @@ function App() {
           directory: '', 
           llmUrl: customLlmUrl, 
           apiKey: customApiKey,
-          sshCmd,
+          remoteServer: server,
           remotePrompt,
           useBrowserTerminal
         })
@@ -166,6 +166,7 @@ function App() {
 
   const analyzeProject = async () => {
     if (!activeProject) return;
+    setDeploying('analyze');
     try {
       const res = await apiFetch('http://localhost:3001/api/analyze', {
         method: 'POST',
@@ -198,9 +199,13 @@ function App() {
             : p
         ));
         setShowTasks(true);
+      } else {
+        console.error('Analysis error:', data.error);
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setDeploying(null);
     }
   };
 
@@ -434,6 +439,8 @@ function App() {
                 <p style={{ color: 'var(--text-muted)' }}>{activeServer.username}@{activeServer.host}:{activeServer.port}</p>
               </div>
             </header>
+            
+            <ServerStats />
             
             <div className="grid-top" style={{ marginBottom: '2rem' }}>
               <div className="glass-card animate-in delay-2" style={{ gridColumn: '1 / -1' }}>

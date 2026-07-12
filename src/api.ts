@@ -1,11 +1,11 @@
-export const API_TOKEN = 'dashboard-secret-token';
-
 export const apiFetch = (url: string, options: any = {}) => {
-  return fetch(url, {
+  const token = localStorage.getItem('dashboard_token');
+  const finalUrl = url.startsWith('/') ? `http://localhost:3001${url}` : url;
+  return fetch(finalUrl, {
     ...options,
     headers: {
       ...options.headers,
-      'Authorization': `Bearer ${API_TOKEN}`
+      'Authorization': `Bearer ${token}`
     }
   });
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart3, Database, CheckCircle2 } from 'lucide-react';
 
-const API_TOKEN = 'dashboard-secret-token';
+
 
 export const AnalyticsPanel = () => {
   const [stats, setStats] = useState<{
@@ -13,7 +13,7 @@ export const AnalyticsPanel = () => {
   useEffect(() => {
     fetch('http://localhost:3001/api/analytics', {
       headers: {
-        'Authorization': `Bearer ${API_TOKEN}`
+        'Authorization': `Bearer ${localStorage.getItem('dashboard_token')}`
       }
     })
       .then(res => res.json())

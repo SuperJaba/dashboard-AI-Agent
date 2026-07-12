@@ -1,4 +1,7 @@
 import express from 'express';
+import os from 'os';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import cors from 'cors';
 import { spawn, exec, execSync } from 'child_process';
 import path from 'path';
@@ -72,20 +75,89 @@ io.on('connection', (socket) => {
 app.use(cors());
 app.use(express.json());
 
+// --- Auth Routes ---
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
+
+app.post('/api/auth/setup', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    
+    // Check if any user exists
+    const result = await pool.query('SELECT COUNT(*) FROM users');
+    if (parseInt(result.rows[0].count) > 0) {
+      return res.status(400).json({ error: 'System already initialized' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+    
+    await pool.query('INSERT INTO users (username, password_hash) VALUES ($1, $2)', [username, hash]);
+    res.json({ success: true, message: 'Admin user created successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+
+    const result = await pool.query('SELECT id, password_hash FROM users WHERE username = $1', [username]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const user = result.rows[0];
+    const match = await bcrypt.compare(password, user.password_hash);
+    
+    if (!match) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ success: true, token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/auth/check-setup', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) FROM users');
+    res.json({ needsSetup: parseInt(result.rows[0].count) === 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // API Auth Middleware
 const authMiddleware = (req, res, next) => {
   // Allow OPTIONS requests for CORS
   if (req.method === 'OPTIONS') return next();
   
+  let token;
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query.token) {
+    // Keep fallback for quick tests if needed, but validate it as JWT
+    token = req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  const token = authHeader.split(' ')[1];
-  if (token !== (process.env.API_TOKEN || 'dashboard-secret-token')) {
-    return res.status(403).json({ error: 'Forbidden' });
+
+  try {
+    // If it's the old hardcoded token, we might reject it, but let's strictly use JWT now
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
   }
-  next();
 };
 
 app.use('/api', authMiddleware);
@@ -156,6 +228,11 @@ async function initDB() {
         path VARCHAR(255),
         config_uri TEXT,
         installed BOOLEAN DEFAULT false
+      );
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL
       );
     `);
     console.log('Database initialized');
@@ -276,22 +353,36 @@ app.post('/api/agents/scan', async (req, res) => {
       try {
         const stdout = execSync(`which ${agent.cmd}`, { encoding: 'utf8' }).trim();
         if (stdout) {
+          // Auto-discover config files
+          let configUri = '';
+          const home = process.env.HOME || process.env.USERPROFILE;
+          if (agent.cmd === 'claude') configUri = `${home}/.claude.json`;
+          else if (agent.cmd === 'codex') configUri = `${home}/.codex/config.json`;
+          else if (agent.cmd === 'agy') configUri = `${home}/.gemini/config.json`;
+          else if (agent.cmd === 'aider') configUri = `${home}/.aider.conf.yml`;
+
+          // Verify if config exists
+          if (configUri && !fs.existsSync(configUri)) {
+            configUri = '';
+          }
+
           const existing = await pool.query('SELECT id FROM cli_agents WHERE name = $1', [agent.name]);
           if (existing.rows.length === 0) {
             await pool.query(
-              'INSERT INTO cli_agents (name, description, path, installed) VALUES ($1, $2, $3, true)',
-              [agent.name, agent.desc, stdout]
+              'INSERT INTO cli_agents (name, description, path, config_uri, installed) VALUES ($1, $2, $3, $4, true)',
+              [agent.name, agent.desc, stdout, configUri]
             );
           } else {
+            // Update if empty, otherwise preserve user's custom config_uri
             await pool.query(
-              'UPDATE cli_agents SET path = $1, installed = true WHERE name = $2',
-              [stdout, agent.name]
+              'UPDATE cli_agents SET path = $1, config_uri = COALESCE(NULLIF(config_uri, \'\'), $2), installed = true WHERE name = $3',
+              [stdout, configUri, agent.name]
             );
           }
           found.push(agent.name);
         }
       } catch (e) {
-        // Not found
+        // Not found or error
       }
     }
     res.json({ success: true, found });
@@ -301,13 +392,42 @@ app.post('/api/agents/scan', async (req, res) => {
 });
 
 app.put('/api/agents/:id', async (req, res) => {
-  const { config_uri } = req.body;
+  const { config_uri, name, description, path: binPath } = req.body;
+  try {
+    let query = 'UPDATE cli_agents SET config_uri = $1';
+    let values = [config_uri];
+    let count = 1;
+    if (name) { count++; query += `, name = $${count}`; values.push(name); }
+    if (description) { count++; query += `, description = $${count}`; values.push(description); }
+    if (binPath) { count++; query += `, path = $${count}`; values.push(binPath); }
+    
+    count++; query += ` WHERE id = $${count} RETURNING *`;
+    values.push(req.params.id);
+
+    const { rows } = await pool.query(query, values);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/agents', async (req, res) => {
+  const { name, description, path: binPath, config_uri } = req.body;
   try {
     const { rows } = await pool.query(
-      'UPDATE cli_agents SET config_uri = $1 WHERE id = $2 RETURNING *',
-      [config_uri, req.params.id]
+      'INSERT INTO cli_agents (name, description, path, config_uri, installed) VALUES ($1, $2, $3, $4, true) RETURNING *',
+      [name, description, binPath, config_uri]
     );
     res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/agents/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM cli_agents WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -409,8 +529,8 @@ app.post('/api/deploy', (req, res) => {
       let agentCmd = '';
       const scriptPath = path.join(targetDir, '.start_agent.sh');
       if (remoteServer) {
-        const sshCmd = `ssh ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
-        const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: \`${sshCmd}\`. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze.`;
+        const sshCmd = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
+        const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmd}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
         agentCmd = agent === 'claude' ? `claude "${promptText}"` : `agy -i "${promptText}"`;
       } else {
         const promptArg = (tasks && tasks.length > 0) ? ' "Zrealizuj zadania z pliku .ai_tasks.md. Kiedy skończysz, oznacz je jako wykonane."' : '';
@@ -523,8 +643,9 @@ app.post('/api/analyze', async (req, res) => {
     let tasks = [];
     let idCounter = 1;
 
-    // 1. Markdown checklists (tasks.md, TODO.md, README.md)
-    const mdFiles = ['tasks.md', 'TODO.md', 'README.md'];
+    // 1. Markdown checklists (*.md)
+    const allFiles = fs.readdirSync(directory);
+    const mdFiles = allFiles.filter(f => f.endsWith('.md') && !f.startsWith('node_modules'));
     for (const mdFile of mdFiles) {
       const mdPath = path.join(directory, mdFile);
       if (fs.existsSync(mdPath)) {
@@ -632,6 +753,64 @@ app.post('/api/analyze', async (req, res) => {
     res.json({ tech: techStack, tasks, branch });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// System Stats API
+app.get('/api/system-stats', (req, res) => {
+  try {
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const memoryUsagePercent = (usedMem / totalMem) * 100;
+    const cpuLoad = os.loadavg();
+    
+    res.json({
+      cpu: {
+        cores: os.cpus().length,
+        model: os.cpus()[0]?.model,
+        load1: cpuLoad[0],
+        load5: cpuLoad[1],
+        load15: cpuLoad[2]
+      },
+      memory: {
+        total: totalMem,
+        free: freeMem,
+        used: usedMem,
+        usagePercent: memoryUsagePercent
+      },
+      os: {
+        platform: os.platform(),
+        release: os.release(),
+        uptime: os.uptime()
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// App Scanner API (Find running Node.js apps)
+app.get('/api/apps-scan', (req, res) => {
+  try {
+    exec('ps aux | grep node | grep -v grep', (error, stdout) => {
+      let apps = [];
+      if (!error && stdout) {
+         apps = stdout.trim().split('\n').map(line => {
+           const parts = line.split(/\\s+/);
+           return {
+             user: parts[0],
+             pid: parts[1],
+             cpu: parts[2],
+             mem: parts[3],
+             command: parts.slice(10).join(' ')
+           };
+         });
+      }
+      res.json({ apps });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

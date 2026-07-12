@@ -3,6 +3,7 @@ import { apiFetch } from './api';
 
 describe('apiFetch', () => {
   beforeEach(() => {
+    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue('mock-jwt-token');
     global.fetch = vi.fn(() =>
       Promise.resolve({
         json: () => Promise.resolve({ success: true }),
@@ -15,7 +16,7 @@ describe('apiFetch', () => {
 
     expect(global.fetch).toHaveBeenCalledWith('http://localhost:3001/test-endpoint', expect.objectContaining({
       headers: expect.objectContaining({
-        'Authorization': 'Bearer dashboard-secret-token'
+        'Authorization': 'Bearer mock-jwt-token'
       })
     }));
   });
@@ -30,7 +31,7 @@ describe('apiFetch', () => {
       method: 'POST',
       headers: expect.objectContaining({
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer dashboard-secret-token'
+        'Authorization': 'Bearer mock-jwt-token'
       })
     }));
   });

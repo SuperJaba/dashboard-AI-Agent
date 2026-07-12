@@ -1,0 +1,564 @@
+2026-06-06 08:56:21 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 08:56:31 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 08:56:31 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-06 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-06-06 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-06 12:30:09 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 12:30:19 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 12:30:19 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 12:36:55 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 12:37:05 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 12:37:05 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 12:41:33 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 12:41:43 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 12:41:43 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 12:43:23 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 12:43:33 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 12:43:33 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 12:46:11 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 12:46:21 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 12:46:21 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 21:15:11 [API] [31merror[39m: TypeError: req.user.roles is not a function
+2026-06-06 21:15:11 [API] [31merror[39m: TypeError: req.user.roles is not a function
+2026-06-06 21:15:11 [API] [31merror[39m: TypeError: req.user.roles is not a function
+2026-06-06 21:15:11 [API] [31merror[39m: TypeError: req.user.roles is not a function
+2026-06-06 21:15:18 [API] [31merror[39m: TypeError: req.user.roles is not a function
+2026-06-06 21:15:18 [API] [31merror[39m: TypeError: req.user.roles is not a function
+2026-06-06 21:15:18 [API] [31merror[39m: TypeError: req.user.roles is not a function
+2026-06-06 21:15:18 [API] [31merror[39m: TypeError: req.user.roles is not a function
+2026-06-06 21:18:01 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 21:18:11 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 21:18:11 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 21:19:22 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-06-06 21:20:42 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 21:20:52 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 21:20:52 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 21:24:13 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 21:24:23 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 21:24:23 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 22:11:23 [API] [33mwarn[39m: Login failed: User not found for email sylwiana6@wp.pl
+2026-06-06 22:31:11 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 22:31:21 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-06 22:31:21 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 23:36:46 [API] [31merror[39m: Error checking/creating database:
+2026-06-06 23:36:56 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-06 23:36:56 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 00:20:50 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 00:21:00 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 00:21:00 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 00:23:53 [API] [33mwarn[39m: Validation failed
+2026-06-07 00:23:59 [API] [33mwarn[39m: Validation failed
+2026-06-07 00:25:05 [API] [33mwarn[39m: Validation failed
+2026-06-07 00:25:15 [API] [33mwarn[39m: Validation failed
+2026-06-07 00:27:28 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 00:27:31 [API] [33mwarn[39m: Validation failed
+2026-06-07 00:27:38 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 00:27:38 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 00:35:20 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 00:35:30 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 00:35:30 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 01:05:58 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 01:06:08 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 01:06:08 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 01:06:35 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 01:06:45 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 01:06:45 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 02:22:58 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 02:23:08 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 02:23:08 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 02:24:04 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 02:24:14 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 02:24:14 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 02:25:28 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:25:46 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:25:48 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:25:51 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:25:53 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:25:57 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:26:00 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:26:21 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 02:26:21 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:26:23 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:26:31 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 02:26:31 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 02:28:37 [API] [31merror[39m: ReferenceError: Cannot access 'invoiceId' before initialization
+2026-06-07 02:29:35 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 02:29:45 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 02:29:45 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 06:14:08 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 06:14:18 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 06:14:18 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-07 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-06-07 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-07 09:13:17 [API] [33mwarn[39m: Validation failed
+2026-06-07 09:14:21 [API] [33mwarn[39m: Validation failed
+2026-06-07 13:44:48 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 13:44:58 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 13:44:58 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 15:44:59 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-06-07 16:37:45 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 16:37:55 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 16:37:55 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-07 17:04:31 [API] [31merror[39m: Error checking/creating database:
+2026-06-07 17:04:41 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-07 17:04:41 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-08 02:34:10 [API] [31merror[39m: Error checking/creating database:
+2026-06-08 02:34:20 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-08 02:34:20 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-08 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-08 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-06-08 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-08 21:19:38 [API] [31merror[39m: Error checking/creating database:
+2026-06-08 21:19:48 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-08 21:19:48 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-08 21:47:55 [API] [31merror[39m: Error checking/creating database:
+2026-06-08 21:48:05 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-08 21:48:05 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-08 22:22:57 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:22:57 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:23:04 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:23:04 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:24:43 [API] [31merror[39m: Error checking/creating database:
+2026-06-08 22:24:53 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-08 22:24:53 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-08 22:25:36 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:25:36 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:25:42 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:25:42 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:29:11 [API] [31merror[39m: Error checking/creating database:
+2026-06-08 22:29:19 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:29:19 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:29:21 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-08 22:29:21 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-08 22:29:26 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:29:26 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:29:33 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:29:33 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-08 22:38:33 [API] [31merror[39m: Error checking/creating database:
+2026-06-08 22:38:43 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-08 22:38:43 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-08 22:46:22 [API] [33mwarn[39m: Login failed: User not found for email admin@test.pl
+2026-06-08 22:46:58 [API] [33mwarn[39m: Login failed: User not found for email test@test.pl
+2026-06-08 22:47:01 [API] [33mwarn[39m: Login failed: User not found for email test@test.pl
+2026-06-08 22:47:38 [API] [33mwarn[39m: Login failed: User not found for email dumpster10k@gmail.com
+2026-06-08 22:48:53 [API] [33mwarn[39m: Login failed: User not found for email du.compster2k@wp.pl
+2026-06-08 22:51:16 [API] [31merror[39m: Error checking/creating database:
+2026-06-08 22:51:26 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-08 22:51:26 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-08 22:55:03 [API] [33mwarn[39m: Login failed: User not found for email sylwiaro6@wp.pl
+2026-06-09 00:11:42 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 00:11:52 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 00:11:53 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 00:11:53 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 00:42:47 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 00:42:57 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 00:42:57 [API] [31merror[39m: [NotificationService] Error in checkAndSendReminders:
+2026-06-09 00:42:57 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-09 00:45:40 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 00:45:50 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 00:45:50 [API] [31merror[39m: [NotificationService] Error in checkAndSendReminders:
+2026-06-09 00:45:50 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-09 00:58:11 [API] [31merror[39m: error: column r.invoice_id does not exist
+2026-06-09 00:58:52 [API] [31merror[39m: error: update or delete on table "users" violates foreign key constraint "recurring_costs_owner_id_fkey" on table "recurring_costs"
+2026-06-09 01:07:25 [API] [31merror[39m: error: column r.invoice_id does not exist
+2026-06-09 01:13:47 [API] [31merror[39m: error: column r.invoice_id does not exist
+2026-06-09 01:18:09 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-06-09 01:22:14 [API] [31merror[39m: error: column r.invoice_id does not exist
+2026-06-09 01:22:44 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-06-09 01:23:06 [API] [31merror[39m: error: column r.invoice_id does not exist
+2026-06-09 01:33:04 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 01:33:14 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 01:33:15 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 01:33:15 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 01:33:15 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 2 failed
+2026-06-09 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-09 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-09 09:00:01 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 09:00:01 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 09:00:01 [API] [32minfo[39m: Reminders sent: 0 sent, 2 failed
+2026-06-09 11:33:32 [API] [33mwarn[39m: Login failed: User not found for email admin@test.pl
+2026-06-09 11:33:41 [API] [33mwarn[39m: Login failed: User not found for email admin@test.pl
+2026-06-09 11:33:41 [API] [33mwarn[39m: Login failed: User not found for email admin@test.pl
+2026-06-09 11:34:39 [API] [33mwarn[39m: Login failed: User not found for email dumpster10k@gmail.com
+2026-06-09 18:01:46 [API] [31merror[39m: error: update or delete on table "users" violates foreign key constraint "group_members_user_id_fkey" on table "group_members"
+2026-06-09 22:57:49 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 22:57:59 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 22:58:00 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 22:58:00 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 22:59:01 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 22:59:11 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 22:59:13 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 22:59:13 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 23:07:47 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 23:07:57 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 23:07:57 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 23:07:57 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 23:11:27 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 23:11:37 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 23:11:37 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 23:11:37 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 23:15:52 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 23:16:02 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 23:16:03 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 23:16:03 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 23:16:11 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-06-09 23:19:38 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 23:19:48 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 23:19:48 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 23:19:48 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 23:20:41 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 23:20:51 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 23:20:51 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 23:20:51 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 23:22:47 [API] [31merror[39m: Error checking/creating database:
+2026-06-09 23:22:57 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-09 23:22:58 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-09 23:22:58 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-09 23:23:02 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND mail1.devil.net
+2026-06-09 23:26:02 [API] [31merror[39m: error: update or delete on table "users" violates foreign key constraint "recurring_costs_owner_id_fkey" on table "recurring_costs"
+2026-06-09 23:57:09 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND mail1.devil.net
+2026-06-10 01:13:22 [API] [31merror[39m: Error checking/creating database:
+2026-06-10 01:13:32 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-10 01:13:33 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-10 01:13:33 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-10 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-10 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-10 09:00:02 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-10 09:00:02 [API] [32minfo[39m: Reminders sent: 0 sent, 1 failed
+2026-06-10 12:59:34 [API] [31merror[39m: Error checking/creating database:
+2026-06-10 12:59:35 [API] [31merror[39m: error: update or delete on table "users" violates foreign key constraint "group_members_user_id_fkey" on table "group_members"
+2026-06-10 12:59:44 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-10 12:59:45 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-10 12:59:45 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-11 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-11 09:00:01 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-11 09:00:01 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-11 09:00:03 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-11 09:00:03 [API] [32minfo[39m: Reminders sent: 0 sent, 2 failed
+2026-06-11 21:46:29 [API] [31merror[39m: Error checking/creating database:
+2026-06-11 21:46:39 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-11 21:46:42 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-11 21:46:42 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-11 21:46:42 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 2 failed
+2026-06-14 06:19:51 [API] [32minfo[39m: GET /error.log
+2026-06-14 06:19:51 [API] [32minfo[39m: GET /logs/error.log
+2026-06-14 06:19:51 [API] [32minfo[39m: GET /log/error.log
+2026-06-15 01:22:55 [API] [32minfo[39m: GET /error.log
+2026-06-15 01:22:55 [API] [32minfo[39m: GET /logs/error.log
+2026-06-15 01:22:55 [API] [32minfo[39m: GET /log/error.log
+2026-06-15 02:47:09 [API] [31merror[39m: Error checking/creating database:
+2026-06-15 02:47:19 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-15 02:47:19 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-15 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-15 09:00:01 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-15 09:00:01 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-06-15 18:11:48 [API] [31merror[39m: Error checking/creating database:
+2026-06-15 18:11:58 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-15 18:11:58 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-17 08:28:10 [API] [31merror[39m: Error checking/creating database:
+2026-06-17 08:28:20 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-17 08:28:21 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-17 08:28:21 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-17 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-17 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-17 09:00:02 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-17 09:00:02 [API] [32minfo[39m: Reminders sent: 0 sent, 1 failed
+2026-06-18 04:50:09 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:50:09 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:51:53 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:51:53 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:52:08 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:52:08 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:52:36 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:52:36 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:52:42 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:52:42 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:52:48 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:52:48 [API] [31merror[39m: Error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:59:11 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 04:59:21 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 04:59:21 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:59:46 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 04:59:46 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:00:31 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 05:00:41 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 05:00:41 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 05:01:31 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 05:01:41 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 05:01:41 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:01:46 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:01:46 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:01:53 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:01:53 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:03:53 [API] [31merror[39m: Error checking/creating database:
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:03:59 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:03:59 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:04:03 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 05:04:03 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:04:07 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:04:07 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:05:07 [API] [31merror[39m: Error checking/creating database:
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:05:14 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:05:14 [API] [31merror[39m: Error: Sharp module could not be loaded: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:05:17 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 05:05:17 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 05:06:06 [API] [31merror[39m: Error checking/creating database:
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Cannot read properties of undefined (reading 'push')
+2026-06-18 05:06:11 [API] [31merror[39m: Error: Sharp module could not be loaded: Cannot read properties of undefined (reading 'push'). See logs for fix instructions.
+2026-06-18 05:06:11 [API] [31merror[39m: Error: Sharp module could not be loaded: Cannot read properties of undefined (reading 'push'). See logs for fix instructions.
+2026-06-18 05:06:16 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 05:06:16 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 05:08:06 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 05:08:16 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 05:08:16 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 05:08:26 [API] [31merror[39m: Error checking/creating database:
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Cannot read properties of undefined (reading 'push')
+2026-06-18 05:08:27 [API] [31merror[39m: Error: Sharp module could not be loaded: Cannot read properties of undefined (reading 'push'). See logs for fix instructions.
+2026-06-18 05:08:27 [API] [31merror[39m: Error: Sharp module could not be loaded: Cannot read properties of undefined (reading 'push'). See logs for fix instructions.
+2026-06-18 05:08:36 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 05:08:36 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Cannot read properties of undefined (reading 'push')
+2026-06-18 05:10:40 [API] [31merror[39m: Error: Sharp module could not be loaded: Cannot read properties of undefined (reading 'push'). See logs for fix instructions.
+2026-06-18 05:10:40 [API] [31merror[39m: Error: Sharp module could not be loaded: Cannot read properties of undefined (reading 'push'). See logs for fix instructions.
+2026-06-18 05:16:29 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:16:29 [API] [31merror[39m: Error checking/creating database:
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 05:16:39 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 05:16:39 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 05:22:24 [API] [31merror[39m: error: update or delete on table "users" violates foreign key constraint "group_members_user_id_fkey" on table "group_members"
+2026-06-18 05:22:51 [API] [31merror[39m: error: update or delete on table "users" violates foreign key constraint "group_members_user_id_fkey" on table "group_members"
+2026-06-18 05:23:31 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-06-18 05:32:20 [API] [33mwarn[39m: Login failed: Password mismatch for email dumpster2k@wp.pl
+2026-06-18 05:53:05 [API] [31merror[39m: error: update or delete on table "users" violates foreign key constraint "recurring_costs_owner_id_fkey" on table "recurring_costs"
+2026-06-18 06:04:52 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 06:04:52 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 06:05:02 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 06:05:02 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 06:26:44 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 06:26:44 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 06:26:54 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 06:26:54 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 07:41:37 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 07:41:38 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 07:41:48 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 07:41:48 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 07:59:45 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 07:59:46 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 07:59:56 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 07:59:56 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-18 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-18 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-06-18 09:22:44 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 09:22:44 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 09:22:54 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 09:22:54 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 09:27:56 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 09:27:56 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 09:28:06 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 09:28:06 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 09:32:33 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 09:32:34 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 09:32:44 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 09:32:44 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 10:17:45 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 10:17:45 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 10:17:55 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 10:17:55 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 11:38:32 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 11:38:32 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 11:38:42 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 11:38:42 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 11:52:18 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 11:52:19 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 11:52:29 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 11:52:29 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 22:18:54 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 22:18:54 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 22:19:04 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 22:19:04 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 23:11:46 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 23:11:47 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 23:11:57 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 23:11:57 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 23:30:54 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 23:30:54 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 23:31:04 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-18 23:31:04 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 23:36:34 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Cannot read properties of undefined (reading 'push')). OCR features will be unavailable.
+2026-06-18 23:36:34 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 23:36:44 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 23:36:44 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+This error typically occurs when sharp cannot find its native binary on this platform.
+Original error: Cannot read properties of undefined (reading 'push')
+2026-06-18 23:49:34 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-18 23:49:34 [API] [31merror[39m: Error checking/creating database:
+2026-06-18 23:49:44 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-18 23:49:44 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-19 00:30:19 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-19 00:30:19 [API] [31merror[39m: Error checking/creating database:
+2026-06-19 00:30:29 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-19 00:30:29 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-19 00:51:40 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-19 00:51:40 [API] [31merror[39m: Error checking/creating database:
+2026-06-19 00:51:50 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-19 00:51:50 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-19 02:00:41 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-19 02:00:41 [API] [31merror[39m: Error checking/creating database:
+2026-06-19 02:00:51 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-19 02:00:51 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+CRITICAL: Failed to load "sharp" module. This is required for OCR preprocessing.
+Original error: Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-19 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-19 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-19 09:00:02 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-19 09:00:02 [API] [32minfo[39m: Reminders sent: 0 sent, 1 failed
+2026-06-20 00:10:26 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-20 00:10:26 [API] [31merror[39m: Error checking/creating database:
+2026-06-20 00:10:36 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-20 00:10:38 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-20 00:10:38 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-20 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-20 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-20 09:00:02 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-20 09:00:02 [API] [32minfo[39m: Reminders sent: 0 sent, 1 failed
+2026-06-22 10:41:49 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-22 10:41:49 [API] [31merror[39m: Error checking/creating database:
+2026-06-22 10:41:59 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-22 10:42:00 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-22 10:42:00 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-22 21:36:34 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-22 21:36:34 [API] [31merror[39m: Error checking/creating database:
+2026-06-22 21:36:44 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-22 21:36:45 [API] [31merror[39m: [NotificationService] Error sending email to dumpster2k@wp.pl:
+2026-06-22 21:36:45 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 1 failed
+2026-06-24 08:14:04 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-24 08:14:04 [API] [31merror[39m: Error checking/creating database:
+2026-06-24 08:14:14 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-24 08:14:14 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-24 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-06-24 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-06-24 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-06-25 10:38:27 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-25 10:38:28 [API] [31merror[39m: Error checking/creating database:
+2026-06-25 10:38:38 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-25 10:38:38 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-29 22:17:39 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-29 22:17:39 [API] [31merror[39m: Error checking/creating database:
+2026-06-29 22:17:49 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-29 22:17:49 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-30 11:06:13 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-30 11:06:13 [API] [31merror[39m: Error checking/creating database:
+2026-06-30 11:06:23 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-06-30 11:06:23 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-30 23:12:36 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-06-30 23:12:36 [API] [31merror[39m: Error checking/creating database:
+2026-06-30 23:12:46 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-06-30 23:12:46 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-01 00:37:31 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-01 00:37:32 [API] [31merror[39m: Error checking/creating database:
+2026-07-01 00:37:42 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-01 00:37:42 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-01 00:39:00 [API] [31merror[39m: error: update or delete on table "users" violates foreign key constraint "group_members_user_id_fkey" on table "group_members"
+2026-07-01 06:16:18 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-01 06:16:18 [API] [31merror[39m: Error checking/creating database:
+2026-07-01 06:16:28 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-01 06:16:28 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-01 06:25:22 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-01 06:25:22 [API] [31merror[39m: Error checking/creating database:
+2026-07-01 06:25:32 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-01 06:25:32 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-01 06:27:21 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-01 06:27:22 [API] [31merror[39m: Error checking/creating database:
+2026-07-01 06:27:32 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-01 06:27:32 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-01 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-07-01 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-07-01 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-07-01 12:38:23 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-01 12:38:24 [API] [31merror[39m: Error checking/creating database:
+2026-07-01 12:38:34 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-01 12:38:34 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-01 13:02:49 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-01 13:02:49 [API] [31merror[39m: Error checking/creating database:
+2026-07-01 13:02:59 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-01 13:02:59 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-02 01:11:07 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-02 01:11:07 [API] [31merror[39m: Error checking/creating database:
+2026-07-02 01:11:17 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-02 01:11:17 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-02 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-07-02 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-07-02 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-07-03 07:32:14 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-03 07:32:14 [API] [31merror[39m: Error checking/creating database:
+2026-07-03 07:32:24 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-03 07:32:24 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-03 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-07-03 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-07-03 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-07-03 20:49:12 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-03 20:49:12 [API] [31merror[39m: Error checking/creating database:
+2026-07-03 20:49:22 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-03 20:49:22 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-04 00:22:24 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-04 00:22:24 [API] [31merror[39m: Error checking/creating database:
+2026-07-04 00:22:34 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-04 00:22:34 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-04 07:33:21 [API] [33mwarn[39m: Login failed: Password mismatch for email dumpster2k@wp.pl
+2026-07-04 07:33:26 [API] [33mwarn[39m: Login failed: Password mismatch for email dumpster2k@wp.pl
+2026-07-04 07:33:35 [API] [33mwarn[39m: Login failed: Password mismatch for email dumpster2k@wp.pl
+2026-07-04 07:36:26 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-07-04 07:36:52 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-07-04 07:36:53 [API] [31merror[39m: Error: getaddrinfo ENOTFOUND s1.devil.net
+2026-07-04 07:39:38 [API] [31merror[39m: error: bind message supplies 3 parameters, but prepared statement "" requires 4
+2026-07-04 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-07-04 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-07-04 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-07-07 07:50:18 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-07 07:50:18 [API] [31merror[39m: Error checking/creating database:
+2026-07-07 07:50:28 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-07 07:50:28 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-07 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-07-07 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
+2026-07-07 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-07-08 13:46:23 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-08 13:46:24 [API] [31merror[39m: Error checking/creating database:
+2026-07-08 13:46:34 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-08 13:46:34 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-09 18:14:37 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-09 18:14:37 [API] [31merror[39m: Error checking/creating database:
+2026-07-09 18:14:47 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-09 18:14:47 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-11 05:39:22 [API] [33mwarn[39m: WARNING: "sharp" module failed to load (Could not load the "sharp" module using the freebsd-x64 runtime
+2026-07-11 05:39:23 [API] [31merror[39m: Error checking/creating database:
+2026-07-11 05:39:33 [API] [32minfo[39m: Reminders sent on startup: 0 sent, 0 failed
+2026-07-11 05:39:33 [API] [32minfo[39m: Recurring invoices processed on startup: 0 created, 0 failed
+2026-07-11 09:00:00 [API] [31merror[39m: TypeError: Cannot read properties of undefined (reading 'length')
+2026-07-11 09:00:00 [API] [32minfo[39m: Recurring invoices processed: 0 created, 0 failed
+2026-07-11 09:00:00 [API] [32minfo[39m: Reminders sent: 0 sent, 0 failed
