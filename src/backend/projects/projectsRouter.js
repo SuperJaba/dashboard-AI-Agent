@@ -128,15 +128,16 @@ projectsRouter.post('/analyze', async (req, res) => {
       const mdPath = path.join(directory, mdFile);
       if (fs.existsSync(mdPath)) {
         const content = fs.readFileSync(mdPath, 'utf8');
-        const lines = content.split('\n');
+        const lines = content.split(/\r?\n/);
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
-          if (line.startsWith('- [ ]') || line.startsWith('* [ ]')) {
-            let taskTitle = line.substring(5).trim();
-            tasks.push({ id: idCounter++, title: taskTitle, meta: mdFile, status: 'pending' });
-          } else if (line.startsWith('- [x]') || line.startsWith('* [x]')) {
-             let taskTitle = line.substring(5).trim();
-             tasks.push({ id: idCounter++, title: taskTitle, meta: mdFile, status: 'completed' });
+          const match = line.match(/^(?:[-*+]\s+|\d+\.\s+)?\[([ xX])\]\s*(.*)$/);
+          if (match) {
+            const status = (match[1] === 'x' || match[1] === 'X') ? 'completed' : 'pending';
+            const taskTitle = match[2].trim();
+            if (taskTitle) {
+              tasks.push({ id: idCounter++, title: taskTitle, meta: mdFile, status });
+            }
           }
         }
       }
