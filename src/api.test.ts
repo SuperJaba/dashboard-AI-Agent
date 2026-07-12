@@ -1,18 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { apiFetch } from './api';
+import { apiClient } from './shared/api-client';
 
-describe('apiFetch', () => {
+describe('apiClient', () => {
   beforeEach(() => {
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue('mock-jwt-token');
     globalThis.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve({ success: true }),
-      })
-    ) as any;
+      } as Response)
+    );
   });
 
   it('calls fetch with the correct Authorization header', async () => {
-    await apiFetch('http://localhost:3001/test-endpoint');
+    await apiClient.get('/test-endpoint');
 
     expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:3001/test-endpoint', expect.objectContaining({
       headers: expect.objectContaining({
@@ -22,13 +24,11 @@ describe('apiFetch', () => {
   });
 
   it('merges custom options and headers', async () => {
-    await apiFetch('http://localhost:3001/test-endpoint', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    await apiClient.post('/test-endpoint', { foo: 'bar' });
 
     expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:3001/test-endpoint', expect.objectContaining({
       method: 'POST',
+      body: JSON.stringify({ foo: 'bar' }),
       headers: expect.objectContaining({
         'Content-Type': 'application/json',
         'Authorization': 'Bearer mock-jwt-token'

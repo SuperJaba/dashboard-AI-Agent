@@ -13,6 +13,7 @@ import CustomWidgets from './CustomWidgets';
 import { AgentsView } from './AgentsView';
 
 import { useDashboardState } from './hooks/useDashboardState';
+import { DashboardTiles } from './TilesView';
 
 function App() {
   const {
@@ -544,9 +545,7 @@ function App() {
             </main>
           </>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-            Select or add a project from the sidebar to get started.
-          </div>
+          <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} />
         )}
       </div>
 

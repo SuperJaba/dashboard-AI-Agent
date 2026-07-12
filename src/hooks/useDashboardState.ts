@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../api';
+import { apiClient } from '../shared/api-client';
+import { ProjectSchema, ServerSchema, SettingsSchema } from '../shared/api-client/schemas';
+import type { ProjectData, ServerData } from '../shared/api-client/schemas';
+import { z } from 'zod';
 
 export function useDashboardState() {
   const [activeView, setActiveView] = useState<'dashboard' | 'agents'>('dashboard');
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<ProjectData[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
-  const [servers, setServers] = useState<any[]>([]);
+  const [servers, setServers] = useState<ServerData[]>([]);
   const [showAddServer, setShowAddServer] = useState(false);
   const [newServer, setNewServer] = useState({ name: '', host: '', username: '', port: 22, use_devil: false, ssh_password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -25,9 +28,9 @@ export function useDashboardState() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
   useEffect(() => {
-    apiFetch('http://localhost:3001/api/projects')
-      .then(res => res.json())
-      .then(data => {
+    apiClient.get<unknown>('/api/projects')
+      .then(rawData => {
+        const data = z.array(ProjectSchema).parse(rawData);
         if (data.length) {
           setProjects(data);
           setActiveProjectId(data[0].id);
@@ -35,16 +38,16 @@ export function useDashboardState() {
       })
       .catch(console.error);
 
-    apiFetch('http://localhost:3001/api/servers')
-      .then(res => res.json())
-      .then(data => {
+    apiClient.get<unknown>('/api/servers')
+      .then(rawData => {
+        const data = z.array(ServerSchema).parse(rawData);
         if (data.length) setServers(data);
       })
       .catch(console.error);
 
-    apiFetch('http://localhost:3001/api/settings')
-      .then(res => res.json())
-      .then(data => {
+    apiClient.get<unknown>('/api/settings')
+      .then(rawData => {
+        const data = SettingsSchema.parse(rawData);
         if (data.llmUrl) setCustomLlmUrl(data.llmUrl);
         if (data.apiKey) setCustomApiKey(data.apiKey);
         if (data.llmName) setCustomLlmName(data.llmName);
@@ -72,16 +75,12 @@ export function useDashboardState() {
 
   const saveSettings = async () => {
     try {
-      await apiFetch('http://localhost:3001/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          llmUrl: customLlmUrl, 
-          apiKey: customApiKey, 
-          llmName: customLlmName,
-          llmModel: customLlmModel,
-          useBrowserTerminal 
-        })
+      await apiClient.post('/api/settings', { 
+        llmUrl: customLlmUrl, 
+        apiKey: customApiKey, 
+        llmName: customLlmName,
+        llmModel: customLlmModel,
+        useBrowserTerminal 
       });
       setSettingsSaved(true);
       setTimeout(() => setSettingsSaved(false), 2000);
@@ -93,11 +92,7 @@ export function useDashboardState() {
   const handleTerminalToggle = (checked: boolean) => {
     setUseBrowserTerminal(checked);
     localStorage.setItem('useBrowserTerminal', checked.toString());
-    apiFetch('http://localhost:3001/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ useBrowserTerminal: checked })
-    }).catch(console.error);
+    apiClient.post('/api/settings', { useBrowserTerminal: checked }).catch(console.error);
   };
 
   const deployAgent = async (agent: string) => {
@@ -105,19 +100,14 @@ export function useDashboardState() {
     setDeploying(agent);
     try {
       const selectedTasks = (activeProject.tasks || []).filter((t: any) => selectedTaskIds.includes(t.id));
-      const res = await apiFetch('http://localhost:3001/api/deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          agent, 
-          directory: activeProject.path, 
-          llmUrl: customLlmUrl, 
-          apiKey: customApiKey,
-          tasks: selectedTasks,
-          useBrowserTerminal
-        })
+      const data = await apiClient.post<any>('/api/deploy', { 
+        agent, 
+        directory: activeProject.path, 
+        llmUrl: customLlmUrl, 
+        apiKey: customApiKey,
+        tasks: selectedTasks,
+        useBrowserTerminal
       });
-      const data = await res.json();
       if (data.browserTerminal) {
         setTerminalConfig({
           command: data.command,
@@ -135,20 +125,15 @@ export function useDashboardState() {
   const deployRemoteAgent = async (agent: string, server: any) => {
     setDeploying(agent);
     try {
-      const res = await apiFetch('http://localhost:3001/api/deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          agent, 
-          directory: '', 
-          llmUrl: customLlmUrl, 
-          apiKey: customApiKey,
-          remoteServer: server,
-          remotePrompt,
-          useBrowserTerminal
-        })
+      const data = await apiClient.post<any>('/api/deploy', { 
+        agent, 
+        directory: '', 
+        llmUrl: customLlmUrl, 
+        apiKey: customApiKey,
+        remoteServer: server,
+        remotePrompt,
+        useBrowserTerminal
       });
-      const data = await res.json();
       if (data.browserTerminal) {
         setTerminalConfig({
           command: data.command,
@@ -167,12 +152,7 @@ export function useDashboardState() {
     if (!activeProject) return;
     setDeploying('analyze');
     try {
-      const res = await apiFetch('http://localhost:3001/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory: activeProject.path })
-      });
-      const data = await res.json();
+      const data = await apiClient.post<any>('/api/analyze', { directory: activeProject.path });
       if (!data.error) {
         // Merge tasks: keep existing, add new ones from disk
         const currentTasks = activeProject.tasks || [];
@@ -186,11 +166,7 @@ export function useDashboardState() {
         const mergedTasks = [...currentTasks, ...tasksToAdd];
         const updatedComplete = mergedTasks.length ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
         
-        await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null })
-        });
+        await apiClient.put(`/api/projects/${activeProject.id}`, { tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null });
         
         setProjects(prevProjects => prevProjects.map(p => 
           p.id === activeProject.id 
@@ -218,11 +194,7 @@ export function useDashboardState() {
     const mergedTasks = [...currentTasks, newTask];
     const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
     
-    await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tasks: mergedTasks, complete: updatedComplete })
-    });
+    await apiClient.put(`/api/projects/${activeProject.id}`, { tasks: mergedTasks, complete: updatedComplete });
     
     setProjects(projects.map(p => 
       p.id === activeProject.id ? { ...p, tasks: mergedTasks, complete: updatedComplete } : p
@@ -235,11 +207,7 @@ export function useDashboardState() {
     const mergedTasks = (activeProject.tasks || []).filter((t: any) => t.id !== taskId);
     const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter((t: any) => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
     
-    await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tasks: mergedTasks, complete: updatedComplete })
-    });
+    await apiClient.put(`/api/projects/${activeProject.id}`, { tasks: mergedTasks, complete: updatedComplete });
     
     setProjects(projects.map(p => 
       p.id === activeProject.id ? { ...p, tasks: mergedTasks, complete: updatedComplete } : p
@@ -250,18 +218,9 @@ export function useDashboardState() {
   const initGit = async () => {
     if (!activeProject) return;
     try {
-      const res = await apiFetch('http://localhost:3001/api/init-git', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory: activeProject.path })
-      });
-      const data = await res.json();
+      const data = await apiClient.post<any>('/api/init-git', { directory: activeProject.path });
       if (data.success) {
-        await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branch: data.branch })
-        });
+        await apiClient.put(`/api/projects/${activeProject.id}`, { branch: data.branch });
         setProjects(projects.map(p => 
           p.id === activeProject.id ? { ...p, branch: data.branch } : p
         ));
@@ -273,12 +232,7 @@ export function useDashboardState() {
 
   const handleAddServer = async () => {
     try {
-      const res = await apiFetch('http://localhost:3001/api/servers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newServer)
-      });
-      const data = await res.json();
+      const data = await apiClient.post<any>('/api/servers', newServer);
       setServers([...servers, data]);
       setShowAddServer(false);
       setNewServer({ name: '', host: '', username: '', port: 22, use_devil: false, ssh_password: '' });
@@ -289,7 +243,7 @@ export function useDashboardState() {
   const deleteServer = async (id: number, e: any) => {
     e.stopPropagation();
     try {
-      await apiFetch(`http://localhost:3001/api/servers/${id}`, { method: 'DELETE' });
+      await apiClient.delete(`/api/servers/${id}`);
       setServers(servers.filter(s => s.id !== id));
       if (activeProjectId === `server-${id}`) setActiveProjectId(null);
     } catch (e) { console.error(e); }
@@ -297,21 +251,15 @@ export function useDashboardState() {
 
   const handleAddProject = async () => {
     try {
-      const res = await apiFetch('http://localhost:3001/api/pick-folder');
-      if (res.status === 204) return;
+      const data = await apiClient.get<any>('/api/pick-folder');
+      if (!data) return; // 204
       
-      const data = await res.json();
       if (data.error || !data.path) return;
       
       const path = data.path;
       const folderName = path.split('/').pop() || path.split('\\').pop() || `New Project`;
       
-      const createRes = await apiFetch('http://localhost:3001/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: folderName, desc: 'Local workspace', path })
-      });
-      const newProject = await createRes.json();
+      const newProject = await apiClient.post<any>('/api/projects', { name: folderName, desc: 'Local workspace', path });
       
       setProjects([...projects, newProject]);
       setActiveProjectId(newProject.id);
@@ -323,8 +271,7 @@ export function useDashboardState() {
 
   const setupSshKey = async (serverId: number) => {
     try {
-      const res = await apiFetch(`http://localhost:3001/api/servers/${serverId}/setup-ssh`, { method: 'POST' });
-      const data = await res.json();
+      const data = await apiClient.post<any>(`/api/servers/${serverId}/setup-ssh`);
       if (data.copyCommand) {
         alert(`Skopiuj poniższą komendę i uruchom ją w swoim terminalu, aby dodać klucz SSH do serwera:\n\n${data.copyCommand}`);
       } else {

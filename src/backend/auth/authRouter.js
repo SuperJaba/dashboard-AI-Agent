@@ -59,3 +59,28 @@ authRouter.get('/check-setup', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+authRouter.post('/refresh', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = req.body.token || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
+    
+    if (!token) return res.status(400).json({ error: 'Token required' });
+
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+      
+      const result = await pool.query('SELECT id FROM users WHERE username = $1', [decoded.username]);
+      if (result.rows.length === 0) {
+        return res.status(401).json({ error: 'User no longer exists' });
+      }
+
+      const newToken = jwt.sign({ id: decoded.id, username: decoded.username }, JWT_SECRET, { expiresIn: '7d' });
+      res.json({ success: true, token: newToken });
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});

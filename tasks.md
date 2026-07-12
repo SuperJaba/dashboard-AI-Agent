@@ -1,5 +1,6 @@
 # Główne zadania
-- [ ] Dodać autoryzację do API
+- [x] Dodać autoryzację do API
 - [x] Przygotować endpointy analityczne
-- [ ] Opracować nowy widok kafelkowy w UI
-- [ ] Naprawić błąd z odświeżaniem tokenów
+- [x] Opracować nowy widok kafelkowy w UI
+- [ ] Zapisywanie konfiguracji LLM w bazie danych
+- [x] Naprawić błąd z odświeżaniem tokenów

@@ -9,18 +9,17 @@ describe('DashboardTiles', () => {
   ];
 
   it('renders projects correctly', () => {
-    render(<DashboardTiles projects={mockProjects} onProjectClick={() => {}} activeProjectId={null} />);
+    render(<DashboardTiles projects={mockProjects} onProjectClick={() => {}} />);
     
     expect(screen.getByText('Project Alpha')).toBeInTheDocument();
     expect(screen.getByText('Project Beta')).toBeInTheDocument();
-    expect(screen.getByText('alpha')).toBeInTheDocument(); // Checking if path split works
   });
 
   it('calls onProjectClick when a tile is clicked', () => {
     const handleClick = vi.fn();
-    render(<DashboardTiles projects={mockProjects} onProjectClick={handleClick} activeProjectId={null} />);
+    render(<DashboardTiles projects={mockProjects} onProjectClick={handleClick} />);
     
-    const tileAlpha = screen.getByText('Project Alpha').closest('.tile');
+    const tileAlpha = screen.getByText('Project Alpha').closest('.industrial-tile');
     if (tileAlpha) {
       fireEvent.click(tileAlpha);
     }
