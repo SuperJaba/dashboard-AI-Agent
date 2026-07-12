@@ -603,4 +603,52 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Premium Form and Inputs styling */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.form-col-span-2 {
+  grid-column: span 2 / span 2;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.form-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--glass-border);
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  color: var(--text-main);
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.25);
+}
+
+.form-input-mono {
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+
 

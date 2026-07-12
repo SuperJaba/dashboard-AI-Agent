@@ -225,52 +225,52 @@ export function AgentsView() {
 
         {/* Add Agent Modal Overlay */}
         {isAdding && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-            <div className="glass-card max-w-xl w-full p-8 border border-white/10" style={{ position: 'relative' }}>
+          <div className="modal-overlay">
+            <div className="modal-content" style={{ maxWidth: '600px' }}>
               <button 
                 onClick={() => setIsAdding(false)} 
-                className="absolute top-4 right-4 p-1.5 bg-slate-800/40 border border-slate-700/50 rounded-lg text-gray-400 hover:text-white transition"
+                className="modal-close-btn"
               >
-                <X className="w-5 h-5" />
+                <X size={18} />
               </button>
               
-              <h3 className="text-2xl font-bold text-white flex items-center gap-2.5 mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                <Bot className="w-6 h-6 text-blue-400" />
+              <h3 className="text-2xl font-bold text-white flex items-center gap-2.5 mb-6">
+                <Bot size={24} color="var(--primary)" />
                 Dodaj Nowego Agenta
               </h3>
               
-              <form onSubmit={handleAddAgent} className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nazwa Agenta</label>
-                  <input required placeholder="np. Code Reviewer" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition" />
+              <form onSubmit={handleAddAgent} className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Nazwa Agenta</label>
+                  <input required placeholder="np. Code Reviewer" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="form-input" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Opis</label>
-                  <input placeholder="np. Sprawdza PR-y" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition" />
+                <div className="form-group">
+                  <label className="form-label">Opis</label>
+                  <input placeholder="np. Sprawdza PR-y" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="form-input" />
                 </div>
-                <div className="space-y-1 col-span-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ścieżka pliku binarnego (Path)</label>
-                  <input required placeholder="np. /usr/local/bin/agent" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition font-mono text-xs" />
+                <div className="form-group form-col-span-2">
+                  <label className="form-label">Ścieżka pliku binarnego (Path)</label>
+                  <input required placeholder="np. /usr/local/bin/agent" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="form-input form-input-mono" />
                 </div>
-                <div className="space-y-1 col-span-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Config URI</label>
-                  <input placeholder="np. /home/user/.agent.json" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition font-mono text-xs" />
+                <div className="form-group form-col-span-2">
+                  <label className="form-label">Config URI</label>
+                  <input placeholder="np. /home/user/.agent.json" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="form-input form-input-mono" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Model LLM</label>
-                  <input placeholder="np. gpt-4o" value={newAgent.llm_model} onChange={e => setNewAgent({...newAgent, llm_model: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition" />
+                <div className="form-group">
+                  <label className="form-label">Model LLM</label>
+                  <input placeholder="np. gpt-4o" value={newAgent.llm_model} onChange={e => setNewAgent({...newAgent, llm_model: e.target.value})} className="form-input" />
                 </div>
-                <div className="flex gap-3">
-                  <div className="space-y-1 w-1/2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Temp</label>
-                    <input type="number" step="0.1" placeholder="0.7" value={newAgent.temperature} onChange={e => setNewAgent({...newAgent, temperature: parseFloat(e.target.value)})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none" />
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'row', gap: '1rem', width: '100%', alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <label className="form-label">Temp</label>
+                    <input type="number" step="0.1" placeholder="0.7" value={newAgent.temperature} onChange={e => setNewAgent({...newAgent, temperature: parseFloat(e.target.value)})} className="form-input" />
                   </div>
-                  <div className="space-y-1 w-1/2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tokens</label>
-                    <input type="number" placeholder="4096" value={newAgent.max_tokens} onChange={e => setNewAgent({...newAgent, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none" />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <label className="form-label">Tokens</label>
+                    <input type="number" placeholder="4096" value={newAgent.max_tokens} onChange={e => setNewAgent({...newAgent, max_tokens: parseInt(e.target.value)})} className="form-input" />
                   </div>
                 </div>
-                <div className="col-span-2 flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
+                <div className="form-col-span-2 flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
                   <button type="button" onClick={() => setIsAdding(false)} className="transition text-sm font-semibold" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.5rem 1rem' }}>Anuluj</button>
                   <button type="submit" className="btn btn-primary text-sm" style={{ padding: '0.5rem 1.25rem', borderRadius: '12px' }}>Dodaj Agenta</button>
                 </div>
