@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud } from 'lucide-react';
+import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiFetch } from './api';
 import './index.css';
 
@@ -12,6 +12,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
   const [githubData, setGithubData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCommits, setShowCommits] = useState(false);
 
   const fetchRepoData = async () => {
     setLoading(true);
@@ -103,20 +104,30 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
             </div>
 
             <div>
-              <div className="info-label" style={{ marginBottom: '0.5rem' }}>Recent Commits</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {gitStatus?.commits?.map((c: any, i: number) => (
-                  <div key={i} style={{ fontSize: '0.85rem', background: 'rgba(255,255,255,0.03)', padding: '0.5rem', borderRadius: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                      <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{c.msg}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{c.time}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                      <GitCommit size={12} /> {c.hash} by {c.author}
-                    </div>
-                  </div>
-                ))}
+              <div 
+                className="info-label" 
+                style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                onClick={() => setShowCommits(!showCommits)}
+              >
+                Recent Commits
+                {showCommits ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </div>
+              
+              {showCommits && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {gitStatus?.commits?.map((c: any, i: number) => (
+                    <div key={i} style={{ fontSize: '0.85rem', background: 'rgba(255,255,255,0.03)', padding: '0.5rem', borderRadius: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                        <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{c.msg}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{c.time}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                        <GitCommit size={12} /> {c.hash} by {c.author}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
