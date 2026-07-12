@@ -155,6 +155,9 @@ async function initDB() {
         config_uri TEXT,
         installed BOOLEAN DEFAULT false
       );
+      ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS llm_model VARCHAR(255);
+      ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS temperature NUMERIC DEFAULT 0.7;
+      ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS max_tokens INTEGER DEFAULT 4096;
       CREATE TABLE IF NOT EXISTS custom_widgets (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -382,7 +385,6 @@ app.post('/api/agents', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 app.delete('/api/agents/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM cli_agents WHERE id = $1', [req.params.id]);
@@ -392,6 +394,209 @@ app.delete('/api/agents/:id', async (req, res) => {
   }
 });
 
+// Auto-tune an agent's configuration (temp, max_tokens, best model choice)
+app.post('/api/agents/:id/tune', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const agentRes = await pool.query('SELECT * FROM cli_agents WHERE id = $1', [id]);
+    if (agentRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    const agent = agentRes.rows[0];
+
+    // Try to get LLM config from settings
+    const settingsRes = await pool.query("SELECT key, value FROM settings WHERE key IN ('llmUrl', 'apiKey')");
+    let llmUrl = '', apiKey = '';
+    settingsRes.rows.forEach(r => {
+      if (r.key === 'llmUrl') llmUrl = r.value;
+      if (r.key === 'apiKey') apiKey = decrypt(r.value);
+    });
+
+    let tuned = {
+      temperature: 0.7,
+      max_tokens: 4096,
+      llm_model: agent.llm_model || 'gpt-4o'
+    };
+
+    if (llmUrl && apiKey) {
+      const url = llmUrl.endsWith('/chat/completions') ? llmUrl : (llmUrl.endsWith('/') ? llmUrl.slice(0, -1) : llmUrl) + '/chat/completions';
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF',
+            messages: [{
+              role: 'user',
+              content: `Optimize parameters for AI Agent. Name: "${agent.name}", Description: "${agent.description || ''}".
+              Return JSON ONLY with keys: "temperature" (float 0.0-1.0), "max_tokens" (integer 1000-16000), "llm_model" (string, choose best matching model, e.g. claude-3-5-sonnet, gpt-4o, deepseek-coder, or keep current "${agent.llm_model || 'gpt-4o'}"). Do not explain.`
+            }],
+            temperature: 0.2
+          })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const content = data.choices[0].message.content;
+          const match = content.match(/\{.*\}/s);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            if (parsed.temperature !== undefined) tuned.temperature = parseFloat(parsed.temperature);
+            if (parsed.max_tokens !== undefined) tuned.max_tokens = parseInt(parsed.max_tokens);
+            if (parsed.llm_model !== undefined) tuned.llm_model = parsed.llm_model;
+          }
+        }
+      } catch (e) {
+        console.error('LLM Tuning request failed, falling back to heuristics:', e.message);
+      }
+    }
+
+    // Heuristics fallback if LLM tuning failed or wasn't configured
+    if (!llmUrl || !apiKey) {
+      const nameLower = agent.name.toLowerCase();
+      if (nameLower.includes('review') || nameLower.includes('security') || nameLower.includes('audit')) {
+        tuned.temperature = 0.2;
+        tuned.max_tokens = 8192;
+      } else if (nameLower.includes('creative') || nameLower.includes('writer') || nameLower.includes('chat')) {
+        tuned.temperature = 0.9;
+        tuned.max_tokens = 4096;
+      } else if (nameLower.includes('coder') || nameLower.includes('architect') || nameLower.includes('aider') || nameLower.includes('claude')) {
+        tuned.temperature = 0.5;
+        tuned.max_tokens = 8192;
+        tuned.llm_model = 'claude-3-5-sonnet';
+      }
+    }
+
+    const { rows } = await pool.query(
+      'UPDATE cli_agents SET temperature = $1, max_tokens = $2, llm_model = $3 WHERE id = $4 RETURNING *',
+      [tuned.temperature, tuned.max_tokens, tuned.llm_model, id]
+    );
+
+    res.json({ success: true, agent: rows[0], tunedByLLM: !!(llmUrl && apiKey) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Auto-tune and scan LLM servers
+app.post('/api/settings/llm/tune', async (req, res) => {
+  try {
+    const settingsRes = await pool.query("SELECT key, value FROM settings WHERE key IN ('llmUrl', 'apiKey')");
+    let currentUrl = '', apiKey = '';
+    settingsRes.rows.forEach(r => {
+      if (r.key === 'llmUrl') currentUrl = r.value;
+      if (r.key === 'apiKey') apiKey = decrypt(r.value);
+    });
+
+    let autoDetectedUrl = '';
+    let autoDetectedType = '';
+    let latency = null;
+    let speed = null;
+    let status = 'failed';
+    let recommendations = [];
+
+    const localLLMs = [
+      { url: 'http://localhost:11434', type: 'Ollama' },
+      { url: 'http://localhost:1234/v1', type: 'LM Studio' },
+      { url: 'http://localhost:8000/v1', type: 'vLLM / local API' }
+    ];
+
+    let testUrls = [];
+    if (currentUrl) {
+      testUrls.push({ url: currentUrl, type: 'Current' });
+    }
+    localLLMs.forEach(item => {
+      if (!currentUrl || !currentUrl.includes(item.url)) {
+        testUrls.push(item);
+      }
+    });
+
+    for (const target of testUrls) {
+      const startTime = Date.now();
+      try {
+        const checkUrl = target.url.endsWith('/chat/completions') 
+          ? target.url 
+          : (target.url.endsWith('/') ? target.url.slice(0, -1) : target.url) + '/chat/completions';
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+        const response = await fetch(checkUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
+          },
+          body: JSON.stringify({
+            model: 'test',
+            messages: [{ role: 'user', content: 'Say OK' }],
+            max_tokens: 5
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok || response.status === 404 || response.status === 401) {
+          latency = Date.now() - startTime;
+          autoDetectedUrl = target.url;
+          autoDetectedType = target.type;
+          status = 'success';
+          
+          if (response.ok) {
+            const data = await response.json();
+            const generationTime = Date.now() - startTime;
+            const content = data.choices?.[0]?.message?.content || '';
+            const wordsCount = content.split(/\s+/).length || 1;
+            speed = Math.round((wordsCount * 1.3) / (generationTime / 1000) * 10) / 10;
+          }
+          break;
+        }
+      } catch (err) {
+        // failed connection
+      }
+    }
+
+    if (status === 'success') {
+      recommendations.push(`Connected to ${autoDetectedType} LLM server at ${autoDetectedUrl}.`);
+      if (latency !== null) recommendations.push(`Latency: ${latency}ms.`);
+      if (speed !== null) {
+        recommendations.push(`Generation Speed: ~${speed} tokens/sec.`);
+        if (speed < 10) recommendations.push("Slow generation. Suggest offloading more layers to GPU.");
+        else recommendations.push("Excellent speed and throughput.");
+      }
+
+      if (autoDetectedUrl && currentUrl !== autoDetectedUrl) {
+        await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ['llmUrl', autoDetectedUrl]);
+        recommendations.push(`Auto-tuned and updated LLM Server URL in settings to: ${autoDetectedUrl}.`);
+      }
+    } else {
+      try {
+        const ollamaRes = await fetch('http://localhost:11434/api/tags');
+        if (ollamaRes.ok) {
+          status = 'success';
+          autoDetectedUrl = 'http://localhost:11434';
+          autoDetectedType = 'Ollama';
+          recommendations.push("Ollama detected running locally on port 11434. Standard OpenAI endpoints are active.");
+          await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ['llmUrl', autoDetectedUrl]);
+        }
+      } catch (e) {
+        recommendations.push("No local or configured LLM server detected. Please ensure Ollama (11434) or LM Studio (1234) is running.");
+      }
+    }
+
+    res.json({
+      success: true,
+      status,
+      llmUrl: autoDetectedUrl || currentUrl,
+      type: autoDetectedType || 'Unknown',
+      latency,
+      speed,
+      recommendations
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // Save Project
 app.post('/api/projects', async (req, res) => {
   const { name, desc, path: p, branch, tech, complete, tasks } = req.body;
