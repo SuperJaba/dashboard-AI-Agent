@@ -13,6 +13,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCommits, setShowCommits] = useState(false);
+  const [showPRs, setShowPRs] = useState(false);
 
   const fetchRepoData = async () => {
     setLoading(true);
