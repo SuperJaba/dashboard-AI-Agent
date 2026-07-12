@@ -55,31 +55,24 @@ settingsRouter.post('/llm/tune', async (req, res) => {
     });
 
     for (const target of testUrls) {
+      const base = target.url.endsWith('/chat/completions') 
+        ? target.url.replace('/chat/completions', '') 
+        : (target.url.endsWith('/') ? target.url.slice(0, -1) : target.url);
+      
       const startTime = Date.now();
       try {
-        const checkUrl = target.url.endsWith('/chat/completions') 
-          ? target.url 
-          : (target.url.endsWith('/') ? target.url.slice(0, -1) : target.url) + '/chat/completions';
-        
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
 
-        const response = await fetch(checkUrl, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
-          },
-          body: JSON.stringify({
-            model: 'test',
-            messages: [{ role: 'user', content: 'Say OK' }],
-            max_tokens: 5
-          }),
+        // Try OpenAI /v1/models GET request first
+        const modelsRes = await fetch(`${base}/v1/models`, {
+          method: 'GET',
+          headers: apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {},
           signal: controller.signal
         });
         clearTimeout(timeoutId);
 
-        if (response.ok || response.status === 404 || response.status === 401) {
+        if (modelsRes.ok || modelsRes.status === 401 || modelsRes.status === 403) {
           latency = Date.now() - startTime;
           autoDetectedUrl = target.url;
           autoDetectedType = target.type;
@@ -87,7 +80,63 @@ settingsRouter.post('/llm/tune', async (req, res) => {
           break;
         }
       } catch (e) {
-        // Continue scanning
+        // Fallback to /v1/chat/completions POST probe
+        try {
+          const checkUrl = `${base}/v1/chat/completions`;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1500);
+          const response = await fetch(checkUrl, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
+            },
+            body: JSON.stringify({
+              model: 'test',
+              messages: [{ role: 'user', content: 'Say OK' }],
+              max_tokens: 5
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (response.ok || response.status === 401 || response.status === 403) {
+            latency = Date.now() - startTime;
+            autoDetectedUrl = target.url;
+            autoDetectedType = target.type;
+            status = 'success';
+            break;
+          }
+        } catch (err2) {
+          // Fallback to /v1/completions POST probe
+          try {
+            const checkUrl = `${base}/v1/completions`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1500);
+            const response = await fetch(checkUrl, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
+              },
+              body: JSON.stringify({
+                model: 'test',
+                prompt: 'Say OK',
+                max_tokens: 5
+              }),
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (response.ok || response.status === 401 || response.status === 403) {
+              latency = Date.now() - startTime;
+              autoDetectedUrl = target.url;
+              autoDetectedType = target.type;
+              status = 'success';
+              break;
+            }
+          } catch (err3) {
+            // Continue scanning
+          }
+        }
       }
     }
 
