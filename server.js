@@ -143,6 +143,9 @@ async function initDB() {
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT NOT NULL
       );
+      INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;
+      INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1') ON CONFLICT (key) DO NOTHING;
+      INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0') ON CONFLICT (key) DO NOTHING;
     `);
     console.log('Database initialized');
   } catch (err) {

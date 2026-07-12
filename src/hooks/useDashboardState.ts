@@ -19,6 +19,8 @@ export function useDashboardState() {
   const [deploying, setDeploying] = useState<string | null>(null);
   const [customLlmUrl, setCustomLlmUrl] = useState('');
   const [customApiKey, setCustomApiKey] = useState('');
+  const [customLlmName, setCustomLlmName] = useState('AtomicChat');
+  const [customLlmModel, setCustomLlmModel] = useState('AtomicChat/qwen35-4b-Q8_0');
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
@@ -45,6 +47,8 @@ export function useDashboardState() {
       .then(data => {
         if (data.llmUrl) setCustomLlmUrl(data.llmUrl);
         if (data.apiKey) setCustomApiKey(data.apiKey);
+        if (data.llmName) setCustomLlmName(data.llmName);
+        if (data.llmModel) setCustomLlmModel(data.llmModel);
         
         // Sync terminal preference
         const localPref = localStorage.getItem('useBrowserTerminal');
@@ -71,7 +75,13 @@ export function useDashboardState() {
       await apiFetch('http://localhost:3001/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ llmUrl: customLlmUrl, apiKey: customApiKey, useBrowserTerminal })
+        body: JSON.stringify({ 
+          llmUrl: customLlmUrl, 
+          apiKey: customApiKey, 
+          llmName: customLlmName,
+          llmModel: customLlmModel,
+          useBrowserTerminal 
+        })
       });
       setSettingsSaved(true);
       setTimeout(() => setSettingsSaved(false), 2000);
@@ -343,6 +353,8 @@ export function useDashboardState() {
     deploying, setDeploying,
     customLlmUrl, setCustomLlmUrl,
     customApiKey, setCustomApiKey,
+    customLlmName, setCustomLlmName,
+    customLlmModel, setCustomLlmModel,
     settingsSaved, setSettingsSaved,
     newTaskTitle, setNewTaskTitle,
     activeProject,

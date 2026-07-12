@@ -17,9 +17,9 @@ settingsRouter.get('/', async (req, res) => {
 
 // Save Settings
 settingsRouter.post('/', async (req, res) => {
-  const { llmUrl, apiKey, useBrowserTerminal } = req.body;
+  const { llmUrl, apiKey, llmName, llmModel, useBrowserTerminal } = req.body;
   try {
-    const result = await settingsRepo.saveSettings({ llmUrl, apiKey, useBrowserTerminal });
+    const result = await settingsRepo.saveSettings({ llmUrl, apiKey, llmName, llmModel, useBrowserTerminal });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

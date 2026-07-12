@@ -33,6 +33,8 @@ function App() {
     deploying,
     customLlmUrl, setCustomLlmUrl,
     customApiKey, setCustomApiKey,
+    customLlmName, setCustomLlmName,
+    customLlmModel, setCustomLlmModel,
     settingsSaved,
     newTaskTitle, setNewTaskTitle,
     activeProject,
@@ -162,29 +164,45 @@ function App() {
           </div>
         )}
 
-        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <span className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0' }}>Custom LLM (LM Studio)</span>
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <span className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</span>
           <input 
             type="text" 
-            placeholder="http://localhost:1234/v1" 
+            placeholder="np. AtomicChat" 
+            value={customLlmName}
+            onChange={(e) => setCustomLlmName(e.target.value)}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontSize: '0.8rem' }}
+          />
+          <span className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</span>
+          <input 
+            type="text" 
+            placeholder="http://localhost:1337/v1" 
             value={customLlmUrl}
             onChange={(e) => setCustomLlmUrl(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.85rem' }}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
           />
-          <span className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0', marginTop: '0.5rem' }}>API Key (OpenAI / LM)</span>
+          <span className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</span>
+          <input 
+            type="text" 
+            placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
+            value={customLlmModel}
+            onChange={(e) => setCustomLlmModel(e.target.value)}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+          />
+          <span className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</span>
           <input 
             type="password" 
-            placeholder="sk-..." 
+            placeholder="Brak" 
             value={customApiKey}
             onChange={(e) => setCustomApiKey(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.85rem' }}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
           />
           <button 
             onClick={saveSettings}
-            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'rgba(255,255,255,0.1)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.2rem', transition: '0.3s' }}
+            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
           >
-            {settingsSaved ? <CheckCircle2 size={16} /> : <Save size={16} />}
-            {settingsSaved ? 'Saved to DB!' : 'Save Settings'}
+            {settingsSaved ? <CheckCircle2 size={15} /> : <Save size={15} />}
+            {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
           </button>
           <button 
             onClick={() => {

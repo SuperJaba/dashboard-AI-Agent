@@ -14,7 +14,7 @@ export async function getSettings() {
   return settings;
 }
 
-export async function saveSettings({ llmUrl, apiKey, useBrowserTerminal }) {
+export async function saveSettings({ llmUrl, apiKey, llmName, llmModel, useBrowserTerminal }) {
   if (llmUrl !== undefined) {
     await pool.query(
       'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
@@ -25,6 +25,18 @@ export async function saveSettings({ llmUrl, apiKey, useBrowserTerminal }) {
     await pool.query(
       'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
       ['apiKey', encrypt(apiKey)]
+    );
+  }
+  if (llmName !== undefined) {
+    await pool.query(
+      'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+      ['llmName', llmName]
+    );
+  }
+  if (llmModel !== undefined) {
+    await pool.query(
+      'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+      ['llmModel', llmModel]
     );
   }
   if (useBrowserTerminal !== undefined) {
