@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import './index.css';
 import { TerminalModal } from './TerminalModal';
+import { AnalyticsPanel } from './AnalyticsPanel';
 
 const API_TOKEN = 'dashboard-secret-token';
 const apiFetch = (url: string, options: any = {}) => {
@@ -47,6 +48,14 @@ function App() {
       .then(data => {
         if (data.llmUrl) setCustomLlmUrl(data.llmUrl);
         if (data.apiKey) setCustomApiKey(data.apiKey);
+        
+        // Sync terminal preference
+        const localPref = localStorage.getItem('useBrowserTerminal');
+        if (localPref !== null) {
+          setUseBrowserTerminal(localPref === 'true');
+        } else if (data.useBrowserTerminal !== undefined) {
+          setUseBrowserTerminal(data.useBrowserTerminal === 'true');
+        }
       })
       .catch(console.error);
   }, []);
@@ -62,13 +71,23 @@ function App() {
       await apiFetch('http://localhost:3001/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ llmUrl: customLlmUrl, apiKey: customApiKey })
+        body: JSON.stringify({ llmUrl: customLlmUrl, apiKey: customApiKey, useBrowserTerminal })
       });
       setSettingsSaved(true);
       setTimeout(() => setSettingsSaved(false), 2000);
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleTerminalToggle = (checked: boolean) => {
+    setUseBrowserTerminal(checked);
+    localStorage.setItem('useBrowserTerminal', checked.toString());
+    apiFetch('http://localhost:3001/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ useBrowserTerminal: checked })
+    }).catch(console.error);
   };
 
   const deployAgent = async (agent: string) => {
@@ -320,7 +339,7 @@ function App() {
                   <input 
                     type="checkbox" 
                     checked={useBrowserTerminal}
-                    onChange={(e) => setUseBrowserTerminal(e.target.checked)}
+                    onChange={(e) => handleTerminalToggle(e.target.checked)}
                     style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
                   />
                   Use Browser Terminal
@@ -329,6 +348,7 @@ function App() {
             </header>
 
             <main>
+              <AnalyticsPanel />
               <div className="grid-top" style={{ marginBottom: '2rem' }}>
                 <div className="glass-card animate-in delay-2">
                   <span className="info-label">Implementation Status</span>
@@ -386,14 +406,14 @@ function App() {
                         style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2 }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (selectedTaskIds.length === (activeProject.tasks || []).length && activeProject.tasks.length > 0) {
+                          if (selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0) {
                             setSelectedTaskIds([]);
                           } else {
                             setSelectedTaskIds((activeProject.tasks || []).map((t: any) => t.id));
                           }
                         }}
                       >
-                        {selectedTaskIds.length === (activeProject.tasks || []).length && activeProject.tasks?.length > 0 ? 'Uncheck All' : 'Check All'}
+                        {selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0 ? 'Uncheck All' : 'Check All'}
                       </button>
                     )}
                     {showTasks ? <ChevronUp size={24} color="var(--text-muted)" /> : <ChevronDown size={24} color="var(--text-muted)" />}
@@ -415,8 +435,13 @@ function App() {
                         }}
                         style={{ 
                           cursor: 'pointer', 
-                          border: selectedTaskIds.includes(task.id) ? '1px solid var(--primary)' : '1px solid transparent',
-                          background: selectedTaskIds.includes(task.id) ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.02)'
+                          border: selectedTaskIds.includes(task.id) 
+                            ? (task.status === 'completed' ? '1px solid #f59e0b' : '1px solid var(--primary)') 
+                            : '1px solid transparent',
+                          background: selectedTaskIds.includes(task.id) 
+                            ? (task.status === 'completed' ? 'rgba(245, 158, 11, 0.05)' : 'rgba(16, 185, 129, 0.05)') 
+                            : 'rgba(255,255,255,0.02)',
+                          opacity: (task.status === 'completed' && !selectedTaskIds.includes(task.id)) ? 0.6 : 1
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -425,7 +450,12 @@ function App() {
                               type="checkbox" 
                               checked={selectedTaskIds.includes(task.id)}
                               readOnly
-                              style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                              style={{ 
+                                width: '16px', 
+                                height: '16px', 
+                                accentColor: task.status === 'completed' ? '#f59e0b' : 'var(--primary)', 
+                                cursor: 'pointer' 
+                              }}
                             />
                             <div className="task-info">
                               <span className="task-title">{task.title}</span>

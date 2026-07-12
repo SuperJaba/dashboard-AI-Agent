@@ -169,13 +169,16 @@ app.get('/api/settings', async (req, res) => {
 
 // Save Settings
 app.post('/api/settings', async (req, res) => {
-  const { llmUrl, apiKey } = req.body;
+  const { llmUrl, apiKey, useBrowserTerminal } = req.body;
   try {
     if (llmUrl !== undefined) {
       await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ['llmUrl', llmUrl]);
     }
     if (apiKey !== undefined) {
       await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ['apiKey', encrypt(apiKey)]);
+    }
+    if (useBrowserTerminal !== undefined) {
+      await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ['useBrowserTerminal', String(useBrowserTerminal)]);
     }
     res.json({ success: true });
   } catch (err) {
@@ -273,7 +276,10 @@ app.post('/api/deploy', (req, res) => {
     }
 
     if (tasks && tasks.length > 0) {
-      const list = tasks.map(t => `- [ ] ${t.title}`).join('\n');
+      const list = tasks.map(t => {
+        const prefix = t.status === 'completed' ? '[REWORK] ' : '';
+        return `- [ ] ${prefix}${t.title}`;
+      }).join('\n');
       const promptFile = path.join(targetDir, '.ai_tasks.md');
       fs.writeFileSync(promptFile, `# Zadania do wykonania\n\n${list}\n`);
     }
@@ -396,7 +402,7 @@ app.post('/api/analyze', async (req, res) => {
     // 2. Scan for TODO / FIXME in code
     try {
       const stdout = execSync(
-        `grep -rnE --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist "TOD[O]:|FIXM[E]:" "${directory}" | head -n 15`,
+        `grep -rnE --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=.autohand --exclude-dir=.gemini --exclude=SKILL.md "TOD[O]:|FIXM[E]:" "${directory}" | head -n 15`,
         { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }
       );
       const lines = stdout.split('\n').filter(Boolean);
@@ -481,6 +487,27 @@ app.post('/api/analyze', async (req, res) => {
     res.json({ tech: techStack, tasks, branch });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/analytics', async (req, res) => {
+  try {
+    const totalProjectsRes = await pool.query('SELECT COUNT(*) as count FROM projects');
+    const totalProjects = parseInt(totalProjectsRes.rows[0].count, 10);
+    
+    const techStatsRes = await pool.query('SELECT tech, COUNT(*) as count FROM projects GROUP BY tech');
+    const techStats = techStatsRes.rows.map(row => ({ tech: row.tech, count: parseInt(row.count, 10) }));
+    
+    const avgCompleteRes = await pool.query('SELECT AVG(complete) as avg FROM projects');
+    const avgComplete = parseFloat(avgCompleteRes.rows[0].avg) || 0;
+    
+    res.json({
+      totalProjects,
+      techStats,
+      avgComplete
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
