@@ -31,19 +31,26 @@ vi.mock('pg', () => {
 
 describe('Backend API Tests', () => {
   it('GET /api/projects should return an array', async () => {
-    const res = await request(app).get('/api/projects');
+    const res = await request(app)
+      .get('/api/projects')
+      .set('Authorization', 'Bearer dashboard-secret-token');
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
 
   it('GET /api/pick-folder should return a mocked path', async () => {
-    const res = await request(app).get('/api/pick-folder');
+    const res = await request(app)
+      .get('/api/pick-folder')
+      .set('Authorization', 'Bearer dashboard-secret-token');
     expect(res.statusCode).toBe(200);
     expect(res.body.path).toBe('/mocked/path');
   });
 
   it('POST /api/analyze should fail if no directory provided', async () => {
-    const res = await request(app).post('/api/analyze').send({});
+    const res = await request(app)
+      .post('/api/analyze')
+      .set('Authorization', 'Bearer dashboard-secret-token')
+      .send({});
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe('Missing directory');
   });

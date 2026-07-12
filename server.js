@@ -6,12 +6,68 @@ import fs from 'fs';
 import pkg from 'pg';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import pty from 'node-pty';
 
 dotenv.config();
 
 const { Pool } = pkg;
 const app = express();
 const port = 3001;
+
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+  }
+});
+
+io.on('connection', (socket) => {
+  let ptyProcess = null;
+
+  socket.on('spawn_terminal', ({ command, args, cwd, env }) => {
+    try {
+      ptyProcess = pty.spawn(command, args || [], {
+        name: 'xterm-color',
+        cols: 80,
+        rows: 24,
+        cwd: cwd || process.cwd(),
+        env: { ...process.env, ...env }
+      });
+
+      ptyProcess.onData((data) => {
+        socket.emit('terminal_data', data);
+      });
+
+      ptyProcess.onExit(({ exitCode, signal }) => {
+        socket.emit('terminal_exit', { exitCode, signal });
+      });
+    } catch (err) {
+      socket.emit('terminal_error', err.message);
+    }
+  });
+
+  socket.on('terminal_input', (data) => {
+    if (ptyProcess) {
+      ptyProcess.write(data);
+    }
+  });
+
+  socket.on('terminal_resize', ({ cols, rows }) => {
+    if (ptyProcess) {
+      try {
+        ptyProcess.resize(cols, rows);
+      } catch (e) {}
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (ptyProcess) {
+      ptyProcess.kill();
+    }
+  });
+});
 
 app.use(cors());
 app.use(express.json());
@@ -192,7 +248,7 @@ app.post('/api/init-git', (req, res) => {
 });
 
 app.post('/api/deploy', (req, res) => {
-  const { agent, directory, llmUrl, apiKey, tasks } = req.body;
+  const { agent, directory, llmUrl, apiKey, tasks, useBrowserTerminal } = req.body;
   let targetDir = directory || process.cwd();
   
   if (targetDir.startsWith('~/')) {
@@ -234,6 +290,18 @@ app.post('/api/deploy', (req, res) => {
       fs.writeFileSync(scriptPath, scriptContent);
       fs.chmodSync(scriptPath, '755');
       
+      if (useBrowserTerminal) {
+        // Return config for the frontend to connect via WebSockets
+        return res.json({ 
+          success: true, 
+          browserTerminal: true, 
+          command: 'bash', 
+          args: [scriptPath], 
+          cwd: targetDir, 
+          env 
+        });
+      }
+
       command = 'x-terminal-emulator';
       args = ['-e', scriptPath];
     } else {
@@ -417,7 +485,7 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(port, () => {
+  httpServer.listen(port, () => {
     console.log(`Backend API running on http://localhost:${port}`);
   });
 }

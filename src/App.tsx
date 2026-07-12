@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { 
-  Rocket, Activity, Folder, GitBranch, TerminalSquare, 
-  CheckCircle2, CircleDashed, Clock, ChevronDown, ChevronUp, 
-  Plus, LayoutDashboard, Save 
+  Folder, Plus, TerminalSquare, GitBranch, 
+  Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed 
 } from 'lucide-react';
 import './index.css';
+import { TerminalModal } from './TerminalModal';
 
 const API_TOKEN = 'dashboard-secret-token';
 const apiFetch = (url: string, options: any = {}) => {
@@ -22,11 +23,13 @@ function App() {
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [showTasks, setShowTasks] = useState(false);
   const [useBrowserTerminal, setUseBrowserTerminal] = useState(false);
+  const [terminalConfig, setTerminalConfig] = useState<any>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [deploying, setDeploying] = useState<string | null>(null);
   const [customLlmUrl, setCustomLlmUrl] = useState('');
   const [customApiKey, setCustomApiKey] = useState('');
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
 
   useEffect(() => {
     apiFetch('http://localhost:3001/api/projects')
@@ -73,7 +76,7 @@ function App() {
     setDeploying(agent);
     try {
       const selectedTasks = (activeProject.tasks || []).filter((t: any) => selectedTaskIds.includes(t.id));
-      await apiFetch('http://localhost:3001/api/deploy', {
+      const res = await apiFetch('http://localhost:3001/api/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -85,6 +88,15 @@ function App() {
           useBrowserTerminal
         })
       });
+      const data = await res.json();
+      if (data.browserTerminal) {
+        setTerminalConfig({
+          command: data.command,
+          args: data.args,
+          cwd: data.cwd,
+          env: data.env
+        });
+      }
     } catch (err) {
       console.error(err);
     }
@@ -101,16 +113,27 @@ function App() {
       });
       const data = await res.json();
       if (!data.error) {
-        const updatedComplete = data.tasks.length ? 33 : 0;
+        // Merge tasks: keep existing, add new ones from disk
+        const currentTasks = activeProject.tasks || [];
+        const existingTitles = new Set(currentTasks.map((t: any) => t.title));
+        const newTasks = data.tasks.filter((t: any) => !existingTitles.has(t.title));
+        
+        // Ensure unique IDs
+        let maxId = currentTasks.length > 0 ? Math.max(...currentTasks.map((t: any) => t.id)) : 0;
+        const tasksToAdd = newTasks.map((t: any) => ({ ...t, id: ++maxId }));
+        
+        const mergedTasks = [...currentTasks, ...tasksToAdd];
+        const updatedComplete = mergedTasks.length ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+        
         await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tech: data.tech, tasks: data.tasks, complete: updatedComplete, branch: data.branch || null })
+          body: JSON.stringify({ tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null })
         });
         
         setProjects(projects.map(p => 
           p.id === activeProject.id 
-            ? { ...p, tech: data.tech, tasks: data.tasks, complete: updatedComplete, branch: data.branch || null }
+            ? { ...p, tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null }
             : p
         ));
         setShowTasks(true);
@@ -118,6 +141,45 @@ function App() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const addTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeProject || !newTaskTitle.trim()) return;
+    
+    const currentTasks = activeProject.tasks || [];
+    let maxId = currentTasks.length > 0 ? Math.max(...currentTasks.map((t: any) => t.id)) : 0;
+    const newTask = { id: maxId + 1, title: newTaskTitle.trim(), meta: 'Custom Task', status: 'pending' };
+    const mergedTasks = [...currentTasks, newTask];
+    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+    
+    await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tasks: mergedTasks, complete: updatedComplete })
+    });
+    
+    setProjects(projects.map(p => 
+      p.id === activeProject.id ? { ...p, tasks: mergedTasks, complete: updatedComplete } : p
+    ));
+    setNewTaskTitle('');
+  };
+
+  const deleteTask = async (taskId: number) => {
+    if (!activeProject) return;
+    const mergedTasks = (activeProject.tasks || []).filter((t: any) => t.id !== taskId);
+    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+    
+    await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tasks: mergedTasks, complete: updatedComplete })
+    });
+    
+    setProjects(projects.map(p => 
+      p.id === activeProject.id ? { ...p, tasks: mergedTasks, complete: updatedComplete } : p
+    ));
+    setSelectedTaskIds(selectedTaskIds.filter(id => id !== taskId));
   };
 
   const initGit = async () => {
@@ -228,40 +290,40 @@ function App() {
       <div className="dashboard-container">
         {activeProject ? (
           <>
-            <header className="header animate-in delay-1">
+            <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
                 <h1>{activeProject.name}</h1>
                 <p style={{ color: 'var(--text-muted)' }}>{activeProject.desc}</p>
               </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => deployAgent('claude')}
-                  disabled={deploying !== null}
-                  style={{ opacity: deploying === 'claude' ? 0.7 : 1 }}
-                >
-                  <Rocket size={20} />
-                  {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
-                </button>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => deployAgent('agy')}
-                  disabled={deploying !== null}
-                  style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: deploying === 'agy' ? 0.7 : 1 }}
-                >
-                  <Rocket size={20} />
-                  {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem', width: '100%' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => deployAgent('claude')}
+                    disabled={deploying !== null}
+                    style={{ opacity: deploying === 'claude' ? 0.7 : 1 }}
+                  >
+                    <Rocket size={20} />
+                    {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
+                  </button>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => deployAgent('agy')}
+                    disabled={deploying !== null}
+                    style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: deploying === 'agy' ? 0.7 : 1 }}
+                  >
+                    <Rocket size={20} />
+                    {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
+                  </button>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
                   <input 
                     type="checkbox" 
                     checked={useBrowserTerminal}
                     onChange={(e) => setUseBrowserTerminal(e.target.checked)}
-                    style={{ accentColor: 'var(--primary)' }}
+                    style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
                   />
-                  Use Browser Terminal (Experimental)
+                  Use Browser Terminal
                 </label>
               </div>
             </header>
@@ -357,39 +419,72 @@ function App() {
                           background: selectedTaskIds.includes(task.id) ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.02)'
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={selectedTaskIds.includes(task.id)}
-                            readOnly
-                            style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: 'pointer' }}
-                          />
-                          <div className="task-info">
-                            <span className="task-title">{task.title}</span>
-                            <span className="task-meta">{task.meta}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={selectedTaskIds.includes(task.id)}
+                              readOnly
+                              style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                            />
+                            <div className="task-info">
+                              <span className="task-title">{task.title}</span>
+                              <span className="task-meta">{task.meta}</span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="task-status">
-                          {task.status === 'completed' && (
-                            <span className="status-badge status-completed">
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <CheckCircle2 size={14} /> Completed
+                          <div className="task-status" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {task.status === 'completed' && (
+                              <span className="status-badge status-completed">
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <CheckCircle2 size={14} /> Completed
+                                </span>
                               </span>
-                            </span>
-                          )}
-                          {task.status === 'progress' && (
-                            <span className="status-badge status-progress">
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <CircleDashed size={14} /> In Progress
+                            )}
+                            {task.status === 'progress' && (
+                              <span className="status-badge status-progress">
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <CircleDashed size={14} /> In Progress
+                                </span>
                               </span>
-                            </span>
-                          )}
-                          {task.status === 'pending' && (
-                            <span className="status-badge status-pending">Pending</span>
-                          )}
+                            )}
+                            {task.status === 'pending' && (
+                              <span className="status-badge status-pending">Pending</span>
+                            )}
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteTask(task.id);
+                              }}
+                              style={{ 
+                                background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
+                                padding: '0.25rem', borderRadius: '4px', display: 'flex'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.color = '#ef4444'}
+                              onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                              title="Delete task"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
+                    
+                    <form onSubmit={addTask} style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', padding: '0 0.5rem' }}>
+                      <input 
+                        type="text" 
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        placeholder="Add a new custom task..." 
+                        style={{ 
+                          flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', 
+                          borderRadius: '8px', padding: '0.75rem 1rem', color: 'var(--text-main)', outline: 'none'
+                        }}
+                      />
+                      <button type="submit" disabled={!newTaskTitle.trim()} className="btn btn-primary" style={{ padding: '0.75rem' }}>
+                        <PlusCircle size={20} />
+                      </button>
+                    </form>
                   </div>
                 )}
               </section>
@@ -401,6 +496,12 @@ function App() {
           </div>
         )}
       </div>
+
+      <TerminalModal 
+        isOpen={!!terminalConfig} 
+        onClose={() => setTerminalConfig(null)} 
+        config={terminalConfig} 
+      />
     </div>
   );
 }
