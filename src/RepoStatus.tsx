@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud, ChevronDown, ChevronUp } from 'lucide-react';
+import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud, ChevronDown, ChevronUp, X, CheckCircle2 } from 'lucide-react';
 import { apiFetch } from './api';
 import './index.css';
 
@@ -14,6 +14,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
   const [error, setError] = useState<string | null>(null);
   const [showCommits, setShowCommits] = useState(false);
   const [showPRs, setShowPRs] = useState(false);
+  const [deployModal, setDeployModal] = useState<{show: boolean, title: string, content: string, isError: boolean} | null>(null);
 
   const fetchRepoData = async () => {
     setLoading(true);
@@ -176,19 +177,78 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
                     });
                     const data = await res.json();
                     if (data.error) {
-                      alert(`Deploy Error: ${data.error}\n${data.stdout || ''}`);
+                      setDeployModal({
+                        show: true,
+                        title: 'Deploy Error',
+                        content: `${data.error}\n${data.stdout || ''}`,
+                        isError: true
+                      });
                     } else {
-                      alert(`Deploy Success!\n\n${data.log}`);
+                      setDeployModal({
+                        show: true,
+                        title: 'Deploy Success',
+                        content: data.log || 'Deployed successfully',
+                        isError: false
+                      });
                       fetchRepoData(); // refresh status
                     }
                   } catch (e: any) {
-                    alert(`Request failed: ${e.message}`);
+                    setDeployModal({
+                      show: true,
+                      title: 'Request Failed',
+                      content: e.message,
+                      isError: true
+                    });
                   }
                   setLoading(false);
                 }}
               >
                 <UploadCloud size={18} />
                 {loading ? 'Deploying...' : 'Sync & Deploy Remote'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deployModal && deployModal.show && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.75)', zIndex: 9999,
+          display: 'flex', justifyContent: 'center', alignItems: 'center'
+        }}>
+          <div className="glass-panel" style={{ width: '600px', maxWidth: '90vw', padding: '1.5rem', position: 'relative' }}>
+            <button 
+              onClick={() => setDeployModal(null)}
+              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+            >
+              <X size={24} />
+            </button>
+            <h3 style={{ margin: '0 0 1rem 0', color: deployModal.isError ? '#ef4444' : '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {deployModal.isError ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
+              {deployModal.title}
+            </h3>
+            <div style={{
+              background: 'rgba(0,0,0,0.3)',
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              maxHeight: '60vh',
+              overflowY: 'auto',
+              color: '#d1d5db',
+              fontFamily: 'monospace',
+              fontSize: '0.875rem',
+              whiteSpace: 'pre-wrap',
+              border: `1px solid ${deployModal.isError ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
+            }}>
+              {deployModal.content}
+            </div>
+            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => setDeployModal(null)}
+                className="btn btn-primary"
+                style={{ background: 'var(--primary)' }}
+              >
+                Close
               </button>
             </div>
           </div>
