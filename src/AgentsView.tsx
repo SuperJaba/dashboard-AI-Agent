@@ -284,8 +284,8 @@ export function AgentsView() {
                   </div>
                 </div>
                 <div className="col-span-2 flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
-                  <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 rounded-lg text-gray-400 hover:bg-slate-850 hover:text-white transition text-sm font-semibold">Anuluj</button>
-                  <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg transition text-sm font-semibold shadow-lg shadow-blue-500/10">Dodaj Agenta</button>
+                  <button type="button" onClick={() => setIsAdding(false)} className="transition text-sm font-semibold" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.5rem 1rem' }}>Anuluj</button>
+                  <button type="submit" className="btn btn-primary text-sm" style={{ padding: '0.5rem 1.25rem', borderRadius: '12px' }}>Dodaj Agenta</button>
                 </div>
               </form>
             </div>
