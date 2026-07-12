@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# agy – CLI wrapper to run the AutoTest‑AI agent
+# Usage: ./agy   (or add an npm script "agy" that calls this)
+
+# Invoke the autotest integration script
+bash "$(dirname "$0")/scripts/autotest_ai.sh"

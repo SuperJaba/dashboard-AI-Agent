@@ -12,7 +12,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "autotest": "bash scripts/autotest_ai.sh",
+    "ci-tdd": "bash scripts/ci_tdd_bot.sh"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
