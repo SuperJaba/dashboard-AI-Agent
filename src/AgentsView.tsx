@@ -200,24 +200,18 @@ export function AgentsView() {
             </p>
           </div>
           
-          <div className="flex gap-3 flex-wrap">
+          <div className="agents-actions">
             <button
               onClick={handleAutoTuneLLM}
-              className="px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-semibold text-sm shadow-md"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: '#c084fc', cursor: 'pointer' }}
-              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              className="btn btn-tune"
             >
-              <Gauge className="w-4 h-4" />
+              <Gauge size={16} />
               Strojenie LLM Server
             </button>
             
             <button
               onClick={() => setIsAdding(!isAdding)}
-              className="px-4 py-2.5 rounded-xl flex items-center transition font-semibold text-sm shadow-md"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', cursor: 'pointer' }}
-              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              className="btn btn-secondary"
             >
               {isAdding ? 'Anuluj' : 'Dodaj Agenta'}
             </button>
@@ -225,12 +219,9 @@ export function AgentsView() {
             <button
               onClick={handleScan}
               disabled={scanning}
-              className="px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-semibold text-sm shadow-lg disabled:opacity-50"
-              style={{ background: 'var(--primary)', border: 'none', color: 'white', cursor: 'pointer' }}
-              onMouseOver={(e) => e.currentTarget.style.background = 'var(--primary-hover)'}
-              onMouseOut={(e) => e.currentTarget.style.background = 'var(--primary)'}
+              className="btn btn-primary"
             >
-              {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              {scanning ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
               Skanuj system
             </button>
           </div>
@@ -293,7 +284,7 @@ export function AgentsView() {
         )}
 
         {/* Agents Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="agents-grid">
           {agents.length === 0 ? (
             <div className="col-span-full p-12 text-center text-gray-500 bg-slate-850/40 border border-slate-800/80 rounded-2xl">
               <Bot className="w-14 h-14 text-slate-600 mx-auto mb-4" />
@@ -305,36 +296,28 @@ export function AgentsView() {
               const isTuning = tuningAgentId === agent.id;
               
               return (
-                <div 
-                  key={agent.id} 
-                  className="glass-card hover:bg-slate-800/60 flex flex-col justify-between" 
-                  style={{ 
-                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                >
+                <div key={agent.id} className="glass-card agent-card">
                   {/* Top row */}
                   <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-400">
-                          <Bot className="w-5 h-5" />
+                    <div className="agent-header">
+                      <div className="agent-title-block">
+                        <div className="agent-icon-wrapper">
+                          <Bot size={20} />
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-white flex items-center gap-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
                             {agent.name}
                             {agent.installed ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <span className="agent-badge agent-badge-active">
                                 Active
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                              <span className="agent-badge agent-badge-missing">
                                 Missing
                               </span>
                             )}
                           </h3>
-                          <p className="text-xs text-slate-400 mt-0.5">{agent.description || 'Brak opisu'}</p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{agent.description || 'Brak opisu'}</p>
                         </div>
                       </div>
                       
@@ -345,6 +328,7 @@ export function AgentsView() {
                           disabled={isTuning}
                           className={`p-2 rounded-lg transition text-slate-400 hover:text-purple-400 bg-purple-500/5 border border-purple-500/10 hover:bg-purple-500/10 ${isTuning ? 'opacity-50 cursor-not-allowed' : ''}`}
                           title="Auto-Tune Agent Parameters"
+                          style={{ cursor: 'pointer' }}
                         >
                           <Sparkles className={`w-4 h-4 ${isTuning ? 'animate-bounce text-purple-400' : ''}`} />
                         </button>
@@ -354,6 +338,7 @@ export function AgentsView() {
                             onClick={() => handleSaveConfig(agent.id)}
                             className="text-emerald-400 hover:text-emerald-300 p-2 bg-emerald-400/10 hover:bg-emerald-400/20 border border-emerald-500/10 rounded-lg transition"
                             title="Zapisz"
+                            style={{ cursor: 'pointer' }}
                           >
                             <Check className="w-4 h-4" />
                           </button>
@@ -370,6 +355,7 @@ export function AgentsView() {
                             }}
                             className="text-blue-400 hover:text-blue-300 p-2 bg-blue-400/10 hover:bg-blue-400/20 border border-blue-500/10 rounded-lg transition"
                             title="Edytuj"
+                            style={{ cursor: 'pointer' }}
                           >
                             <Settings className="w-4 h-4" />
                           </button>
@@ -378,6 +364,7 @@ export function AgentsView() {
                           onClick={() => handleDeleteAgent(agent.id)}
                           className="text-rose-400 hover:text-rose-350 p-2 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 rounded-lg transition"
                           title="Usuń"
+                          style={{ cursor: 'pointer' }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -385,18 +372,18 @@ export function AgentsView() {
                     </div>
 
                     {/* Binary Path Info */}
-                    <div className="mb-4">
-                      <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">Ścieżka binarna</div>
-                      <div className="bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400 font-mono overflow-x-auto">
+                    <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
+                      <div className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Ścieżka binarna</div>
+                      <div className="agent-path-box">
                         {agent.path}
                       </div>
                     </div>
                   </div>
 
                   {/* Inner config card */}
-                  <div className="bg-slate-950/40 rounded-xl p-3.5 border border-slate-800/80">
-                    <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2 flex items-center gap-1.5">
-                      <Sliders className="w-3.5 h-3.5 text-blue-500" />
+                  <div className="agent-params-panel">
+                    <div className="agent-params-title">
+                      <Sliders size={14} color="var(--primary)" />
                       Parametry Modelu
                     </div>
                     
@@ -404,11 +391,11 @@ export function AgentsView() {
                       <div className="space-y-3">
                         <div>
                           <label className="text-[10px] text-slate-400 block mb-1">Config URI</label>
-                          <input type="text" value={editConfig.config_uri} onChange={(e) => setEditConfig({...editConfig, config_uri: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none" placeholder="np. ~/.agent.json" />
+                          <input type="text" value={editConfig.config_uri} onChange={(e) => setEditConfig({...editConfig, config_uri: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="np. ~/.agent.json" />
                         </div>
                         <div>
                           <label className="text-[10px] text-slate-400 block mb-1">Model LLM</label>
-                          <input type="text" value={editConfig.llm_model} onChange={(e) => setEditConfig({...editConfig, llm_model: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none" placeholder="gpt-4o" />
+                          <input type="text" value={editConfig.llm_model} onChange={(e) => setEditConfig({...editConfig, llm_model: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="gpt-4o" />
                         </div>
                         <div className="flex gap-3">
                           <div className="flex-1">
@@ -417,27 +404,27 @@ export function AgentsView() {
                           </div>
                           <div className="flex-1">
                             <label className="text-[10px] text-slate-400 block mb-1">Max Tokens</label>
-                            <input type="number" value={editConfig.max_tokens} onChange={(e) => setEditConfig({...editConfig, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none" />
+                            <input type="number" value={editConfig.max_tokens} onChange={(e) => setEditConfig({...editConfig, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <div className="text-[9px] uppercase text-slate-500">Model bazowy</div>
-                          <div className="font-semibold text-blue-300 mt-0.5 truncate">{agent.llm_model || 'gpt-4o'}</div>
+                      <div className="agent-params-grid">
+                        <div className="agent-param-item">
+                          <div className="agent-param-label">Model bazowy</div>
+                          <div className="agent-param-value" style={{ color: '#93c5fd' }}>{agent.llm_model || 'gpt-4o'}</div>
                         </div>
-                        <div>
-                          <div className="text-[9px] uppercase text-slate-500">Config URI</div>
-                          <div className="text-slate-300 font-mono mt-0.5 truncate" title={agent.config_uri}>{agent.config_uri || <span className="text-slate-600 italic">Brak</span>}</div>
+                        <div className="agent-param-item">
+                          <div className="agent-param-label">Config URI</div>
+                          <div className="agent-param-value" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }} title={agent.config_uri}>{agent.config_uri || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Brak</span>}</div>
                         </div>
-                        <div>
-                          <div className="text-[9px] uppercase text-slate-500">Temperatura</div>
-                          <div className="text-slate-300 mt-0.5 font-semibold">{agent.temperature ?? 0.7}</div>
+                        <div className="agent-param-item">
+                          <div className="agent-param-label">Temperatura</div>
+                          <div className="agent-param-value">{agent.temperature ?? 0.7}</div>
                         </div>
-                        <div>
-                          <div className="text-[9px] uppercase text-slate-500">Limit Tokenów</div>
-                          <div className="text-slate-300 mt-0.5 font-semibold">{agent.max_tokens ?? 4096}</div>
+                        <div className="agent-param-item">
+                          <div className="agent-param-label">Limit Tokenów</div>
+                          <div className="agent-param-value">{agent.max_tokens ?? 4096}</div>
                         </div>
                       </div>
                     )}
@@ -445,7 +432,7 @@ export function AgentsView() {
                   
                   {/* Subtle color highlight in top corner */}
                   <div style={{
-                    position: 'absolute', top: 0, right: 0, width: '4px', height: '100%',
+                    position: 'absolute', top: 0, left: 0, width: '4px', height: '100%',
                     background: agent.installed ? 'var(--success)' : 'var(--danger)'
                   }} />
                 </div>
