@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bot, Search, Save, Check, RefreshCw } from 'lucide-react';
+import { 
+  Bot, Search, Check, RefreshCw, Sparkles, 
+  Sliders, Settings, Info, Gauge, Zap, Trash2, X
+} from 'lucide-react';
 import { apiFetch } from './api';
 
 export interface Agent {
@@ -9,6 +12,18 @@ export interface Agent {
   path: string;
   config_uri: string;
   installed: boolean;
+  llm_model?: string;
+  temperature?: number;
+  max_tokens?: number;
+}
+
+interface LLMTuningResult {
+  status: string;
+  llmUrl: string;
+  type: string;
+  latency: number | null;
+  speed: number | null;
+  recommendations: string[];
 }
 
 export function AgentsView() {
@@ -16,7 +31,24 @@ export function AgentsView() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const [newAgent, setNewAgent] = useState({ name: '', description: '', path: '', config_uri: '' });
+  const [notification, setNotification] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  
+  // Tuning states
+  const [tuningAgentId, setTuningAgentId] = useState<number | null>(null);
+  const [tuningLLM, setTuningLLM] = useState(false);
+  const [llmTuneResult, setLlmTuneResult] = useState<LLMTuningResult | null>(null);
+  const [showLLMModal, setShowLLMModal] = useState(false);
+
+  const [editConfig, setEditConfig] = useState({ config_uri: '', llm_model: '', temperature: 0.7, max_tokens: 4096 });
+  const [newAgent, setNewAgent] = useState({ name: '', description: '', path: '', config_uri: '', llm_model: 'gpt-4o', temperature: 0.7, max_tokens: 4096 });
+  
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const fetchAgents = async () => {
     try {
@@ -40,6 +72,7 @@ export function AgentsView() {
       const res = await apiFetch('/api/agents/scan', { method: 'POST' });
       await res.json();
       await fetchAgents();
+      setNotification('System scan completed');
     } catch (e) {
       console.error('Failed to scan agents', e);
     } finally {
@@ -47,17 +80,54 @@ export function AgentsView() {
     }
   };
 
-  const handleSaveConfigUri = async (id: number) => {
+  const handleSaveConfig = async (id: number) => {
     try {
       await apiFetch(`/api/agents/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config_uri: editConfigUri })
+        body: JSON.stringify({ 
+          config_uri: editConfig.config_uri,
+          llm_model: editConfig.llm_model,
+          temperature: editConfig.temperature,
+          max_tokens: editConfig.max_tokens
+        })
       });
       setEditingId(null);
+      setNotification('Configuration saved');
       fetchAgents();
     } catch (e) {
-      console.error('Failed to save config URI', e);
+      console.error('Failed to save config', e);
+    }
+  };
+
+  const handleAutoTuneAgent = async (id: number) => {
+    setTuningAgentId(id);
+    try {
+      const res = await apiFetch(`/api/agents/${id}/tune`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setNotification(`Auto-tuned: ${data.agent.name}`);
+        fetchAgents();
+      }
+    } catch (e) {
+      console.error('Failed to auto-tune agent', e);
+    } finally {
+      setTuningAgentId(null);
+    }
+  };
+
+  const handleAutoTuneLLM = async () => {
+    setTuningLLM(true);
+    setLlmTuneResult(null);
+    setShowLLMModal(true);
+    try {
+      const res = await apiFetch('/api/settings/llm/tune', { method: 'POST' });
+      const data = await res.json();
+      setLlmTuneResult(data);
+    } catch (e) {
+      console.error('Failed to auto-tune LLM', e);
+    } finally {
+      setTuningLLM(false);
     }
   };
 
@@ -65,6 +135,7 @@ export function AgentsView() {
     if (!confirm('Czy na pewno chcesz usunąć tego agenta?')) return;
     try {
       await apiFetch(`/api/agents/${id}`, { method: 'DELETE' });
+      setNotification('Agent deleted');
       fetchAgents();
     } catch (e) {
       console.error('Failed to delete agent', e);
@@ -80,149 +151,418 @@ export function AgentsView() {
         body: JSON.stringify(newAgent)
       });
       setIsAdding(false);
-      setNewAgent({ name: '', description: '', path: '', config_uri: '' });
+      setNotification('Agent added');
+      setNewAgent({
+        name: '',
+        description: '',
+        path: '',
+        config_uri: '',
+        llm_model: 'gpt-4o',
+        temperature: 0.7,
+        max_tokens: 4096
+      });
       fetchAgents();
     } catch (e) {
       console.error('Failed to add agent', e);
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-400">Ładowanie agentów...</div>;
+  if (loading) return (
+    <div className="p-8 text-center text-gray-400 flex items-center justify-center min-h-[50vh]" role="status" aria-live="polite">
+      <RefreshCw className="w-6 h-6 mr-2 animate-spin text-blue-500" /> 
+      <span className="font-medium">Wyszukiwanie agentów...</span>
+    </div>
+  );
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Bot className="w-8 h-8 text-blue-400" />
-            Lokalni Agenci AI
-          </h2>
-          <p className="text-gray-400 mt-2">Zarządzaj ustawieniami agentów CLI w systemie.</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setIsAdding(!isAdding)}
-            className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center transition"
-          >
-            {isAdding ? 'Anuluj' : 'Dodaj Agenta'}
-          </button>
-          <button
-            onClick={handleScan}
-            disabled={scanning}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
-          >
-            {scanning ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-            Skanuj system
-          </button>
-        </div>
-      </div>
-
-      {isAdding && (
-        <div className="bg-slate-800 border border-slate-600 p-6 rounded-xl mb-8">
-          <h3 className="text-xl text-white mb-4">Dodaj ręcznie Agenta</h3>
-          <form onSubmit={handleAddAgent} className="grid grid-cols-2 gap-4">
-            <input required placeholder="Nazwa (np. Mój Agent)" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input placeholder="Opis" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input required placeholder="Ścieżka do pliku binarnego (np. /usr/local/bin/agent)" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input placeholder="Config URI (np. /home/user/.agent.json)" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <div className="col-span-2 flex justify-end">
-              <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Zapisz</button>
-            </div>
-          </form>
+    <>
+      {notification && (
+        <div 
+          className="fixed top-4 right-4 z-50 bg-emerald-600 border border-emerald-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-in fade-in duration-300" 
+          role="alert" 
+          aria-live="assertive"
+        >
+          <Check className="w-5 h-5 text-emerald-100" />
+          <span className="font-semibold text-sm">{notification}</span>
         </div>
       )}
+      
+      <div className="p-8 max-w-6xl mx-auto">
+        {/* Title and Top Panel */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '2rem',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <div>
+            <h2 className="text-3xl font-extrabold text-white flex items-center gap-3" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <Bot className="w-9 h-9 text-blue-500" style={{ filter: 'drop-shadow(0 0 8px rgba(59,130,246,0.4))' }} />
+              Lokalni Agenci AI
+            </h2>
+            <p className="text-gray-400 mt-2 text-sm">
+              Zarządzaj konfiguracją CLI lokalnych agentów AI oraz optymalizuj parametry ich modeli.
+            </p>
+          </div>
+          
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={handleAutoTuneLLM}
+              className="bg-slate-800 hover:bg-slate-700 text-purple-400 border border-purple-500/20 px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-semibold text-sm shadow-md"
+            >
+              <Gauge className="w-4 h-4" />
+              Strojenie LLM Server
+            </button>
+            
+            <button
+              onClick={() => setIsAdding(!isAdding)}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2.5 rounded-xl flex items-center transition font-semibold text-sm shadow-md"
+            >
+              {isAdding ? 'Anuluj' : 'Dodaj Agenta'}
+            </button>
+            
+            <button
+              onClick={handleScan}
+              disabled={scanning}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-semibold text-sm shadow-lg shadow-blue-500/20 disabled:opacity-50"
+            >
+              {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              Skanuj system
+            </button>
+          </div>
+        </div>
 
-      <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm">
-        <table className="w-full text-left">
-          <thead className="bg-slate-900/50 text-gray-400 text-sm">
-            <tr>
-              <th className="px-6 py-4 font-medium">Nazwa Agenta</th>
-              <th className="px-6 py-4 font-medium">Ścieżka (Binary)</th>
-              <th className="px-6 py-4 font-medium">Status</th>
-              <th className="px-6 py-4 font-medium">Config URI (Plik ustawień)</th>
-              <th className="px-6 py-4 font-medium text-right">Akcje</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700">
-            {agents.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                  Brak zainstalowanych agentów. Kliknij "Skanuj system", aby wyszukać.
-                </td>
-              </tr>
-            ) : (
-              agents.map(agent => (
-                <tr key={agent.id} className="hover:bg-slate-800/30 transition">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-white">{agent.name}</div>
-                    <div className="text-sm text-gray-500">{agent.description}</div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-400 font-mono">
-                    {agent.path}
-                  </td>
-                  <td className="px-6 py-4">
-                    {agent.installed ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                        Zainstalowany
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-                        Brak
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
+        {/* Add Agent Modal Overlay */}
+        {isAdding && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+            <div className="glass-card max-w-xl w-full p-8 border border-white/10" style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setIsAdding(false)} 
+                className="absolute top-4 right-4 p-1.5 bg-slate-800/40 border border-slate-700/50 rounded-lg text-gray-400 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <h3 className="text-2xl font-bold text-white flex items-center gap-2.5 mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                <Bot className="w-6 h-6 text-blue-400" />
+                Dodaj Nowego Agenta
+              </h3>
+              
+              <form onSubmit={handleAddAgent} className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nazwa Agenta</label>
+                  <input required placeholder="np. Code Reviewer" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Opis</label>
+                  <input placeholder="np. Sprawdza PR-y" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition" />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ścieżka pliku binarnego (Path)</label>
+                  <input required placeholder="np. /usr/local/bin/agent" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition font-mono text-xs" />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Config URI</label>
+                  <input placeholder="np. /home/user/.agent.json" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition font-mono text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Model LLM</label>
+                  <input placeholder="np. gpt-4o" value={newAgent.llm_model} onChange={e => setNewAgent({...newAgent, llm_model: e.target.value})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition" />
+                </div>
+                <div className="flex gap-3">
+                  <div className="space-y-1 w-1/2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Temp</label>
+                    <input type="number" step="0.1" placeholder="0.7" value={newAgent.temperature} onChange={e => setNewAgent({...newAgent, temperature: parseFloat(e.target.value)})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none" />
+                  </div>
+                  <div className="space-y-1 w-1/2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tokens</label>
+                    <input type="number" placeholder="4096" value={newAgent.max_tokens} onChange={e => setNewAgent({...newAgent, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-white text-sm focus:outline-none" />
+                  </div>
+                </div>
+                <div className="col-span-2 flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
+                  <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 rounded-lg text-gray-400 hover:bg-slate-850 hover:text-white transition text-sm font-semibold">Anuluj</button>
+                  <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg transition text-sm font-semibold shadow-lg shadow-blue-500/10">Dodaj Agenta</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Agents Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {agents.length === 0 ? (
+            <div className="col-span-full p-12 text-center text-gray-500 bg-slate-850/40 border border-slate-800/80 rounded-2xl">
+              <Bot className="w-14 h-14 text-slate-600 mx-auto mb-4" />
+              <p className="text-lg font-semibold text-slate-300">Brak zainstalowanych agentów</p>
+              <p className="text-sm text-slate-500 mt-1">Użyj "Skanuj system" w prawym górnym rogu lub kliknij "Dodaj Agenta".</p>
+            </div>
+          ) : (
+            agents.map(agent => {
+              const isTuning = tuningAgentId === agent.id;
+              
+              return (
+                <div 
+                  key={agent.id} 
+                  className="glass-card hover:bg-slate-800/60 flex flex-col justify-between" 
+                  style={{ 
+                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {/* Top row */}
+                  <div>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-400">
+                          <Bot className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white flex items-center gap-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {agent.name}
+                            {agent.installed ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                Missing
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-xs text-slate-400 mt-0.5">{agent.description || 'Brak opisu'}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleAutoTuneAgent(agent.id)}
+                          disabled={isTuning}
+                          className={`p-2 rounded-lg transition text-slate-400 hover:text-purple-400 bg-purple-500/5 border border-purple-500/10 hover:bg-purple-500/10 ${isTuning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Auto-Tune Agent Parameters"
+                        >
+                          <Sparkles className={`w-4 h-4 ${isTuning ? 'animate-bounce text-purple-400' : ''}`} />
+                        </button>
+                        
+                        {editingId === agent.id ? (
+                          <button 
+                            onClick={() => handleSaveConfig(agent.id)}
+                            className="text-emerald-400 hover:text-emerald-300 p-2 bg-emerald-400/10 hover:bg-emerald-400/20 border border-emerald-500/10 rounded-lg transition"
+                            title="Zapisz"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              setEditingId(agent.id);
+                              setEditConfig({
+                                config_uri: agent.config_uri || '',
+                                llm_model: agent.llm_model || 'gpt-4o',
+                                temperature: agent.temperature ?? 0.7,
+                                max_tokens: agent.max_tokens ?? 4096
+                              });
+                            }}
+                            className="text-blue-400 hover:text-blue-300 p-2 bg-blue-400/10 hover:bg-blue-400/20 border border-blue-500/10 rounded-lg transition"
+                            title="Edytuj"
+                          >
+                            <Settings className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleDeleteAgent(agent.id)}
+                          className="text-rose-400 hover:text-rose-350 p-2 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 rounded-lg transition"
+                          title="Usuń"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Binary Path Info */}
+                    <div className="mb-4">
+                      <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">Ścieżka binarna</div>
+                      <div className="bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400 font-mono overflow-x-auto">
+                        {agent.path}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Inner config card */}
+                  <div className="bg-slate-950/40 rounded-xl p-3.5 border border-slate-800/80">
+                    <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-blue-500" />
+                      Parametry Modelu
+                    </div>
+                    
                     {editingId === agent.id ? (
-                      <input 
-                        type="text" 
-                        value={editConfigUri} 
-                        onChange={(e) => setEditConfigUri(e.target.value)}
-                        className="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-sm text-white w-full focus:outline-none focus:border-blue-500"
-                        placeholder="/home/seba/.gemini/config.json"
-                      />
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Config URI</label>
+                          <input type="text" value={editConfig.config_uri} onChange={(e) => setEditConfig({...editConfig, config_uri: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none" placeholder="np. ~/.agent.json" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Model LLM</label>
+                          <input type="text" value={editConfig.llm_model} onChange={(e) => setEditConfig({...editConfig, llm_model: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none" placeholder="gpt-4o" />
+                        </div>
+                        <div className="flex gap-3">
+                          <div className="flex-1">
+                            <label className="text-[10px] text-slate-400 block mb-1">Temp ({editConfig.temperature})</label>
+                            <input type="range" min="0.0" max="1.0" step="0.1" value={editConfig.temperature} onChange={(e) => setEditConfig({...editConfig, temperature: parseFloat(e.target.value)})} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-[10px] text-slate-400 block mb-1">Max Tokens</label>
+                            <input type="number" value={editConfig.max_tokens} onChange={(e) => setEditConfig({...editConfig, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none" />
+                          </div>
+                        </div>
+                      </div>
                     ) : (
-                      <span className="text-sm text-gray-400 font-mono">
-                        {agent.config_uri || <span className="text-gray-600 italic">Brak (użyj domyślnego)</span>}
-                      </span>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <div className="text-[9px] uppercase text-slate-500">Model bazowy</div>
+                          <div className="font-semibold text-blue-300 mt-0.5 truncate">{agent.llm_model || 'gpt-4o'}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase text-slate-500">Config URI</div>
+                          <div className="text-slate-300 font-mono mt-0.5 truncate" title={agent.config_uri}>{agent.config_uri || <span className="text-slate-600 italic">Brak</span>}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase text-slate-500">Temperatura</div>
+                          <div className="text-slate-300 mt-0.5 font-semibold">{agent.temperature ?? 0.7}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase text-slate-500">Limit Tokenów</div>
+                          <div className="text-slate-300 mt-0.5 font-semibold">{agent.max_tokens ?? 4096}</div>
+                        </div>
+                      </div>
                     )}
-                  </td>
-                  <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    {editingId === agent.id ? (
-                      <button 
-                        onClick={() => handleSaveConfigUri(agent.id)}
-                        className="text-green-400 hover:text-green-300 p-1.5 bg-green-400/10 hover:bg-green-400/20 rounded transition"
-                        title="Zapisz"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => {
-                          setEditingId(agent.id);
-                          setEditConfigUri(agent.config_uri || '');
-                        }}
-                        className="text-blue-400 hover:text-blue-300 p-1.5 bg-blue-400/10 hover:bg-blue-400/20 rounded transition"
-                        title="Edytuj config URI"
-                      >
-                        <Save className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => handleDeleteAgent(agent.id)}
-                      className="text-red-400 hover:text-red-300 p-1.5 bg-red-400/10 hover:bg-red-400/20 rounded transition"
-                      title="Usuń agenta"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                  
+                  {/* Subtle color highlight in top corner */}
+                  <div style={{
+                    position: 'absolute', top: 0, right: 0, width: '4px', height: '100%',
+                    background: agent.installed ? 'var(--success)' : 'var(--danger)'
+                  }} />
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* LLM Server Auto-Tuner & Diagnostics Modal */}
+      {showLLMModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+          <div className="glass-card max-w-lg w-full p-8 border border-white/10" style={{ position: 'relative' }}>
+            <button 
+              onClick={() => setShowLLMModal(false)} 
+              className="absolute top-4 right-4 p-1.5 bg-slate-800/40 border border-slate-700/50 rounded-lg text-gray-400 hover:text-white transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h3 className="text-2xl font-bold text-white flex items-center gap-2.5 mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <Gauge className="w-6 h-6 text-purple-400" />
+              Diagnostyka LLM Server
+            </h3>
+            
+            {tuningLLM ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+                <RefreshCw className="w-8 h-8 text-purple-400 animate-spin" />
+                <div>
+                  <h4 className="font-semibold text-white">Strojenie i testowanie połączeń...</h4>
+                  <p className="text-xs text-gray-400 mt-1">Skanujemy porty Ollama (11434), LM Studio (1234) i vLLM (8000).</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {llmTuneResult && (
+                  <>
+                    {/* Status Badge & Server Type */}
+                    <div className="flex justify-between items-center bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-slate-500">Wykryty Serwer</div>
+                        <div className="text-base font-bold text-white mt-0.5">{llmTuneResult.type}</div>
+                      </div>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${llmTuneResult.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                        <span className={`w-2 h-2 rounded-full ${llmTuneResult.status === 'success' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                        {llmTuneResult.status === 'success' ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+
+                    {/* Latency and Throughput metrics */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+                        <div className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
+                          <Zap className="w-3.5 h-3.5 text-amber-500" />
+                          Opóźnienie (TTFT)
+                        </div>
+                        <div className="text-xl font-extrabold text-white mt-1">
+                          {llmTuneResult.latency !== null ? `${llmTuneResult.latency} ms` : '--'}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+                        <div className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
+                          <Gauge className="w-3.5 h-3.5 text-blue-500" />
+                          Przepustowość
+                        </div>
+                        <div className="text-xl font-extrabold text-white mt-1">
+                          {llmTuneResult.speed !== null ? `${llmTuneResult.speed} t/s` : '--'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* URL */}
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Adres URL Serwera</div>
+                      <div className="bg-slate-950/80 px-3.5 py-2 rounded-lg border border-slate-850 text-xs text-purple-300 font-mono truncate">
+                        {llmTuneResult.llmUrl || 'Brak skonfigurowanego serwera'}
+                      </div>
+                    </div>
+
+                    {/* Recommendations list */}
+                    <div className="space-y-2">
+                      <div className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
+                        <Info className="w-3.5 h-3.5 text-blue-400" />
+                        Zalecenia i Wynik strojenia
+                      </div>
+                      
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/50 space-y-2">
+                        {llmTuneResult.recommendations.map((rec, index) => (
+                          <div key={index} className="text-xs text-slate-300 flex items-start gap-2">
+                            <span className="text-purple-400 font-bold">•</span>
+                            <span>{rec}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                  <button
+                    onClick={handleAutoTuneLLM}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition text-sm font-semibold flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Ponów strojenie
+                  </button>
+                  <button 
+                    onClick={() => setShowLLMModal(false)} 
+                    className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition text-sm font-semibold"
+                  >
+                    Zamknij
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

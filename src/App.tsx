@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed 
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -11,323 +10,68 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
 import CustomWidgets from './CustomWidgets';
+import { AgentsView } from './AgentsView';
 
-import { apiFetch } from './api';
+import { useDashboardState } from './hooks/useDashboardState';
 
 function App() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'agents'>('dashboard');
-  const [projects, setProjects] = useState<any[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
-  const [servers, setServers] = useState<any[]>([]);
-  const [showAddServer, setShowAddServer] = useState(false);
-  const [newServer, setNewServer] = useState({ name: '', host: '', username: '', port: 22 });
-  const [remotePrompt, setRemotePrompt] = useState('');
-  const [isWorkspacesExpanded, setIsWorkspacesExpanded] = useState(true);
-  const [isRemoteExpanded, setIsRemoteExpanded] = useState(true);
-  const [showTasks, setShowTasks] = useState(false);
-  const [useBrowserTerminal, setUseBrowserTerminal] = useState(false);
-  const [terminalConfig, setTerminalConfig] = useState<any>(null);
-  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
-  const [deploying, setDeploying] = useState<string | null>(null);
-  const [customLlmUrl, setCustomLlmUrl] = useState('');
-  const [customApiKey, setCustomApiKey] = useState('');
-  const [settingsSaved, setSettingsSaved] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-
-  useEffect(() => {
-    apiFetch('http://localhost:3001/api/projects')
-      .then(res => res.json())
-      .then(data => {
-        if (data.length) {
-          setProjects(data);
-          setActiveProjectId(data[0].id);
-        }
-      })
-      .catch(console.error);
-
-    apiFetch('http://localhost:3001/api/servers')
-      .then(res => res.json())
-      .then(data => {
-        if (data.length) setServers(data);
-      })
-      .catch(console.error);
-
-    apiFetch('http://localhost:3001/api/settings')
-      .then(res => res.json())
-      .then(data => {
-        if (data.llmUrl) setCustomLlmUrl(data.llmUrl);
-        if (data.apiKey) setCustomApiKey(data.apiKey);
-        
-        // Sync terminal preference
-        const localPref = localStorage.getItem('useBrowserTerminal');
-        if (localPref !== null) {
-          setUseBrowserTerminal(localPref === 'true');
-        } else if (data.useBrowserTerminal !== undefined) {
-          setUseBrowserTerminal(data.useBrowserTerminal === 'true');
-        }
-      })
-      .catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    setSelectedTaskIds([]);
-  }, [activeProjectId]);
-
-  const activeProject = typeof activeProjectId === 'number' ? projects.find(p => p.id === activeProjectId) || null : null;
-  const activeServer = typeof activeProjectId === 'string' && activeProjectId.startsWith('server-') 
-    ? servers.find(s => s.id === parseInt(activeProjectId.replace('server-', ''))) || null
-    : null;
-
-  const saveSettings = async () => {
-    try {
-      await apiFetch('http://localhost:3001/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ llmUrl: customLlmUrl, apiKey: customApiKey, useBrowserTerminal })
-      });
-      setSettingsSaved(true);
-      setTimeout(() => setSettingsSaved(false), 2000);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleTerminalToggle = (checked: boolean) => {
-    setUseBrowserTerminal(checked);
-    localStorage.setItem('useBrowserTerminal', checked.toString());
-    apiFetch('http://localhost:3001/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ useBrowserTerminal: checked })
-    }).catch(console.error);
-  };
-
-  const deployAgent = async (agent: string) => {
-    if (!activeProject) return;
-    setDeploying(agent);
-    try {
-      const selectedTasks = (activeProject.tasks || []).filter((t: any) => selectedTaskIds.includes(t.id));
-      const res = await apiFetch('http://localhost:3001/api/deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          agent, 
-          directory: activeProject.path, 
-          llmUrl: customLlmUrl, 
-          apiKey: customApiKey,
-          tasks: selectedTasks,
-          useBrowserTerminal
-        })
-      });
-      const data = await res.json();
-      if (data.browserTerminal) {
-        setTerminalConfig({
-          command: data.command,
-          args: data.args,
-          cwd: data.cwd,
-          env: data.env
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    setDeploying(null);
-  };
-
-
-  const deployRemoteAgent = async (agent: string, server: any) => {
-    setDeploying(agent);
-    try {
-      const res = await apiFetch('http://localhost:3001/api/deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          agent, 
-          directory: '', 
-          llmUrl: customLlmUrl, 
-          apiKey: customApiKey,
-          remoteServer: server,
-          remotePrompt,
-          useBrowserTerminal
-        })
-      });
-      const data = await res.json();
-      if (data.browserTerminal) {
-        setTerminalConfig({
-          command: data.command,
-          args: data.args,
-          cwd: data.cwd,
-          env: data.env
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    setDeploying(null);
-  };
-
-  const analyzeProject = async () => {
-    if (!activeProject) return;
-    setDeploying('analyze');
-    try {
-      const res = await apiFetch('http://localhost:3001/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory: activeProject.path })
-      });
-      const data = await res.json();
-      if (!data.error) {
-        // Merge tasks: keep existing, add new ones from disk
-        const currentTasks = activeProject.tasks || [];
-        const existingTitles = new Set(currentTasks.map((t: any) => t.title));
-        const newTasks = data.tasks.filter((t: any) => !existingTitles.has(t.title));
-        
-        // Ensure unique IDs
-        let maxId = currentTasks.length > 0 ? Math.max(...currentTasks.map((t: any) => t.id)) : 0;
-        const tasksToAdd = newTasks.map((t: any) => ({ ...t, id: ++maxId }));
-        
-        const mergedTasks = [...currentTasks, ...tasksToAdd];
-        const updatedComplete = mergedTasks.length ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
-        
-        await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null })
-        });
-        
-        setProjects(prevProjects => prevProjects.map(p => 
-          p.id === activeProject.id 
-            ? { ...p, tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null }
-            : p
-        ));
-        setShowTasks(true);
-      } else {
-        console.error('Analysis error:', data.error);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDeploying(null);
-    }
-  };
-
-  const addTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeProject || !newTaskTitle.trim()) return;
-    
-    const currentTasks = activeProject.tasks || [];
-    let maxId = currentTasks.length > 0 ? Math.max(...currentTasks.map((t: any) => t.id)) : 0;
-    const newTask = { id: maxId + 1, title: newTaskTitle.trim(), meta: 'Custom Task', status: 'pending' };
-    const mergedTasks = [...currentTasks, newTask];
-    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
-    
-    await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tasks: mergedTasks, complete: updatedComplete })
-    });
-    
-    setProjects(projects.map(p => 
-      p.id === activeProject.id ? { ...p, tasks: mergedTasks, complete: updatedComplete } : p
-    ));
-    setNewTaskTitle('');
-  };
-
-  const deleteTask = async (taskId: number) => {
-    if (!activeProject) return;
-    const mergedTasks = (activeProject.tasks || []).filter((t: any) => t.id !== taskId);
-    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter((t: any) => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
-    
-    await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tasks: mergedTasks, complete: updatedComplete })
-    });
-    
-    setProjects(projects.map(p => 
-      p.id === activeProject.id ? { ...p, tasks: mergedTasks, complete: updatedComplete } : p
-    ));
-    setSelectedTaskIds(selectedTaskIds.filter(id => id !== taskId));
-  };
-
-  const initGit = async () => {
-    if (!activeProject) return;
-    try {
-      const res = await apiFetch('http://localhost:3001/api/init-git', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory: activeProject.path })
-      });
-      const data = await res.json();
-      if (data.success) {
-        await apiFetch(`http://localhost:3001/api/projects/${activeProject.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branch: data.branch })
-        });
-        setProjects(projects.map(p => 
-          p.id === activeProject.id ? { ...p, branch: data.branch } : p
-        ));
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-
-  const handleAddServer = async () => {
-    try {
-      const res = await apiFetch('http://localhost:3001/api/servers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newServer)
-      });
-      const data = await res.json();
-      setServers([...servers, data]);
-      setShowAddServer(false);
-      setNewServer({ name: '', host: '', username: '', port: 22 });
-    } catch (e) { console.error(e); }
-  };
-  
-  const deleteServer = async (id: number, e: any) => {
-    e.stopPropagation();
-    try {
-      await apiFetch(`http://localhost:3001/api/servers/${id}`, { method: 'DELETE' });
-      setServers(servers.filter(s => s.id !== id));
-      if (activeProjectId === `server-${id}`) setActiveProjectId(null);
-    } catch (e) { console.error(e); }
-  };
-
-  const handleAddProject = async () => {
-    try {
-      const res = await apiFetch('http://localhost:3001/api/pick-folder');
-      if (res.status === 204) return;
-      
-      const data = await res.json();
-      if (data.error || !data.path) return;
-      
-      const path = data.path;
-      const folderName = path.split('/').pop() || path.split('\\').pop() || `New Project`;
-      
-      const createRes = await apiFetch('http://localhost:3001/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: folderName, desc: 'Local workspace', path })
-      });
-      const newProject = await createRes.json();
-      
-      setProjects([...projects, newProject]);
-      setActiveProjectId(newProject.id);
-      setShowTasks(false);
-    } catch (err) {
-      console.error('Failed to pick folder:', err);
-    }
-  };
-
+  const {
+    activeView, setActiveView,
+    projects,
+    activeProjectId, setActiveProjectId,
+    servers,
+    showAddServer, setShowAddServer,
+    newServer, setNewServer,
+    showPassword, setShowPassword,
+    remotePrompt, setRemotePrompt,
+    isWorkspacesExpanded, setIsWorkspacesExpanded,
+    isRemoteExpanded, setIsRemoteExpanded,
+    showTasks, setShowTasks,
+    useBrowserTerminal,
+    terminalConfig, setTerminalConfig,
+    selectedTaskIds, setSelectedTaskIds,
+    deploying,
+    customLlmUrl, setCustomLlmUrl,
+    customApiKey, setCustomApiKey,
+    settingsSaved,
+    newTaskTitle, setNewTaskTitle,
+    activeProject,
+    activeServer,
+    saveSettings,
+    handleTerminalToggle,
+    deployAgent,
+    deployRemoteAgent,
+    analyzeProject,
+    addTask,
+    deleteTask,
+    initGit,
+    handleAddServer,
+    deleteServer,
+    handleAddProject
+  } = useDashboardState();
+  const token = localStorage.getItem('token') || '';
   return (
     <div className="layout">
       {/* Sidebar */}
-            <aside className="sidebar">
+      <aside className="sidebar">
+        {/* Navigation Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
+          <div 
+            className={`project-item ${activeView === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveView('dashboard')}
+          >
+            <LayoutDashboard size={18} />
+            <span>Dashboard</span>
+          </div>
+          <div 
+            className={`project-item ${activeView === 'agents' ? 'active' : ''}`}
+            onClick={() => setActiveView('agents')}
+          >
+            <Bot size={18} />
+            <span>Agenci AI</span>
+          </div>
+        </div>
+
         {/* Workspaces Section */}
         <div 
           className="sidebar-title" 
@@ -386,12 +130,16 @@ function App() {
                   <Activity size={18} />
                   <span>{server.name}</span>
                 </div>
-                <button 
-                  onClick={(e) => deleteServer(server.id, e)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+
+                  <button
+                    onClick={(e) => deleteServer(server.id, e)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}
+                    title="Usuń serwer"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
             ))}
             <button className="btn-add-project" onClick={() => setShowAddServer(true)}>
@@ -430,7 +178,9 @@ function App() {
 
       {/* Main Area */}
       <div className="dashboard-container">
-        {activeServer ? (
+        {activeView === 'agents' ? (
+          <AgentsView />
+        ) : activeServer ? (
           <div style={{ height: '100%', overflowY: 'auto' }}>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
@@ -510,15 +260,16 @@ function App() {
                     {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
                   </button>
                 </div>
-                
-                {terminalConfig && (
-                  <TerminalView
-                    config={terminalConfig}
-                    onClose={() => setTerminalConfig(null)}
-                  />
-                )}
               </div>
             </div>
+            {terminalConfig && (
+              <div style={{ marginBottom: '2rem' }}>
+                <TerminalView
+                  config={terminalConfig}
+                  onClose={() => setTerminalConfig(null)}
+                />
+              </div>
+            )}
           </div>
         ) : activeProject ? (
           <>
@@ -557,14 +308,17 @@ function App() {
                     Use Browser Terminal
                   </label>
                 </div>
-                {terminalConfig && (
-                  <TerminalView
-                    config={terminalConfig}
-                    onClose={() => setTerminalConfig(null)}
-                  />
-                )}
               </div>
             </header>
+
+            {terminalConfig && (
+              <div style={{ marginBottom: '2rem' }}>
+                <TerminalView
+                  config={terminalConfig}
+                  onClose={() => setTerminalConfig(null)}
+                />
+              </div>
+            )}
 
             <main>
               <AnalyticsPanel />
@@ -617,7 +371,7 @@ function App() {
                 </div>
               </div>
 
-              <RepoStatus directory={activeProject.path} />
+              <RepoStatus directory={activeProject.path} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
               <section className="glass-card animate-in delay-3">
                 <div className="tasks-header" onClick={() => setShowTasks(!showTasks)}>
@@ -802,6 +556,44 @@ function App() {
                     placeholder="22"
                     style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
                   />
+                </div>
+              </div>
+              {/* MyDevil toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                <input
+                  id="use_devil_toggle"
+                  type="checkbox"
+                  checked={newServer.use_devil}
+                  onChange={e => setNewServer({...newServer, use_devil: e.target.checked})}
+                  style={{ width: '1rem', height: '1rem', accentColor: '#34d399', cursor: 'pointer' }}
+                />
+                <label htmlFor="use_devil_toggle" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                  <span style={{ color: 'white', fontSize: '0.875rem', fontWeight: 500 }}>MyDevil.net hosting (devil CLI)</span>
+                  <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>Używa <code style={{ color: '#34d399' }}>devil www list</code> zamiast <code style={{ color: '#9ca3af' }}>ps aux</code></span>
+                </label>
+              </div>
+              {/* Hasło SSH */}
+              <div>
+                <label className="info-label">
+                  Hasło SSH&nbsp;<span style={{ color: '#6b7280', fontWeight: 400, fontSize: '0.75rem' }}>(opcjonalne — zamiast klucza)</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newServer.ssh_password}
+                    onChange={e => setNewServer({...newServer, ssh_password: e.target.value})}
+                    className="config-input"
+                    placeholder="Zostaw puste jeśli używasz klucza SSH"
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem 2.75rem 0.5rem 0.5rem', color: 'white', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(p => !p)}
+                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '0.2rem 0.3rem', lineHeight: 1 }}
+                    title={showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>

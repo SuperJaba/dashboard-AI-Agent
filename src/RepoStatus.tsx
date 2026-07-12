@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud, ChevronDown, ChevronUp, X, CheckCircle2, Rocket } from 'lucide-react';
 import { apiFetch } from './api';
 import './index.css';
@@ -53,6 +54,23 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
   useEffect(() => {
     fetchRepoData();
   }, [directory]);
+
+  const handleCancelAllCI = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setLoading(true);
+      await apiFetch('http://localhost:3001/api/git/cancel-ci', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ directory })
+      });
+      await fetchRepoData();
+    } catch (err) {
+      console.error('Failed to cancel CI', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (error === 'Not a git repository') {
     return null; // Don't show anything if it's not a git repo
@@ -145,11 +163,34 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 Pull Requests
                 {showPRs ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </h3>
-              {githubData?.latestRun && (
-                <div style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem', borderRadius: '12px', background: githubData.latestRun.conclusion === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: githubData.latestRun.conclusion === 'success' ? '#10B981' : '#F59E0B' }}>
-                  CI: {githubData.latestRun.conclusion || githubData.latestRun.status}
-                </div>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {githubData?.latestRun && (
+                  <div style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem', borderRadius: '12px', background: githubData.latestRun.conclusion === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: githubData.latestRun.conclusion === 'success' ? '#10B981' : '#F59E0B' }}>
+                    CI: {githubData.latestRun.conclusion || githubData.latestRun.status}
+                  </div>
+                )}
+                <button 
+                  onClick={handleCancelAllCI}
+                  style={{
+                    padding: '2px 8px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    color: '#f87171',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '6px',
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+                  title="Anuluj wszystkie zadania CI"
+                >
+                  Cancel All
+                </button>
+              </div>
             </div>
 
             {showPRs && (
@@ -218,83 +259,136 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
         </div>
       )}
 
-      {deployModal && deployModal.show && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.75)', zIndex: 9999,
-          display: 'flex', justifyContent: 'center', alignItems: 'center'
-        }}>
-          <div className="glass-panel" style={{ width: '600px', maxWidth: '90vw', padding: '1.5rem', position: 'relative' }}>
-            <button 
+      {deployModal && deployModal.show && ReactDOM.createPortal(
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setDeployModal(null); }}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+          }}
+        >
+          <div style={{
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            border: deployModal.isError ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(16,185,129,0.4)',
+            boxShadow: deployModal.isError
+              ? '0 0 0 1px rgba(239,68,68,0.1), 0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(239,68,68,0.1)'
+              : '0 0 0 1px rgba(16,185,129,0.1), 0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(16,185,129,0.1)',
+            borderRadius: '1.25rem',
+            width: '100%',
+            maxWidth: '680px',
+            padding: '1.75rem',
+            position: 'relative',
+            animation: 'modalIn 0.2s ease-out',
+          }}>
+            {/* Close X */}
+            <button
               onClick={() => setDeployModal(null)}
-              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+              style={{
+                position: 'absolute', top: '1rem', right: '1rem',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '0.5rem',
+                color: '#9ca3af',
+                cursor: 'pointer',
+                padding: '0.375rem',
+                display: 'flex', alignItems: 'center',
+                transition: 'background 0.15s',
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+              onMouseOut={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
             >
-              <X size={24} />
+              <X size={18} />
             </button>
-            <h3 style={{ margin: '0 0 1rem 0', color: deployModal.isError ? '#ef4444' : '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {deployModal.isError ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
+
+            {/* Title */}
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+              color: deployModal.isError ? '#f87171' : '#34d399',
+            }}>
+              {deployModal.isError ? <AlertCircle size={22} /> : <CheckCircle2 size={22} />}
               {deployModal.title}
             </h3>
+
+            {/* Content */}
             <div style={{
-              background: 'rgba(0,0,0,0.3)',
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              maxHeight: '60vh',
+              background: '#020617',
+              border: deployModal.isError ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(16,185,129,0.2)',
+              borderRadius: '0.75rem',
+              padding: '1rem 1.25rem',
+              maxHeight: '55vh',
               overflowY: 'auto',
-              color: '#d1d5db',
+              color: '#cbd5e1',
               fontFamily: 'monospace',
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
+              lineHeight: '1.6',
               whiteSpace: 'pre-wrap',
-              border: `1px solid ${deployModal.isError ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
+              wordBreak: 'break-word',
             }}>
               {deployModal.content}
             </div>
-            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+
+            {/* Footer */}
+            <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1.25rem' }}>
               {deployModal.isError && onLaunchTerminal && (
-                <button 
+                <button
                   onClick={async () => {
                     try {
                       const res = await apiFetch('http://localhost:3001/api/deploy', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          agent: 'agy', 
-                          directory, 
+                        body: JSON.stringify({
+                          agent: 'agy',
+                          directory,
                           tasks: [{ id: 'error-fix', title: `Fix this deployment error:\n\n${deployModal.content}`, status: 'pending' }],
                           useBrowserTerminal: true
                         })
                       });
                       const data = await res.json();
                       if (data.browserTerminal) {
-                        onLaunchTerminal({
-                          command: data.command,
-                          args: data.args,
-                          cwd: data.cwd,
-                          env: data.env
-                        });
+                        onLaunchTerminal({ command: data.command, args: data.args, cwd: data.cwd, env: data.env });
                         setDeployModal(null);
                       }
-                    } catch (e) {
-                      console.error('Failed to launch agent', e);
-                    }
+                    } catch (e) { console.error('Failed to launch agent', e); }
                   }}
-                  className="btn btn-primary"
-                  style={{ background: '#3b82f6' }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                    color: 'white', padding: '0.6rem 1.25rem',
+                    borderRadius: '0.625rem', fontWeight: 600, fontSize: '0.875rem',
+                    border: 'none', cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
+                  }}
                 >
-                  <Rocket size={16} style={{ marginRight: '0.25rem' }} />
-                  Wyślij do Agenta
+                  <Rocket size={16} /> Wyślij do Agenta
                 </button>
               )}
-              <button 
+              <button
                 onClick={() => setDeployModal(null)}
-                className="btn btn-primary"
-                style={{ background: 'var(--primary)' }}
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'white', padding: '0.6rem 1.5rem',
+                  borderRadius: '0.625rem', fontWeight: 500, fontSize: '0.875rem',
+                  cursor: 'pointer',
+                }}
               >
-                Close
+                Zamknij
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
