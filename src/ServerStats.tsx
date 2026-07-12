@@ -34,55 +34,55 @@ export function ServerStats({ serverId }: { serverId?: number }) {
   if (!stats) return <div className="text-red-400 p-4">Failed to load stats.</div>;
 
   return (
-    <div className="flex flex-col gap-6 mb-8">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2rem' }}>
       {/* Metrics Row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid-top">
         {/* CPU */}
-        <div className="glass-card flex flex-col p-4 animate-in delay-1">
-          <div className="flex items-center gap-2 text-blue-400 mb-2">
+        <div className="glass-card animate-in delay-1" style={{ display: 'flex', flexDirection: 'column', padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60a5fa', marginBottom: '0.5rem' }}>
             <Cpu size={20} />
-            <span className="font-semibold text-lg">CPU Usage</span>
+            <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>CPU Usage</span>
           </div>
-          <div className="text-gray-300 text-sm mb-1 flex justify-between">
-            <span className="truncate" title={stats.cpu.model}>{stats.cpu.model}</span>
-            <span className="whitespace-nowrap ml-2 text-gray-400">{stats.cpu.cores} Cores</span>
+          <div style={{ color: '#d1d5db', fontSize: '0.875rem', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={stats.cpu.model}>{stats.cpu.model}</span>
+            <span style={{ whiteSpace: 'nowrap', marginLeft: '0.5rem', color: '#9ca3af' }}>{stats.cpu.cores} Cores</span>
           </div>
-          <div>
-            <span className="text-xl font-bold text-white">{stats.cpu.load1.toFixed(2)}</span>
-            <span className="text-xs text-gray-500 ml-2 uppercase">Load Avg (1m)</span>
+          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>{stats.cpu.load1.toFixed(2)}</span>
+            <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.5rem', textTransform: 'uppercase' }}>Load Avg (1m)</span>
           </div>
         </div>
 
         {/* RAM */}
-        <div className="glass-card flex flex-col p-4 animate-in delay-2">
-          <div className="flex items-center gap-2 text-green-400 mb-2">
+        <div className="glass-card animate-in delay-2" style={{ display: 'flex', flexDirection: 'column', padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#4ade80', marginBottom: '0.5rem' }}>
             <Server size={20} />
-            <span className="font-semibold text-lg">Memory</span>
+            <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>Memory</span>
           </div>
-          <div className="text-gray-300 text-sm mb-1">
+          <div style={{ color: '#d1d5db', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
             {((stats.memory.used) / 1024 / 1024 / 1024).toFixed(1)} GB / {((stats.memory.total) / 1024 / 1024 / 1024).toFixed(1)} GB
           </div>
-          <div className="text-xl font-bold text-white">{stats.memory.usagePercent.toFixed(1)}% Used</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>{stats.memory.usagePercent.toFixed(1)}% Used</div>
         </div>
 
         {/* System Info */}
-        <div className="glass-card flex flex-col p-4 animate-in delay-3">
-          <div className="flex items-center gap-2 text-purple-400 mb-2">
+        <div className="glass-card animate-in delay-3" style={{ display: 'flex', flexDirection: 'column', padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#c084fc', marginBottom: '0.5rem' }}>
             <Activity size={20} />
-            <span className="font-semibold text-lg">System</span>
+            <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>System</span>
           </div>
-          <div className="flex flex-col gap-2 mt-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">OS Platform</span>
-              <span className="text-white">{stats.os.platform}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+              <span style={{ color: '#6b7280' }}>OS Platform</span>
+              <span style={{ color: 'white' }}>{stats.os.platform}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Release</span>
-              <span className="text-white">{stats.os.release}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+              <span style={{ color: '#6b7280' }}>Release</span>
+              <span style={{ color: 'white' }}>{stats.os.release}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Uptime</span>
-              <span className="text-white">{(stats.os.uptime / 3600).toFixed(1)} hrs</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+              <span style={{ color: '#6b7280' }}>Uptime</span>
+              <span style={{ color: 'white' }}>{(stats.os.uptime / 3600).toFixed(1)} hrs</span>
             </div>
           </div>
         </div>
@@ -90,45 +90,45 @@ export function ServerStats({ serverId }: { serverId?: number }) {
 
       {/* Discovered Apps */}
       <div className="animate-in delay-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <HardDrive size={22} className="text-pink-400" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <HardDrive size={22} style={{ color: '#f472b6' }} />
             Wykryte Procesy (Node.js)
           </h3>
-          <span className="bg-slate-700 text-xs px-2 py-1 rounded text-gray-300">{apps.length} aktywnych</span>
+          <span style={{ background: '#334155', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', color: '#d1d5db' }}>{apps.length} aktywnych</span>
         </div>
         
         {apps.length === 0 ? (
-          <div className="glass-card p-6 text-center text-gray-400 italic">
+          <div className="glass-card" style={{ padding: '1.5rem', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
             Brak wykrytych procesów Node.js na tym serwerze.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid-top">
             {apps.map((app, i) => (
-              <div key={i} className="glass-card p-4 hover:border-pink-500/30 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2 text-white font-medium truncate max-w-[70%]">
-                    <span className="text-pink-400 font-mono text-sm">PID: {app.pid}</span>
-                    <span className="text-gray-300">|</span>
-                    <span className="text-sm truncate" title={app.command}>{app.command.split(' ')[0]}</span>
+              <div key={i} className="glass-card" style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white', fontWeight: 500, maxWidth: '70%', overflow: 'hidden' }}>
+                    <span style={{ color: '#f472b6', fontFamily: 'monospace', fontSize: '0.875rem' }}>PID: {app.pid}</span>
+                    <span style={{ color: '#d1d5db' }}>|</span>
+                    <span style={{ fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={app.command}>{app.command.split(' ')[0]}</span>
                   </div>
-                  <span className="bg-indigo-500/20 text-indigo-300 text-xs px-2 py-0.5 rounded border border-indigo-500/20">
+                  <span style={{ background: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', fontSize: '0.75rem', padding: '0.125rem 0.5rem', borderRadius: '0.25rem', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
                     user: {app.user}
                   </span>
                 </div>
                 
-                <div className="text-xs text-gray-400 font-mono truncate mb-3" title={app.command}>
+                <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.75rem' }} title={app.command}>
                   {app.command}
                 </div>
                 
-                <div className="flex gap-4 text-sm">
-                  <div className="flex flex-col">
-                    <span className="text-gray-500 text-xs uppercase">CPU</span>
-                    <span className="text-gray-200">{app.cpu}</span>
+                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ color: '#6b7280', fontSize: '0.75rem', textTransform: 'uppercase' }}>CPU</span>
+                    <span style={{ color: '#e5e7eb' }}>{app.cpu}</span>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-gray-500 text-xs uppercase">RAM</span>
-                    <span className="text-gray-200">{app.mem}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ color: '#6b7280', fontSize: '0.75rem', textTransform: 'uppercase' }}>RAM</span>
+                    <span style={{ color: '#e5e7eb' }}>{app.mem}</span>
                   </div>
                 </div>
               </div>
