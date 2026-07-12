@@ -757,8 +757,34 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 // System Stats API
-app.get('/api/system-stats', (req, res) => {
+app.get('/api/system-stats', async (req, res) => {
   try {
+    const { serverId } = req.query;
+
+    if (serverId) {
+      const serverRes = await pool.query('SELECT * FROM servers WHERE id = $1', [serverId]);
+      if (serverRes.rows.length > 0) {
+        const s = serverRes.rows[0];
+        const nodeScript = `const os = require('os'); const totalMem = os.totalmem(); const freeMem = os.freemem(); console.log(JSON.stringify({ cpu: { cores: os.cpus().length, model: os.cpus()[0]?.model, load1: os.loadavg()[0], load5: os.loadavg()[1], load15: os.loadavg()[2] }, memory: { total: totalMem, free: freeMem, used: totalMem - freeMem, usagePercent: ((totalMem - freeMem) / totalMem) * 100 }, os: { platform: os.platform(), release: os.release(), uptime: os.uptime() } }));`;
+        
+        const cmd = `ssh -i ~/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes -p ${s.port} ${s.username}@${s.host} "node -e \\"${nodeScript}\\""`;
+        
+        exec(cmd, (error, stdout) => {
+          if (error) {
+            return res.status(500).json({ error: 'Failed to fetch remote stats: ' + error.message });
+          }
+          try {
+            const stats = JSON.parse(stdout.trim());
+            return res.json(stats);
+          } catch (e) {
+            return res.status(500).json({ error: 'Failed to parse remote stats' });
+          }
+        });
+        return; // wait for exec callback
+      }
+    }
+
+    // Local stats fallback
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
@@ -791,13 +817,24 @@ app.get('/api/system-stats', (req, res) => {
 });
 
 // App Scanner API (Find running Node.js apps)
-app.get('/api/apps-scan', (req, res) => {
+app.get('/api/apps-scan', async (req, res) => {
   try {
-    exec('ps aux | grep node | grep -v grep', (error, stdout) => {
+    const { serverId } = req.query;
+    let cmd = 'ps aux | grep node | grep -v grep';
+    
+    if (serverId) {
+      const serverRes = await pool.query('SELECT * FROM servers WHERE id = $1', [serverId]);
+      if (serverRes.rows.length > 0) {
+        const s = serverRes.rows[0];
+        cmd = `ssh -i ~/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes -p ${s.port} ${s.username}@${s.host} "${cmd}"`;
+      }
+    }
+
+    exec(cmd, (error, stdout) => {
       let apps = [];
       if (!error && stdout) {
-         apps = stdout.trim().split('\n').map(line => {
-           const parts = line.split(/\\s+/);
+         apps = stdout.trim().split('\n').filter(Boolean).map(line => {
+           const parts = line.split(/\s+/);
            return {
              user: parts[0],
              pid: parts[1],
@@ -842,3 +879,51 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export default app;
+
+// Git Endpoints
+app.post('/api/git/status', async (req, res) => {
+  try {
+    const { directory } = req.body;
+    if (!fs.existsSync(path.join(directory, '.git'))) {
+      return res.status(400).json({ error: 'Not a git repository' });
+    }
+    
+    // Get branch
+    const branch = execSync(`git -C "${directory}" branch --show-current`).toString().trim();
+    
+    // Get local changes
+    const statusOut = execSync(`git -C "${directory}" status -s`).toString().trim();
+    const changes = statusOut ? statusOut.split('\n') : [];
+    
+    // Get last 5 commits
+    const logOut = execSync(`git -C "${directory}" log -n 5 --pretty=format:"%h|%s|%ar|%an"`).toString().trim();
+    const commits = logOut ? logOut.split('\n').map(line => {
+      const parts = line.split('|');
+      return { hash: parts[0], msg: parts[1], time: parts[2], author: parts[3] };
+    }) : [];
+    
+    res.json({ branch, changes, commits });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/git/github', async (req, res) => {
+  try {
+    const { directory } = req.body;
+    if (!fs.existsSync(path.join(directory, '.git'))) {
+      return res.status(400).json({ error: 'Not a git repository' });
+    }
+    
+    const prsOut = execSync(`gh pr list --json title,number,url,state --limit 5`, { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const prs = JSON.parse(prsOut || '[]');
+    
+    const runsOut = execSync(`gh run list --limit 1 --json status,conclusion`, { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const runs = JSON.parse(runsOut || '[]');
+    const latestRun = runs.length > 0 ? runs[0] : null;
+    
+    res.json({ prs, latestRun });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
