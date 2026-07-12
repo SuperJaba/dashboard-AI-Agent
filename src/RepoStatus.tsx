@@ -161,9 +161,33 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
             )}
             
             <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center' }}>
-              <button className="btn btn-primary" style={{ width: '100%', background: 'linear-gradient(135deg, #10B981, #059669)' }}>
+              <button 
+                className="btn btn-primary" 
+                style={{ width: '100%', background: 'linear-gradient(135deg, #10B981, #059669)', opacity: loading ? 0.7 : 1 }}
+                disabled={loading}
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    const res = await apiFetch('http://localhost:3001/api/git/deploy', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ directory })
+                    });
+                    const data = await res.json();
+                    if (data.error) {
+                      alert(`Deploy Error: ${data.error}\n${data.stdout || ''}`);
+                    } else {
+                      alert(`Deploy Success!\n\n${data.log}`);
+                      fetchRepoData(); // refresh status
+                    }
+                  } catch (e: any) {
+                    alert(`Request failed: ${e.message}`);
+                  }
+                  setLoading(false);
+                }}
+              >
                 <UploadCloud size={18} />
-                Sync & Deploy Remote
+                {loading ? 'Deploying...' : 'Sync & Deploy Remote'}
               </button>
             </div>
           </div>

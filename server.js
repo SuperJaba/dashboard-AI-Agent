@@ -927,3 +927,37 @@ app.post('/api/git/github', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+app.post('/api/git/deploy', async (req, res) => {
+  try {
+    const { directory } = req.body;
+    if (!fs.existsSync(path.join(directory, '.git'))) {
+      return res.status(400).json({ error: 'Not a git repository' });
+    }
+
+    // 1. Commit any uncommitted changes
+    const statusOut = execSync(`git -C "${directory}" status -s`).toString().trim();
+    if (statusOut) {
+      execSync(`git -C "${directory}" add .`);
+      execSync(`git -C "${directory}" commit -m "Auto deploy from dashboard"`);
+    }
+
+    // 2. Push to remote
+    execSync(`git -C "${directory}" push`);
+
+    let deployLog = "Pushed successfully.\\n";
+
+    // 3. Execute deploy script if exists
+    const deployScriptPath = path.join(directory, 'scripts', 'deploy-ct8-optimized.sh');
+    if (fs.existsSync(deployScriptPath)) {
+      deployLog += "Executing custom deploy script...\\n";
+      const scriptOutput = execSync(`bash "${deployScriptPath}"`, { cwd: directory }).toString();
+      deployLog += scriptOutput;
+    } else {
+      deployLog += "No custom deploy script found. Skipped remote execution.\\n";
+    }
+
+    res.json({ success: true, log: deployLog });
+  } catch (e) {
+    res.status(500).json({ error: e.message, stdout: e.stdout ? e.stdout.toString() : '' });
+  }
+});
