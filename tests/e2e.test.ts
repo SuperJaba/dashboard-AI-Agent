@@ -94,7 +94,7 @@ test('Local AI Agents view loads and displays elements correctly', async () => {
 
   // Check if header text exists
   const headerExists = await page.evaluate(() => {
-    return document.body.textContent?.includes('Agents');
+    return document.body.textContent?.includes('AGENCI AI');
   });
   expect(headerExists).toBe(true);
 });
