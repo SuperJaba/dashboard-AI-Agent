@@ -9,6 +9,9 @@ export interface Agent {
   path: string;
   config_uri: string;
   installed: boolean;
+  llm_model?: string;
+  temperature?: number;
+  max_tokens?: number;
 }
 
 export function AgentsView() {
@@ -16,7 +19,9 @@ export function AgentsView() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const [newAgent, setNewAgent] = useState({ name: '', description: '', path: '', config_uri: '' });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editConfig, setEditConfig] = useState({ config_uri: '', llm_model: '', temperature: 0.7, max_tokens: 4096 });
+  const [newAgent, setNewAgent] = useState({ name: '', description: '', path: '', config_uri: '', llm_model: 'gpt-4o', temperature: 0.7, max_tokens: 4096 });
 
   const fetchAgents = async () => {
     try {
@@ -47,17 +52,22 @@ export function AgentsView() {
     }
   };
 
-  const handleSaveConfigUri = async (id: number) => {
+  const handleSaveConfig = async (id: number) => {
     try {
       await apiFetch(`/api/agents/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config_uri: editConfigUri })
+        body: JSON.stringify({ 
+          config_uri: editConfig.config_uri,
+          llm_model: editConfig.llm_model,
+          temperature: editConfig.temperature,
+          max_tokens: editConfig.max_tokens
+        })
       });
       setEditingId(null);
       fetchAgents();
     } catch (e) {
-      console.error('Failed to save config URI', e);
+      console.error('Failed to save config', e);
     }
   };
 
@@ -80,7 +90,7 @@ export function AgentsView() {
         body: JSON.stringify(newAgent)
       });
       setIsAdding(false);
-      setNewAgent({ name: '', description: '', path: '', config_uri: '' });
+      setNewAgent({ name: '', description: '', path: '', config_uri: '', llm_model: 'gpt-4o', temperature: 0.7, max_tokens: 4096 });
       fetchAgents();
     } catch (e) {
       console.error('Failed to add agent', e);
@@ -123,9 +133,14 @@ export function AgentsView() {
           <form onSubmit={handleAddAgent} className="grid grid-cols-2 gap-4">
             <input required placeholder="Nazwa (np. Mój Agent)" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
             <input placeholder="Opis" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input required placeholder="Ścieżka do pliku binarnego (np. /usr/local/bin/agent)" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <input placeholder="Config URI (np. /home/user/.agent.json)" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
-            <div className="col-span-2 flex justify-end">
+            <input required placeholder="Ścieżka binarnego" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
+            <input placeholder="Config URI" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
+            <input placeholder="LLM Model (gpt-4o)" value={newAgent.llm_model} onChange={e => setNewAgent({...newAgent, llm_model: e.target.value})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white" />
+            <div className="flex gap-2">
+              <input type="number" step="0.1" placeholder="Temp" value={newAgent.temperature} onChange={e => setNewAgent({...newAgent, temperature: parseFloat(e.target.value)})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white w-1/2" />
+              <input type="number" placeholder="Tokens" value={newAgent.max_tokens} onChange={e => setNewAgent({...newAgent, max_tokens: parseInt(e.target.value)})} className="bg-slate-900 border border-slate-700 p-2 rounded text-white w-1/2" />
+            </div>
+            <div className="col-span-2 flex justify-end mt-2">
               <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Zapisz</button>
             </div>
           </form>
@@ -139,7 +154,7 @@ export function AgentsView() {
               <th className="px-6 py-4 font-medium">Nazwa Agenta</th>
               <th className="px-6 py-4 font-medium">Ścieżka (Binary)</th>
               <th className="px-6 py-4 font-medium">Status</th>
-              <th className="px-6 py-4 font-medium">Config URI (Plik ustawień)</th>
+              <th className="px-6 py-4 font-medium">Config & LLM</th>
               <th className="px-6 py-4 font-medium text-right">Akcje</th>
             </tr>
           </thead>
@@ -175,23 +190,26 @@ export function AgentsView() {
                   </td>
                   <td className="px-6 py-4">
                     {editingId === agent.id ? (
-                      <input 
-                        type="text" 
-                        value={editConfigUri} 
-                        onChange={(e) => setEditConfigUri(e.target.value)}
-                        className="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-sm text-white w-full focus:outline-none focus:border-blue-500"
-                        placeholder="/home/seba/.gemini/config.json"
-                      />
+                      <div className="flex flex-col gap-2">
+                        <input type="text" value={editConfig.config_uri} onChange={(e) => setEditConfig({...editConfig, config_uri: e.target.value})} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Config URI" />
+                        <input type="text" value={editConfig.llm_model} onChange={(e) => setEditConfig({...editConfig, llm_model: e.target.value})} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Model (gpt-4o)" />
+                        <div className="flex gap-2">
+                          <input type="number" step="0.1" value={editConfig.temperature} onChange={(e) => setEditConfig({...editConfig, temperature: parseFloat(e.target.value)})} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white w-20 focus:outline-none" placeholder="Temp" />
+                          <input type="number" value={editConfig.max_tokens} onChange={(e) => setEditConfig({...editConfig, max_tokens: parseInt(e.target.value)})} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white w-24 focus:outline-none" placeholder="Tokens" />
+                        </div>
+                      </div>
                     ) : (
-                      <span className="text-sm text-gray-400 font-mono">
-                        {agent.config_uri || <span className="text-gray-600 italic">Brak (użyj domyślnego)</span>}
-                      </span>
+                      <div className="text-sm text-gray-400 font-mono space-y-1">
+                        <div>URI: {agent.config_uri || <span className="text-gray-600 italic">Brak</span>}</div>
+                        <div>Model: <span className="text-blue-300">{agent.llm_model || 'gpt-4o'}</span></div>
+                        <div>Temp: {agent.temperature ?? 0.7} | Tokens: {agent.max_tokens ?? 4096}</div>
+                      </div>
                     )}
                   </td>
                   <td className="px-6 py-4 text-right flex justify-end gap-2">
                     {editingId === agent.id ? (
                       <button 
-                        onClick={() => handleSaveConfigUri(agent.id)}
+                        onClick={() => handleSaveConfig(agent.id)}
                         className="text-green-400 hover:text-green-300 p-1.5 bg-green-400/10 hover:bg-green-400/20 rounded transition"
                         title="Zapisz"
                       >
@@ -201,10 +219,15 @@ export function AgentsView() {
                       <button 
                         onClick={() => {
                           setEditingId(agent.id);
-                          setEditConfigUri(agent.config_uri || '');
+                          setEditConfig({
+                            config_uri: agent.config_uri || '',
+                            llm_model: agent.llm_model || 'gpt-4o',
+                            temperature: agent.temperature ?? 0.7,
+                            max_tokens: agent.max_tokens ?? 4096
+                          });
                         }}
                         className="text-blue-400 hover:text-blue-300 p-1.5 bg-blue-400/10 hover:bg-blue-400/20 rounded transition"
-                        title="Edytuj config URI"
+                        title="Edytuj konfigurację"
                       >
                         <Save className="w-4 h-4" />
                       </button>

@@ -313,7 +313,7 @@ app.post('/api/agents/scan', async (req, res) => {
 });
 
 app.put('/api/agents/:id', async (req, res) => {
-  const { config_uri, name, description, path: binPath } = req.body;
+  const { config_uri, name, description, path: binPath, llm_model, temperature, max_tokens } = req.body;
   try {
     let query = 'UPDATE cli_agents SET config_uri = $1';
     let values = [config_uri];
@@ -321,6 +321,9 @@ app.put('/api/agents/:id', async (req, res) => {
     if (name) { count++; query += `, name = $${count}`; values.push(name); }
     if (description) { count++; query += `, description = $${count}`; values.push(description); }
     if (binPath) { count++; query += `, path = $${count}`; values.push(binPath); }
+    if (llm_model !== undefined) { count++; query += `, llm_model = $${count}`; values.push(llm_model); }
+    if (temperature !== undefined) { count++; query += `, temperature = $${count}`; values.push(temperature); }
+    if (max_tokens !== undefined) { count++; query += `, max_tokens = $${count}`; values.push(max_tokens); }
     
     count++; query += ` WHERE id = $${count} RETURNING *`;
     values.push(req.params.id);
@@ -333,11 +336,11 @@ app.put('/api/agents/:id', async (req, res) => {
 });
 
 app.post('/api/agents', async (req, res) => {
-  const { name, description, path: binPath, config_uri } = req.body;
+  const { name, description, path: binPath, config_uri, llm_model, temperature, max_tokens } = req.body;
   try {
     const { rows } = await pool.query(
-      'INSERT INTO cli_agents (name, description, path, config_uri, installed) VALUES ($1, $2, $3, $4, true) RETURNING *',
-      [name, description, binPath, config_uri]
+      'INSERT INTO cli_agents (name, description, path, config_uri, installed, llm_model, temperature, max_tokens) VALUES ($1, $2, $3, $4, true, $5, $6, $7) RETURNING *',
+      [name, description, binPath, config_uri, llm_model || 'gpt-4o', temperature || 0.7, max_tokens || 4096]
     );
     res.json(rows[0]);
   } catch (err) {
