@@ -2,6 +2,7 @@ import express from 'express';
 import os from 'os';
 import { execSync } from 'child_process';
 import * as settingsRepo from './settingsRepository.js';
+import { SettingsSchema } from '../../shared/api-client/schemas.js';
 
 export const settingsRouter = express.Router();
 
@@ -17,8 +18,8 @@ settingsRouter.get('/', async (req, res) => {
 
 // Save Settings
 settingsRouter.post('/', async (req, res) => {
-  const { llmUrl, apiKey, llmName, llmModel, useBrowserTerminal } = req.body;
   try {
+    const { llmUrl, apiKey, llmName, llmModel, useBrowserTerminal } = SettingsSchema.parse(req.body);
     const result = await settingsRepo.saveSettings({ llmUrl, apiKey, llmName, llmModel, useBrowserTerminal });
     res.json(result);
   } catch (err) {
