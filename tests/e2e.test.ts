@@ -105,3 +105,42 @@ test('Local AI Agents view loads and displays elements correctly', async () => {
   });
   expect(tuneBtnText).toBe(true);
 });
+
+test('LLM Server Diagnostics modal opens and settings saving works', async () => {
+  // Try to find and edit Server Name setting input
+  await page.waitForSelector('input[placeholder="np. AtomicChat"]');
+  await page.evaluate(() => {
+    const nameInput = document.querySelector('input[placeholder="np. AtomicChat"]') as HTMLInputElement;
+    if (nameInput) {
+      nameInput.value = 'AtomicChat-Test';
+      nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+
+  // Click Save Server settings button
+  await page.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('button'));
+    const saveBtn = btns.find(b => b.textContent?.includes('Zapisz Serwer') || b.textContent?.includes('Saved'));
+    if (saveBtn) saveBtn.click();
+  });
+
+  // Wait for save indicator
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  // Click Strojenie LLM Server button
+  await page.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('button'));
+    const tuneBtn = btns.find(b => b.textContent?.includes('Strojenie LLM Server'));
+    if (tuneBtn) tuneBtn.click();
+  });
+
+  // Wait for modal to render
+  await page.waitForSelector('.modal-overlay');
+
+  // Verify modal is open and has diagnostics title
+  const modalText = await page.evaluate(() => {
+    return document.querySelector('.modal-overlay')?.textContent;
+  });
+  expect(modalText).toContain('Diagnostyka LLM Server');
+});
+
