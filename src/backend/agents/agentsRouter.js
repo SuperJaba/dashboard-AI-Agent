@@ -182,7 +182,57 @@ agentsRouter.post('/:id/tune', async (req, res) => {
     }
 
     const updated = await agentsRepo.updateAgentTunedParams(id, tuned);
-    res.json({ success: true, agent: updated, tunedByLLM: !!(llmUrl && apiKey) });
+
+    // 2. Run verification test against the LLM Server (using the tuned parameters)
+    let testStatus = 'untested';
+    let testError = null;
+    const targetUrl = llmUrl || 'http://localhost:1337/v1';
+    const testModel = tuned.llm_model || agent.llm_model || 'gpt-4o';
+
+    try {
+      const base = targetUrl.endsWith('/chat/completions') 
+        ? targetUrl.replace('/chat/completions', '') 
+        : (targetUrl.endsWith('/') ? targetUrl.slice(0, -1) : targetUrl);
+
+      const checkUrl = `${base}/v1/chat/completions`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const testResponse = await fetch(checkUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
+        },
+        body: JSON.stringify({
+          model: testModel,
+          messages: [{ role: 'user', content: 'Test connection. Reply with OK.' }],
+          temperature: tuned.temperature,
+          max_tokens: 5,
+          ctx_len: tuned.max_tokens
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (testResponse.ok) {
+        testStatus = 'passed';
+      } else {
+        testStatus = 'failed';
+        testError = `HTTP ${testResponse.status}`;
+      }
+    } catch (e) {
+      testStatus = 'failed';
+      testError = e.message;
+    }
+
+    res.json({ 
+      success: true, 
+      agent: updated, 
+      tunedByLLM: !!(llmUrl && apiKey),
+      testStatus,
+      testError
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

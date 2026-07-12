@@ -113,7 +113,13 @@ export function AgentsView() {
       const res = await apiFetch(`/api/agents/${id}/tune`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        setNotification(`Auto-tuned: ${data.agent.name}`);
+        if (data.testStatus === 'passed') {
+          setNotification(`Dostrojono i przetestowano ${data.agent.name}: Połączenie z serwerem OK!`);
+        } else if (data.testStatus === 'failed') {
+          setNotification(`Dostrojono ${data.agent.name}, ale test połączenia z serwerem nie powiódł się: ${data.testError}`);
+        } else {
+          setNotification(`Dostrojono: ${data.agent.name}`);
+        }
         fetchAgents();
       }
     } catch (e) {
