@@ -162,14 +162,20 @@ agentsRouter.post('/:id/tune', async (req, res) => {
     // Heuristics fallback if LLM tuning failed or wasn't configured
     if (!llmUrl || !apiKey) {
       const nameLower = agent.name.toLowerCase();
-      if (nameLower.includes('review') || nameLower.includes('security') || nameLower.includes('audit')) {
-        tuned.temperature = 0.2;
+      if (nameLower.includes('r1') || nameLower.includes('reason')) {
+        // Reasoning models require 0.5-0.7 temperature to prevent repetitiveness in thought chains
+        tuned.temperature = 0.6;
+        tuned.max_tokens = 16384;
+        tuned.llm_model = 'deepseek-reasoner';
+      } else if (nameLower.includes('review') || nameLower.includes('security') || nameLower.includes('audit')) {
+        // Strict precision/syntax requires low temperature (0.1)
+        tuned.temperature = 0.1;
         tuned.max_tokens = 8192;
       } else if (nameLower.includes('creative') || nameLower.includes('writer') || nameLower.includes('chat')) {
         tuned.temperature = 0.9;
         tuned.max_tokens = 4096;
       } else if (nameLower.includes('coder') || nameLower.includes('architect') || nameLower.includes('aider') || nameLower.includes('claude')) {
-        tuned.temperature = 0.5;
+        tuned.temperature = 0.2;
         tuned.max_tokens = 8192;
         tuned.llm_model = 'claude-3-5-sonnet';
       }
