@@ -43,13 +43,23 @@ export function ServerStats({ serverId }: { serverId?: number }) {
             <Cpu size={20} />
             <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>CPU Usage</span>
           </div>
-          <div style={{ color: '#d1d5db', fontSize: '0.875rem', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ color: '#d1d5db', fontSize: '0.875rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={stats.cpu.model}>{stats.cpu.model}</span>
             <span style={{ whiteSpace: 'nowrap', marginLeft: '0.5rem', color: '#9ca3af' }}>{stats.cpu.cores} Cores</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>{stats.cpu.load1.toFixed(2)}</span>
             <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.5rem', textTransform: 'uppercase' }}>Load Avg (1m)</span>
+          </div>
+          <div style={{ width: '100%', background: 'rgba(0,0,0,0.3)', borderRadius: '999px', height: '6px', overflow: 'hidden', marginTop: 'auto' }}>
+            <div 
+              style={{ 
+                height: '100%', 
+                width: `${Math.min(100, (stats.cpu.load1 / stats.cpu.cores) * 100)}%`, 
+                background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                transition: 'width 0.5s ease-in-out'
+              }} 
+            />
           </div>
         </div>
 
@@ -59,10 +69,23 @@ export function ServerStats({ serverId }: { serverId?: number }) {
             <Server size={20} />
             <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>Memory</span>
           </div>
-          <div style={{ color: '#d1d5db', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+          <div style={{ color: '#d1d5db', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
             {((stats.memory.used) / 1024 / 1024 / 1024).toFixed(1)} GB / {((stats.memory.total) / 1024 / 1024 / 1024).toFixed(1)} GB
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>{stats.memory.usagePercent.toFixed(1)}% Used</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>{stats.memory.usagePercent.toFixed(1)}%</span>
+            <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.5rem', textTransform: 'uppercase' }}>Used</span>
+          </div>
+          <div style={{ width: '100%', background: 'rgba(0,0,0,0.3)', borderRadius: '999px', height: '6px', overflow: 'hidden', marginTop: 'auto' }}>
+            <div 
+              style={{ 
+                height: '100%', 
+                width: `${stats.memory.usagePercent}%`, 
+                background: 'linear-gradient(90deg, #10b981, #34d399)',
+                transition: 'width 0.5s ease-in-out'
+              }} 
+            />
+          </div>
         </div>
 
         {/* System Info */}
