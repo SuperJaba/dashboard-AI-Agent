@@ -10,13 +10,19 @@ load_dotenv()
 
 def run_forecast():
     db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        print("Error: DATABASE_URL is not set in the environment or .env file.")
-        return
 
     try:
         # Connect to PostgreSQL
-        conn = psycopg2.connect(db_url)
+        if db_url:
+            conn = psycopg2.connect(db_url)
+        else:
+            conn = psycopg2.connect(
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASSWORD"),
+                host=os.getenv("DB_HOST", "localhost"),
+                port=os.getenv("DB_PORT", "5432"),
+                database=os.getenv("DB_NAME")
+            )
         
         # Load project data
         query = """
