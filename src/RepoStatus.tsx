@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, GitCommit, Github, AlertCircle, RefreshCw, UploadCloud } from 'lucide-react';
+import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud } from 'lucide-react';
 import { apiFetch } from './api';
 import './index.css';
 
@@ -58,7 +58,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
     <div className="glass-card animate-in delay-3" style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 className="section-title" style={{ margin: 0 }}>
-          <Github size={24} color="var(--primary)" />
+          <GitPullRequest size={24} color="var(--primary)" />
           Repository Status
         </h2>
         <button 
@@ -124,7 +124,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory }) => {
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Github size={18} />
+                <GitPullRequest size={18} />
                 Pull Requests
               </h3>
               {githubData?.latestRun && (
