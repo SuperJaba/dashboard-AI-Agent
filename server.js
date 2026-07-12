@@ -229,6 +229,14 @@ async function initDB() {
         config_uri TEXT,
         installed BOOLEAN DEFAULT false
       );
+      CREATE TABLE IF NOT EXISTS custom_widgets (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        command TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'number',
+        color VARCHAR(50) DEFAULT '#c084fc',
+        server_id INTEGER
+      );
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
@@ -871,6 +879,73 @@ app.get('/api/analytics', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// --- Custom Widgets API ---
+app.get('/api/widgets', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM custom_widgets ORDER BY id ASC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/widgets', async (req, res) => {
+  try {
+    const { name, command, type, color, server_id } = req.body;
+    const result = await pool.query(
+      'INSERT INTO custom_widgets (name, command, type, color, server_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name, command, type || 'number', color || '#c084fc', server_id || null]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/widgets/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM custom_widgets WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/widgets/:id/run', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM custom_widgets WHERE id = $1', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Widget not found' });
+    const widget = rows[0];
+
+    if (widget.server_id) {
+      const serverRes = await pool.query('SELECT * FROM servers WHERE id = $1', [widget.server_id]);
+      if (serverRes.rows.length > 0) {
+        const s = serverRes.rows[0];
+        // Use bash to execute the command correctly remotely, wrapping in quotes
+        const cmd = `ssh -i ~/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes -p ${s.port} ${s.username}@${s.host} "bash -c '${widget.command.replace(/'/g, "'\\''")}'"`;
+        exec(cmd, (error, stdout, stderr) => {
+          if (error) {
+            return res.status(500).json({ error: 'Remote execution failed: ' + (stderr || error.message) });
+          }
+          return res.json({ result: stdout.trim() });
+        });
+        return;
+      }
+    }
+
+    // Local fallback
+    exec(`bash -c "${widget.command.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+      if (error) {
+        return res.status(500).json({ error: 'Local execution failed: ' + (stderr || error.message) });
+      }
+      return res.json({ result: stdout.trim() });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 if (process.env.NODE_ENV !== 'test') {
   httpServer.listen(port, () => {
