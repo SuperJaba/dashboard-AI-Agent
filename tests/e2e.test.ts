@@ -1,5 +1,6 @@
 import { test, expect, beforeAll, afterAll } from 'vitest';
 import puppeteer, { Browser, Page } from 'puppeteer';
+import jwt from 'jsonwebtoken';
 
 let browser: Browser;
 let page: Page;
@@ -11,6 +12,17 @@ beforeAll(async () => {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   page = await browser.newPage();
+
+  // Set auth token in localStorage to bypass Login screen
+  const token = jwt.sign({ username: 'testuser' }, process.env.JWT_SECRET || 'fallback-super-secret-key-123');
+  try {
+    await page.goto('http://localhost:5173', { waitUntil: 'domcontentloaded', timeout: 5000 });
+    await page.evaluate((t) => {
+      localStorage.setItem('dashboard_token', t);
+    }, token);
+  } catch (e) {
+    console.warn('Frontend might not be running on port 5173.');
+  }
 });
 
 afterAll(async () => {
@@ -67,4 +79,29 @@ test('Project UI components exist when a project is selected', async () => {
   } else {
     console.warn('No projects found to test UI components');
   }
+});
+
+test('Local AI Agents view loads and displays elements correctly', async () => {
+  // Navigate to Agents View
+  await page.evaluate(() => {
+    const items = Array.from(document.querySelectorAll('.project-item'));
+    const btn = items.find(el => el.textContent?.includes('Agenci AI'));
+    if (btn) (btn as HTMLElement).click();
+  });
+
+  // Wait for loading to complete
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Check if header text exists
+  const headerExists = await page.evaluate(() => {
+    return document.body.textContent?.includes('Lokalni Agenci AI');
+  });
+  expect(headerExists).toBe(true);
+
+  // Check if tuning button is rendered
+  const tuneBtnText = await page.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('button'));
+    return btns.some(b => b.textContent?.includes('Strojenie LLM Server'));
+  });
+  expect(tuneBtnText).toBe(true);
 });
