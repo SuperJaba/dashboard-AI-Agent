@@ -9,6 +9,7 @@ import { TerminalView } from './TerminalView';
 import { AnalyticsPanel } from './AnalyticsPanel';
 
 import { ServerStats } from './ServerStats';
+import { RepoStatus } from './RepoStatus';
 
 import { apiFetch } from './api';
 
@@ -440,7 +441,7 @@ function App() {
               </div>
             </header>
             
-            <ServerStats />
+            <ServerStats serverId={activeServer.id} />
             
             <div className="grid-top" style={{ marginBottom: '2rem' }}>
               <div className="glass-card animate-in delay-2" style={{ gridColumn: '1 / -1' }}>
@@ -612,6 +613,8 @@ function App() {
                   </div>
                 </div>
               </div>
+
+              <RepoStatus directory={activeProject.path} />
 
               <section className="glass-card animate-in delay-3">
                 <div className="tasks-header" onClick={() => setShowTasks(!showTasks)}>
