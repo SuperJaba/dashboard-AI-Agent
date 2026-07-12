@@ -311,6 +311,20 @@ export function useDashboardState() {
     }
   };
 
+  const setupSshKey = async (serverId: number) => {
+    try {
+      const res = await apiFetch(`http://localhost:3001/api/servers/${serverId}/setup-ssh`, { method: 'POST' });
+      const data = await res.json();
+      if (data.copyCommand) {
+        alert(`Skopiuj poniższą komendę i uruchom ją w swoim terminalu, aby dodać klucz SSH do serwera:\n\n${data.copyCommand}`);
+      } else {
+        alert('Błąd konfiguracji klucza SSH.');
+      }
+    } catch (err: any) {
+      alert(`Błąd: ${err.message}`);
+    }
+  };
+
   return {
     activeView, setActiveView,
     projects, setProjects,
@@ -343,6 +357,7 @@ export function useDashboardState() {
     initGit,
     handleAddServer,
     deleteServer,
-    handleAddProject
+    handleAddProject,
+    setupSshKey
   };
 }
