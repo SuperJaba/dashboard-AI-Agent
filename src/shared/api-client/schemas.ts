@@ -67,6 +67,20 @@ export const ServerSchema = z.object({
 
 export type ServerData = z.infer<typeof ServerSchema>;
 
+export const AgentSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  path: z.string().nullable().optional(),
+  config_uri: z.string().nullable().optional(),
+  installed: z.boolean().optional(),
+  llm_model: z.string().nullable().optional(),
+  temperature: z.number().nullable().optional(),
+  max_tokens: z.number().nullable().optional()
+}).passthrough();
+
+export type AgentData = z.infer<typeof AgentSchema>;
+
 export const SettingsSchema = z.object({
   llmUrl: z.string().optional(),
   apiKey: z.string().optional(),
