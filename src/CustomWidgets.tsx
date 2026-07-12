@@ -157,32 +157,34 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
       {widgets.length === 0 ? (
         <div className="glass-card" style={{ 
           display: 'flex', 
-          flexDirection: 'column', 
           alignItems: 'center', 
-          justifyContent: 'center', 
-          padding: '3rem 2rem',
-          textAlign: 'center',
+          justifyContent: 'space-between', 
+          padding: '1.25rem 2rem',
           borderStyle: 'dashed',
           borderColor: 'rgba(255,255,255,0.1)'
         }}>
-          <Terminal size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem', opacity: 0.5 }} />
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'white', marginBottom: '0.25rem' }}>No Widgets Created</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', maxWidth: '300px', marginBottom: '1.25rem' }}>
-            Add shell command outputs as real-time interactive widgets to your dashboard.
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Terminal size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'white', margin: 0 }}>No Widgets Created</h3>
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: 0 }}>
+                Add shell command outputs as real-time interactive widgets.
+              </p>
+            </div>
+          </div>
           <button 
             onClick={() => setShowModal(true)}
-            className="btn"
+            className="btn btn-secondary"
             style={{ 
               background: 'rgba(255,255,255,0.05)', 
               color: 'white', 
               border: '1px solid rgba(255,255,255,0.1)',
-              padding: '0.5rem 1rem',
-              borderRadius: '8px',
-              fontSize: '0.825rem'
+              padding: '0.4rem 0.8rem',
+              borderRadius: '6px',
+              fontSize: '0.8rem'
             }}
           >
-            Create Your First Widget
+            Create Widget
           </button>
         </div>
       ) : (
