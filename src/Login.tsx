@@ -105,12 +105,13 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1">
-              <label className="info-label ml-1">Username</label>
+              <label htmlFor="login-username" className="info-label ml-1">Username</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                  <User size={18} />
+                  <User size={18} aria-hidden="true" />
                 </div>
                 <input
+                  id="login-username"
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
@@ -122,12 +123,13 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="space-y-1">
-              <label className="info-label ml-1">Password</label>
+              <label htmlFor="login-password" className="info-label ml-1">Password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                  <Key size={18} />
+                  <Key size={18} aria-hidden="true" />
                 </div>
                 <input
+                  id="login-password"
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -139,7 +141,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
             </div>
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
+              <div role="alert" aria-live="assertive" className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
                 {error}
               </div>
             )}
@@ -149,7 +151,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
               className="btn btn-primary w-full mt-4"
             >
               <span>{needsSetup ? 'Initialize System' : 'Authenticate'}</span>
-              <ChevronRight size={18} />
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </form>
         </div>
