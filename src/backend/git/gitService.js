@@ -11,16 +11,28 @@ export function getStatus(directory) {
     throw new Error('Not a git repository');
   }
   
-  const branch = execSync(`git -C "${directory}" branch --show-current`).toString().trim();
-  const statusOut = execSync(`git -C "${directory}" status -s`).toString().trim();
-  const changes = statusOut ? statusOut.split('\n') : [];
-  
-  const logOut = execSync(`git -C "${directory}" log -n 5 --pretty=format:"%h|%s|%ar|%an"`).toString().trim();
-  const commits = logOut ? logOut.split('\n').map(line => {
-    const parts = line.split('|');
-    return { hash: parts[0], msg: parts[1], time: parts[2], author: parts[3] };
-  }) : [];
-  
+  const execOpts = { stdio: ['pipe', 'pipe', 'pipe'] };
+  let branch = '';
+  let changes = [];
+  let commits = [];
+
+  try {
+    branch = execSync(`git -C "${directory}" branch --show-current`, execOpts).toString().trim();
+  } catch (e) {}
+
+  try {
+    const statusOut = execSync(`git -C "${directory}" status -s`, execOpts).toString().trim();
+    changes = statusOut ? statusOut.split('\n') : [];
+  } catch (e) {}
+
+  try {
+    const logOut = execSync(`git -C "${directory}" log -n 5 --pretty=format:"%h|%s|%ar|%an"`, execOpts).toString().trim();
+    commits = logOut ? logOut.split('\n').map(line => {
+      const parts = line.split('|');
+      return { hash: parts[0], msg: parts[1], time: parts[2], author: parts[3] };
+    }) : [];
+  } catch (e) {}
+
   return { branch, changes, commits };
 }
 
