@@ -28,3 +28,7 @@ dist-ssr
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
+
+# Temporary agent launcher files
+.ai_tasks.md
+.start_agent.sh

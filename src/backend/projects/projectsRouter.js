@@ -42,27 +42,6 @@ projectsRouter.post('/projects', async (req, res) => {
 projectsRouter.put('/projects/:id', async (req, res) => {
   try {
     const row = await projectsRepo.updateProject(req.params.id, req.body);
-    if (req.body.tasks !== undefined && row && row.path) {
-      try {
-        let targetDir = row.path;
-        if (targetDir.startsWith('~/')) {
-          const home = process.env.HOME || process.env.USERPROFILE;
-          targetDir = path.join(home, targetDir.slice(2));
-        }
-        const promptFile = path.join(targetDir, '.ai_tasks.md');
-        if (fs.existsSync(promptFile) || (req.body.tasks && req.body.tasks.length > 0)) {
-          const tasks = req.body.tasks || [];
-          const list = tasks.map(t => {
-            const prefix = t.status === 'completed' ? '[REWORK] ' : '';
-            const check = t.status === 'completed' ? '[x]' : '[ ]';
-            return `- ${check} ${prefix}${t.title}`;
-          }).join('\n');
-          fs.writeFileSync(promptFile, `# Zadania do wykonania\n\n${list}\n`);
-        }
-      } catch (fsErr) {
-        console.error('Failed to sync .ai_tasks.md file:', fsErr);
-      }
-    }
     res.json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -294,20 +273,6 @@ projectsRouter.post('/deploy', async (req, res) => {
       env.OPENAI_API_KEY = apiKey;
     }
 
-    if (llmModel) {
-      env.ANTHROPIC_MODEL = llmModel;
-      env.LLM_MODEL = llmModel;
-    }
-
-    if (tasks && tasks.length > 0) {
-      const list = tasks.map(t => {
-        const prefix = t.status === 'completed' ? '[REWORK] ' : '';
-        return `- [ ] ${prefix}${t.title}`;
-      }).join('\n');
-      const promptFile = path.join(targetDir, '.ai_tasks.md');
-      fs.writeFileSync(promptFile, `# Zadania do wykonania\n\n${list}\n`);
-    }
-
     if (agent === 'claude' || agent === 'agy') {
       if (agent === 'claude' && !env.ANTHROPIC_BASE_URL) {
         env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
@@ -315,13 +280,12 @@ projectsRouter.post('/deploy', async (req, res) => {
       
       let agentCmd = '';
       const scriptPath = path.join(targetDir, '.start_agent.sh');
-      if (remoteServer) {
         const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
         const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
         agentCmd = agent === 'claude' ? `claude "${promptText}"` : `agy -i "${promptText}"`;
       } else if (tasks && tasks.length > 0) {
-        const taskListStr = tasks.map(t => `- ${t.title}`).join('\n');
-        const promptText = `Zrealizuj poniższe zadania:\n${taskListStr}\n\nZadania zostały również zapisane w pliku .ai_tasks.md. Po ich wykonaniu oznacz je jako zrealizowane.`;
+        const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
+        const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
         const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
         agentCmd = agent === 'claude' ? `claude "${escapedPrompt}"` : `agy -i "${escapedPrompt}"`;
       } else {
