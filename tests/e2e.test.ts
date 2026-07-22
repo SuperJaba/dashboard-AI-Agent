@@ -82,19 +82,31 @@ test('Project UI components exist when a project is selected', async () => {
 });
 
 test('Local AI Agents view loads and displays elements correctly', async () => {
+  // Make sure the authenticated dashboard is loaded before navigating
+  try {
+    await page.goto('http://localhost:5173', { waitUntil: 'networkidle0', timeout: 5000 });
+    await page.waitForSelector('.project-item', { timeout: 5000 });
+  } catch (e) {
+    console.warn('Frontend might not be running on port 5173. Test might fail.');
+  }
+
   // Navigate to Agents View
-  await page.evaluate(() => {
+  const navigatedToAgents = await page.evaluate(() => {
     const items = Array.from(document.querySelectorAll('.project-item'));
-    const btn = items.find(el => el.textContent?.includes('Agenci AI'));
-    if (btn) (btn as HTMLElement).click();
+    const btn = items.find(el => el.textContent?.trim() === 'Agenci AI');
+    if (!btn) return false;
+    (btn as HTMLElement).click();
+    return true;
   });
+  expect(navigatedToAgents).toBe(true);
 
   // Wait for loading to complete
   await new Promise(resolve => setTimeout(resolve, 500));
 
   // Check if header text exists
   const headerExists = await page.evaluate(() => {
-    return document.body.textContent?.includes('AGENCI AI');
+    const heading = document.querySelector('h1');
+    return heading?.textContent?.includes('Lokalni Agenci AI');
   });
   expect(headerExists).toBe(true);
 });

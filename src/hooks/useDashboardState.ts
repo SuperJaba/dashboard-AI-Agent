@@ -99,13 +99,19 @@ export function useDashboardState() {
     if (!activeProject) return;
     setDeploying(agent);
     try {
-      const selectedTasks = (activeProject.tasks || []).filter((t: any) => selectedTaskIds.includes(t.id));
+      const allTasks = activeProject.tasks || [];
+      const selectedTasks = selectedTaskIds.length > 0
+        ? allTasks.filter((t: any) => selectedTaskIds.includes(t.id))
+        : allTasks.filter((t: any) => t.status !== 'completed');
+      
+      const tasksToDeploy = selectedTasks.length > 0 ? selectedTasks : allTasks;
+
       const data = await apiClient.post<any>('/api/deploy', { 
         agent, 
         directory: activeProject.path, 
         llmUrl: customLlmUrl, 
         apiKey: customApiKey,
-        tasks: selectedTasks,
+        tasks: tasksToDeploy,
         useBrowserTerminal
       });
       if (data.browserTerminal) {
