@@ -251,15 +251,25 @@ export function useDashboardState() {
 
   const handleAddProject = async () => {
     try {
-      const data = await apiClient.get<any>('/api/pick-folder');
-      if (!data) return; // 204
+      let folderPath = '';
+      try {
+        const data = await apiClient.get<any>('/api/pick-folder');
+        if (data && data.path) {
+          folderPath = data.path;
+        }
+      } catch (e) {
+        // Fallback to manual entry if dialog returns error or non-json
+      }
+
+      if (!folderPath) {
+        const manualPath = prompt('Wprowadź lub wklej pełną ścieżkę do folderu projektu (np. F:\\AI-Agents\\dashboard):');
+        if (!manualPath || !manualPath.trim()) return;
+        folderPath = manualPath.trim();
+      }
       
-      if (data.error || !data.path) return;
+      const folderName = folderPath.split('/').pop() || folderPath.split('\\').pop() || `New Project`;
       
-      const path = data.path;
-      const folderName = path.split('/').pop() || path.split('\\').pop() || `New Project`;
-      
-      const newProject = await apiClient.post<any>('/api/projects', { name: folderName, desc: 'Local workspace', path });
+      const newProject = await apiClient.post<any>('/api/projects', { name: folderName, desc: 'Local workspace', path: folderPath });
       
       setProjects([...projects, newProject]);
       setActiveProjectId(newProject.id);

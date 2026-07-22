@@ -60,13 +60,23 @@ projectsRouter.delete('/projects/:id', async (req, res) => {
 
 // Pick Folder API
 projectsRouter.get('/pick-folder', (req, res) => {
-  exec('zenity --file-selection --directory --title="Wybierz folder projektu"', (error, stdout, stderr) => {
-    if (error) {
-      if (error.code === 1) return res.status(204).send();
-      return res.status(500).json({ error: error.message });
-    }
-    res.json({ path: stdout.trim() });
-  });
+  if (process.platform === 'win32') {
+    const psCmd = `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Wybierz folder projektu'; if ($d.ShowDialog() -eq 'OK') { Write-Output $d.SelectedPath }"`;
+    exec(psCmd, (error, stdout) => {
+      if (error || !stdout.trim()) {
+        return res.status(204).send();
+      }
+      res.json({ path: stdout.trim() });
+    });
+  } else {
+    exec('zenity --file-selection --directory --title="Wybierz folder projektu"', (error, stdout) => {
+      if (error) {
+        if (error.code === 1) return res.status(204).send();
+        return res.status(500).json({ error: error.message });
+      }
+      res.json({ path: stdout.trim() });
+    });
+  }
 });
 
 // Init Git

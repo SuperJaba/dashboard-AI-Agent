@@ -59,70 +59,81 @@ function App() {
       {/* Sidebar */}
       <aside className="sidebar">
         {/* Navigation Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
-          <div 
+        <nav aria-label="Main Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
+          <button 
+            type="button"
             className={`project-item ${activeView === 'dashboard' ? 'active' : ''}`}
             onClick={() => setActiveView('dashboard')}
+            aria-current={activeView === 'dashboard' ? 'page' : undefined}
           >
-            <LayoutDashboard size={18} />
+            <LayoutDashboard size={18} aria-hidden="true" />
             <span>Dashboard</span>
-          </div>
-          <div 
+          </button>
+          <button 
+            type="button"
             className={`project-item ${activeView === 'agents' ? 'active' : ''}`}
             onClick={() => setActiveView('agents')}
+            aria-current={activeView === 'agents' ? 'page' : undefined}
           >
-            <Bot size={18} />
+            <Bot size={18} aria-hidden="true" />
             <span>Agenci AI</span>
-          </div>
-        </div>
+          </button>
+        </nav>
 
         {/* Workspaces Section */}
-        <div 
-          className="sidebar-title" 
+        <button 
+          type="button"
+          className="sidebar-title-btn sidebar-title" 
           onClick={() => setIsWorkspacesExpanded(!isWorkspacesExpanded)}
-          style={{ cursor: 'pointer', userSelect: 'none' }}
+          aria-expanded={isWorkspacesExpanded}
+          aria-controls="workspaces-list"
+          style={{ userSelect: 'none' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <LayoutDashboard size={20} />
-            Workspaces
+            <LayoutDashboard size={20} aria-hidden="true" />
+            <span>Workspaces</span>
           </div>
-          {isWorkspacesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </div>
+          {isWorkspacesExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+        </button>
         
         {isWorkspacesExpanded && (
-          <div className="projects-list">
+          <div id="workspaces-list" className="projects-list">
             {projects.map(proj => (
-              <div 
+              <button 
+                type="button"
                 key={proj.id} 
                 className={`project-item ${activeProjectId === proj.id ? 'active' : ''}`}
                 onClick={() => setActiveProjectId(proj.id)}
               >
-                <Folder size={18} />
+                <Folder size={18} aria-hidden="true" />
                 <span>{proj.name}</span>
-              </div>
+              </button>
             ))}
             <button className="btn-add-project" onClick={handleAddProject}>
-              <Plus size={18} />
+              <Plus size={18} aria-hidden="true" />
               Add Project
             </button>
           </div>
         )}
 
         {/* Remote Servers Section */}
-        <div 
-          className="sidebar-title" 
+        <button 
+          type="button"
+          className="sidebar-title-btn sidebar-title" 
           onClick={() => setIsRemoteExpanded(!isRemoteExpanded)}
-          style={{ cursor: 'pointer', userSelect: 'none', marginTop: '1rem' }}
+          aria-expanded={isRemoteExpanded}
+          aria-controls="remote-servers-list"
+          style={{ userSelect: 'none', marginTop: '1rem' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <TerminalSquare size={20} />
-            Remote
+            <TerminalSquare size={20} aria-hidden="true" />
+            <span>Remote</span>
           </div>
-          {isRemoteExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </div>
+          {isRemoteExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+        </button>
         
         {isRemoteExpanded && (
-          <div className="projects-list">
+          <div id="remote-servers-list" className="projects-list">
             {servers.map(server => (
               <div 
                 key={server.id} 
@@ -131,67 +142,74 @@ function App() {
                 style={{ justifyContent: 'space-between' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Activity size={18} />
+                  <Activity size={18} aria-hidden="true" />
                   <span>{server.name}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
 
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setupSshKey(server.id);
                     }}
                     style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
-                    title="Skonfiguruj klucz SSH dla Agenta"
-                    onMouseOver={(e) => e.currentTarget.style.color = '#34D399'}
-                    onMouseOut={(e) => e.currentTarget.style.color = '#10B981'}
+                    aria-label={`Skonfiguruj klucz SSH dla serwera ${server.name}`}
+                    onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
+                    onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                   >
-                    <Key size={13} />
+                    <Key size={13} aria-hidden="true" />
                   </button>
                   <button
+                    type="button"
                     onClick={(e) => deleteServer(server.id, e)}
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}
                     title="Usuń serwer"
+                    aria-label={`Usuń serwer ${server.name}`}
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={13} aria-hidden="true" />
                   </button>
                 </div>
               </div>
             ))}
             <button className="btn-add-project" onClick={() => setShowAddServer(true)}>
-              <Plus size={18} />
+              <Plus size={18} aria-hidden="true" />
               Add Server
             </button>
           </div>
         )}
 
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <span className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</span>
+          <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
           <input 
+            id="custom-llm-name"
             type="text" 
             placeholder="np. AtomicChat" 
             value={customLlmName}
             onChange={(e) => setCustomLlmName(e.target.value)}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontSize: '0.8rem' }}
           />
-          <span className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</span>
+          <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
           <input 
+            id="custom-llm-url"
             type="text" 
             placeholder="http://localhost:1337/v1" 
             value={customLlmUrl}
             onChange={(e) => setCustomLlmUrl(e.target.value)}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
           />
-          <span className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</span>
+          <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
           <input 
+            id="custom-llm-model"
             type="text" 
             placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
             value={customLlmModel}
             onChange={(e) => setCustomLlmModel(e.target.value)}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
           />
-          <span className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</span>
+          <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
           <input 
+            id="custom-api-key"
             type="password" 
             placeholder="Brak" 
             value={customApiKey}
@@ -199,13 +217,16 @@ function App() {
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
           />
           <button 
+            type="button"
             onClick={saveSettings}
+            aria-live="polite"
             style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
           >
-            {settingsSaved ? <CheckCircle2 size={15} /> : <Save size={15} />}
+            {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
             {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
           </button>
           <button 
+            type="button"
             onClick={() => {
               localStorage.removeItem('dashboard_token');
               window.location.reload();
@@ -214,14 +235,14 @@ function App() {
             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
             onMouseOut={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
           >
-            <LogOut size={16} />
+            <LogOut size={16} aria-hidden="true" />
             Sign Out
           </button>
         </div>
       </aside>
 
       {/* Main Area */}
-      <div className="dashboard-container">
+      <main id="main-content" tabIndex={-1} className="dashboard-container">
         {activeView === 'agents' ? (
           <AgentsView />
         ) : activeServer ? (
@@ -229,7 +250,7 @@ function App() {
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
                 <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <TerminalSquare size={28} color="var(--primary)" />
+                  <TerminalSquare size={28} color="var(--primary)" aria-hidden="true" />
                   {activeServer.name}
                 </h1>
                 <p style={{ color: 'var(--text-muted)' }}>{activeServer.username}@{activeServer.host}:{activeServer.port}</p>
@@ -246,6 +267,7 @@ function App() {
                 
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
                   <button 
+                    type="button"
                     className="btn btn-secondary"
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
                     onClick={() => setRemotePrompt('Skopiuj wybrane pliki i foldery do określonej ścieżki na tym serwerze.')}
@@ -253,6 +275,7 @@ function App() {
                     📂 Copy Files
                   </button>
                   <button 
+                    type="button"
                     className="btn btn-secondary"
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
                     onClick={() => setRemotePrompt('Uruchom skrypt aktualizacji na tym serwerze i zaraportuj wyniki.')}
@@ -260,6 +283,7 @@ function App() {
                     ⚡ Run Script
                   </button>
                   <button 
+                    type="button"
                     className="btn btn-secondary"
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
                     onClick={() => setRemotePrompt('Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.')}
@@ -267,6 +291,7 @@ function App() {
                     📋 Analyze Logs
                   </button>
                   <button 
+                    type="button"
                     className="btn btn-secondary"
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236,72,153,0.2)' }}
                     onClick={() => setRemotePrompt('Użyj skilla grafana-dashboards, aby przygotować pliki konfiguracyjne. Następnie połącz się przez SSH z tym serwerem, zainstaluj Dockera (jeśli nie ma) i uruchom stos Prometheus + Grafana za pomocą docker-compose z wygenerowanymi dashboardami na porcie 3000.')}
@@ -275,7 +300,9 @@ function App() {
                   </button>
                 </div>
 
+                <label htmlFor="remote-prompt-input" className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Polecenie dla Agenta</label>
                 <textarea 
+                  id="remote-prompt-input"
                   value={remotePrompt}
                   onChange={e => setRemotePrompt(e.target.value)}
                   placeholder="e.g., Check PHP logs for errors, update packages, or install Grafana..."
@@ -286,21 +313,23 @@ function App() {
                 />
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <button 
+                    type="button"
                     className="btn btn-primary" 
                     onClick={() => deployRemoteAgent('claude', activeServer)}
                     disabled={deploying !== null || !remotePrompt.trim()}
                     style={{ opacity: (deploying === 'claude' || !remotePrompt.trim()) ? 0.7 : 1 }}
                   >
-                    <Rocket size={18} />
+                    <Rocket size={18} aria-hidden="true" />
                     {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
                   </button>
                   <button 
+                    type="button"
                     className="btn btn-primary" 
                     onClick={() => deployRemoteAgent('agy', activeServer)}
                     disabled={deploying !== null || !remotePrompt.trim()}
                     style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: (deploying === 'agy' || !remotePrompt.trim()) ? 0.7 : 1 }}
                   >
-                    <Rocket size={18} />
+                    <Rocket size={18} aria-hidden="true" />
                     {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
                   </button>
                 </div>
@@ -325,21 +354,23 @@ function App() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <button 
+                    type="button"
                     className="btn btn-primary" 
                     onClick={() => deployAgent('claude')}
                     disabled={deploying !== null}
                     style={{ opacity: deploying === 'claude' ? 0.7 : 1 }}
                   >
-                    <Rocket size={20} />
+                    <Rocket size={20} aria-hidden="true" />
                     {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
                   </button>
                   <button 
+                    type="button"
                     className="btn btn-primary" 
                     onClick={() => deployAgent('agy')}
                     disabled={deploying !== null}
                     style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: deploying === 'agy' ? 0.7 : 1 }}
                   >
-                    <Rocket size={20} />
+                    <Rocket size={20} aria-hidden="true" />
                     {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
                   </button>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
@@ -364,13 +395,13 @@ function App() {
               </div>
             )}
 
-            <main>
+            <div>
               <AnalyticsPanel />
               <div className="grid-top" style={{ marginBottom: '2rem' }}>
                 <div className="glass-card animate-in delay-2">
                   <span className="info-label">Implementation Status</span>
                   <div className="info-value">
-                    <Activity size={24} color="var(--secondary)" />
+                    <Activity size={24} color="var(--secondary)" aria-hidden="true" />
                     {activeProject.complete}% Complete
                   </div>
                   <div style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.1)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
@@ -382,11 +413,12 @@ function App() {
                   <div>
                     <span className="info-label">Technology Stack</span>
                     <div className="info-value">
-                      <TerminalSquare size={24} color="var(--primary)" />
+                      <TerminalSquare size={24} color="var(--primary)" aria-hidden="true" />
                       {activeProject.tech}
                     </div>
                   </div>
                   <button 
+                    type="button"
                     className="btn-add-project" 
                     style={{ marginTop: '1rem', width: 'fit-content', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
                     onClick={analyzeProject}
@@ -399,15 +431,15 @@ function App() {
                 <div className="glass-card animate-in delay-2" style={{ animationDelay: '0.3s' }}>
                   <span className="info-label">Project Path</span>
                   <div className="info-value" style={{ fontSize: '1rem' }}>
-                    <Folder size={20} color="#10B981" />
+                    <Folder size={20} color="#10B981" aria-hidden="true" />
                     {activeProject.path}
                   </div>
                   <div className="info-value" style={{ fontSize: '1rem', marginTop: '0.5rem' }}>
-                    <GitBranch size={20} color="#F59E0B" />
+                    <GitBranch size={20} color="#F59E0B" aria-hidden="true" />
                     {activeProject.branch ? (
                       activeProject.branch
                     ) : (
-                      <button className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={initGit}>
+                      <button type="button" className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={initGit}>
                         Create Git
                       </button>
                     )}
@@ -418,14 +450,21 @@ function App() {
               <RepoStatus directory={activeProject.path} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
               <section className="glass-card animate-in delay-3">
-                <div className="tasks-header" onClick={() => setShowTasks(!showTasks)}>
+                <button 
+                  type="button"
+                  className="sidebar-title-btn tasks-header" 
+                  onClick={() => setShowTasks(!showTasks)}
+                  aria-expanded={showTasks}
+                  aria-controls="tasks-list"
+                >
                   <h2 className="section-title">
-                    <Clock size={24} color="var(--primary)" />
+                    <Clock size={24} color="var(--primary)" aria-hidden="true" />
                     Current Tasks ({(activeProject.tasks || []).length})
                   </h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     {showTasks && (
                       <button 
+                        type="button"
                         className="btn-add-project" 
                         style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2 }}
                         onClick={(e) => {
@@ -440,12 +479,12 @@ function App() {
                         {selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0 ? 'Uncheck All' : 'Check All'}
                       </button>
                     )}
-                    {showTasks ? <ChevronUp size={24} color="var(--text-muted)" /> : <ChevronDown size={24} color="var(--text-muted)" />}
+                    {showTasks ? <ChevronUp size={24} color="var(--text-muted)" aria-hidden="true" /> : <ChevronDown size={24} color="var(--text-muted)" aria-hidden="true" />}
                   </div>
-                </div>
+                </button>
                 
                 {showTasks && (
-                  <div className="task-list animate-in">
+                  <div id="tasks-list" className="task-list animate-in">
                     {(activeProject.tasks || []).map((task: any) => (
                       <div 
                         className="task-item" 
@@ -473,7 +512,8 @@ function App() {
                             <input 
                               type="checkbox" 
                               checked={selectedTaskIds.includes(task.id)}
-                              readOnly
+                              aria-label={`Select task: ${task.title}`}
+                              onChange={() => {}}
                               style={{ 
                                 width: '16px', 
                                 height: '16px', 
@@ -490,14 +530,14 @@ function App() {
                             {task.status === 'completed' && (
                               <span className="status-badge status-completed">
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <CheckCircle2 size={14} /> Completed
+                                  <CheckCircle2 size={14} aria-hidden="true" /> Completed
                                 </span>
                               </span>
                             )}
                             {task.status === 'progress' && (
                               <span className="status-badge status-progress">
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <CircleDashed size={14} /> In Progress
+                                  <CircleDashed size={14} aria-hidden="true" /> In Progress
                                 </span>
                               </span>
                             )}
@@ -505,10 +545,12 @@ function App() {
                               <span className="status-badge status-pending">Pending</span>
                             )}
                             <button 
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteTask(task.id);
                               }}
+                              aria-label={`Delete task ${task.title}`}
                               style={{ 
                                 background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
                                 padding: '0.25rem', borderRadius: '4px', display: 'flex'
@@ -517,7 +559,7 @@ function App() {
                               onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                               title="Delete task"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={16} aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -526,37 +568,46 @@ function App() {
                     
                     <form onSubmit={addTask} style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', padding: '0 0.5rem' }}>
                       <input 
+                        id="new-task-input"
                         type="text" 
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         placeholder="Add a new custom task..." 
+                        aria-label="Add a new custom task"
                         style={{ 
                           flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', 
                           borderRadius: '8px', padding: '0.75rem 1rem', color: 'var(--text-main)', outline: 'none'
                         }}
                       />
-                      <button type="submit" disabled={!newTaskTitle.trim()} className="btn btn-primary" style={{ padding: '0.75rem' }}>
-                        <PlusCircle size={20} />
+                      <button type="submit" disabled={!newTaskTitle.trim()} aria-label="Add task" className="btn btn-primary" style={{ padding: '0.75rem' }}>
+                        <PlusCircle size={20} aria-hidden="true" />
                       </button>
                     </form>
                   </div>
                 )}
               </section>
-            </main>
+            </div>
           </>
         ) : (
           <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} />
         )}
-      </div>
+      </main>
 
       {showAddServer && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-server-modal-title"
+          onKeyDown={(e) => e.key === 'Escape' && setShowAddServer(false)}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+        >
           <div className="glass-card" style={{ width: '400px', maxWidth: '90vw' }}>
-            <h2 style={{ marginBottom: '1.5rem' }}>Add Remote Server</h2>
+            <h2 id="add-server-modal-title" style={{ marginBottom: '1.5rem' }}>Add Remote Server</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <label className="info-label">Name</label>
+                <label htmlFor="new-server-name" className="info-label">Name</label>
                 <input 
+                  id="new-server-name"
                   type="text" 
                   value={newServer.name}
                   onChange={e => setNewServer({...newServer, name: e.target.value})}
@@ -566,8 +617,9 @@ function App() {
                 />
               </div>
               <div>
-                <label className="info-label">Host (IP or Domain)</label>
+                <label htmlFor="new-server-host" className="info-label">Host (IP or Domain)</label>
                 <input 
+                  id="new-server-host"
                   type="text" 
                   value={newServer.host}
                   onChange={e => setNewServer({...newServer, host: e.target.value})}
@@ -578,8 +630,9 @@ function App() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: '1rem' }}>
                 <div>
-                  <label className="info-label">Username</label>
+                  <label htmlFor="new-server-username" className="info-label">Username</label>
                   <input 
+                    id="new-server-username"
                     type="text" 
                     value={newServer.username}
                     onChange={e => setNewServer({...newServer, username: e.target.value})}
@@ -589,8 +642,9 @@ function App() {
                   />
                 </div>
                 <div>
-                  <label className="info-label">Port</label>
+                  <label htmlFor="new-server-port" className="info-label">Port</label>
                   <input 
+                    id="new-server-port"
                     type="number" 
                     value={newServer.port}
                     onChange={e => setNewServer({...newServer, port: parseInt(e.target.value)})}
@@ -616,11 +670,12 @@ function App() {
               </div>
               {/* Hasło SSH */}
               <div>
-                <label className="info-label">
+                <label htmlFor="new-server-ssh-password" className="info-label">
                   Hasło SSH&nbsp;<span style={{ color: '#6b7280', fontWeight: 400, fontSize: '0.75rem' }}>(opcjonalne — zamiast klucza)</span>
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
+                    id="new-server-ssh-password"
                     type={showPassword ? 'text' : 'password'}
                     value={newServer.ssh_password}
                     onChange={e => setNewServer({...newServer, ssh_password: e.target.value})}
@@ -633,14 +688,15 @@ function App() {
                     onClick={() => setShowPassword(p => !p)}
                     style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '0.2rem 0.3rem', lineHeight: 1 }}
                     title={showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
+                    aria-label={showPassword ? 'Ukryj hasło SSH' : 'Pokaż hasło SSH'}
                   >
                     {showPassword ? '🙈' : '👁️'}
                   </button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button className="btn-secondary" style={{ flex: 1, padding: '0.5rem' }} onClick={() => setShowAddServer(false)}>Cancel</button>
-                <button className="btn-primary" style={{ flex: 1, padding: '0.5rem' }} onClick={handleAddServer}>Add Server</button>
+                <button type="button" className="btn-secondary" style={{ flex: 1, padding: '0.5rem' }} onClick={() => setShowAddServer(false)}>Cancel</button>
+                <button type="button" className="btn-primary" style={{ flex: 1, padding: '0.5rem' }} onClick={handleAddServer}>Add Server</button>
               </div>
             </div>
           </div>

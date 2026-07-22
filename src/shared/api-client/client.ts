@@ -72,4 +72,13 @@ export const apiClient = {
   },
 } as const;
 
+export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const token = localStorage.getItem('dashboard_token');
+  const headers = new Headers(init?.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
+}
+
 export type ApiClient = typeof apiClient;

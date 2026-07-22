@@ -59,14 +59,13 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Authentication failed');
       }
 
-      if (needsSetup) {
-        // Automatically log in after setup, or just switch to login mode
-        setNeedsSetup(false);
-        setError('Setup complete. Please log in.');
-        setPassword('');
-      } else {
+      if (data.token) {
         localStorage.setItem('dashboard_token', data.token);
         setIsAuthenticated(true);
+      } else if (needsSetup) {
+        setNeedsSetup(false);
+        setError('Inicjalizacja zakończona. Zaloguj się podanymi danymi.');
+        setPassword('');
       }
     } catch (err: any) {
       setError(err.message);
@@ -78,82 +77,253 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
+    return (
+      <div 
+        style={{ 
+          minHeight: '100vh', 
+          backgroundColor: '#0f172a', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          color: '#94a3b8',
+          fontFamily: 'Inter, sans-serif' 
+        }} 
+        role="status" 
+        aria-live="polite"
+      >
+        Ładowanie systemu...
+      </div>
+    );
   }
 
+  const handleResetAuth = async () => {
+    try {
+      await fetch('http://localhost:3001/api/auth/reset', { method: 'POST' });
+      localStorage.removeItem('dashboard_token');
+      setNeedsSetup(true);
+      setError('Zresetowano stan autentykacji. Utwórz nowe konto administratora.');
+    } catch (err: any) {
+      setError('Błąd resetowania: ' + err.message);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[80px] pointer-events-none" />
-      
-      <div className="relative w-full max-w-md animate-in delay-1">
-        <div className="glass-card">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mb-4 ring-1 ring-indigo-500/50 shadow-[0_0_20px_rgba(79,70,229,0.3)]">
-              {needsSetup ? <ShieldCheck size={32} /> : <Lock size={32} />}
+    <div 
+      style={{ 
+        minHeight: '100vh', 
+        width: '100vw',
+        backgroundColor: '#0f172a', 
+        backgroundImage: `
+          radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.25) 0px, transparent 50%),
+          radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.2) 0px, transparent 50%)
+        `,
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        padding: '1.5rem',
+        boxSizing: 'border-box',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      {/* Background ambient glow circles */}
+      <div 
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '600px',
+          height: '600px',
+          background: 'rgba(79, 70, 229, 0.15)',
+          borderRadius: '50%',
+          filter: 'blur(100px)',
+          pointerEvents: 'none'
+        }}
+      />
+
+      <div 
+        style={{ 
+          width: '100%', 
+          maxWidth: '420px', 
+          margin: '0 auto', 
+          position: 'relative', 
+          zIndex: 1 
+        }}
+      >
+        <div 
+          className="glass-card animate-in"
+          style={{
+            background: 'rgba(30, 41, 59, 0.8)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '24px',
+            padding: '2.5rem 2rem',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(79, 70, 229, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem'
+          }}
+        >
+          {/* Card Header */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <div 
+              style={{ 
+                width: '64px', 
+                height: '64px', 
+                borderRadius: '50%', 
+                background: 'rgba(79, 70, 229, 0.2)', 
+                border: '1px solid rgba(79, 70, 229, 0.5)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                color: '#818cf8',
+                marginBottom: '1rem',
+                boxShadow: '0 0 24px rgba(79, 70, 229, 0.35)'
+              }}
+            >
+              {needsSetup ? <ShieldCheck size={32} aria-hidden="true" /> : <Lock size={32} aria-hidden="true" />}
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">
-              {needsSetup ? 'System Setup' : 'Dashboard Login'}
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.02em' }}>
+              {needsSetup ? 'Inicjalizacja Systemu' : 'Logowanie'}
             </h1>
-            <p className="text-gray-400 text-sm mt-2 text-center">
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.5rem', marginBottom: 0, lineHeight: 1.4 }}>
               {needsSetup 
-                ? 'Welcome. Please create the initial admin account to secure your dashboard.' 
-                : 'Enter your credentials to access the command center.'}
+                ? 'Witaj. Utwórz pierwsze konto administratora, aby zabezpieczyć swój panel.' 
+                : 'Wprowadź swoje dane dostępowe, aby przejść do centrum dowodzenia.'}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1">
-              <label className="info-label ml-1">Username</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                  <User size={18} />
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label htmlFor="login-username" className="info-label" style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 600 }}>
+                Nazwa użytkownika
+              </label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <div style={{ position: 'absolute', left: '1rem', color: '#64748b', display: 'flex', pointerEvents: 'none' }}>
+                  <User size={18} aria-hidden="true" />
                 </div>
                 <input
+                  id="login-username"
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                   placeholder="admin"
                   required
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '12px',
+                    padding: '0.75rem 1rem 0.75rem 2.75rem',
+                    color: '#ffffff',
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.2s, box-shadow 0.2s'
+                  }}
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="info-label ml-1">Password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                  <Key size={18} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label htmlFor="login-password" className="info-label" style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 600 }}>
+                Hasło
+              </label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <div style={{ position: 'absolute', left: '1rem', color: '#64748b', display: 'flex', pointerEvents: 'none' }}>
+                  <Key size={18} aria-hidden="true" />
                 </div>
                 <input
+                  id="login-password"
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                   placeholder="••••••••"
                   required
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '12px',
+                    padding: '0.75rem 1rem 0.75rem 2.75rem',
+                    color: '#ffffff',
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.2s, box-shadow 0.2s'
+                  }}
                 />
               </div>
             </div>
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
+              <div 
+                role="alert" 
+                aria-live="assertive" 
+                style={{ 
+                  padding: '0.75rem 1rem', 
+                  backgroundColor: 'rgba(239, 68, 68, 0.12)', 
+                  border: '1px solid rgba(239, 68, 68, 0.3)', 
+                  borderRadius: '12px', 
+                  color: '#f87171', 
+                  fontSize: '0.85rem', 
+                  textAlign: 'center',
+                  lineHeight: 1.4 
+                }}
+              >
                 {error}
               </div>
             )}
 
             <button
               type="submit"
-              className="btn btn-primary w-full mt-4"
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                padding: '0.85rem',
+                borderRadius: '12px',
+                marginTop: '0.5rem',
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer'
+              }}
             >
-              <span>{needsSetup ? 'Initialize System' : 'Authenticate'}</span>
-              <ChevronRight size={18} />
+              <span>{needsSetup ? 'Utwórz konto admina' : 'Zaloguj się'}</span>
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </form>
+
+          {/* Reset Auth Options */}
+          <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={handleResetAuth}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                transition: 'color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.color = '#ef4444'}
+              onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+              title="Wyczyść użytkowników w bazie danych i przejdź do ponownego Setupu"
+            >
+              Resetuj bazę autentykacji (Zresetuj dostęp)
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
