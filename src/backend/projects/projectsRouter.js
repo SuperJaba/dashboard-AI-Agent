@@ -42,6 +42,27 @@ projectsRouter.post('/projects', async (req, res) => {
 projectsRouter.put('/projects/:id', async (req, res) => {
   try {
     const row = await projectsRepo.updateProject(req.params.id, req.body);
+    if (req.body.tasks !== undefined && row && row.path) {
+      try {
+        let targetDir = row.path;
+        if (targetDir.startsWith('~/')) {
+          const home = process.env.HOME || process.env.USERPROFILE;
+          targetDir = path.join(home, targetDir.slice(2));
+        }
+        const promptFile = path.join(targetDir, '.ai_tasks.md');
+        if (fs.existsSync(promptFile) || (req.body.tasks && req.body.tasks.length > 0)) {
+          const tasks = req.body.tasks || [];
+          const list = tasks.map(t => {
+            const prefix = t.status === 'completed' ? '[REWORK] ' : '';
+            const check = t.status === 'completed' ? '[x]' : '[ ]';
+            return `- ${check} ${prefix}${t.title}`;
+          }).join('\n');
+          fs.writeFileSync(promptFile, `# Zadania do wykonania\n\n${list}\n`);
+        }
+      } catch (fsErr) {
+        console.error('Failed to sync .ai_tasks.md file:', fsErr);
+      }
+    }
     res.json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
