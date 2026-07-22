@@ -80,5 +80,58 @@ describe('Backend API Tests', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  describe('LLM Servers API Endpoints', () => {
+    it('GET /api/llm-servers should return list of servers', async () => {
+      const res = await request(app)
+        .get('/api/llm-servers')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    it('POST /api/llm-servers should validate required name and url', async () => {
+      const res = await request(app)
+        .post('/api/llm-servers')
+        .set('Authorization', `Bearer ${testToken}`)
+        .send({ name: 'Test Server' });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Name and URL are required');
+    });
+
+    it('POST /api/llm-servers should create a new server', async () => {
+      const res = await request(app)
+        .post('/api/llm-servers')
+        .set('Authorization', `Bearer ${testToken}`)
+        .send({
+          name: 'LM Studio Local',
+          url: 'http://127.0.0.1:1337/v1',
+          model: 'AtomicChat/qwen35-4b',
+          provider: 'LM Studio'
+        });
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('GET /api/llm-servers/export should download json', async () => {
+      const res = await request(app)
+        .get('/api/llm-servers/export')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toContain('application/json');
+    });
+
+    it('POST /api/llm-servers/import should import servers array', async () => {
+      const res = await request(app)
+        .post('/api/llm-servers/import')
+        .set('Authorization', `Bearer ${testToken}`)
+        .send({
+          servers: [
+            { name: 'Ollama Remote', url: 'http://192.168.1.50:11434/v1', model: 'llama3.2', provider: 'Ollama' }
+          ]
+        });
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+  });
 });
 

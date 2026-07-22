@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "autotest": "bash scripts/autotest_ai.sh",
-    "ci-tdd": "bash scripts/ci_tdd_bot.sh"
+    "ci-tdd": "bash scripts/ci_tdd_bot.sh",
+    "test:e2e": "set NODE_ENV=test&& node tests/full_test_suite.js"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -25,6 +26,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "framer-motion": "^12.42.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.24.0",
     "node-fetch": "^3.3.2",
@@ -39,6 +41,9 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-decorators": "^8.0.2",
+    "@babel/plugin-syntax-decorators": "^8.0.1",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

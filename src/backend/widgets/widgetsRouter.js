@@ -11,60 +11,80 @@ widgetsRouter.get('/', async (req, res) => {
   try {
     const widgets = await widgetsRepo.getWidgets();
     res.json(widgets);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch widgets' });
   }
 });
 
-// Save Custom Widget
+widgetsRouter.get('/disk-usage', async (req, res) => {
+  exec('node scripts/disk_usage_monitor.js', (error, stdout, stderr) => {
+    if (error) {
+      console.error('Disk usage script error:', error);
+      return res.status(500).json({ error: error.message, stderr });
+    }
+    try {
+      const data = JSON.parse(stdout);
+      res.json(data);
+    } catch (parseErr) {
+      console.error('Parsing disk usage output failed:', parseErr);
+      res.status(500).json({ error: 'Failed to parse script output', raw: stdout });
+    }
+  });
+});
+
 widgetsRouter.post('/', async (req, res) => {
   try {
-    const widget = await widgetsRepo.createWidget(req.body);
-    res.json(widget);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { name, command, type, color, server_id } = req.body;
+    if (!name || !command) {
+      return res.status(400).json({ error: 'Name and command are required' });
+    }
+    const newWidget = await widgetsRepo.createWidget({ name, command, type, color, server_id });
+    res.status(201).json(newWidget);
+  } catch (error) {
+    console.error('Failed to create widget', error);
+    res.status(500).json({ error: 'Failed to create widget' });
   }
 });
 
-// Delete Custom Widget
 widgetsRouter.delete('/:id', async (req, res) => {
   try {
-    const result = await widgetsRepo.deleteWidget(req.params.id);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    await widgetsRepo.deleteWidget(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete widget', error);
+    res.status(500).json({ error: 'Failed to delete widget' });
   }
 });
 
-// Run Custom Widget
 widgetsRouter.get('/:id/run', async (req, res) => {
   try {
     const widget = await widgetsRepo.getWidgetById(req.params.id);
-    if (!widget) return res.status(404).json({ error: 'Widget not found' });
+    if (!widget) {
+      return res.status(404).json({ error: 'Widget not found' });
+    }
 
     if (widget.server_id) {
-      const s = await serversRepo.getServerById(widget.server_id, true);
-      if (s) {
-        // Use bash to execute the command correctly remotely, wrapping in quotes
-        const cmd = sshCmd(s, `"bash -c '${widget.command.replace(/'/g, "'\\''")}'"`);
-        exec(cmd, (error, stdout, stderr) => {
-          if (error) {
-            return res.status(500).json({ error: 'Remote execution failed: ' + (stderr || error.message) });
-          }
-          return res.json({ result: stdout.trim() });
-        });
-        return;
+      const server = await serversRepo.getServerById(widget.server_id);
+      if (server) {
+        try {
+          const result = await sshCmd(server, widget.command);
+          return res.json({ result: result.trim() });
+        } catch (sshErr) {
+          console.error(`SSH widget error:`, sshErr);
+          return res.json({ result: 'Error' });
+        }
       }
     }
 
-    // Local fallback
-    exec(`bash -c "${widget.command.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+    exec(widget.command, (error, stdout, stderr) => {
       if (error) {
-        return res.status(500).json({ error: 'Local execution failed: ' + (stderr || error.message) });
+        console.error(`Widget execution error:`, error);
+        return res.json({ result: stdout ? stdout.trim() : 'Error' });
       }
-      return res.json({ result: stdout.trim() });
+      res.json({ result: stdout.trim() });
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error('Failed to run widget', error);
+    res.status(500).json({ error: 'Failed to run widget' });
   }
 });

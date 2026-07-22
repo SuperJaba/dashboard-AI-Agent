@@ -104,3 +104,32 @@ export async function safeQuery(text, params = []) {
 
   return { rows: [] };
 }
+
+// ---------- Database Migration ----------
+// Ensure the 'servers' table exists for storing LLM server configurations.
+export async function migrate() {
+  const queries = [
+    `CREATE TABLE IF NOT EXISTS servers (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      url TEXT NOT NULL,
+      model TEXT,
+      api_key TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`
+  ];
+  for (const q of queries) {
+    await safeQuery(q);
+  }
+}
+
+// Run migrations automatically when the module is loaded.
+(async () => {
+  try {
+    await migrate();
+  } catch (e) {
+    console.warn('Database migration error:', e.message);
+  }
+})();

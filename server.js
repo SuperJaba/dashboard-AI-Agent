@@ -18,6 +18,7 @@ import { projectsRouter } from './src/backend/projects/projectsRouter.js';
 import { serversRouter } from './src/backend/servers/serversRouter.js';
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
+import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
 
 const isTestEnvironment = process.env.NODE_ENV === 'test';
 dotenv.config();
@@ -90,7 +91,8 @@ io.on('connection', (socket) => {
         cols: 80,
         rows: 24,
         cwd: targetCwd,
-        env: { ...process.env, ...env, PATH: extendedPath }
+        env: { ...process.env, ...env, PATH: extendedPath },
+        useConpty: false
       });
 
       ptyProcess.onData((data) => {
@@ -108,7 +110,9 @@ io.on('connection', (socket) => {
 
   socket.on('terminal_input', (data) => {
     if (ptyProcess) {
-      ptyProcess.write(data);
+      try {
+        ptyProcess.write(data);
+      } catch (e) {}
     }
   });
 
@@ -122,7 +126,10 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     if (ptyProcess) {
-      ptyProcess.kill();
+      try {
+        ptyProcess.kill();
+      } catch (e) {}
+      ptyProcess = null;
     }
   });
 });
@@ -170,6 +177,7 @@ app.use('/api', projectsRouter);
 app.use('/api', serversRouter);
 app.use('/api/widgets', widgetsRouter);
 app.use('/api/agents', agentsRouter);
+app.use('/api', llmServersRouter);
 
 // Init DB
 async function initDB() {
@@ -179,6 +187,16 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         key VARCHAR(255) UNIQUE NOT NULL,
         value TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS llm_servers (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        url VARCHAR(512) NOT NULL,
+        api_key TEXT,
+        model VARCHAR(255),
+        provider VARCHAR(255) DEFAULT 'Custom',
+        is_active BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS projects (
         id SERIAL PRIMARY KEY,

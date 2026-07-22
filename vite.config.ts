@@ -3,11 +3,24 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    watch: {
+      ignored: ['**/.start_agent.sh', '**/.ai_tasks.md', '**/*.log', '**/coverage/**']
+    }
+  },
   test: {
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.ts',
-    exclude: ['**/node_modules/**', '**/playwright/**', '**/tests/**']
+    // exclude noise & generated placeholders
+    exclude: ['**/node_modules/**', '**/playwright/**', '**/tests/**', '**/__tests__/*.generated.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/**/*.{ts,tsx,js,jsx}'],
+      exclude: ['src/**/*.d.ts', '**/*.generated.test.ts']
+    },
+    testTimeout: 30_000
   },
   build: {
     sourcemap: false,

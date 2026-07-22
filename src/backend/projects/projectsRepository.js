@@ -1,7 +1,7 @@
 import { pool } from '../db.js';
 
 export async function getProjects() {
-  const { rows } = await pool.query('SELECT * FROM projects ORDER BY id ASC');
+  const { rows } = await pool.query('SELECT * FROM projects ORDER BY id ');
   return rows;
 }
 
@@ -27,18 +27,47 @@ export async function createProject({ name, desc, path, branch, tech, complete, 
   return rows[0];
 }
 
-export async function updateProject(id, { tech, tasks, complete, branch }) {
-  let query = 'UPDATE projects SET tech = $1, tasks = $2, complete = $3';
-  let values = [tech, JSON.stringify(tasks), complete];
-  
-  if (branch !== undefined) {
-    query += ', branch = $4 WHERE id = $5 RETURNING *';
-    values.push(branch, id);
-  } else {
-    query += ' WHERE id = $4 RETURNING *';
-    values.push(id);
+export async function updateProject(id, { name, desc, path, tech, tasks, complete, branch }) {
+  const updates = [];
+  const values = [];
+  let paramIdx = 1;
+
+  if (name !== undefined) {
+    updates.push(`name = $${paramIdx++}`);
+    values.push(name);
   }
-  
+  if (desc !== undefined) {
+    updates.push(`"desc" = $${paramIdx++}`);
+    values.push(desc);
+  }
+  if (path !== undefined) {
+    updates.push(`path = $${paramIdx++}`);
+    values.push(path);
+  }
+  if (tech !== undefined) {
+    updates.push(`tech = $${paramIdx++}`);
+    values.push(tech);
+  }
+  if (tasks !== undefined) {
+    updates.push(`tasks = $${paramIdx++}`);
+    values.push(JSON.stringify(tasks));
+  }
+  if (complete !== undefined) {
+    updates.push(`complete = $${paramIdx++}`);
+    values.push(complete);
+  }
+  if (branch !== undefined) {
+    updates.push(`branch = $${paramIdx++}`);
+    values.push(branch);
+  }
+
+  if (updates.length === 0) {
+    const { rows } = await pool.query('SELECT * FROM projects WHERE id = $1', [id]);
+    return rows[0];
+  }
+
+  values.push(id);
+  const query = `UPDATE projects SET ${updates.join(', ')} WHERE id = $${paramIdx} RETURNING *`;
   const { rows } = await pool.query(query, values);
   return rows[0];
 }

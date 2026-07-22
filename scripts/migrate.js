@@ -44,6 +44,16 @@ async function runMigrations() {
         color VARCHAR(50) DEFAULT '#c084fc',
         server_id INTEGER
       );
+      CREATE TABLE IF NOT EXISTS llm_servers (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        url VARCHAR(512) NOT NULL,
+        api_key TEXT,
+        model VARCHAR(255),
+        provider VARCHAR(255) DEFAULT 'Custom',
+        is_active BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from './shared/api-client';
 import { 
   Plus, X, Activity, Terminal, RefreshCw, BarChart2, 
   Trash2, Cpu, Database, HardDrive, Globe, AlertTriangle
 } from 'lucide-react';
+
 
 interface Widget {
   id: number;
@@ -16,6 +18,8 @@ interface Widget {
 
 interface CustomWidgetsProps {
   token?: string; // Kept for backwards compatibility if needed, but not used
+  server?: any;
+  onLaunchTerminal?: (config: any) => void;
 }
 
 const COLOR_PRESETS = [
@@ -28,7 +32,20 @@ const COLOR_PRESETS = [
   { value: '#ef4444', label: 'Red' },
 ];
 
-const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
+const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal }) => {
+  // State for showing Agent Best Picks suggestions
+  const [showBestPicks, setShowBestPicks] = useState(false);
+
+  // Predefined widget command suggestions
+    const bestPicks = [
+      { name: 'CPU Usage', command: 'wmic cpu get loadpercentage', type: 'number', color: '#ef4444' },
+      { name: 'Memory Free %', command: "powershell -NoProfile -Command \"$free=(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; $total=(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize; [math]::Round(($free/$total)*100,2)\"", type: 'number', color: '#10b981' },
+      { name: 'Disk Space (Root)', command: "powershell -NoProfile -Command \"(Get-PSDrive -PSProvider 'FileSystem' | Where-Object {$_.Root -eq 'C:'}).Used/1GB\"", type: 'string', color: '#3b82f6' },
+      { name: 'System Uptime', command: "powershell -NoProfile -Command \"(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss')\"", type: 'string', color: '#f59e0b' },
+      { name: 'Local Docker Containers', command: "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'", type: 'text', color: '#8b5cf6' },
+      { name: 'Grafana Dashboard Image', command: "curl -s \"http://grafana.example.com/render/d-solo/abcd?orgId=1&panelId=2&width=800&height=400\"", type: 'image', color: '#f59e0b' },
+      { name: 'Network Usage', command: "powershell -NoProfile -Command \"Get-NetAdapterStatistics | Select-Object Name, ReceivedBytes, SentBytes\"", type: 'string', color: '#6366f1' },
+    ];
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [results, setResults] = useState<{ [key: number]: any }>({});
@@ -39,6 +56,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
   const [newCommand, setNewCommand] = useState('');
   const [newType, setNewType] = useState('number');
   const [newColor, setNewColor] = useState('#6366f1');
+  const [agentInstructions, setAgentInstructions] = useState('');
 
   useEffect(() => {
     fetchWidgets();
@@ -94,8 +112,32 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
       setNewType('number');
       setNewColor('#6366f1');
       fetchWidgets();
+
+      if (agentInstructions && server && onLaunchTerminal) {
+        try {
+          const deployData = await apiClient.post<any>('/api/deploy', {
+            agent: 'agy',
+            directory: '',
+            remoteServer: server,
+            remotePrompt: agentInstructions,
+            useBrowserTerminal: true
+          });
+          if (deployData.browserTerminal) {
+            onLaunchTerminal({
+              command: deployData.command,
+              args: deployData.args,
+              cwd: deployData.cwd,
+              env: deployData.env
+            });
+          }
+        } catch (err) {
+          console.error('Failed to launch agent', err);
+        }
+      }
+      setAgentInstructions('');
     } catch (e) {
       console.error('Failed to add widget', e);
+      alert('Failed to create widget. Please check the console for more details.');
     }
   };
 
@@ -138,7 +180,10 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
             Real-time server metrics and custom query outputs
           </span>
         </div>
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 400, damping: 17 }}
           onClick={() => setShowModal(true)}
           className="btn btn-primary"
           style={{ 
@@ -150,7 +195,71 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
         >
           <Plus size={16} />
           Add Widget
-        </button>
+        </motion.button>
+        {/* Agent Best Picks button */}
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowBestPicks(!showBestPicks)}
+          className="btn btn-secondary"
+          style={{
+            marginLeft: '0.5rem',
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            fontSize: '0.8rem',
+            background: 'rgba(255,255,255,0.05)',
+            color: 'white',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}
+        >
+          Agent Best Picks
+        </motion.button>
+        
+        <AnimatePresence>
+        {showBestPicks && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            style={{
+            marginTop: '0.75rem',
+            padding: '1rem',
+            background: 'rgba(0,0,0,0.4)',
+            borderRadius: '8px',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <h4 style={{ margin: 0, marginBottom: '0.5rem', color: 'white' }}>Best Pick Commands</h4>
+            {bestPicks.map((pick, idx) => (
+              <div key={idx} style={{ marginBottom: '0.5rem' }}>
+                <button
+                  onClick={() => {
+                    setNewName(pick.name);
+                    setNewCommand(pick.command);
+                    setNewType(pick.type as any);
+                    setNewColor(pick.color);
+                    setShowBestPicks(false);
+                    // Directly create the widget using the filled values
+                    addWidget();
+                  }}
+                  className="btn btn-tertiary"
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'rgba(255,255,255,0.07)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.5rem',
+                    borderRadius: '6px'
+                  }}
+                >
+                  {pick.name} – <code style={{ color: '#9ca3af' }}>{pick.command}</code>
+                </button>
+              </div>
+            ))}
+          </motion.div>
+        )}
+        </AnimatePresence>
       </div>
 
       {/* Widgets Grid */}
@@ -188,17 +297,25 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
           </button>
         </div>
       ) : (
-        <div style={{ 
+        <motion.div 
+          layout
+          style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', 
           gap: '1.25rem' 
         }}>
+          <AnimatePresence>
           {widgets.map(w => {
             const isHovered = hoveredWidgetId === w.id;
             const widgetColor = w.color || '#6366f1';
             
             return (
-              <div 
+              <motion.div 
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                 key={w.id} 
                 aria-label={`Widget ${w.name}`} 
                 className="glass-card"
@@ -219,7 +336,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
                     ? `0 8px 30px -4px ${widgetColor}22, var(--glass-shadow)`
                     : 'var(--glass-shadow)',
                   transform: isHovered ? 'translateY(-4px)' : 'none',
-                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                  transition: 'border 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
               >
                 {/* Header Row */}
@@ -384,15 +501,21 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
                   pointerEvents: 'none',
                   transition: 'opacity 0.3s ease'
                 }} />
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {/* Modal Dialog */}
+      <AnimatePresence>
       {showModal && (
-        <div role="dialog" aria-modal="true" style={{ 
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          role="dialog" aria-modal="true" style={{ 
           position: 'fixed', 
           top: 0, 
           left: 0, 
@@ -404,10 +527,14 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
           zIndex: 100,
           display: 'flex', 
           justifyContent: 'center', 
-          alignItems: 'center',
-          animation: 'modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          alignItems: 'center'
         }}>
-          <div className="glass-card" style={{ 
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="glass-card" style={{ 
             width: '420px', 
             padding: '1.75rem', 
             position: 'relative',
@@ -500,6 +627,32 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
                 </span>
               </div>
 
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Agent Instructions (Optional)
+                </label>
+                <textarea 
+                  value={agentInstructions} 
+                  onChange={e => setAgentInstructions(e.target.value)} 
+                  placeholder="e.g., Build a script that retrieves this data and fixes errors..."
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.65rem 0.85rem', 
+                    background: 'rgba(0,0,0,0.2)', 
+                    border: '1px solid rgba(255,255,255,0.1)', 
+                    borderRadius: '8px', 
+                    color: 'white', 
+                    outline: 'none', 
+                    fontSize: '0.85rem',
+                    transition: 'border-color 0.2s',
+                    minHeight: '60px',
+                    resize: 'vertical'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                />
+              </div>
+
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -568,8 +721,10 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
                 </div>
               </div>
               
-              <button 
+              <motion.button 
                 type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={addWidget}
                 className="btn btn-primary"
                 style={{ 
@@ -582,11 +737,12 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
                 }}
               >
                 Create Widget
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

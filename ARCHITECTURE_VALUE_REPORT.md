@@ -21,7 +21,7 @@ Our dashboard system orchestrates local and remote workspaces, servers, and AI d
 We refactored both the backend and frontend monoliths into a clean, modular structure:
 * **Backend Deconstruction**: Split all route handlers and pg database queries into discrete Repository modules and Express sub-routers under `src/backend`.
 * **Frontend State Decoupling**: Extracted all view states, effects, and API request handlers from `src/App.tsx` into a reusable React Hook `src/hooks/useDashboardState.ts`.
-* **AI Agent Context Isolation**: Implemented a private, git-ignored `.agent/` folder containing personal context templates (`pca-wiki.md`, `pca-protocols.md`) to guide developers and coding agents locally without leaking workspace secrets.
+* **AI Agent Context Isolation**: Implemented a private, git-ignored `.claude/` folder containing local context templates and settings to guide developers and coding agents locally without leaking workspace secrets.
 * **Database Forecasting (Statsmodels)**: Added a Python regression script (`scripts/forecast.py`) leveraging `statsmodels` OLS regression to forecast project completion progress based on task densities.
 
 ---

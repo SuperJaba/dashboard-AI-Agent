@@ -193,27 +193,44 @@ projectsRouter.post('/analyze', async (req, res) => {
       if (llmUrl && apiKey) {
         const url = llmUrl.endsWith('/chat/completions') ? llmUrl : (llmUrl.endsWith('/') ? llmUrl.slice(0, -1) : llmUrl) + '/chat/completions';
         const activeModel = await getBestAvailableModel(llmUrl, apiKey);
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: activeModel,
-            messages: [{
-              role: 'user', 
-              content: `Zasugeruj 2 zadania (tablica JSON stringów np. ["Zrób A", "Zrób B"]) dla projektu w technologii: ${techStack}. Pomiń formatowanie i komentarze, wypisz samo JSON.`
-            }],
-            temperature: 0.3
-          })
-        });
-        if (res.ok) {
-          const llmData = await res.json();
-          const content = llmData.choices[0].message.content;
-          const jsonMatch = content.match(/\[.*\]/s);
-          if (jsonMatch) {
-            const aiTasks = JSON.parse(jsonMatch[0]);
-            aiTasks.forEach(aiTask => {
-              tasks.push({ id: idCounter++, title: aiTask, meta: 'AI Suggestion', status: 'pending' });
-            });
+
+        // Create AbortController with 10-second timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: activeModel,
+              messages: [{
+                role: 'user',
+                content: `Zasugeruj 2 zadania (tablica JSON stringów np. ["Zrób A", "Zrób B"]) dla projektu w technologii: ${techStack}. Pomiń formatowanie i komentarze, wypisz samo JSON.`
+              }],
+              temperature: 0.3
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const llmData = await res.json();
+            const content = llmData.choices[0].message.content;
+            const jsonMatch = content.match(/\[.*\]/s);
+            if (jsonMatch) {
+              const aiTasks = JSON.parse(jsonMatch[0]);
+              aiTasks.forEach(aiTask => {
+                tasks.push({ id: idCounter++, title: aiTask, meta: 'AI Suggestion', status: 'pending' });
+              });
+            }
+          }
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === 'AbortError') {
+            console.warn(`LLM request timed out after 10s for ${llmUrl}`);
+          } else {
+            console.warn(`LLM connection failed for ${llmUrl}: ${fetchErr.message}`);
           }
         }
       }
@@ -240,8 +257,8 @@ projectsRouter.post('/analyze', async (req, res) => {
 });
 
 // Deploy project using agents
-projectsRouter.post('/deploy', (req, res) => {
-  const { agent, directory, llmUrl, apiKey, tasks, useBrowserTerminal, remoteServer, remotePrompt } = req.body;
+projectsRouter.post('/deploy', async (req, res) => {
+  const { agent, directory, tasks, useBrowserTerminal, remoteServer, remotePrompt } = req.body;
   let targetDir = directory || process.cwd();
   
   if (targetDir.startsWith('~/')) {
@@ -249,29 +266,37 @@ projectsRouter.post('/deploy', (req, res) => {
     targetDir = path.join(home, targetDir.slice(2));
   }
 
-  console.log(`Deploying ${agent} in ${targetDir}`);
-
   try {
+    // Load LLM settings from DB as fallbacks/defaults
+    const dbSettings = await settingsRepo.getSettings();
+    const llmUrl = req.body.llmUrl || dbSettings.llmUrl || '';
+    const apiKey = req.body.apiKey || dbSettings.apiKey || '';
+    const llmName = req.body.llmName || dbSettings.llmName || 'Gemini 3.6 Flash';
+    const llmModel = req.body.llmModel || dbSettings.llmModel || '';
+
+    console.log(`Deploying ${agent} in ${targetDir} [Provider: ${llmName}]`);
+
     let command = '';
     let args = [];
     let env = { ...process.env };
 
     if (llmUrl) {
       env.ANTHROPIC_BASE_URL = llmUrl;
+      env.OPENAI_BASE_URL = llmUrl;
     }
     
-    if (apiKey) {
-      env.ANTHROPIC_API_KEY = apiKey;
-      env.OPENAI_API_KEY = apiKey;
+    const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || (llmUrl ? 'lm-studio' : '');
+
+    if (effectiveApiKey) {
+      env.ANTHROPIC_API_KEY = effectiveApiKey;
+      env.OPENAI_API_KEY = effectiveApiKey;
+      env.ANTHROPIC_AUTH_TOKEN = effectiveApiKey;
     }
 
-    if (tasks && tasks.length > 0) {
-      const list = tasks.map(t => {
-        const prefix = t.status === 'completed' ? '[REWORK] ' : '';
-        return `- [ ] ${prefix}${t.title}`;
-      }).join('\n');
-      const promptFile = path.join(targetDir, '.ai_tasks.md');
-      fs.writeFileSync(promptFile, `# Zadania do wykonania\n\n${list}\n`);
+    if (llmModel) {
+      env.ANTHROPIC_MODEL = llmModel;
+      env.LLM_MODEL = llmModel;
+      env.OPENAI_MODEL = llmModel;
     }
 
     if (agent === 'claude' || agent === 'agy') {
@@ -286,32 +311,45 @@ projectsRouter.post('/deploy', (req, res) => {
         const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
         agentCmd = agent === 'claude' ? `claude "${promptText}"` : `agy -i "${promptText}"`;
       } else if (tasks && tasks.length > 0) {
-        const taskListStr = tasks.map(t => `- ${t.title}`).join('\n');
-        const promptText = `Zrealizuj poniższe zadania:\n${taskListStr}\n\nZadania zostały również zapisane w pliku .ai_tasks.md. Po ich wykonaniu oznacz je jako zrealizowane.`;
+        const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
+        const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
         const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
         agentCmd = agent === 'claude' ? `claude "${escapedPrompt}"` : `agy -i "${escapedPrompt}"`;
       } else {
         agentCmd = agent === 'claude' ? 'claude' : 'agy';
       }
       
+      const exportEnvLines = [
+        'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL OPENAI_MODEL ANTHROPIC_AUTH_TOKEN'
+      ];
+      if (llmUrl) {
+        exportEnvLines.push(`export ANTHROPIC_BASE_URL="${llmUrl}"`);
+        exportEnvLines.push(`export OPENAI_BASE_URL="${llmUrl}"`);
+      }
+      if (effectiveApiKey) {
+        exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
+        exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
+        exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
+      }
+      if (llmModel) {
+        exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+        exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
+        exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+      }
+
       const scriptContent = `#!/bin/bash
 cd "${targetDir}"
+${exportEnvLines.join('\n')}
 echo -e "\\033[1;34m🚀 Initializing AI Agent (${agent})...\\033[0m"
 echo -ne "\\033[1;36m📡 Preparing environment: \\033[0m"
-for i in {1..20}; do
+for i in {1..10}; do
     echo -ne "█"
-    sleep 0.1
+    sleep 0.05
 done
 echo -e " \\033[1;32m[DONE]\\033[0m"
 
-echo -ne "\\033[1;33m🔑 Authenticating with Gemini 3.1 Pro... \\033[0m"
-for i in {1..10}; do
-    echo -ne "."
-    sleep 0.15
-done
-echo -e " \\033[1;32m[SUCCESS]\\033[0m"
-
-echo -e "\\033[1;35m⏳ Booting agent engine. Please wait, this might take up to 15 seconds...\\033[0m"
+echo -e "\\033[1;33m🔑 Authenticating Provider (${llmName || 'Custom Provider'}): ${llmModel || 'default model'}... \\033[1;32m[SUCCESS]\\033[0m"
+echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
 exec bash
 `;

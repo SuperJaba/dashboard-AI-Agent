@@ -6,10 +6,12 @@ import {
 import './index.css';
 import { TerminalView } from './TerminalView';
 import { AnalyticsPanel } from './AnalyticsPanel';
+import { LlmServerManager } from './LlmServerManager';
 
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
 import CustomWidgets from './CustomWidgets';
+
 import { AgentsView } from './AgentsView';
 
 import { useDashboardState } from './hooks/useDashboardState';
@@ -151,7 +153,7 @@ function App() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setupSshKey(server.id);
+                      setupSshKey(server.id).then(() => {return ''});
                     }}
                     style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
                     aria-label={`Skonfiguruj klucz SSH dla serwera ${server.name}`}
@@ -245,8 +247,11 @@ function App() {
       <main id="main-content" tabIndex={-1} className="dashboard-container">
         {activeView === 'agents' ? (
           <AgentsView />
-        ) : activeServer ? (
+        ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
+            <LlmServerManager />
+            {activeServer ? (
+              <>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
                 <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -259,7 +264,11 @@ function App() {
             
             <ServerStats serverId={activeServer.id} />
             
-            <CustomWidgets token={token!} />
+            <CustomWidgets 
+              token={token!} 
+              server={activeServer}
+              onLaunchTerminal={setTerminalConfig} 
+            />
             
             <div className="grid-top" style={{ marginBottom: '2rem' }}>
               <div className="glass-card animate-in delay-2" style={{ gridColumn: '1 / -1' }}>
@@ -343,8 +352,8 @@ function App() {
                 />
               </div>
             )}
-          </div>
-        ) : activeProject ? (
+              </>
+            ) : activeProject ? (
           <>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
@@ -548,7 +557,9 @@ function App() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                deleteTask(task.id);
+                                deleteTask(task.id).then(() => {
+                                  // Handle the result if needed
+                                });
                               }}
                               aria-label={`Delete task ${task.title}`}
                               style={{ 
@@ -590,6 +601,8 @@ function App() {
           </>
         ) : (
           <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} />
+        )}
+          </div>
         )}
       </main>
 
