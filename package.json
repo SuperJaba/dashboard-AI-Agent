@@ -16,7 +16,7 @@
     "test:ui": "vitest --ui",
     "autotest": "bash scripts/autotest_ai.sh",
     "ci-tdd": "bash scripts/ci_tdd_bot.sh",
-    "test:e2e": "set NODE_ENV=test&& python -u tests/full_test_suite.py"
+    "test:e2e": "set NODE_ENV=test&& node tests/full_test_suite.js"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

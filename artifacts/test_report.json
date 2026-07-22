@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "name": "test_title",
+      "status": "passed"
+    },
+    {
+      "name": "test_add_project_button_visible",
+      "status": "passed"
+    },
+    {
+      "name": "test_full_page_screenshot",
+      "status": "passed"
+    },
+    {
+      "name": "test_all_sidebar_navigation",
+      "status": "passed"
+    },
+    {
+      "name": "test_form_presence",
+      "status": "passed"
+    },
+    {
+      "name": "test_table_presence",
+      "status": "passed"
+    }
+  ]
+}

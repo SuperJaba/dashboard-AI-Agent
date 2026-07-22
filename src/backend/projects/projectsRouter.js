@@ -193,27 +193,44 @@ projectsRouter.post('/analyze', async (req, res) => {
       if (llmUrl && apiKey) {
         const url = llmUrl.endsWith('/chat/completions') ? llmUrl : (llmUrl.endsWith('/') ? llmUrl.slice(0, -1) : llmUrl) + '/chat/completions';
         const activeModel = await getBestAvailableModel(llmUrl, apiKey);
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: activeModel,
-            messages: [{
-              role: 'user', 
-              content: `Zasugeruj 2 zadania (tablica JSON stringów np. ["Zrób A", "Zrób B"]) dla projektu w technologii: ${techStack}. Pomiń formatowanie i komentarze, wypisz samo JSON.`
-            }],
-            temperature: 0.3
-          })
-        });
-        if (res.ok) {
-          const llmData = await res.json();
-          const content = llmData.choices[0].message.content;
-          const jsonMatch = content.match(/\[.*\]/s);
-          if (jsonMatch) {
-            const aiTasks = JSON.parse(jsonMatch[0]);
-            aiTasks.forEach(aiTask => {
-              tasks.push({ id: idCounter++, title: aiTask, meta: 'AI Suggestion', status: 'pending' });
-            });
+
+        // Create AbortController with 10-second timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: activeModel,
+              messages: [{
+                role: 'user',
+                content: `Zasugeruj 2 zadania (tablica JSON stringów np. ["Zrób A", "Zrób B"]) dla projektu w technologii: ${techStack}. Pomiń formatowanie i komentarze, wypisz samo JSON.`
+              }],
+              temperature: 0.3
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const llmData = await res.json();
+            const content = llmData.choices[0].message.content;
+            const jsonMatch = content.match(/\[.*\]/s);
+            if (jsonMatch) {
+              const aiTasks = JSON.parse(jsonMatch[0]);
+              aiTasks.forEach(aiTask => {
+                tasks.push({ id: idCounter++, title: aiTask, meta: 'AI Suggestion', status: 'pending' });
+              });
+            }
+          }
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === 'AbortError') {
+            console.warn(`LLM request timed out after 10s for ${llmUrl}`);
+          } else {
+            console.warn(`LLM connection failed for ${llmUrl}: ${fetchErr.message}`);
           }
         }
       }

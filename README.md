@@ -16,10 +16,10 @@ A full-stack, modern dashboard application built with React, TypeScript, Vite, a
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS v4
 - **Backend**: Node.js + Express 5 + Socket.io
 - **Database**: PostgreSQL
-- **Styling**: Vanilla CSS with CSS variables
+- **Styling**: Tailwind CSS v4 (postcss-based) + Vanilla CSS with CSS variables
 - **Testing**: Vitest, Playwright, Supertest
 - **Monitoring**: Prometheus + Grafana
 - **State Management**: React hooks (useState)
@@ -144,6 +144,9 @@ npm run test:e2e
 ```
 
 ## 🔧 Development Considerations
+
+### Styling & Tailwind CSS v4
+The project uses **Tailwind CSS v4** with the new `@tailwindcss/postcss` plugin. Configuration is handled via `postcss.config.js` (no separate tailwind.config.js needed). Tailwind directives are processed through PostCSS during the build process.
 
 ### API Key Format
 The LLM Server management expects the API key field as **`apiKey`** (camelCase) instead of `api_key`. All forms have been updated to use this format.
