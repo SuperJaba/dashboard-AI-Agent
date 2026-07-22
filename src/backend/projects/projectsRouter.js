@@ -263,6 +263,14 @@ projectsRouter.post('/deploy', async (req, res) => {
     let args = [];
     let env = { ...process.env };
 
+    delete env.ANTHROPIC_BASE_URL;
+    delete env.OPENAI_BASE_URL;
+    delete env.ANTHROPIC_API_KEY;
+    delete env.OPENAI_API_KEY;
+    delete env.ANTHROPIC_MODEL;
+    delete env.LLM_MODEL;
+    delete env.ANTHROPIC_AUTH_TOKEN;
+
     if (llmUrl) {
       env.ANTHROPIC_BASE_URL = llmUrl;
       env.OPENAI_BASE_URL = llmUrl;
@@ -271,6 +279,11 @@ projectsRouter.post('/deploy', async (req, res) => {
     if (apiKey) {
       env.ANTHROPIC_API_KEY = apiKey;
       env.OPENAI_API_KEY = apiKey;
+    }
+
+    if (llmModel) {
+      env.ANTHROPIC_MODEL = llmModel;
+      env.LLM_MODEL = llmModel;
     }
 
     if (agent === 'claude' || agent === 'agy') {
@@ -293,7 +306,9 @@ projectsRouter.post('/deploy', async (req, res) => {
         agentCmd = agent === 'claude' ? 'claude' : 'agy';
       }
       
-      const exportEnvLines = [];
+      const exportEnvLines = [
+        'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL ANTHROPIC_AUTH_TOKEN'
+      ];
       if (llmUrl) {
         exportEnvLines.push(`export ANTHROPIC_BASE_URL="${llmUrl}"`);
         exportEnvLines.push(`export OPENAI_BASE_URL="${llmUrl}"`);
