@@ -263,20 +263,12 @@ projectsRouter.post('/deploy', async (req, res) => {
     let args = [];
     let env = { ...process.env };
 
-    delete env.ANTHROPIC_BASE_URL;
-    delete env.OPENAI_BASE_URL;
-    delete env.ANTHROPIC_API_KEY;
-    delete env.OPENAI_API_KEY;
-    delete env.ANTHROPIC_MODEL;
-    delete env.LLM_MODEL;
-    delete env.ANTHROPIC_AUTH_TOKEN;
-
     if (llmUrl) {
       env.ANTHROPIC_BASE_URL = llmUrl;
       env.OPENAI_BASE_URL = llmUrl;
     }
     
-    const effectiveApiKey = apiKey || (llmUrl ? 'lm-studio' : '');
+    const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || (llmUrl ? 'lm-studio' : '');
 
     if (effectiveApiKey) {
       env.ANTHROPIC_API_KEY = effectiveApiKey;
