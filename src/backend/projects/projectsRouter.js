@@ -276,9 +276,12 @@ projectsRouter.post('/deploy', async (req, res) => {
       env.OPENAI_BASE_URL = llmUrl;
     }
     
-    if (apiKey) {
-      env.ANTHROPIC_API_KEY = apiKey;
-      env.OPENAI_API_KEY = apiKey;
+    const effectiveApiKey = apiKey || (llmUrl ? 'lm-studio' : '');
+
+    if (effectiveApiKey) {
+      env.ANTHROPIC_API_KEY = effectiveApiKey;
+      env.OPENAI_API_KEY = effectiveApiKey;
+      env.ANTHROPIC_AUTH_TOKEN = effectiveApiKey;
     }
 
     if (llmModel) {
@@ -314,9 +317,10 @@ projectsRouter.post('/deploy', async (req, res) => {
         exportEnvLines.push(`export ANTHROPIC_BASE_URL="${llmUrl}"`);
         exportEnvLines.push(`export OPENAI_BASE_URL="${llmUrl}"`);
       }
-      if (apiKey) {
-        exportEnvLines.push(`export ANTHROPIC_API_KEY="${apiKey}"`);
-        exportEnvLines.push(`export OPENAI_API_KEY="${apiKey}"`);
+      if (effectiveApiKey) {
+        exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
+        exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
+        exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
       }
       if (llmModel) {
         exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
