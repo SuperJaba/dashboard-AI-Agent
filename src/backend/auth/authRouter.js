@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { pool } from '../db.js';
+import { safeQuery } from '../db.js';
 
 export const authRouter = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
@@ -9,53 +9,68 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 authRouter.post('/setup', async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    if (!username || !password) return res.status(400).json({ error: 'Nazwa użytkownika i hasło są wymagane' });
     
     // Check if any user exists
-    const result = await pool.query('SELECT COUNT(*) FROM users');
-    if (parseInt(result.rows[0].count) > 0) {
-      return res.status(400).json({ error: 'System already initialized' });
+    const result = await safeQuery('SELECT COUNT(*) FROM users');
+    if (parseInt(result.rows[0]?.count || '0') > 0) {
+      return res.status(400).json({ error: 'System został już zainicjalizowany' });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(password, salt);
     
-    await pool.query('INSERT INTO users (username, password_hash) VALUES ($1, $2)', [username, hash]);
-    res.json({ success: true, message: 'Admin user created successfully' });
+    const insertRes = await safeQuery('INSERT INTO users (username, password_hash) VALUES ($1, $2)', [username, hash]);
+    const userId = insertRes.rows[0]?.id || 1;
+    const token = jwt.sign({ id: userId, username }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ success: true, message: 'Konto administratora utworzone pomyślnie', token });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Błąd inicjalizacji konta' });
   }
 });
 
 authRouter.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    if (!username || !password) return res.status(400).json({ error: 'Nazwa użytkownika i hasło są wymagane' });
 
-    const result = await pool.query('SELECT id, password_hash FROM users WHERE username = $1', [username]);
+    const result = await safeQuery('SELECT id, password_hash FROM users WHERE username = $1', [username]);
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Nieprawidłowa nazwa użytkownika lub hasło' });
     }
 
     const user = result.rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
     
     if (!match) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Nieprawidłowa nazwa użytkownika lub hasło' });
     }
 
     const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ success: true, token });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Błąd logowania' });
   }
 });
 
 authRouter.get('/check-setup', async (req, res) => {
   try {
-    const result = await pool.query('SELECT COUNT(*) FROM users');
-    res.json({ needsSetup: parseInt(result.rows[0].count) === 0 });
+    const result = await safeQuery('SELECT COUNT(*) FROM users');
+    const count = parseInt(result.rows[0]?.count || '0');
+    res.json({ needsSetup: count === 0 });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json({ needsSetup: true });
   }
 });
+
+authRouter.post('/reset', async (req, res) => {
+  try {
+    await safeQuery('DELETE FROM users');
+    res.json({ success: true, message: 'Stan autentykacji zresetowany pomyślnie' });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Błąd resetowania' });
+  }
+});
+
+
