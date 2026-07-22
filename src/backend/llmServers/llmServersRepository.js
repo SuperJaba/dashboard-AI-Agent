@@ -3,7 +3,7 @@ import { encrypt, decrypt } from '../utils/crypto.js';
 import { saveSettings } from '../settings/settingsRepository.js';
 
 export async function getLlmServers() {
-  const { rows } = await pool.query('SELECT * FROM llm_servers ORDER BY is_active DESC, id ASC');
+  const { rows } = await pool.query('SELECT * FROM llm_servers ORDER BY is_active DESC, id');
   return (rows || []).map(server => {
     let decryptedKey = server.api_key || '';
     if (decryptedKey) {

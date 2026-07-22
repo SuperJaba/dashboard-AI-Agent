@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from './shared/api-client';
 import { 
   Plus, X, Activity, Terminal, RefreshCw, BarChart2, 
@@ -179,7 +180,10 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
             Real-time server metrics and custom query outputs
           </span>
         </div>
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 400, damping: 17 }}
           onClick={() => setShowModal(true)}
           className="btn btn-primary"
           style={{ 
@@ -191,9 +195,11 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
         >
           <Plus size={16} />
           Add Widget
-        </button>
+        </motion.button>
         {/* Agent Best Picks button */}
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setShowBestPicks(!showBestPicks)}
           className="btn btn-secondary"
           style={{
@@ -207,9 +213,16 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
           }}
         >
           Agent Best Picks
-        </button>
+        </motion.button>
+        
+        <AnimatePresence>
         {showBestPicks && (
-          <div style={{
+          <motion.div 
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            style={{
             marginTop: '0.75rem',
             padding: '1rem',
             background: 'rgba(0,0,0,0.4)',
@@ -244,8 +257,9 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 </button>
               </div>
             ))}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
 
       {/* Widgets Grid */}
@@ -283,17 +297,25 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
           </button>
         </div>
       ) : (
-        <div style={{ 
+        <motion.div 
+          layout
+          style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', 
           gap: '1.25rem' 
         }}>
+          <AnimatePresence>
           {widgets.map(w => {
             const isHovered = hoveredWidgetId === w.id;
             const widgetColor = w.color || '#6366f1';
             
             return (
-              <div 
+              <motion.div 
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                 key={w.id} 
                 aria-label={`Widget ${w.name}`} 
                 className="glass-card"
@@ -314,7 +336,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                     ? `0 8px 30px -4px ${widgetColor}22, var(--glass-shadow)`
                     : 'var(--glass-shadow)',
                   transform: isHovered ? 'translateY(-4px)' : 'none',
-                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                  transition: 'border 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
               >
                 {/* Header Row */}
@@ -479,15 +501,21 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                   pointerEvents: 'none',
                   transition: 'opacity 0.3s ease'
                 }} />
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {/* Modal Dialog */}
+      <AnimatePresence>
       {showModal && (
-        <div role="dialog" aria-modal="true" style={{ 
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          role="dialog" aria-modal="true" style={{ 
           position: 'fixed', 
           top: 0, 
           left: 0, 
@@ -499,10 +527,14 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
           zIndex: 100,
           display: 'flex', 
           justifyContent: 'center', 
-          alignItems: 'center',
-          animation: 'modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          alignItems: 'center'
         }}>
-          <div className="glass-card" style={{ 
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="glass-card" style={{ 
             width: '420px', 
             padding: '1.75rem', 
             position: 'relative',
@@ -689,8 +721,10 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 </div>
               </div>
               
-              <button 
+              <motion.button 
                 type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={addWidget}
                 className="btn btn-primary"
                 style={{ 
@@ -703,11 +737,12 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 }}
               >
                 Create Widget
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

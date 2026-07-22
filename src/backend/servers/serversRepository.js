@@ -2,7 +2,7 @@ import { pool } from '../db.js';
 import { encrypt, decrypt } from '../utils/crypto.js';
 
 export async function getServers() {
-  const { rows } = await pool.query('SELECT * FROM servers ORDER BY id ASC');
+  const { rows } = await pool.query('SELECT * FROM servers ORDER BY id ');
   // Safe representation (without decrypted/encrypted ssh_password, but with a has_password boolean flag)
   return rows.map(r => ({
     ...r,

@@ -153,7 +153,7 @@ function App() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setupSshKey(server.id);
+                      setupSshKey(server.id).then(() => {return ''});
                     }}
                     style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
                     aria-label={`Skonfiguruj klucz SSH dla serwera ${server.name}`}
@@ -557,7 +557,9 @@ function App() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                deleteTask(task.id);
+                                deleteTask(task.id).then(() => {
+                                  // Handle the result if needed
+                                });
                               }}
                               aria-label={`Delete task ${task.title}`}
                               style={{ 

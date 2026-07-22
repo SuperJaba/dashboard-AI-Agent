@@ -13,33 +13,74 @@ def _screenshot_path(name: str) -> str:
 
 def setup_and_login(page):
     """Bypass the login/setup screen."""
+    print("[DEBUG_LOG] Navigating to http://localhost:5173/")
     page.goto("http://localhost:5173/")
     
     # Try up to 3 times to navigate the auth flow (Setup -> Login -> Dashboard)
-    for _ in range(3):
+    for i in range(3):
+        print(f"[DEBUG_LOG] Auth navigation attempt {i+1}")
         try:
-            # Wait for either the login screen or the dashboard to appear
-            element = page.wait_for_selector("h1, aside.sidebar", state="visible", timeout=5000)
-            tag = element.evaluate("el => el.tagName.toLowerCase()")
+            # Wait for either the loading screen to disappear, or login screen/dashboard to appear
+            # We check for:
+            # - aside.sidebar (Dashboard)
+            # - #login-username (Login/Setup)
+            # - text "Ładowanie systemu" (Loading)
             
-            if tag == "aside":
-                return # Successfully reached the dashboard
+            page.wait_for_load_state("networkidle")
+            
+            if page.locator("aside.sidebar").is_visible():
+                print("[DEBUG_LOG] Sidebar found, already logged in.")
+                return 
+
+            # Check for login/setup form
+            user_input = page.locator("#login-username")
+            pass_input = page.locator("#login-password")
+            
+            if user_input.is_visible():
+                print("[DEBUG_LOG] Login/Setup form visible. Filling credentials.")
+                # Clear inputs first
+                user_input.fill("")
+                user_input.type("admin")
+                pass_input.fill("")
+                pass_input.type("admin")
                 
-            if tag == "h1":
-                # We are on a login or setup screen
-                page.fill("input[type='text']", "admin")
-                page.fill("input[type='password']", "admin")
+                # Check if there is an error message visible before clicking
+                all_divs = page.locator("div")
+                for j in range(all_divs.count()):
+                    div = all_divs.nth(j)
+                    style = div.getAttribute("style") or ""
+                    if "color: #ef4444" in style or "color: rgb(239, 68, 68)" in style:
+                        print(f"[DEBUG_LOG] Error message visible BEFORE submit: {div.textContent()}")
+
                 page.click("button[type='submit']")
-                page.wait_for_timeout(1000) # Wait for backend and React state updates
-        except Exception:
+                print("[DEBUG_LOG] Submit clicked. Waiting for transition.")
+                page.wait_for_timeout(2000)
+                
+                for j in range(all_divs.count()):
+                    div = all_divs.nth(j)
+                    style = div.getAttribute("style") or ""
+                    if "color: #ef4444" in style or "color: rgb(239, 68, 68)" in style:
+                        print(f"[DEBUG_LOG] Error message visible AFTER submit: {div.textContent()}")
+            else:
+                print("[DEBUG_LOG] Neither sidebar nor login form visible yet. Content:", page.content()[:500])
+                page.wait_for_timeout(1000)
+
+        except Exception as e:
+            print(f"[DEBUG_LOG] Error during attempt {i+1}: {e}")
             pass
             
     try:
         # Finally, wait for sidebar to confirm dashboard loaded
-        page.wait_for_selector("aside.sidebar", state="visible", timeout=5000)
+        print("[DEBUG_LOG] Final wait for sidebar...")
+        page.wait_for_selector("aside.sidebar", state="visible", timeout=10000)
+        print("[DEBUG_LOG] Sidebar found!")
     except Exception as e:
         print(f"[WARN] Setup and login failed or timed out: {e}")
         page.screenshot(path=_screenshot_path("login_failure"))
+        # Save HTML for debugging
+        html_debug_path = _screenshot_path("login_failure").replace(".png", ".html")
+        with open(html_debug_path, "w", encoding="utf-8") as f:
+            f.write(page.content())
         raise Exception("Login failed, aborting tests")
 
 def test_title(page):

@@ -1,7 +1,7 @@
 import { pool } from '../db.js';
 
 export async function getProjects() {
-  const { rows } = await pool.query('SELECT * FROM projects ORDER BY id ASC');
+  const { rows } = await pool.query('SELECT * FROM projects ORDER BY id ');
   return rows;
 }
 

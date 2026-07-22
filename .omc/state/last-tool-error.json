@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes -i id_ed25519_antigravity root@10.10.10.100 -p 22\"}",
-  "error": "Exit code 255\nWarning: Identity file id_ed25519_antigravity not accessible: No such file or directory.\nPseudo-terminal will not be allocated because stdin is not a terminal.\r\nroot@10.10.10.100: Permission denied (publickey,password).",
-  "timestamp": "2026-07-22T05:35:24.195Z",
-  "retry_count": 1
-}

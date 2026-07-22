@@ -1,4 +1,4 @@
-// src/components/ProcessCard.tsx
+
 import React from 'react';
 import styles from './ProcessCard.module.css';
 import { Cpu, Activity, Server } from 'lucide-react';
