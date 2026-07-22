@@ -1,7 +1,7 @@
 from playwright.sync_api import sync_playwright
 
 # 👉 Update this to the title you expect
-EXPECTED_TITLE = "Dashboard"
+EXPECTED_TITLE = "Dashboard - Command Center"
 
 def main() -> None:
     with sync_playwright() as p:
@@ -22,9 +22,7 @@ def main() -> None:
         if actual_title == EXPECTED_TITLE:
             print("✅ Title matches expected value.")
         else:
-            print(
-                f"❌ Title mismatch! Expected {EXPECTED_TITLE!r}, got {actual_title!r}"
-            )
+            print(f"[FAIL] Title mismatch! Expected {EXPECTED_TITLE!r}, got {actual_title!r}")
             raise SystemExit(1)
 
         # Clean up
