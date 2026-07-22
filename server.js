@@ -33,17 +33,57 @@ const io = new Server(httpServer, {
   }
 });
 
+function findShellExecutable(requestedCmd) {
+  if (requestedCmd && requestedCmd !== 'bash' && fs.existsSync(requestedCmd)) {
+    return requestedCmd;
+  }
+
+  if (process.platform === 'win32') {
+    const gitBashCandidates = [
+      'C:\\Program Files\\Git\\bin\\bash.exe',
+      'C:\\Program Files\\Git\\usr\\bin\\bash.exe',
+      'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'bin', 'bash.exe'),
+    ];
+
+    for (const bashPath of gitBashCandidates) {
+      if (fs.existsSync(bashPath)) {
+        return bashPath;
+      }
+    }
+
+    return process.env.COMSPEC || 'cmd.exe';
+  }
+
+  return requestedCmd || 'bash';
+}
+
 io.on('connection', (socket) => {
   let ptyProcess = null;
 
   socket.on('spawn_terminal', ({ command, args, cwd, env }) => {
     try {
-      ptyProcess = pty.spawn(command, args || [], {
+      const shellCmd = findShellExecutable(command);
+      const targetCwd = (cwd && fs.existsSync(cwd)) ? cwd : process.cwd();
+
+      const userHome = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\picho';
+      const extendedPath = process.platform === 'win32'
+        ? [
+            path.join(userHome, 'AppData\\Local\\agy\\bin'),
+            path.join(userHome, 'AppData\\Local\\JetBrains\\Air\\node-24.13.0\\node-v24.13.0-win-x64'),
+            path.join(userHome, 'AppData\\Local\\nvm\\v20.20.0'),
+            'C:\\Program Files\\Git\\bin',
+            'C:\\Program Files\\Git\\usr\\bin',
+            process.env.PATH || ''
+          ].join(';')
+        : process.env.PATH;
+
+      ptyProcess = pty.spawn(shellCmd, args || [], {
         name: 'xterm-color',
         cols: 80,
         rows: 24,
-        cwd: cwd || process.cwd(),
-        env: { ...process.env, ...env }
+        cwd: targetCwd,
+        env: { ...process.env, ...env, PATH: extendedPath }
       });
 
       ptyProcess.onData((data) => {
@@ -54,6 +94,7 @@ io.on('connection', (socket) => {
         socket.emit('terminal_exit', { exitCode, signal });
       });
     } catch (err) {
+      console.error('PTY spawn error:', err);
       socket.emit('terminal_error', err.message);
     }
   });
