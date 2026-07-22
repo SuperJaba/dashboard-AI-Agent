@@ -297,19 +297,26 @@ export function useDashboardState() {
 
   const handleAddProject = async () => {
     try {
+      let folderPath = '';
       const res = await apiFetch('http://localhost:3001/api/pick-folder');
-      if (res.status === 204) return;
       
-      const data = await res.json();
-      if (data.error || !data.path) return;
+      if (res.status === 200) {
+        const data = await res.json();
+        folderPath = data.path || '';
+      }
+
+      if (!folderPath) {
+        const manualPath = prompt('Wprowadź lub wklej pełną ścieżkę do folderu projektu (np. F:\\AI-Agents\\dashboard):');
+        if (!manualPath || !manualPath.trim()) return;
+        folderPath = manualPath.trim();
+      }
       
-      const path = data.path;
-      const folderName = path.split('/').pop() || path.split('\\').pop() || `New Project`;
+      const folderName = folderPath.split('/').pop() || folderPath.split('\\').pop() || `New Project`;
       
       const createRes = await apiFetch('http://localhost:3001/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: folderName, desc: 'Local workspace', path })
+        body: JSON.stringify({ name: folderName, desc: 'Local workspace', path: folderPath })
       });
       const newProject = await createRes.json();
       
