@@ -136,6 +136,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
       setAgentInstructions('');
     } catch (e) {
       console.error('Failed to add widget', e);
+      alert('Failed to create widget. Please check the console for more details.');
     }
   };
 
