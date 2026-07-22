@@ -16,5 +16,5 @@ done
 echo -e " \033[1;32m[SUCCESS]\033[0m"
 
 echo -e "\033[1;35m⏳ Booting agent engine. Please wait, this might take up to 15 seconds...\033[0m"
-agy -i "Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: 'ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes jagger2@s1.ct8.pl -p 22'. Następnie wykonaj zadanie: Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes)."
+agy -i "Zrealizuj zadania z pliku .ai_tasks.md. Kiedy skończysz, oznacz je jako wykonane."
 exec bash
