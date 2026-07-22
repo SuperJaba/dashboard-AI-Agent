@@ -282,12 +282,9 @@ projectsRouter.post('/deploy', async (req, res) => {
     }
 
     if (llmModel) {
+      env.ANTHROPIC_MODEL = llmModel;
       env.LLM_MODEL = llmModel;
       env.OPENAI_MODEL = llmModel;
-      const lowerModel = llmModel.toLowerCase();
-      if (agent === 'claude' && (lowerModel.includes('claude') || (llmUrl && !lowerModel.startsWith('openai/') && !lowerModel.startsWith('gpt-')))) {
-        env.ANTHROPIC_MODEL = llmModel;
-      }
     }
 
     if (agent === 'claude' || agent === 'agy') {
@@ -322,12 +319,9 @@ projectsRouter.post('/deploy', async (req, res) => {
         exportEnvLines.push(`export OPENAI_API_KEY="${apiKey}"`);
       }
       if (llmModel) {
+        exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
         exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
         exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
-        const lowerModel = llmModel.toLowerCase();
-        if (agent === 'claude' && (lowerModel.includes('claude') || (llmUrl && !lowerModel.startsWith('openai/') && !lowerModel.startsWith('gpt-')))) {
-          exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
-        }
       }
 
       const scriptContent = `#!/bin/bash
