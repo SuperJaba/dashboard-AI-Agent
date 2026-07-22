@@ -6,6 +6,7 @@ import {
 import './index.css';
 import { TerminalView } from './TerminalView';
 import { AnalyticsPanel } from './AnalyticsPanel';
+import { LlmServerManager } from './LlmServerManager';
 
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
@@ -245,8 +246,11 @@ function App() {
       <main id="main-content" tabIndex={-1} className="dashboard-container">
         {activeView === 'agents' ? (
           <AgentsView />
-        ) : activeServer ? (
+        ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
+            <LlmServerManager />
+            {activeServer ? (
+              <>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
                 <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -343,8 +347,8 @@ function App() {
                 />
               </div>
             )}
-          </div>
-        ) : activeProject ? (
+              </>
+            ) : activeProject ? (
           <>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
@@ -590,6 +594,8 @@ function App() {
           </>
         ) : (
           <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} />
+        )}
+          </div>
         )}
       </main>
 

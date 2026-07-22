@@ -1,0 +1,214 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1784684841933,
+  "projectRoot": "F:\\AI-Agents\\dashboard",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "express",
+        "version": "5.2.1",
+        "category": "backend"
+      },
+      {
+        "name": "react",
+        "version": "19.2.7",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "19.2.7",
+        "category": "frontend"
+      },
+      {
+        "name": "vite",
+        "version": "8.1.1",
+        "category": "build"
+      },
+      {
+        "name": "vitest",
+        "version": "4.1.10",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev:frontend": "vite",
+      "dev:backend": "node server.js",
+      "dev": "concurrently \"vite\" \"node server.js\"",
+      "db:migrate": "node scripts/migrate.js",
+      "build": "tsc -b && vite build",
+      "lint": "eslint .",
+      "preview": "vite preview",
+      "test": "vitest run",
+      "test:watch": "vitest",
+      "test:ui": "vitest --ui",
+      "autotest": "bash scripts/autotest_ai.sh",
+      "ci-tdd": "bash scripts/ci_tdd_bot.sh"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": "ES modules",
+    "testPattern": "*.test.ts",
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "public",
+      "scripts",
+      "src",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 3,
+      "lastAccessed": 1784684841331,
+      "keyFiles": [
+        "favicon.svg",
+        "icons.svg",
+        "index.html"
+      ]
+    },
+    "grafana": {
+      "path": "grafana",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1784684841387,
+      "keyFiles": []
+    },
+    "playwright": {
+      "path": "playwright",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1784684841394,
+      "keyFiles": [
+        "show-url.spec.js"
+      ]
+    },
+    "prometheus": {
+      "path": "prometheus",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1784684841400,
+      "keyFiles": [
+        "prometheus.yml"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 2,
+      "lastAccessed": 1784684841407,
+      "keyFiles": [
+        "favicon.svg",
+        "icons.svg"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 4,
+      "lastAccessed": 1784684841413,
+      "keyFiles": [
+        "autotest_ai.sh",
+        "ci_tdd_bot.sh",
+        "forecast.py",
+        "migrate.js"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 18,
+      "lastAccessed": 1784684841419,
+      "keyFiles": [
+        "AgentsView.tsx",
+        "AnalyticsPanel.tsx",
+        "api.test.ts",
+        "App.css",
+        "App.test.tsx"
+      ]
+    },
+    "test-results": {
+      "path": "test-results",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1784684841425,
+      "keyFiles": []
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 1,
+      "lastAccessed": 1784684841430,
+      "keyFiles": [
+        "e2e.test.ts"
+      ]
+    },
+    "dist\\assets": {
+      "path": "dist\\assets",
+      "purpose": "Static assets",
+      "fileCount": 2,
+      "lastAccessed": 1784684841440,
+      "keyFiles": [
+        "index-BTLFTUlg.js",
+        "index-mt5CYhTz.css"
+      ]
+    },
+    "src\\assets": {
+      "path": "src\\assets",
+      "purpose": "Static assets",
+      "fileCount": 3,
+      "lastAccessed": 1784684841464,
+      "keyFiles": [
+        "hero.png",
+        "react.svg",
+        "vite.svg"
+      ]
+    },
+    "tests\\node_modules": {
+      "path": "tests\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 0,
+      "lastAccessed": 1784684841477,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}
