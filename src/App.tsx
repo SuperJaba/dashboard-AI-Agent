@@ -13,6 +13,7 @@ import CustomWidgets from './CustomWidgets';
 import { AgentsView } from './AgentsView';
 
 import { useDashboardState } from './hooks/useDashboardState';
+import { DashboardTiles } from './TilesView';
 
 function App() {
   const {
@@ -152,8 +153,7 @@ function App() {
                       e.stopPropagation();
                       setupSshKey(server.id);
                     }}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
-                    title="Skonfiguruj klucz SSH dla Agenta"
+                    style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
                     aria-label={`Skonfiguruj klucz SSH dla serwera ${server.name}`}
                     onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
                     onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
@@ -589,9 +589,7 @@ function App() {
             </div>
           </>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-            Select or add a project from the sidebar to get started.
-          </div>
+          <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} />
         )}
       </main>
 

@@ -64,6 +64,31 @@ authRouter.get('/check-setup', async (req, res) => {
   }
 });
 
+authRouter.post('/refresh', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = req.body.token || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
+    
+    if (!token) return res.status(400).json({ error: 'Token required' });
+
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+      
+      const result = await safeQuery('SELECT id FROM users WHERE username = $1', [decoded.username]);
+      if (result.rows.length === 0) {
+        return res.status(401).json({ error: 'User no longer exists' });
+      }
+
+      const newToken = jwt.sign({ id: decoded.id, username: decoded.username }, JWT_SECRET, { expiresIn: '7d' });
+      res.json({ success: true, token: newToken });
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Błąd odświeżania' });
+  }
+});
+
 authRouter.post('/reset', async (req, res) => {
   try {
     await safeQuery('DELETE FROM users');
@@ -72,5 +97,3 @@ authRouter.post('/reset', async (req, res) => {
     res.status(500).json({ error: err.message || 'Błąd resetowania' });
   }
 });
-
-

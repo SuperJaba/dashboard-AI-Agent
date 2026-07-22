@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, UploadCloud, ChevronDown, ChevronUp, X, CheckCircle2, Rocket } from 'lucide-react';
-import { apiFetch } from './api';
+import { apiClient } from './shared/api-client';
 import './index.css';
 
 interface RepoStatusProps {
@@ -22,21 +22,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     setLoading(true);
     setError(null);
     try {
-      const [statusRes, ghRes] = await Promise.all([
-        apiFetch('http://localhost:3001/api/git/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ directory })
-        }),
-        apiFetch('http://localhost:3001/api/git/github', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ directory })
-        })
+      const [statusData, ghData] = await Promise.all([
+        apiClient.post<any>('/api/git/status', { directory }),
+        apiClient.post<any>('/api/git/github', { directory })
       ]);
-
-      const statusData = await statusRes.json();
-      const ghData = await ghRes.json();
 
       if (statusData.error && statusData.error === 'Not a git repository') {
         setError('Not a git repository');
@@ -59,11 +48,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     e.stopPropagation();
     try {
       setLoading(true);
-      await apiFetch('http://localhost:3001/api/git/cancel-ci', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory })
-      });
+      await apiClient.post<any>('/api/git/cancel-ci', { directory });
       await fetchRepoData();
     } catch (err) {
       console.error('Failed to cancel CI', err);
@@ -218,12 +203,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 onClick={async () => {
                   setLoading(true);
                   try {
-                    const res = await apiFetch('http://localhost:3001/api/git/deploy', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ directory })
-                    });
-                    const data = await res.json();
+                    const data = await apiClient.post<any>('/api/git/deploy', { directory });
                     if (data.error) {
                       setDeployModal({
                         show: true,
@@ -344,17 +324,12 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 <button
                   onClick={async () => {
                     try {
-                      const res = await apiFetch('http://localhost:3001/api/deploy', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
+                      const data = await apiClient.post<any>('/api/deploy', {
                           agent: 'agy',
                           directory,
                           tasks: [{ id: 'error-fix', title: `Fix this deployment error:\n\n${deployModal.content}`, status: 'pending' }],
                           useBrowserTerminal: true
-                        })
                       });
-                      const data = await res.json();
                       if (data.browserTerminal) {
                         onLaunchTerminal({ command: data.command, args: data.args, cwd: data.cwd, env: data.env });
                         setDeployModal(null);

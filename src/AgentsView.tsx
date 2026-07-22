@@ -3,7 +3,7 @@ import {
   Bot, Search, Check, RefreshCw, Sparkles, 
   Sliders, Settings, Info, Gauge, Zap, Trash2, X
 } from 'lucide-react';
-import { apiFetch } from './api';
+import { apiFetch } from './shared/api-client';
 
 export interface Agent {
   id: number;

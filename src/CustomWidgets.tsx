@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiClient } from './shared/api-client';
 import { 
   Plus, X, Activity, Terminal, RefreshCw, BarChart2, 
   Trash2, Cpu, Database, HardDrive, Globe, AlertTriangle
@@ -14,7 +15,7 @@ interface Widget {
 }
 
 interface CustomWidgetsProps {
-  token: string;
+  token?: string; // Kept for backwards compatibility if needed, but not used
 }
 
 const COLOR_PRESETS = [
@@ -27,7 +28,7 @@ const COLOR_PRESETS = [
   { value: '#ef4444', label: 'Red' },
 ];
 
-const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
+const CustomWidgets: React.FC<CustomWidgetsProps> = () => {
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [results, setResults] = useState<{ [key: number]: any }>({});
@@ -57,13 +58,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
 
   const fetchWidgets = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/widgets', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setWidgets(data);
-      }
+      const data = await apiClient.get<Widget[]>('/api/widgets');
+      setWidgets(data);
     } catch (e) {
       console.error('Failed to fetch widgets', e);
     }
@@ -72,15 +68,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
   const runWidget = async (id: number) => {
     setLoading(prev => ({ ...prev, [id]: true }));
     try {
-      const res = await fetch(`http://localhost:3001/api/widgets/${id}/run`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setResults(prev => ({ ...prev, [id]: data.result }));
-      } else {
-        setResults(prev => ({ ...prev, [id]: 'Error' }));
-      }
+      const data = await apiClient.get<any>(`/api/widgets/${id}/run`);
+      setResults(prev => ({ ...prev, [id]: data.result }));
     } catch (e) {
       setResults(prev => ({ ...prev, [id]: 'Error' }));
     } finally {
@@ -92,28 +81,19 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
     if (!newName || !newCommand) return;
     
     try {
-      const res = await fetch('http://localhost:3001/api/widgets', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({
-          name: newName,
-          command: newCommand,
-          type: newType,
-          color: newColor
-        })
+      await apiClient.post<any>('/api/widgets', {
+        name: newName,
+        command: newCommand,
+        type: newType,
+        color: newColor
       });
       
-      if (res.ok) {
-        setShowModal(false);
-        setNewName('');
-        setNewCommand('');
-        setNewType('number');
-        setNewColor('#6366f1');
-        fetchWidgets();
-      }
+      setShowModal(false);
+      setNewName('');
+      setNewCommand('');
+      setNewType('number');
+      setNewColor('#6366f1');
+      fetchWidgets();
     } catch (e) {
       console.error('Failed to add widget', e);
     }
@@ -121,10 +101,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
 
   const deleteWidget = async (id: number) => {
     try {
-      await fetch(`http://localhost:3001/api/widgets/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await apiClient.delete<any>(`/api/widgets/${id}`);
       setWidgets(prev => prev.filter(w => w.id !== id));
     } catch (e) {
       console.error('Failed to delete widget', e);
@@ -180,32 +157,34 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ token }) => {
       {widgets.length === 0 ? (
         <div className="glass-card" style={{ 
           display: 'flex', 
-          flexDirection: 'column', 
           alignItems: 'center', 
-          justifyContent: 'center', 
-          padding: '3rem 2rem',
-          textAlign: 'center',
+          justifyContent: 'space-between', 
+          padding: '1.25rem 2rem',
           borderStyle: 'dashed',
           borderColor: 'rgba(255,255,255,0.1)'
         }}>
-          <Terminal size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem', opacity: 0.5 }} />
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'white', marginBottom: '0.25rem' }}>No Widgets Created</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', maxWidth: '300px', marginBottom: '1.25rem' }}>
-            Add shell command outputs as real-time interactive widgets to your dashboard.
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Terminal size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'white', margin: 0 }}>No Widgets Created</h3>
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: 0 }}>
+                Add shell command outputs as real-time interactive widgets.
+              </p>
+            </div>
+          </div>
           <button 
             onClick={() => setShowModal(true)}
-            className="btn"
+            className="btn btn-secondary"
             style={{ 
               background: 'rgba(255,255,255,0.05)', 
               color: 'white', 
               border: '1px solid rgba(255,255,255,0.1)',
-              padding: '0.5rem 1rem',
-              borderRadius: '8px',
-              fontSize: '0.825rem'
+              padding: '0.4rem 0.8rem',
+              borderRadius: '6px',
+              fontSize: '0.8rem'
             }}
           >
-            Create Your First Widget
+            Create Widget
           </button>
         </div>
       ) : (

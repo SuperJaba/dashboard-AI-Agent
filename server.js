@@ -1,4 +1,6 @@
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
 import client from 'prom-client';
 import fetch from 'node-fetch';
 import cors from 'cors';
@@ -17,9 +19,14 @@ import { serversRouter } from './src/backend/servers/serversRouter.js';
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 
+const isTestEnvironment = process.env.NODE_ENV === 'test';
 dotenv.config();
+if (isTestEnvironment) {
+  process.env.NODE_ENV = 'test';
+}
 
 const app = express();
+
 const port = 3001;
 
 // Initialize Prometheus client

@@ -59,4 +59,26 @@ describe('Backend API Tests', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe('Missing directory');
   });
+
+  it('GET /api/settings should return settings object', async () => {
+    const res = await request(app)
+      .get('/api/settings')
+      .set('Authorization', `Bearer ${testToken}`);
+    expect(res.statusCode).toBe(200);
+    expect(typeof res.body).toBe('object');
+  });
+
+  it('POST /api/settings should save LLM config in DB', async () => {
+    const res = await request(app)
+      .post('/api/settings')
+      .set('Authorization', `Bearer ${testToken}`)
+      .send({
+        llmUrl: 'http://localhost:11434',
+        llmName: 'Ollama',
+        llmModel: 'llama3:latest'
+      });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
 });
+

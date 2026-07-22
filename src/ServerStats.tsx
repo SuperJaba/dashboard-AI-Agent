@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiFetch } from './api';
+import { apiClient } from './shared/api-client';
 import { Activity, Cpu, Server, HardDrive, PowerOff } from 'lucide-react';
 
 export function ServerStats({ serverId }: { serverId?: number }) {
@@ -11,12 +11,10 @@ export function ServerStats({ serverId }: { serverId?: number }) {
     const fetchData = async () => {
       try {
         const query = serverId ? `?serverId=${serverId}` : '';
-        const statsRes = await apiFetch(`/api/system-stats${query}`);
-        const statsData = await statsRes.json();
+        const statsData = await apiClient.get<any>(`/api/system-stats${query}`);
         setStats(statsData);
 
-        const appsRes = await apiFetch(`/api/apps-scan${query}`);
-        const appsData = await appsRes.json();
+        const appsData = await apiClient.get<any>(`/api/apps-scan${query}`);
         setApps(appsData.apps || []);
       } catch (e) {
         console.error(e);
@@ -33,15 +31,11 @@ export function ServerStats({ serverId }: { serverId?: number }) {
   const handleKillApp = async (app: any) => {
     if (!confirm('Na pewno chcesz zakończyć proces / zrestartować aplikację?')) return;
     try {
-      await apiFetch('/api/kill-app', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serverId,
-          pid: app.pid,
-          domain: app.domain,
-          source: app.source
-        })
+      await apiClient.post<any>('/api/kill-app', {
+        serverId,
+        pid: app.pid,
+        domain: app.domain,
+        source: app.source
       });
       alert('Polecenie zostało wysłane');
     } catch (e) {

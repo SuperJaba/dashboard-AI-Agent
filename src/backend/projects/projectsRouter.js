@@ -285,9 +285,13 @@ projectsRouter.post('/deploy', (req, res) => {
         const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
         const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
         agentCmd = agent === 'claude' ? `claude "${promptText}"` : `agy -i "${promptText}"`;
+      } else if (tasks && tasks.length > 0) {
+        const taskListStr = tasks.map(t => `- ${t.title}`).join('\n');
+        const promptText = `Zrealizuj poniższe zadania:\n${taskListStr}\n\nZadania zostały również zapisane w pliku .ai_tasks.md. Po ich wykonaniu oznacz je jako zrealizowane.`;
+        const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
+        agentCmd = agent === 'claude' ? `claude "${escapedPrompt}"` : `agy -i "${escapedPrompt}"`;
       } else {
-        const promptArg = (tasks && tasks.length > 0) ? ' "Zrealizuj zadania z pliku .ai_tasks.md. Kiedy skończysz, oznacz je jako wykonane."' : '';
-        agentCmd = agent === 'claude' ? `claude${promptArg}` : `agy${tasks && tasks.length > 0 ? ' -i' + promptArg : ''}`;
+        agentCmd = agent === 'claude' ? 'claude' : 'agy';
       }
       
       const scriptContent = `#!/bin/bash
@@ -325,8 +329,27 @@ exec bash
         });
       }
 
-      command = 'x-terminal-emulator';
-      args = ['-e', scriptPath];
+      if (process.platform === 'win32') {
+        const gitBash = [
+          'C:\\Program Files\\Git\\git-bash.exe',
+          'C:\\Program Files (x86)\\Git\\git-bash.exe',
+          path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'git-bash.exe')
+        ].find(p => fs.existsSync(p));
+
+        if (gitBash) {
+          command = 'cmd.exe';
+          args = ['/c', 'start', '""', gitBash, scriptPath];
+        } else {
+          command = 'cmd.exe';
+          args = ['/c', 'start', 'cmd', '/k', 'bash', scriptPath];
+        }
+      } else if (process.platform === 'darwin') {
+        command = 'open';
+        args = ['-a', 'Terminal', scriptPath];
+      } else {
+        command = 'x-terminal-emulator';
+        args = ['-e', scriptPath];
+      }
     } else {
       return res.status(400).json({ error: 'Unknown agent' });
     }
@@ -335,6 +358,10 @@ exec bash
       env,
       detached: true,
       stdio: 'ignore'
+    });
+
+    child.on('error', (err) => {
+      console.error('Failed to spawn terminal process:', err);
     });
 
     child.unref();
