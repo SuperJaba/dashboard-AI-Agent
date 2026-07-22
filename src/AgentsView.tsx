@@ -60,9 +60,10 @@ export function AgentsView() {
     try {
       const res = await apiFetch('/api/agents');
       const data = await res.json();
-      setAgents(data);
+      setAgents(Array.isArray(data) ? data : (data?.agents || []));
     } catch (e) {
       console.error('Failed to fetch agents', e);
+      setAgents([]);
     } finally {
       setLoading(false);
     }
@@ -294,9 +295,9 @@ export function AgentsView() {
 
         {/* Agents Grid */}
         <div className="agents-grid">
-          {agents.length === 0 ? (
+          {(!Array.isArray(agents) || agents.length === 0) ? (
             <div className="col-span-full p-12 text-center text-gray-500 bg-slate-850/40 border border-slate-800/80 rounded-2xl">
-              <Bot className="w-14 h-14 text-slate-600 mx-auto mb-4" />
+              <Bot className="w-14 h-14 text-slate-600 mx-auto mb-4" aria-hidden="true" />
               <p className="text-lg font-semibold text-slate-300">Brak zainstalowanych agentów</p>
               <p className="text-sm text-slate-500 mt-1">Użyj "Skanuj system" w prawym górnym rogu lub kliknij "Dodaj Agenta".</p>
             </div>

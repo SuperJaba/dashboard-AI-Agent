@@ -67,8 +67,8 @@ describe('Accessibility (WCAG 2.1 AA) Auditing Suite', () => {
         </AuthWrapper>
       );
 
-      expect(await screen.findByLabelText(/Username/i)).toBeInTheDocument();
-      expect(await screen.findByLabelText(/Password/i)).toBeInTheDocument();
+      expect(await screen.findByLabelText(/Nazwa użytkownika|Username/i)).toBeInTheDocument();
+      expect(await screen.findByLabelText(/Hasło|Password/i)).toBeInTheDocument();
     });
   });
 });
