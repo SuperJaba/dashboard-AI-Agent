@@ -325,8 +325,27 @@ exec bash
         });
       }
 
-      command = 'x-terminal-emulator';
-      args = ['-e', scriptPath];
+      if (process.platform === 'win32') {
+        const gitBash = [
+          'C:\\Program Files\\Git\\git-bash.exe',
+          'C:\\Program Files (x86)\\Git\\git-bash.exe',
+          path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'git-bash.exe')
+        ].find(p => fs.existsSync(p));
+
+        if (gitBash) {
+          command = 'cmd.exe';
+          args = ['/c', 'start', '""', gitBash, scriptPath];
+        } else {
+          command = 'cmd.exe';
+          args = ['/c', 'start', 'cmd', '/k', 'bash', scriptPath];
+        }
+      } else if (process.platform === 'darwin') {
+        command = 'open';
+        args = ['-a', 'Terminal', scriptPath];
+      } else {
+        command = 'x-terminal-emulator';
+        args = ['-e', scriptPath];
+      }
     } else {
       return res.status(400).json({ error: 'Unknown agent' });
     }
@@ -335,6 +354,10 @@ exec bash
       env,
       detached: true,
       stdio: 'ignore'
+    });
+
+    child.on('error', (err) => {
+      console.error('Failed to spawn terminal process:', err);
     });
 
     child.unref();
