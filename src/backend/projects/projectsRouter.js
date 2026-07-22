@@ -261,8 +261,8 @@ projectsRouter.post('/analyze', async (req, res) => {
 });
 
 // Deploy project using agents
-projectsRouter.post('/deploy', (req, res) => {
-  const { agent, directory, llmUrl, apiKey, tasks, useBrowserTerminal, remoteServer, remotePrompt } = req.body;
+projectsRouter.post('/deploy', async (req, res) => {
+  const { agent, directory, tasks, useBrowserTerminal, remoteServer, remotePrompt } = req.body;
   let targetDir = directory || process.cwd();
   
   if (targetDir.startsWith('~/')) {
@@ -270,20 +270,33 @@ projectsRouter.post('/deploy', (req, res) => {
     targetDir = path.join(home, targetDir.slice(2));
   }
 
-  console.log(`Deploying ${agent} in ${targetDir}`);
-
   try {
+    // Load LLM settings from DB as fallbacks/defaults
+    const dbSettings = await settingsRepo.getSettings();
+    const llmUrl = req.body.llmUrl || dbSettings.llmUrl || '';
+    const apiKey = req.body.apiKey || dbSettings.apiKey || '';
+    const llmName = req.body.llmName || dbSettings.llmName || 'Gemini 3.6 Flash';
+    const llmModel = req.body.llmModel || dbSettings.llmModel || '';
+
+    console.log(`Deploying ${agent} in ${targetDir} [Provider: ${llmName}]`);
+
     let command = '';
     let args = [];
     let env = { ...process.env };
 
     if (llmUrl) {
       env.ANTHROPIC_BASE_URL = llmUrl;
+      env.OPENAI_BASE_URL = llmUrl;
     }
     
     if (apiKey) {
       env.ANTHROPIC_API_KEY = apiKey;
       env.OPENAI_API_KEY = apiKey;
+    }
+
+    if (llmModel) {
+      env.ANTHROPIC_MODEL = llmModel;
+      env.LLM_MODEL = llmModel;
     }
 
     if (tasks && tasks.length > 0) {
@@ -315,24 +328,33 @@ projectsRouter.post('/deploy', (req, res) => {
         agentCmd = agent === 'claude' ? 'claude' : 'agy';
       }
       
+      const exportEnvLines = [];
+      if (llmUrl) {
+        exportEnvLines.push(`export ANTHROPIC_BASE_URL="${llmUrl}"`);
+        exportEnvLines.push(`export OPENAI_BASE_URL="${llmUrl}"`);
+      }
+      if (apiKey) {
+        exportEnvLines.push(`export ANTHROPIC_API_KEY="${apiKey}"`);
+        exportEnvLines.push(`export OPENAI_API_KEY="${apiKey}"`);
+      }
+      if (llmModel) {
+        exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+        exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
+      }
+
       const scriptContent = `#!/bin/bash
 cd "${targetDir}"
+${exportEnvLines.join('\n')}
 echo -e "\\033[1;34m🚀 Initializing AI Agent (${agent})...\\033[0m"
 echo -ne "\\033[1;36m📡 Preparing environment: \\033[0m"
-for i in {1..20}; do
+for i in {1..10}; do
     echo -ne "█"
-    sleep 0.1
+    sleep 0.05
 done
 echo -e " \\033[1;32m[DONE]\\033[0m"
 
-echo -ne "\\033[1;33m🔑 Authenticating with Gemini 3.1 Pro... \\033[0m"
-for i in {1..10}; do
-    echo -ne "."
-    sleep 0.15
-done
-echo -e " \\033[1;32m[SUCCESS]\\033[0m"
-
-echo -e "\\033[1;35m⏳ Booting agent engine. Please wait, this might take up to 15 seconds...\\033[0m"
+echo -e "\\033[1;33m🔑 Authenticating Provider (${llmName || 'Custom Provider'}): ${llmModel || 'default model'}... \\033[1;32m[SUCCESS]\\033[0m"
+echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
 exec bash
 `;
