@@ -90,7 +90,8 @@ io.on('connection', (socket) => {
         cols: 80,
         rows: 24,
         cwd: targetCwd,
-        env: { ...process.env, ...env, PATH: extendedPath }
+        env: { ...process.env, ...env, PATH: extendedPath },
+        useConpty: false
       });
 
       ptyProcess.onData((data) => {
@@ -108,7 +109,9 @@ io.on('connection', (socket) => {
 
   socket.on('terminal_input', (data) => {
     if (ptyProcess) {
-      ptyProcess.write(data);
+      try {
+        ptyProcess.write(data);
+      } catch (e) {}
     }
   });
 
@@ -122,7 +125,10 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     if (ptyProcess) {
-      ptyProcess.kill();
+      try {
+        ptyProcess.kill();
+      } catch (e) {}
+      ptyProcess = null;
     }
   });
 });

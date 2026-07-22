@@ -280,6 +280,7 @@ projectsRouter.post('/deploy', async (req, res) => {
       
       let agentCmd = '';
       const scriptPath = path.join(targetDir, '.start_agent.sh');
+      if (remoteServer) {
         const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
         const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
         agentCmd = agent === 'claude' ? `claude "${promptText}"` : `agy -i "${promptText}"`;
