@@ -326,15 +326,13 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
               type="button"
               onClick={() => setShowModal(false)}
               style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              aria-label="Close modal"
             >
               <X size={20} />
             </button>
-
-            <h3 style={{ marginBottom: '1.25rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Cpu size={20} color="var(--primary)" />
+            <h2 id="new-llm-server-modal-title" style={{ marginBottom: '1.5rem', color: 'white' }}>
               {editingServer ? 'Edytuj Serwer LLM' : 'Nowy Serwer LLM'}
-            </h3>
-
+            </h2>
             <form onSubmit={handleSaveServer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Nazwa serwera</label>
@@ -347,7 +345,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
                 />
               </div>
-
               <div>
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Dostawca (Provider)</label>
                 <select
@@ -363,7 +360,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                   <option value="Custom" style={{ background: '#1e1e2e' }}>Inny (Custom API)</option>
                 </select>
               </div>
-
               <div>
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>URL API (Base URL)</label>
                 <input
@@ -375,7 +371,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
                 />
               </div>
-
               <div>
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Model LLM</label>
                 <input
@@ -386,7 +381,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
                 />
               </div>
-
               <div>
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Klucz API (API Key / Token)</label>
                 <input
@@ -397,7 +391,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
                 />
               </div>
-
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 {editingServer && (
                   <button
@@ -405,22 +398,13 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                     onClick={() => { handleDeleteServer(editingServer.id); setShowModal(false); }}
                     style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.6rem 1rem', cursor: 'pointer' }}
                   >
-                    <Trash2 size={16} /> Usunąć
+                    <Trash2 size={16} /> Usuń
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ flex: 1, padding: '0.6rem' }}
-                  onClick={() => setShowModal(false)}
-                >
+                <button type="button" className="btn-secondary" style={{ flex: 1, padding: '0.6rem' }} onClick={() => setShowModal(false)}>
                   Anuluj
                 </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ flex: 1, padding: '0.6rem' }}
-                >
+                <button type="submit" className="btn-primary" style={{ flex: 1, padding: '0.6rem' }}>
                   Zapisz Serwer
                 </button>
               </div>

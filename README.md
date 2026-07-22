@@ -30,3 +30,6 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## LLM Server API Changes
+
+The LLM Server management now expects the API key field to be sent as **`apiKey`** (camelCase) instead of the previous `api_key`. All frontend forms and related code have been updated accordingly.
