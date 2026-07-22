@@ -23,7 +23,9 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
 
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState({ x: window.innerWidth / 2 - 400, y: window.innerHeight / 2 - 300 });
+  const [size, setSize] = useState({ width: 800, height: 600 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const dragStartPos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -138,8 +140,43 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     };
   }, [isDragging]);
 
+  useEffect(() => {
+    if (!isResizing) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      setSize(prev => ({
+        width: Math.max(400, prev.width + (e.clientX - dragStartPos.current.x)),
+        height: Math.max(200, prev.height + (e.clientY - dragStartPos.current.y))
+      }));
+      dragStartPos.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      if (fitAddonInstance.current && termInstance.current && socketRef.current) {
+        fitAddonInstance.current.fit();
+        socketRef.current.emit('terminal_resize', { cols: termInstance.current.cols, rows: termInstance.current.rows });
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
     dragStartPos.current = { x: e.clientX, y: e.clientY };
   };
 
@@ -150,8 +187,8 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
       position: 'fixed',
       left: `${position.x}px`,
       top: `${position.y}px`,
-      width: '800px',
-      height: isMinimized ? '44px' : '600px',
+      width: `${size.width}px`,
+      height: isMinimized ? '44px' : `${size.height}px`,
       background: '#0f172a',
       borderRadius: '8px',
       overflow: 'hidden',
@@ -196,9 +233,31 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
           </button>
         </div>
       </div>
-      <div style={{ flex: 1, padding: '0.5rem', overflow: 'hidden', display: isMinimized ? 'none' : 'block' }}>
+      <div style={{ flex: 1, padding: '0.5rem', overflow: 'hidden', display: isMinimized ? 'none' : 'block', position: 'relative' }}>
         <div ref={terminalRef} style={{ width: '100%', height: '100%' }} />
+        {(isDragging || isResizing) && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 9999, cursor: isResizing ? 'nwse-resize' : 'grabbing' }} />
+        )}
       </div>
+      {!isMinimized && (
+        <div 
+          onMouseDown={handleResizeMouseDown}
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: '16px',
+            height: '16px',
+            cursor: 'nwse-resize',
+            zIndex: 10000
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '100%', height: '100%', color: '#94a3b8' }}>
+            <path d="M21 15l-6 6" />
+            <path d="M21 8l-13 13" />
+          </svg>
+        </div>
+      )}
     </div>
   );
 }

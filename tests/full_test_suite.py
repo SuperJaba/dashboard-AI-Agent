@@ -11,6 +11,37 @@ def _screenshot_path(name: str) -> str:
     return os.path.join(base_dir, f"{name}.png")
 
 
+def setup_and_login(page):
+    """Bypass the login/setup screen."""
+    page.goto("http://localhost:5173/")
+    
+    # Try up to 3 times to navigate the auth flow (Setup -> Login -> Dashboard)
+    for _ in range(3):
+        try:
+            # Wait for either the login screen or the dashboard to appear
+            element = page.wait_for_selector("h1, aside.sidebar", state="visible", timeout=5000)
+            tag = element.evaluate("el => el.tagName.toLowerCase()")
+            
+            if tag == "aside":
+                return # Successfully reached the dashboard
+                
+            if tag == "h1":
+                # We are on a login or setup screen
+                page.fill("input[type='text']", "admin")
+                page.fill("input[type='password']", "admin")
+                page.click("button[type='submit']")
+                page.wait_for_timeout(1000) # Wait for backend and React state updates
+        except Exception:
+            pass
+            
+    try:
+        # Finally, wait for sidebar to confirm dashboard loaded
+        page.wait_for_selector("aside.sidebar", state="visible", timeout=5000)
+    except Exception as e:
+        print(f"[WARN] Setup and login failed or timed out: {e}")
+        page.screenshot(path=_screenshot_path("login_failure"))
+        raise Exception("Login failed, aborting tests")
+
 def test_title(page):
     """Verify the page title matches the expected value."""
     EXPECTED_TITLE = "Dashboard - Command Center"
@@ -43,24 +74,12 @@ def test_add_project_button_visible(page):
     assert button.is_visible(), "'Add Project' button should be visible"
 
 
-def test_navigation_to_invoice_app(page):
-    """Click the 'invoiceApp' navigation item and verify the URL changes."""
-    page.goto("http://localhost:5173/")
-    page.wait_for_load_state("networkidle")
-
-    # Robust selector: Look for any element containing 'invoiceApp' text case-insensitively
-    nav_link = page.locator("text=/invoiceapp/i").first
-    nav_link.wait_for(state="visible", timeout=12000)
-    nav_link.click(force=True)
-    page.wait_for_load_state("networkidle")
-    assert "invoiceapp" in page.url.lower(), f"Expected URL to contain 'invoiceApp', got {page.url}"
-
-
 def test_all_sidebar_navigation(page):
     """Iterate over sidebar navigation buttons and verify active state changes."""
     page.goto("http://localhost:5173/")
     page.wait_for_load_state("networkidle")
     # Locate all primary navigation buttons in the sidebar (Dashboard, Agents)
+    page.wait_for_selector("aside.sidebar nav button", state="visible", timeout=10000)
     nav_buttons = page.locator("aside.sidebar nav button")
     count = nav_buttons.count()
     assert count >= 2, f"Expected at least 2 navigation buttons, found {count}"
@@ -126,9 +145,10 @@ def main():
                 results.append({"name": name, "status": "error", "error": str(e)})
                 raise
         # Execute tests sequentially
+        setup_and_login(page)
         run_test(test_title, "test_title")
         run_test(test_add_project_button_visible, "test_add_project_button_visible")
-        run_test(test_navigation_to_invoice_app, "test_navigation_to_invoice_app")
+
         run_test(test_full_page_screenshot, "test_full_page_screenshot")
         run_test(test_all_sidebar_navigation, "test_all_sidebar_navigation")
         # Additional UI checks

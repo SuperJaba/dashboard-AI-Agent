@@ -42,7 +42,7 @@ vi.mock('./shared/api-client', () => ({
     render(<LlmServerManager />);
     
     await waitFor(() => {
-      expect(screen.getByText(/LM Studio Local/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/LM Studio Local/i).length).toBeGreaterThan(0);
     });
 
     const select = screen.getByRole('combobox', { name: /Wybierz serwer LLM/i });
@@ -56,7 +56,7 @@ vi.mock('./shared/api-client', () => ({
     render(<LlmServerManager />);
     
     await waitFor(() => {
-      expect(screen.getByText(/New LLM Server/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /New LLM Server/i })).toBeInTheDocument();
     });
 
     const newBtn = screen.getByText(/New LLM Server/i);

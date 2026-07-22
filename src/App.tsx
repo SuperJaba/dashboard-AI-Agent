@@ -11,6 +11,7 @@ import { LlmServerManager } from './LlmServerManager';
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
 import CustomWidgets from './CustomWidgets';
+
 import { AgentsView } from './AgentsView';
 
 import { useDashboardState } from './hooks/useDashboardState';
@@ -263,7 +264,11 @@ function App() {
             
             <ServerStats serverId={activeServer.id} />
             
-            <CustomWidgets token={token!} />
+            <CustomWidgets 
+              token={token!} 
+              server={activeServer}
+              onLaunchTerminal={setTerminalConfig} 
+            />
             
             <div className="grid-top" style={{ marginBottom: '2rem' }}>
               <div className="glass-card animate-in delay-2" style={{ gridColumn: '1 / -1' }}>
