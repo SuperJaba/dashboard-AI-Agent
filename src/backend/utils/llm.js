@@ -4,7 +4,7 @@
  * Falls back to a safe default if models cannot be retrieved.
  */
 export async function getBestAvailableModel(llmUrl, apiKey) {
-  if (!llmUrl) return 'gpt-4o';
+  if (!llmUrl) {return 'gpt-4o';}
 
   try {
     // 1. Check for standard OpenAI-compatible /v1/models endpoint

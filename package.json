@@ -9,7 +9,7 @@
     "dev": "concurrently \"vite\" \"node server.js\"",
     "db:migrate": "node scripts/migrate.js",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "eslint . --ignore-pattern dist/**",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

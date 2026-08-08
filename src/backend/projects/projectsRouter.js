@@ -61,7 +61,7 @@ projectsRouter.delete('/projects/:id', async (req, res) => {
 // Pick Folder API
 projectsRouter.get('/pick-folder', (req, res) => {
   if (process.platform === 'win32') {
-    const psCmd = `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Wybierz folder projektu'; if ($d.ShowDialog() -eq 'OK') { Write-Output $d.SelectedPath }"`;
+    const psCmd = 'powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = \'Wybierz folder projektu\'; if ($d.ShowDialog() -eq \'OK\') { Write-Output $d.SelectedPath }"';
     exec(psCmd, (error, stdout) => {
       if (error || !stdout.trim()) {
         return res.status(204).send();
@@ -71,7 +71,7 @@ projectsRouter.get('/pick-folder', (req, res) => {
   } else {
     exec('zenity --file-selection --directory --title="Wybierz folder projektu"', (error, stdout) => {
       if (error) {
-        if (error.code === 1) return res.status(204).send();
+        if (error.code === 1) {return res.status(204).send();}
         return res.status(500).json({ error: error.message });
       }
       res.json({ path: stdout.trim() });
@@ -81,8 +81,8 @@ projectsRouter.get('/pick-folder', (req, res) => {
 
 // Init Git
 projectsRouter.post('/init-git', (req, res) => {
-  let { directory } = req.body;
-  if (!directory) return res.status(400).json({ error: 'Missing directory' });
+  const { directory } = req.body;
+  if (!directory) {return res.status(400).json({ error: 'Missing directory' });}
   
   try {
     const result = gitService.initGit(directory);
@@ -95,7 +95,7 @@ projectsRouter.post('/init-git', (req, res) => {
 // Analyze project directory
 projectsRouter.post('/analyze', async (req, res) => {
   let { directory } = req.body;
-  if (!directory) return res.status(400).json({ error: 'Missing directory' });
+  if (!directory) {return res.status(400).json({ error: 'Missing directory' });}
   
   if (directory.startsWith('~/')) {
     const home = process.env.HOME || process.env.USERPROFILE;
@@ -107,17 +107,17 @@ projectsRouter.post('/analyze', async (req, res) => {
   }
 
   let techStack = 'Unknown';
-  let tasks = [];
+  const tasks = [];
   
   try {
     const files = fs.readdirSync(directory);
     
     if (files.includes('package.json')) {
       const pkg = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
-      if (pkg.dependencies?.next) techStack = 'Next.js (Node.js)';
-      else if (pkg.dependencies?.react || pkg.devDependencies?.vite) techStack = 'React / Vite';
-      else if (pkg.dependencies?.express) techStack = 'Node.js Express';
-      else techStack = 'Node.js / JS';
+      if (pkg.dependencies?.next) {techStack = 'Next.js (Node.js)';}
+      else if (pkg.dependencies?.react || pkg.devDependencies?.vite) {techStack = 'React / Vite';}
+      else if (pkg.dependencies?.express) {techStack = 'Node.js Express';}
+      else {techStack = 'Node.js / JS';}
     } else if (files.includes('pom.xml')) {
       techStack = 'Java Maven';
     } else if (files.includes('build.gradle')) {
@@ -164,14 +164,14 @@ projectsRouter.post('/analyze', async (req, res) => {
       lines.forEach(line => {
         const match = line.match(/^([^:]+):(\d+):(.*)$/);
         if (match) {
-           const file = path.basename(match[1]);
-           let text = match[3].replace(/TOD[O]:/g, '').replace(/FIXM[E]:/g, '').trim();
-           if (text.startsWith('//')) text = text.substring(2).trim();
-           if (text.startsWith('*')) text = text.substring(1).trim();
-           if (text.length > 60) text = text.substring(0, 57) + '...';
-           if (text && !tasks.find(t => t.title === text)) {
-             tasks.push({ id: idCounter++, title: text, meta: `Code: ${file}`, status: 'pending' });
-           }
+          const file = path.basename(match[1]);
+          let text = match[3].replace(/TOD[O]:/g, '').replace(/FIXM[E]:/g, '').trim();
+          if (text.startsWith('//')) {text = text.substring(2).trim();}
+          if (text.startsWith('*')) {text = text.substring(1).trim();}
+          if (text.length > 60) {text = text.substring(0, 57) + '...';}
+          if (text && !tasks.find(t => t.title === text)) {
+            tasks.push({ id: idCounter++, title: text, meta: `Code: ${file}`, status: 'pending' });
+          }
         }
       });
     } catch(e) {}
@@ -216,7 +216,7 @@ projectsRouter.post('/analyze', async (req, res) => {
 
           if (res.ok) {
             const llmData = await res.json();
-            const content = llmData.choices[0].message.content;
+            const content = llmData?.choices?.[0]?.message?.content || '';
             const jsonMatch = content.match(/\[.*\]/s);
             if (jsonMatch) {
               const aiTasks = JSON.parse(jsonMatch[0]);
@@ -235,7 +235,7 @@ projectsRouter.post('/analyze', async (req, res) => {
         }
       }
     } catch (e) {
-      console.error("LLM error in analyze:", e);
+      console.error('LLM error in analyze:', e);
     }
 
     if (tasks.length === 0) {
@@ -278,14 +278,14 @@ projectsRouter.post('/deploy', async (req, res) => {
 
     let command = '';
     let args = [];
-    let env = { ...process.env };
+    const env = { ...process.env };
 
     if (llmUrl) {
       env.ANTHROPIC_BASE_URL = llmUrl;
       env.OPENAI_BASE_URL = llmUrl;
     }
     
-    const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || (llmUrl ? 'lm-studio' : '');
+    const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || (llmUrl ? 'http://localhost:1234/' : '');
 
     if (effectiveApiKey) {
       env.ANTHROPIC_API_KEY = effectiveApiKey;
@@ -299,42 +299,56 @@ projectsRouter.post('/deploy', async (req, res) => {
       env.OPENAI_MODEL = llmModel;
     }
 
-    if (agent === 'claude' || agent === 'agy') {
-      if (agent === 'claude' && !env.ANTHROPIC_BASE_URL) {
-        env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
-      }
-      
-      let agentCmd = '';
-      const scriptPath = path.join(targetDir, '.start_agent.sh');
-      if (remoteServer) {
-        const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
-        const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
-        agentCmd = agent === 'claude' ? `claude "${promptText}"` : `agy -i "${promptText}"`;
-      } else if (tasks && tasks.length > 0) {
-        const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
-        const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
-        const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-        agentCmd = agent === 'claude' ? `claude "${escapedPrompt}"` : `agy -i "${escapedPrompt}"`;
-      } else {
-        agentCmd = agent === 'claude' ? 'claude' : 'agy';
-      }
+    // Dynamic agent execution
+    let agentCmd = '';
+    
+    // Map full names from frontend to CLI commands
+    let agentBaseCmd = agent;
+    if (agent === 'codex') {
+      agentBaseCmd = 'codex --oss -m gemma-4-26b-a4b-it';
+    } else if (agent === 'antigravity') {
+      agentBaseCmd = 'agy';
+    } else if (agent === 'claude code') {
+      agentBaseCmd = 'claude';
+    }
+    
+    const scriptPath = path.join(targetDir, '.start_agent.sh');
+    
+    if (remoteServer) {
+      const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
+      const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt 
+      || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
+      agentCmd = agentBaseCmd === 'agy' ? `agy -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
+    } else if (tasks && tasks.length > 0) {
+      const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
+      const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
+      const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
+      agentCmd = agentBaseCmd === 'agy' ? `agy -i "${escapedPrompt}"` : `${agentBaseCmd} "${escapedPrompt}"`;
+    } else {
+      agentCmd = agentBaseCmd;
+    }
       
       const exportEnvLines = [
         'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL OPENAI_MODEL ANTHROPIC_AUTH_TOKEN'
       ];
-      if (llmUrl) {
-        exportEnvLines.push(`export ANTHROPIC_BASE_URL="${llmUrl}"`);
-        exportEnvLines.push(`export OPENAI_BASE_URL="${llmUrl}"`);
-      }
-      if (effectiveApiKey) {
-        exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
-        exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
-        exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
-      }
-      if (llmModel) {
-        exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
-        exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
-        exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+      
+      // Do not export global LLM env vars for codex to avoid overriding its CLI flags
+      if (agent !== 'codex') {
+        if (llmUrl) {
+          const safeUrl = llmUrl.replace('127.0.0.1', 'localhost');
+          exportEnvLines.push(`export ANTHROPIC_BASE_URL="http://${safeUrl}"`);
+          exportEnvLines.push(`export OPENAI_BASE_URL="http://${safeUrl}"`);
+        }
+        if (effectiveApiKey) {
+          exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
+          exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
+          exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
+        }
+        if (llmModel) {
+          exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+          exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
+          exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+        }
       }
 
       const scriptContent = `#!/bin/bash
@@ -353,6 +367,9 @@ echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
 exec bash
 `;
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
       fs.writeFileSync(scriptPath, scriptContent);
       fs.chmodSync(scriptPath, '755');
       
@@ -388,9 +405,6 @@ exec bash
         command = 'x-terminal-emulator';
         args = ['-e', scriptPath];
       }
-    } else {
-      return res.status(400).json({ error: 'Unknown agent' });
-    }
 
     const child = spawn(command, args, {
       env,

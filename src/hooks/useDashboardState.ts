@@ -4,11 +4,19 @@ import { ProjectSchema, ServerSchema, SettingsSchema } from '../shared/api-clien
 import type { ProjectData, ServerData } from '../shared/api-client/schemas';
 import { z } from 'zod';
 
+/**
+ * Main state management hook for the Dashboard application.
+ * Handles the state and data fetching for projects, servers, AI agents,
+ * LLM settings, and terminal configurations.
+ * 
+ * @returns An object containing all the dashboard state variables and modifier functions.
+ */
 export function useDashboardState() {
   const [activeView, setActiveView] = useState<'dashboard' | 'agents'>('dashboard');
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
   const [servers, setServers] = useState<ServerData[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const [showAddServer, setShowAddServer] = useState(false);
   const [newServer, setNewServer] = useState({ name: '', host: '', username: '', port: 22, use_devil: false, ssh_password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -42,6 +50,12 @@ export function useDashboardState() {
       .then(rawData => {
         const data = z.array(ServerSchema).parse(rawData);
         if (data.length) setServers(data);
+      })
+      .catch(console.error);
+
+    apiClient.get<any[]>('/api/agents')
+      .then(data => {
+        if (Array.isArray(data)) setAgents(data);
       })
       .catch(console.error);
 
@@ -303,6 +317,7 @@ export function useDashboardState() {
     projects, setProjects,
     activeProjectId, setActiveProjectId,
     servers, setServers,
+    agents, setAgents,
     showAddServer, setShowAddServer,
     newServer, setNewServer,
     showPassword, setShowPassword,

@@ -77,13 +77,13 @@ io.on('connection', (socket) => {
       const userHome = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\picho';
       const extendedPath = process.platform === 'win32'
         ? [
-            path.join(userHome, 'AppData\\Local\\agy\\bin'),
-            path.join(userHome, 'AppData\\Local\\JetBrains\\Air\\node-24.13.0\\node-v24.13.0-win-x64'),
-            path.join(userHome, 'AppData\\Local\\nvm\\v20.20.0'),
-            'C:\\Program Files\\Git\\bin',
-            'C:\\Program Files\\Git\\usr\\bin',
-            process.env.PATH || ''
-          ].join(';')
+          path.join(userHome, 'AppData\\Local\\agy\\bin'),
+          path.join(userHome, 'AppData\\Local\\JetBrains\\Air\\node-24.13.0\\node-v24.13.0-win-x64'),
+          path.join(userHome, 'AppData\\Local\\nvm\\v20.20.0'),
+          'C:\\Program Files\\Git\\bin',
+          'C:\\Program Files\\Git\\usr\\bin',
+          process.env.PATH || ''
+        ].join(';')
         : process.env.PATH;
 
       ptyProcess = pty.spawn(shellCmd, args || [], {

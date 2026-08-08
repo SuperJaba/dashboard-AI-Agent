@@ -27,7 +27,7 @@ agentsRouter.post('/scan', async (req, res) => {
       { name: 'Aider', cmd: 'aider', desc: 'Aider AI pair programming' }
     ];
     
-    let found = [];
+    const found = [];
     for (const agent of agentsToScan) {
       try {
         const stdout = execSync(`which ${agent.cmd}`, { encoding: 'utf8' }).trim();
@@ -35,10 +35,10 @@ agentsRouter.post('/scan', async (req, res) => {
           // Auto-discover config files
           let configUri = '';
           const home = process.env.HOME || process.env.USERPROFILE;
-          if (agent.cmd === 'claude') configUri = `${home}/.claude.json`;
-          else if (agent.cmd === 'codex') configUri = `${home}/.codex/config.json`;
-          else if (agent.cmd === 'agy') configUri = `${home}/.gemini/config.json`;
-          else if (agent.cmd === 'aider') configUri = `${home}/.aider.conf.yml`;
+          if (agent.cmd === 'claude') {configUri = `${home}/.claude.json`;}
+          else if (agent.cmd === 'codex') {configUri = `${home}/.codex/config.json`;}
+          else if (agent.cmd === 'agy') {configUri = `${home}/.gemini/config.json`;}
+          else if (agent.cmd === 'aider') {configUri = `${home}/.aider.conf.yml`;}
 
           // Verify if config exists
           if (configUri && !fs.existsSync(configUri)) {
@@ -120,7 +120,7 @@ agentsRouter.post('/:id/tune', async (req, res) => {
     // Try to get LLM config from settings
     const { llmUrl, apiKey } = await settingsRepo.getLlmCredentials();
 
-    let tuned = {
+    const tuned = {
       temperature: 0.7,
       max_tokens: 4096,
       llm_model: agent.llm_model || 'gpt-4o'
@@ -145,13 +145,13 @@ agentsRouter.post('/:id/tune', async (req, res) => {
         });
         if (response.ok) {
           const data = await response.json();
-          const content = data.choices[0].message.content;
+          const content = data?.choices?.[0]?.message?.content || '';
           const match = content.match(/\{.*\}/s);
           if (match) {
             const parsed = JSON.parse(match[0]);
-            if (parsed.temperature !== undefined) tuned.temperature = parseFloat(parsed.temperature);
-            if (parsed.max_tokens !== undefined) tuned.max_tokens = parseInt(parsed.max_tokens);
-            if (parsed.llm_model !== undefined) tuned.llm_model = parsed.llm_model;
+            if (parsed.temperature !== undefined) {tuned.temperature = parseFloat(parsed.temperature);}
+            if (parsed.max_tokens !== undefined) {tuned.max_tokens = parseInt(parsed.max_tokens);}
+            if (parsed.llm_model !== undefined) {tuned.llm_model = parsed.llm_model;}
           }
         }
       } catch (e) {

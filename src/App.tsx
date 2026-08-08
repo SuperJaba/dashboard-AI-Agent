@@ -1,3 +1,4 @@
+import { startTransition } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
@@ -53,7 +54,8 @@ function App() {
     handleAddServer,
     deleteServer,
     handleAddProject,
-    setupSshKey
+    setupSshKey,
+    agents
   } = useDashboardState();
   const token = localStorage.getItem('token') || '';
   return (
@@ -65,7 +67,7 @@ function App() {
           <button 
             type="button"
             className={`project-item ${activeView === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveView('dashboard')}
+            onClick={() => startTransition(() => setActiveView('dashboard'))}
             aria-current={activeView === 'dashboard' ? 'page' : undefined}
           >
             <LayoutDashboard size={18} aria-hidden="true" />
@@ -74,7 +76,7 @@ function App() {
           <button 
             type="button"
             className={`project-item ${activeView === 'agents' ? 'active' : ''}`}
-            onClick={() => setActiveView('agents')}
+            onClick={() => startTransition(() => setActiveView('agents'))}
             aria-current={activeView === 'agents' ? 'page' : undefined}
           >
             <Bot size={18} aria-hidden="true" />
@@ -270,8 +272,8 @@ function App() {
               onLaunchTerminal={setTerminalConfig} 
             />
             
-            <div className="grid-top" style={{ marginBottom: '2rem' }}>
-              <div className="glass-card animate-in delay-2" style={{ gridColumn: '1 / -1' }}>
+            <div style={{ marginBottom: '2rem' }}>
+              <div className="glass-card animate-in delay-2" style={{ maxWidth: '100%' }}>
                 <span className="info-label" style={{ marginBottom: '1rem', display: 'block' }}>Agent Operations</span>
                 
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
@@ -320,27 +322,26 @@ function App() {
                     borderRadius: '6px', padding: '0.75rem', color: 'var(--text-main)', marginBottom: '1rem', resize: 'vertical'
                   }}
                 />
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => deployRemoteAgent('claude', activeServer)}
-                    disabled={deploying !== null || !remotePrompt.trim()}
-                    style={{ opacity: (deploying === 'claude' || !remotePrompt.trim()) ? 0.7 : 1 }}
-                  >
-                    <Rocket size={18} aria-hidden="true" />
-                    {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
-                  </button>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => deployRemoteAgent('agy', activeServer)}
-                    disabled={deploying !== null || !remotePrompt.trim()}
-                    style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: (deploying === 'agy' || !remotePrompt.trim()) ? 0.7 : 1 }}
-                  >
-                    <Rocket size={18} aria-hidden="true" />
-                    {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
-                  </button>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  {agents.length === 0 && (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Brak wykrytych agentów. Zainstaluj agenta w zakładce Agenci AI.</span>
+                  )}
+                  {agents.filter(a => a.installed).map(agent => (
+                    <button 
+                      key={agent.id}
+                      type="button"
+                      className="btn btn-primary" 
+                      onClick={() => deployRemoteAgent(agent.name.toLowerCase(), activeServer)}
+                      disabled={deploying !== null || !remotePrompt.trim()}
+                      style={{ 
+                        opacity: (deploying === agent.name.toLowerCase() || !remotePrompt.trim()) ? 0.7 : 1,
+                        background: agent.name.toLowerCase() === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
+                      }}
+                    >
+                      <Rocket size={18} aria-hidden="true" />
+                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -361,27 +362,26 @@ function App() {
                 <p style={{ color: 'var(--text-muted)' }}>{activeProject.desc}</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => deployAgent('claude')}
-                    disabled={deploying !== null}
-                    style={{ opacity: deploying === 'claude' ? 0.7 : 1 }}
-                  >
-                    <Rocket size={20} aria-hidden="true" />
-                    {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
-                  </button>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => deployAgent('agy')}
-                    disabled={deploying !== null}
-                    style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: deploying === 'agy' ? 0.7 : 1 }}
-                  >
-                    <Rocket size={20} aria-hidden="true" />
-                    {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
-                  </button>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {agents.length === 0 && (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Brak wykrytych agentów.</span>
+                  )}
+                  {agents.filter(a => a.installed).map(agent => (
+                    <button 
+                      key={agent.id}
+                      type="button"
+                      className="btn btn-primary" 
+                      onClick={() => deployAgent(agent.name.toLowerCase())}
+                      disabled={deploying !== null}
+                      style={{ 
+                        opacity: deploying === agent.name.toLowerCase() ? 0.7 : 1,
+                        background: agent.name.toLowerCase() === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
+                      }}
+                    >
+                      <Rocket size={20} aria-hidden="true" />
+                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
+                    </button>
+                  ))}
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
                     <input 
                       type="checkbox" 
@@ -458,13 +458,20 @@ function App() {
 
               <RepoStatus directory={activeProject.path} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
-              <section className="glass-card animate-in delay-3">
-                <button 
-                  type="button"
+              <section className="glass-card animate-in delay-3" style={{ maxWidth: '100%' }}>
+                <div 
                   className="sidebar-title-btn tasks-header" 
                   onClick={() => setShowTasks(!showTasks)}
                   aria-expanded={showTasks}
                   aria-controls="tasks-list"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setShowTasks(!showTasks);
+                    }
+                  }}
                 >
                   <h2 className="section-title">
                     <Clock size={24} color="var(--primary)" aria-hidden="true" />
@@ -490,7 +497,7 @@ function App() {
                     )}
                     {showTasks ? <ChevronUp size={24} color="var(--text-muted)" aria-hidden="true" /> : <ChevronDown size={24} color="var(--text-muted)" aria-hidden="true" />}
                   </div>
-                </button>
+                </div>
                 
                 {showTasks && (
                   <div id="tasks-list" className="task-list animate-in">

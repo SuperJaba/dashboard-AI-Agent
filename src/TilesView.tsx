@@ -46,8 +46,9 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
           color: #000 !important;
           border-color: #000 !important;
         }
-        .industrial-input:focus {
-          outline: none;
+        .industrial-input:focus-visible {
+          outline: 2px solid #00FF41;
+          outline-offset: -2px;
           border-color: #00FF41 !important;
           background: #0a0a0a !important;
         }
@@ -84,7 +85,7 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
       ) : (
         <div className="industrial-grid">
           {displayed.map(p => (
-            <div key={p.id} className="industrial-tile" onClick={() => onProjectClick(p.id)}>
+            <button type="button" key={p.id} className="industrial-tile" onClick={() => onProjectClick(p.id)} style={{ textAlign: 'left', width: '100%', font: 'inherit', margin: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, textTransform: 'uppercase', wordBreak: 'break-all', fontFamily: '"JetBrains Mono", monospace' }}>
                   {p.name}
@@ -110,7 +111,7 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
                 <div>TECH: {p.tech || 'UNKNOWN'}</div>
                 <div>COMPLETION: {p.complete}%</div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
