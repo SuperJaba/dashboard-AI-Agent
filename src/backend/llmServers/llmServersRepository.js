@@ -105,7 +105,7 @@ export async function selectLlmServer(id) {
 }
 
 export async function importLlmServers(servers) {
-  if (!Array.isArray(servers)) return [];
+  if (!Array.isArray(servers)) {return [];}
   const imported = [];
   for (const s of servers) {
     if (s.name && s.url) {

@@ -22,7 +22,7 @@ const AUDIT_SCRIPT = fs.readFileSync('/home/seba/.gemini/antigravity-cli/skills/
 
   // Also check narrow
   await page.setViewport({ width: 390, height: 844 });
-  const narrowResult = await page.evaluate(`__audit({})`);
+  const narrowResult = await page.evaluate('__audit({})');
   console.log('--- AUDIT RESULTS (390px) ---');
   console.log(JSON.stringify(narrowResult, null, 2));
 

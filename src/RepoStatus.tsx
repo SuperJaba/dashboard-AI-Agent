@@ -34,7 +34,9 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
         setGithubData(ghData);
       }
     } catch (err: any) {
-      console.error(err);
+      if (err.message !== 'Not a git repository') {
+        console.error(err);
+      }
       setError(err.message || 'Failed to fetch repo data');
     }
     setLoading(false);
@@ -62,7 +64,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
   }
 
   return (
-    <div className="glass-card animate-in delay-3" style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div className="glass-card animate-in delay-3" style={{ maxWidth: '100%', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 className="section-title" style={{ margin: 0 }}>
           <GitPullRequest size={24} color="var(--primary)" />

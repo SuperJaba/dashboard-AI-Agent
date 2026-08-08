@@ -54,7 +54,7 @@ serversRouter.delete('/servers/:id', async (req, res) => {
 serversRouter.post('/servers/:id/setup-ssh', async (req, res) => {
   try {
     const s = await serversRepo.getServerById(req.params.id);
-    if (!s) return res.status(404).json({ error: 'Server not found' });
+    if (!s) {return res.status(404).json({ error: 'Server not found' });}
 
     const home = os.homedir();
     const sshDir = path.join(home, '.ssh');
@@ -71,7 +71,7 @@ serversRouter.post('/servers/:id/setup-ssh', async (req, res) => {
           return resolve();
         }
         exec(`ssh-keygen -t ed25519 -f "${keyPath}" -N ""`, (error) => {
-          if (error) return reject(error);
+          if (error) {return reject(error);}
           resolve();
         });
       });
@@ -100,7 +100,7 @@ serversRouter.get('/system-stats', async (req, res) => {
     if (serverId) {
       const s = await serversRepo.getServerById(serverId, true);
       if (s) {
-        const nodeScript = `const os = require('os'); const totalMem = os.totalmem(); const freeMem = os.freemem(); console.log(JSON.stringify({ cpu: { cores: os.cpus().length, model: os.cpus()[0]?.model, load1: os.loadavg()[0], load5: os.loadavg()[1], load15: os.loadavg()[2] }, memory: { total: totalMem, free: freeMem, used: totalMem - freeMem, usagePercent: ((totalMem - freeMem) / totalMem) * 100 }, os: { platform: os.platform(), release: os.release(), uptime: os.uptime() } }));`;
+        const nodeScript = 'const os = require(\'os\'); const totalMem = os.totalmem(); const freeMem = os.freemem(); console.log(JSON.stringify({ cpu: { cores: os.cpus().length, model: os.cpus()[0]?.model, load1: os.loadavg()[0], load5: os.loadavg()[1], load15: os.loadavg()[2] }, memory: { total: totalMem, free: freeMem, used: totalMem - freeMem, usagePercent: ((totalMem - freeMem) / totalMem) * 100 }, os: { platform: os.platform(), release: os.release(), uptime: os.uptime() } }));';
         const cmd = sshCmd(s, `"node -e \\"${nodeScript}\\""`);
         
         exec(cmd, (error, stdout) => {
@@ -165,19 +165,19 @@ serversRouter.get('/apps-scan', async (req, res) => {
           exec(`${sshBase} "devil www list 2>/dev/null"`, (err, out) => {
             const apps = (!err && out)
               ? out.trim().split('\n')
-                  .filter(line => /nodejs|python|ruby/.test(line))
-                  .map(line => {
-                    const parts = line.trim().split(/\s+/);
-                    return {
-                      user: s.username,
-                      pid: '-', cpu: '-', mem: '-',
-                      command: `${parts[1] || 'nodejs'}: ${parts[0] || ''}`,
-                      domain: parts[0] || '',
-                      type:   parts[1] || 'nodejs',
-                      dir:    parts.slice(2).join(' ') || '',
-                      source: 'devil'
-                    };
-                  })
+                .filter(line => /nodejs|python|ruby/.test(line))
+                .map(line => {
+                  const parts = line.trim().split(/\s+/);
+                  return {
+                    user: s.username,
+                    pid: '-', cpu: '-', mem: '-',
+                    command: `${parts[1] || 'nodejs'}: ${parts[0] || ''}`,
+                    domain: parts[0] || '',
+                    type:   parts[1] || 'nodejs',
+                    dir:    parts.slice(2).join(' ') || '',
+                    source: 'devil'
+                  };
+                })
               : [];
             res.json({ apps });
           });
@@ -185,13 +185,13 @@ serversRouter.get('/apps-scan', async (req, res) => {
           exec(`${sshBase} "ps aux | grep node | grep -v grep"`, (err, out) => {
             const apps = (!err && out)
               ? out.trim().split('\n').filter(Boolean).map(line => {
-                  const parts = line.split(/\s+/);
-                  return {
-                    user: parts[0], pid: parts[1], cpu: parts[2], mem: parts[3],
-                    command: parts.slice(10).join(' '),
-                    source: 'ps'
-                  };
-                })
+                const parts = line.split(/\s+/);
+                return {
+                  user: parts[0], pid: parts[1], cpu: parts[2], mem: parts[3],
+                  command: parts.slice(10).join(' '),
+                  source: 'ps'
+                };
+              })
               : [];
             res.json({ apps });
           });
@@ -226,23 +226,23 @@ serversRouter.get('/apps-scan', async (req, res) => {
 serversRouter.post('/kill-app', async (req, res) => {
   try {
     const { serverId, pid, domain, source } = req.body;
-    if (!serverId) return res.status(400).json({ error: 'Missing serverId' });
+    if (!serverId) {return res.status(400).json({ error: 'Missing serverId' });}
     
     const s = await serversRepo.getServerById(serverId, true);
-    if (!s) return res.status(404).json({ error: 'Server not found' });
+    if (!s) {return res.status(404).json({ error: 'Server not found' });}
     const sshBase = sshCmd(s);
     
     let killCmd = '';
     if (s.use_devil && source === 'devil') {
-       if (!domain) return res.status(400).json({ error: 'Missing domain' });
-       killCmd = `${sshBase} "devil www restart ${domain}"`;
+      if (!domain) {return res.status(400).json({ error: 'Missing domain' });}
+      killCmd = `${sshBase} "devil www restart ${domain}"`;
     } else {
-       if (!pid || pid === '-') return res.status(400).json({ error: 'Missing PID' });
-       killCmd = `${sshBase} "kill -9 ${pid}"`;
+      if (!pid || pid === '-') {return res.status(400).json({ error: 'Missing PID' });}
+      killCmd = `${sshBase} "kill -9 ${pid}"`;
     }
 
     exec(killCmd, (err, out) => {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {return res.status(500).json({ error: err.message });}
       res.json({ success: true, message: 'App killed/restarted' });
     });
   } catch (err) {

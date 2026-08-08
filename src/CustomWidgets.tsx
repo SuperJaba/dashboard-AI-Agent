@@ -270,7 +270,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
           justifyContent: 'space-between', 
           padding: '1.25rem 2rem',
           borderStyle: 'dashed',
-          borderColor: 'rgba(255,255,255,0.1)'
+          borderColor: 'rgba(255,255,255,0.1)',
+          maxWidth: '100%'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <Terminal size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />

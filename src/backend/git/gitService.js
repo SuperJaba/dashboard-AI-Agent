@@ -43,7 +43,7 @@ export function getGithubPRsAndRuns(directory) {
   
   let prs = [];
   try {
-    const prsOut = execSync(`gh pr list --json title,number,url,state --limit 5`, { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const prsOut = execSync('gh pr list --json title,number,url,state --limit 5', { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
     prs = JSON.parse(prsOut || '[]');
   } catch (e) {
     // gh CLI might not be authenticated
@@ -51,7 +51,7 @@ export function getGithubPRsAndRuns(directory) {
   
   let latestRun = null;
   try {
-    const runsOut = execSync(`gh run list --limit 1 --json status,conclusion`, { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const runsOut = execSync('gh run list --limit 1 --json status,conclusion', { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
     const runs = JSON.parse(runsOut || '[]');
     latestRun = runs.length > 0 ? runs[0] : null;
   } catch (e) {
@@ -68,7 +68,7 @@ export function cancelCIJobs(directory) {
   
   let runIds = [];
   try {
-    const runsOut = execSync(`gh run list --status in_progress --json databaseId -q ".[].databaseId"`, { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const runsOut = execSync('gh run list --status in_progress --json databaseId -q ".[].databaseId"', { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
     runIds = runsOut.trim().split('\n').filter(Boolean);
   } catch (e) {
     // gh CLI might not be authenticated or fail
@@ -109,16 +109,16 @@ export function autoDeploy(directory) {
   }
   execSync(`git -C "${directory}" push`);
 
-  let deployLog = "Pushed successfully.\n";
+  let deployLog = 'Pushed successfully.\n';
 
   // 3. Execute deploy script if exists
   const deployScriptPath = path.join(directory, 'scripts', 'deploy-ct8-optimized.sh');
   if (fs.existsSync(deployScriptPath)) {
-    deployLog += "Executing custom deploy script...\n";
+    deployLog += 'Executing custom deploy script...\n';
     const scriptOutput = execSync(`bash "${deployScriptPath}"`, { cwd: directory }).toString();
     deployLog += scriptOutput;
   } else {
-    deployLog += "No custom deploy script found. Skipped remote execution.\n";
+    deployLog += 'No custom deploy script found. Skipped remote execution.\n';
   }
 
   return { success: true, deployLog };

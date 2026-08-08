@@ -70,7 +70,7 @@ widgetsRouter.get('/:id/run', async (req, res) => {
           const result = await sshCmd(server, widget.command);
           return res.json({ result: result.trim() });
         } catch (sshErr) {
-          console.error(`SSH widget error:`, sshErr);
+          console.error('SSH widget error:', sshErr);
           return res.json({ result: 'Error' });
         }
       }
@@ -78,7 +78,7 @@ widgetsRouter.get('/:id/run', async (req, res) => {
 
     exec(widget.command, (error, stdout, stderr) => {
       if (error) {
-        console.error(`Widget execution error:`, error);
+        console.error('Widget execution error:', error);
         return res.json({ result: stdout ? stdout.trim() : 'Error' });
       }
       res.json({ result: stdout.trim() });

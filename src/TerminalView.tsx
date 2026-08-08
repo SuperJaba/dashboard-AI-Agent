@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -27,6 +28,8 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const initialPos = useRef({ x: 0, y: 0 });
+  const initialSize = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
     if (!config || !terminalRef.current) return;
@@ -120,11 +123,10 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     if (!isDragging) return;
     
     const handleMouseMove = (e: MouseEvent) => {
-      setPosition(prev => ({
-        x: prev.x + (e.clientX - dragStartPos.current.x),
-        y: prev.y + (e.clientY - dragStartPos.current.y)
-      }));
-      dragStartPos.current = { x: e.clientX, y: e.clientY };
+      setPosition({
+        x: initialPos.current.x + (e.clientX - dragStartPos.current.x),
+        y: initialPos.current.y + (e.clientY - dragStartPos.current.y)
+      });
     };
 
     const handleMouseUp = () => {
@@ -144,11 +146,10 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     if (!isResizing) return;
     
     const handleMouseMove = (e: MouseEvent) => {
-      setSize(prev => ({
-        width: Math.max(400, prev.width + (e.clientX - dragStartPos.current.x)),
-        height: Math.max(200, prev.height + (e.clientY - dragStartPos.current.y))
-      }));
-      dragStartPos.current = { x: e.clientX, y: e.clientY };
+      setSize({
+        width: Math.max(400, initialSize.current.width + (e.clientX - dragStartPos.current.x)),
+        height: Math.max(200, initialSize.current.height + (e.clientY - dragStartPos.current.y))
+      });
     };
 
     const handleMouseUp = () => {
@@ -171,6 +172,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     dragStartPos.current = { x: e.clientX, y: e.clientY };
+    initialPos.current = { ...position };
   };
 
   const handleResizeMouseDown = (e: React.MouseEvent) => {
@@ -178,11 +180,12 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     e.stopPropagation();
     setIsResizing(true);
     dragStartPos.current = { x: e.clientX, y: e.clientY };
+    initialSize.current = { ...size };
   };
 
   if (!config) return null;
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       left: `${position.x}px`,
@@ -258,6 +261,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
           </svg>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

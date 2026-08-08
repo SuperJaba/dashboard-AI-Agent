@@ -197,6 +197,10 @@ button.project-item {
 /* Glassmorphism cards */
 .glass-card {
   background: var(--bg-surface);
+  /* Ensure card stays above modal backdrop during animation */
+  position: relative;
+  margin: 0 auto; /* center horizontally */
+  max-width: 480px; /* constrain width for better centering */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
@@ -377,6 +381,8 @@ button.project-item {
 .animate-in {
   animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   opacity: 0;
+  /* Ensure cards appear above other content during entry */
+  z-index: 10;
 }
 
 @keyframes modalIn {
@@ -685,8 +691,9 @@ button.project-item {
   transition: all 0.2s ease;
 }
 
-.form-input:focus {
-  outline: none;
+.form-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
   border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.25);
 }
@@ -695,6 +702,3 @@ button.project-item {
   font-family: monospace;
   font-size: 0.75rem;
 }
-
-
-

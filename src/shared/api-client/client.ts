@@ -2,6 +2,17 @@ import { ApiError } from './error';
 import type { HttpMethod, RequestOptions } from './types';
 import { getApiConfig } from './config';
 
+/**
+ * Core generic request function that handles formatting URLs, appending query parameters,
+ * setting headers (including auth via getApiConfig), and processing JSON responses.
+ *
+ * @param method - The HTTP method to use (e.g., 'GET', 'POST').
+ * @param path - The URL path or full URL.
+ * @param body - Optional request body to be stringified as JSON.
+ * @param options - Additional fetch options and query parameters.
+ * @returns A promise that resolves to the strongly typed response data.
+ * @throws {ApiError} If the network request fails or the server returns an error.
+ */
 async function request<T>(method: HttpMethod, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
   const config = getApiConfig();
   
@@ -54,6 +65,10 @@ async function request<T>(method: HttpMethod, path: string, body?: unknown, opti
   return data as T;
 }
 
+/**
+ * Strongly typed HTTP client for making API requests.
+ * Simplifies REST calls with built-in error handling and JSON parsing.
+ */
 export const apiClient = {
   get<T>(path: string, options?: RequestOptions): Promise<T> {
     return request<T>('GET', path, undefined, options);
@@ -72,13 +87,26 @@ export const apiClient = {
   },
 } as const;
 
+/**
+ * A wrapper around the native fetch API that automatically injects
+ * the JWT authorization token from localStorage.
+ *
+ * @param input - The resource URL.
+ * @param init - The standard fetch init options.
+ * @returns A promise resolving to the standard Response object.
+ */
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  let finalInput = input;
+  if (typeof input === 'string' && input.startsWith('/')) {
+    finalInput = `${getApiConfig().baseUrl}${input}`;
+  }
+  
   const token = localStorage.getItem('dashboard_token');
   const headers = new Headers(init?.headers || {});
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  return fetch(input, { ...init, headers });
+  return fetch(finalInput, { ...init, headers });
 }
 
 export type ApiClient = typeof apiClient;

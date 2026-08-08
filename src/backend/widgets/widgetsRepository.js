@@ -20,6 +20,6 @@ export async function deleteWidget(id) {
 
 export async function getWidgetById(id) {
   const { rows } = await pool.query('SELECT * FROM custom_widgets WHERE id = $1', [id]);
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {return null;}
   return rows[0];
 }

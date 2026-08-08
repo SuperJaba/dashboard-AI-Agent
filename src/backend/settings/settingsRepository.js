@@ -4,7 +4,7 @@ import { encrypt, decrypt } from '../utils/crypto.js';
 export async function getSettings() {
   const { rows } = await pool.query('SELECT key, value FROM settings');
   const settings = {};
-  for (let row of (rows || [])) {
+  for (const row of (rows || [])) {
     if (row.key === 'apiKey' && row.value) {
       try {
         settings[row.key] = decrypt(row.value);
@@ -57,7 +57,7 @@ export async function getLlmCredentials() {
   let llmUrl = '';
   let apiKey = '';
   (settingsRes.rows || []).forEach(r => {
-    if (r.key === 'llmUrl') llmUrl = r.value || '';
+    if (r.key === 'llmUrl') {llmUrl = r.value || '';}
     if (r.key === 'apiKey' && r.value) {
       try {
         apiKey = decrypt(r.value);
