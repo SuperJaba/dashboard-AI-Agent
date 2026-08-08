@@ -216,7 +216,7 @@ projectsRouter.post('/analyze', async (req, res) => {
 
           if (res.ok) {
             const llmData = await res.json();
-            const content = llmData.choices[0].message.content;
+            const content = llmData?.choices?.[0]?.message?.content || '';
             const jsonMatch = content.match(/\[.*\]/s);
             if (jsonMatch) {
               const aiTasks = JSON.parse(jsonMatch[0]);
@@ -301,9 +301,15 @@ projectsRouter.post('/deploy', async (req, res) => {
 
     // Dynamic agent execution
     let agentCmd = '';
+    
+    // Map full names from frontend to CLI commands
     let agentBaseCmd = agent;
     if (agent === 'codex') {
       agentBaseCmd = 'codex --oss -m gemma-4-26b-a4b-it';
+    } else if (agent === 'antigravity') {
+      agentBaseCmd = 'agy';
+    } else if (agent === 'claude code') {
+      agentBaseCmd = 'claude';
     }
     
     const scriptPath = path.join(targetDir, '.start_agent.sh');
@@ -311,12 +317,12 @@ projectsRouter.post('/deploy', async (req, res) => {
     if (remoteServer) {
       const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
       const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
-      agentCmd = agent === 'agy' ? `agy -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
+      agentCmd = agentBaseCmd === 'agy' ? `agy -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
     } else if (tasks && tasks.length > 0) {
       const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
       const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
       const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-      agentCmd = agent === 'agy' ? `agy -i "${escapedPrompt}"` : `${agentBaseCmd} "${escapedPrompt}"`;
+      agentCmd = agentBaseCmd === 'agy' ? `agy -i "${escapedPrompt}"` : `${agentBaseCmd} "${escapedPrompt}"`;
     } else {
       agentCmd = agentBaseCmd;
     }
@@ -328,8 +334,9 @@ projectsRouter.post('/deploy', async (req, res) => {
       // Do not export global LLM env vars for codex to avoid overriding its CLI flags
       if (agent !== 'codex') {
         if (llmUrl) {
-          exportEnvLines.push(`export ANTHROPIC_BASE_URL="${llmUrl}"`);
-          exportEnvLines.push(`export OPENAI_BASE_URL="${llmUrl}"`);
+          const safeUrl = llmUrl.replace('127.0.0.1', 'localhost');
+          exportEnvLines.push(`export ANTHROPIC_BASE_URL="${safeUrl}"`);
+          exportEnvLines.push(`export OPENAI_BASE_URL="${safeUrl}"`);
         }
         if (effectiveApiKey) {
           exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);

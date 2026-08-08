@@ -458,12 +458,19 @@ function App() {
               <RepoStatus directory={activeProject.path} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
               <section className="glass-card animate-in delay-3" style={{ maxWidth: '100%' }}>
-                <button 
-                  type="button"
+                <div 
                   className="sidebar-title-btn tasks-header" 
                   onClick={() => setShowTasks(!showTasks)}
                   aria-expanded={showTasks}
                   aria-controls="tasks-list"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setShowTasks(!showTasks);
+                    }
+                  }}
                 >
                   <h2 className="section-title">
                     <Clock size={24} color="var(--primary)" aria-hidden="true" />
@@ -489,7 +496,7 @@ function App() {
                     )}
                     {showTasks ? <ChevronUp size={24} color="var(--text-muted)" aria-hidden="true" /> : <ChevronDown size={24} color="var(--text-muted)" aria-hidden="true" />}
                   </div>
-                </button>
+                </div>
                 
                 {showTasks && (
                   <div id="tasks-list" className="task-list animate-in">

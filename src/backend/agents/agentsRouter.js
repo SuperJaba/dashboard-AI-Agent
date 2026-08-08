@@ -145,7 +145,7 @@ agentsRouter.post('/:id/tune', async (req, res) => {
         });
         if (response.ok) {
           const data = await response.json();
-          const content = data.choices[0].message.content;
+          const content = data?.choices?.[0]?.message?.content || '';
           const match = content.match(/\{.*\}/s);
           if (match) {
             const parsed = JSON.parse(match[0]);
