@@ -2,5 +2,8 @@
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "MCP_DOCKER"
+  ],
+  "disabledMcpjsonServers": [
+    "MCP_DOCKER"
   ]
 }

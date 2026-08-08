@@ -74,7 +74,7 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
 
   const handleOpenNewModal = () => {
     setEditingServer(null);
-    setFormData({ name: '', url: 'http://127.0.0.1:1337/v1', api_key: '', model: '', provider: 'LM Studio' });
+    setFormData({ name: '', url: '', api_key: '', model: '', provider: 'LM Studio' });
     setShowModal(true);
   };
 

@@ -1,3 +1,4 @@
+import { startTransition } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
@@ -66,7 +67,7 @@ function App() {
           <button 
             type="button"
             className={`project-item ${activeView === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveView('dashboard')}
+            onClick={() => startTransition(() => setActiveView('dashboard'))}
             aria-current={activeView === 'dashboard' ? 'page' : undefined}
           >
             <LayoutDashboard size={18} aria-hidden="true" />
@@ -75,7 +76,7 @@ function App() {
           <button 
             type="button"
             className={`project-item ${activeView === 'agents' ? 'active' : ''}`}
-            onClick={() => setActiveView('agents')}
+            onClick={() => startTransition(() => setActiveView('agents'))}
             aria-current={activeView === 'agents' ? 'page' : undefined}
           >
             <Bot size={18} aria-hidden="true" />

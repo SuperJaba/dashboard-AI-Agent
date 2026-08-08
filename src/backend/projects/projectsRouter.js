@@ -285,7 +285,7 @@ projectsRouter.post('/deploy', async (req, res) => {
       env.OPENAI_BASE_URL = llmUrl;
     }
     
-    const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || (llmUrl ? 'lm-studio' : '');
+    const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || (llmUrl ? 'http://localhost:1234/' : '');
 
     if (effectiveApiKey) {
       env.ANTHROPIC_API_KEY = effectiveApiKey;
@@ -316,7 +316,8 @@ projectsRouter.post('/deploy', async (req, res) => {
     
     if (remoteServer) {
       const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
-      const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
+      const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt 
+      || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
       agentCmd = agentBaseCmd === 'agy' ? `agy -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
     } else if (tasks && tasks.length > 0) {
       const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
@@ -335,8 +336,8 @@ projectsRouter.post('/deploy', async (req, res) => {
       if (agent !== 'codex') {
         if (llmUrl) {
           const safeUrl = llmUrl.replace('127.0.0.1', 'localhost');
-          exportEnvLines.push(`export ANTHROPIC_BASE_URL="${safeUrl}"`);
-          exportEnvLines.push(`export OPENAI_BASE_URL="${safeUrl}"`);
+          exportEnvLines.push(`export ANTHROPIC_BASE_URL="http://${safeUrl}"`);
+          exportEnvLines.push(`export OPENAI_BASE_URL="http://${safeUrl}"`);
         }
         if (effectiveApiKey) {
           exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
@@ -366,6 +367,9 @@ echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
 exec bash
 `;
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
       fs.writeFileSync(scriptPath, scriptContent);
       fs.chmodSync(scriptPath, '755');
       
