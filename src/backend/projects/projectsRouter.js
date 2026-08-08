@@ -328,30 +328,30 @@ projectsRouter.post('/deploy', async (req, res) => {
       agentCmd = agentBaseCmd;
     }
       
-      const exportEnvLines = [
-        'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL OPENAI_MODEL ANTHROPIC_AUTH_TOKEN'
-      ];
+    const exportEnvLines = [
+      'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL OPENAI_MODEL ANTHROPIC_AUTH_TOKEN'
+    ];
       
-      // Do not export global LLM env vars for codex to avoid overriding its CLI flags
-      if (agent !== 'codex') {
-        if (llmUrl) {
-          const safeUrl = llmUrl.replace('127.0.0.1', 'localhost');
-          exportEnvLines.push(`export ANTHROPIC_BASE_URL="http://${safeUrl}"`);
-          exportEnvLines.push(`export OPENAI_BASE_URL="http://${safeUrl}"`);
-        }
-        if (effectiveApiKey) {
-          exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
-          exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
-          exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
-        }
-        if (llmModel) {
-          exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
-          exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
-          exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
-        }
+    // Do not export global LLM env vars for codex to avoid overriding its CLI flags
+    if (agent !== 'codex') {
+      if (llmUrl) {
+        const safeUrl = llmUrl.replace('127.0.0.1', 'localhost');
+        exportEnvLines.push(`export ANTHROPIC_BASE_URL="http://${safeUrl}"`);
+        exportEnvLines.push(`export OPENAI_BASE_URL="http://${safeUrl}"`);
       }
+      if (effectiveApiKey) {
+        exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
+        exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
+        exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
+      }
+      if (llmModel) {
+        exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+        exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
+        exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+      }
+    }
 
-      const scriptContent = `#!/bin/bash
+    const scriptContent = `#!/bin/bash
 cd "${targetDir}"
 ${exportEnvLines.join('\n')}
 echo -e "\\033[1;34m🚀 Initializing AI Agent (${agent})...\\033[0m"
@@ -367,44 +367,44 @@ echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
 exec bash
 `;
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-      fs.writeFileSync(scriptPath, scriptContent);
-      fs.chmodSync(scriptPath, '755');
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    fs.writeFileSync(scriptPath, scriptContent);
+    fs.chmodSync(scriptPath, '755');
       
-      if (useBrowserTerminal) {
-        return res.json({ 
-          success: true, 
-          browserTerminal: true, 
-          command: 'bash', 
-          args: [scriptPath], 
-          cwd: targetDir, 
-          env 
-        });
-      }
+    if (useBrowserTerminal) {
+      return res.json({ 
+        success: true, 
+        browserTerminal: true, 
+        command: 'bash', 
+        args: [scriptPath], 
+        cwd: targetDir, 
+        env 
+      });
+    }
 
-      if (process.platform === 'win32') {
-        const gitBash = [
-          'C:\\Program Files\\Git\\git-bash.exe',
-          'C:\\Program Files (x86)\\Git\\git-bash.exe',
-          path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'git-bash.exe')
-        ].find(p => fs.existsSync(p));
+    if (process.platform === 'win32') {
+      const gitBash = [
+        'C:\\Program Files\\Git\\git-bash.exe',
+        'C:\\Program Files (x86)\\Git\\git-bash.exe',
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'git-bash.exe')
+      ].find(p => fs.existsSync(p));
 
-        if (gitBash) {
-          command = 'cmd.exe';
-          args = ['/c', 'start', '""', gitBash, scriptPath];
-        } else {
-          command = 'cmd.exe';
-          args = ['/c', 'start', 'cmd', '/k', 'bash', scriptPath];
-        }
-      } else if (process.platform === 'darwin') {
-        command = 'open';
-        args = ['-a', 'Terminal', scriptPath];
+      if (gitBash) {
+        command = 'cmd.exe';
+        args = ['/c', 'start', '""', gitBash, scriptPath];
       } else {
-        command = 'x-terminal-emulator';
-        args = ['-e', scriptPath];
+        command = 'cmd.exe';
+        args = ['/c', 'start', 'cmd', '/k', 'bash', scriptPath];
       }
+    } else if (process.platform === 'darwin') {
+      command = 'open';
+      args = ['-a', 'Terminal', scriptPath];
+    } else {
+      command = 'x-terminal-emulator';
+      args = ['-e', scriptPath];
+    }
 
     const child = spawn(command, args, {
       env,
