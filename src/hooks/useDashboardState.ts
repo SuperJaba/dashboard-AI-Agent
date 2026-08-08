@@ -24,6 +24,7 @@ export function useDashboardState() {
   const [isWorkspacesExpanded, setIsWorkspacesExpanded] = useState(true);
   const [isRemoteExpanded, setIsRemoteExpanded] = useState(true);
   const [showTasks, setShowTasks] = useState(false);
+  const [hideCompleted, setHideCompleted] = useState(false);
   const [useBrowserTerminal, setUseBrowserTerminal] = useState(false);
   const [terminalConfig, setTerminalConfig] = useState<any>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
@@ -325,6 +326,7 @@ export function useDashboardState() {
     isWorkspacesExpanded, setIsWorkspacesExpanded,
     isRemoteExpanded, setIsRemoteExpanded,
     showTasks, setShowTasks,
+    hideCompleted, setHideCompleted,
     useBrowserTerminal, setUseBrowserTerminal,
     terminalConfig, setTerminalConfig,
     selectedTaskIds, setSelectedTaskIds,
