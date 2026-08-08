@@ -299,42 +299,48 @@ projectsRouter.post('/deploy', async (req, res) => {
       env.OPENAI_MODEL = llmModel;
     }
 
-    if (agent === 'claude' || agent === 'agy') {
-      if (agent === 'claude' && !env.ANTHROPIC_BASE_URL) {
-        env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
-      }
-      
-      let agentCmd = '';
-      const scriptPath = path.join(targetDir, '.start_agent.sh');
-      if (remoteServer) {
-        const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
-        const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
-        agentCmd = agent === 'claude' ? `claude "${promptText}"` : `agy -i "${promptText}"`;
-      } else if (tasks && tasks.length > 0) {
-        const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
-        const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
-        const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-        agentCmd = agent === 'claude' ? `claude "${escapedPrompt}"` : `agy -i "${escapedPrompt}"`;
-      } else {
-        agentCmd = agent === 'claude' ? 'claude' : 'agy';
-      }
+    // Dynamic agent execution
+    let agentCmd = '';
+    let agentBaseCmd = agent;
+    if (agent === 'codex') {
+      agentBaseCmd = 'codex --oss -m gemma-4-26b-a4b-it';
+    }
+    
+    const scriptPath = path.join(targetDir, '.start_agent.sh');
+    
+    if (remoteServer) {
+      const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
+      const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
+      agentCmd = agent === 'agy' ? `agy -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
+    } else if (tasks && tasks.length > 0) {
+      const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
+      const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
+      const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
+      agentCmd = agent === 'agy' ? `agy -i "${escapedPrompt}"` : `${agentBaseCmd} "${escapedPrompt}"`;
+    } else {
+      agentCmd = agentBaseCmd;
+    }
       
       const exportEnvLines = [
         'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL OPENAI_MODEL ANTHROPIC_AUTH_TOKEN'
       ];
-      if (llmUrl) {
-        exportEnvLines.push(`export ANTHROPIC_BASE_URL="${llmUrl}"`);
-        exportEnvLines.push(`export OPENAI_BASE_URL="${llmUrl}"`);
-      }
-      if (effectiveApiKey) {
-        exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
-        exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
-        exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
-      }
-      if (llmModel) {
-        exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
-        exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
-        exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+      
+      // Do not export global LLM env vars for codex to avoid overriding its CLI flags
+      if (agent !== 'codex') {
+        if (llmUrl) {
+          exportEnvLines.push(`export ANTHROPIC_BASE_URL="${llmUrl}"`);
+          exportEnvLines.push(`export OPENAI_BASE_URL="${llmUrl}"`);
+        }
+        if (effectiveApiKey) {
+          exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
+          exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
+          exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
+        }
+        if (llmModel) {
+          exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+          exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
+          exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+        }
       }
 
       const scriptContent = `#!/bin/bash
@@ -388,9 +394,6 @@ exec bash
         command = 'x-terminal-emulator';
         args = ['-e', scriptPath];
       }
-    } else {
-      return res.status(400).json({ error: 'Unknown agent' });
-    }
 
     const child = spawn(command, args, {
       env,

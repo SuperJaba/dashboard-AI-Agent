@@ -4,6 +4,7 @@ import {
   Sliders, Settings, Info, Gauge, Zap, Trash2, X
 } from 'lucide-react';
 import { apiFetch } from './shared/api-client';
+import { LlmServerManager } from './LlmServerManager';
 
 export interface Agent {
   id: number;
@@ -236,6 +237,10 @@ export function AgentsView() {
             </button>
           </div>
         </header>
+
+        <div style={{ marginBottom: '2rem' }}>
+          <LlmServerManager />
+        </div>
 
         {/* Add Agent Modal Overlay */}
         {isAdding && (

@@ -53,7 +53,8 @@ function App() {
     handleAddServer,
     deleteServer,
     handleAddProject,
-    setupSshKey
+    setupSshKey,
+    agents
   } = useDashboardState();
   const token = localStorage.getItem('token') || '';
   return (
@@ -320,27 +321,26 @@ function App() {
                     borderRadius: '6px', padding: '0.75rem', color: 'var(--text-main)', marginBottom: '1rem', resize: 'vertical'
                   }}
                 />
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => deployRemoteAgent('claude', activeServer)}
-                    disabled={deploying !== null || !remotePrompt.trim()}
-                    style={{ opacity: (deploying === 'claude' || !remotePrompt.trim()) ? 0.7 : 1 }}
-                  >
-                    <Rocket size={18} aria-hidden="true" />
-                    {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
-                  </button>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => deployRemoteAgent('agy', activeServer)}
-                    disabled={deploying !== null || !remotePrompt.trim()}
-                    style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: (deploying === 'agy' || !remotePrompt.trim()) ? 0.7 : 1 }}
-                  >
-                    <Rocket size={18} aria-hidden="true" />
-                    {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
-                  </button>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  {agents.length === 0 && (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Brak wykrytych agentów. Zainstaluj agenta w zakładce Agenci AI.</span>
+                  )}
+                  {agents.filter(a => a.installed).map(agent => (
+                    <button 
+                      key={agent.id}
+                      type="button"
+                      className="btn btn-primary" 
+                      onClick={() => deployRemoteAgent(agent.name.toLowerCase(), activeServer)}
+                      disabled={deploying !== null || !remotePrompt.trim()}
+                      style={{ 
+                        opacity: (deploying === agent.name.toLowerCase() || !remotePrompt.trim()) ? 0.7 : 1,
+                        background: agent.name.toLowerCase() === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
+                      }}
+                    >
+                      <Rocket size={18} aria-hidden="true" />
+                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -361,27 +361,26 @@ function App() {
                 <p style={{ color: 'var(--text-muted)' }}>{activeProject.desc}</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => deployAgent('claude')}
-                    disabled={deploying !== null}
-                    style={{ opacity: deploying === 'claude' ? 0.7 : 1 }}
-                  >
-                    <Rocket size={20} aria-hidden="true" />
-                    {deploying === 'claude' ? 'Deploying...' : 'Deploy Claude'}
-                  </button>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => deployAgent('agy')}
-                    disabled={deploying !== null}
-                    style={{ background: 'linear-gradient(135deg, #10B981, #059669)', opacity: deploying === 'agy' ? 0.7 : 1 }}
-                  >
-                    <Rocket size={20} aria-hidden="true" />
-                    {deploying === 'agy' ? 'Deploying...' : 'Deploy Agy'}
-                  </button>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {agents.length === 0 && (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Brak wykrytych agentów.</span>
+                  )}
+                  {agents.filter(a => a.installed).map(agent => (
+                    <button 
+                      key={agent.id}
+                      type="button"
+                      className="btn btn-primary" 
+                      onClick={() => deployAgent(agent.name.toLowerCase())}
+                      disabled={deploying !== null}
+                      style={{ 
+                        opacity: deploying === agent.name.toLowerCase() ? 0.7 : 1,
+                        background: agent.name.toLowerCase() === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
+                      }}
+                    >
+                      <Rocket size={20} aria-hidden="true" />
+                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
+                    </button>
+                  ))}
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
                     <input 
                       type="checkbox" 

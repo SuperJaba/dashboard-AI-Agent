@@ -36,7 +36,7 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
       const res = await apiFetch('/api/llm-servers');
       if (res.ok) {
         const data = await res.json();
-        setServers(data || []);
+        setServers(Array.isArray(data) ? data : (data?.servers || []));
       }
     } catch (e) {
       console.error('Failed to fetch LLM servers:', e);

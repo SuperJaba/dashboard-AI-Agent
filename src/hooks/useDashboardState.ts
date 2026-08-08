@@ -16,6 +16,7 @@ export function useDashboardState() {
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
   const [servers, setServers] = useState<ServerData[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const [showAddServer, setShowAddServer] = useState(false);
   const [newServer, setNewServer] = useState({ name: '', host: '', username: '', port: 22, use_devil: false, ssh_password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -49,6 +50,12 @@ export function useDashboardState() {
       .then(rawData => {
         const data = z.array(ServerSchema).parse(rawData);
         if (data.length) setServers(data);
+      })
+      .catch(console.error);
+
+    apiClient.get<any[]>('/api/agents')
+      .then(data => {
+        if (Array.isArray(data)) setAgents(data);
       })
       .catch(console.error);
 
@@ -310,6 +317,7 @@ export function useDashboardState() {
     projects, setProjects,
     activeProjectId, setActiveProjectId,
     servers, setServers,
+    agents, setAgents,
     showAddServer, setShowAddServer,
     newServer, setNewServer,
     showPassword, setShowPassword,
