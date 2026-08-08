@@ -163,6 +163,9 @@ The LLM Server management expects the API key field as **`apiKey`** (camelCase) 
 
 ## 📚 Additional Documentation
 
+- [**docs/openapi.yaml**](./docs/openapi.yaml) - OpenAPI 3.0 API Specification
+- [**docs/C4_ARCHITECTURE.md**](./docs/C4_ARCHITECTURE.md) - C4 Architecture Diagrams (Mermaid)
+- [**docs/TUTORIAL_ADD_WIDGET.md**](./docs/TUTORIAL_ADD_WIDGET.md) - Step-by-step guide for adding new Custom Widgets
 - [**DESIGN.md**](./DESIGN.md) - Architecture decisions and design patterns
 - [**DEVELOPER_ONBOARDING.md**](./DEVELOPER_ONBOARDING.md) - Detailed onboarding guide for new developers
 - [**ARCHITECTURE_VALUE_REPORT.md**](./ARCHITECTURE_VALUE_REPORT.md) - System architecture overview

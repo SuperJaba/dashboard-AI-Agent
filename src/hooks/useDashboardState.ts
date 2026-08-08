@@ -4,6 +4,13 @@ import { ProjectSchema, ServerSchema, SettingsSchema } from '../shared/api-clien
 import type { ProjectData, ServerData } from '../shared/api-client/schemas';
 import { z } from 'zod';
 
+/**
+ * Main state management hook for the Dashboard application.
+ * Handles the state and data fetching for projects, servers, AI agents,
+ * LLM settings, and terminal configurations.
+ * 
+ * @returns An object containing all the dashboard state variables and modifier functions.
+ */
 export function useDashboardState() {
   const [activeView, setActiveView] = useState<'dashboard' | 'agents'>('dashboard');
   const [projects, setProjects] = useState<ProjectData[]>([]);

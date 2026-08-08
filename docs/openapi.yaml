@@ -1,0 +1,92 @@
+openapi: 3.0.0
+info:
+  title: Dashboard API
+  description: API documentation for the Dashboard application
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001/api
+    description: Local development server
+paths:
+  /projects:
+    get:
+      summary: Get all projects
+      responses:
+        '200':
+          description: A list of projects
+    post:
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                path:
+                  type: string
+                desc:
+                  type: string
+                branch:
+                  type: string
+                tech:
+                  type: string
+      responses:
+        '200':
+          description: Project created successfully
+  /projects/{id}:
+    put:
+      summary: Update a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project updated
+    delete:
+      summary: Delete a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project deleted
+  /analyze:
+    post:
+      summary: Analyze a project directory to discover tasks and tech stack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                directory:
+                  type: string
+      responses:
+        '200':
+          description: Analysis results
+  /deploy:
+    post:
+      summary: Deploy or launch an AI agent on a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agent:
+                  type: string
+                directory:
+                  type: string
+      responses:
+        '200':
+          description: Agent launched

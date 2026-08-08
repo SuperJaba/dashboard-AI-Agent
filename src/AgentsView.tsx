@@ -256,32 +256,32 @@ export function AgentsView() {
               <form onSubmit={handleAddAgent} className="form-grid">
                 <div className="form-group">
                   <label className="form-label">Nazwa Agenta</label>
-                  <input required placeholder="np. Code Reviewer" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="form-input" />
+                  <input name="agentName" autoComplete="off" required placeholder="np. Code Reviewer" value={newAgent.name} onChange={e => setNewAgent({...newAgent, name: e.target.value})} className="form-input" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Opis</label>
-                  <input placeholder="np. Sprawdza PR-y" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="form-input" />
+                  <input name="agentDescription" autoComplete="off" placeholder="np. Sprawdza PR-y" value={newAgent.description} onChange={e => setNewAgent({...newAgent, description: e.target.value})} className="form-input" />
                 </div>
                 <div className="form-group form-col-span-2">
                   <label className="form-label">Ścieżka pliku binarnego (Path)</label>
-                  <input required placeholder="np. /usr/local/bin/agent" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="form-input form-input-mono" />
+                  <input name="agentPath" autoComplete="off" required placeholder="np. /usr/local/bin/agent" value={newAgent.path} onChange={e => setNewAgent({...newAgent, path: e.target.value})} className="form-input form-input-mono" />
                 </div>
                 <div className="form-group form-col-span-2">
                   <label className="form-label">Config URI</label>
-                  <input placeholder="np. /home/user/.agent.json" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="form-input form-input-mono" />
+                  <input name="agentConfigUri" autoComplete="off" placeholder="np. /home/user/.agent.json" value={newAgent.config_uri} onChange={e => setNewAgent({...newAgent, config_uri: e.target.value})} className="form-input form-input-mono" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Model LLM</label>
-                  <input placeholder="np. gpt-4o" value={newAgent.llm_model} onChange={e => setNewAgent({...newAgent, llm_model: e.target.value})} className="form-input" />
+                  <input name="agentLlmModel" autoComplete="off" placeholder="np. gpt-4o" value={newAgent.llm_model} onChange={e => setNewAgent({...newAgent, llm_model: e.target.value})} className="form-input" />
                 </div>
                 <div className="form-group" style={{ display: 'flex', flexDirection: 'row', gap: '1rem', width: '100%', alignItems: 'flex-end' }}>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     <label className="form-label">Temp</label>
-                    <input type="number" step="0.1" placeholder="0.7" value={newAgent.temperature} onChange={e => setNewAgent({...newAgent, temperature: parseFloat(e.target.value)})} className="form-input" />
+                    <input name="agentTemperature" autoComplete="off" type="number" step="0.1" placeholder="0.7" value={newAgent.temperature} onChange={e => setNewAgent({...newAgent, temperature: parseFloat(e.target.value)})} className="form-input" />
                   </div>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     <label className="form-label">Tokens</label>
-                    <input type="number" placeholder="4096" value={newAgent.max_tokens} onChange={e => setNewAgent({...newAgent, max_tokens: parseInt(e.target.value)})} className="form-input" />
+                    <input name="agentMaxTokens" autoComplete="off" type="number" placeholder="4096" value={newAgent.max_tokens} onChange={e => setNewAgent({...newAgent, max_tokens: parseInt(e.target.value)})} className="form-input" />
                   </div>
                 </div>
                 <div className="form-col-span-2 flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
