@@ -4,8 +4,15 @@ import App from './App';
 
 describe('App Component', () => {
   beforeEach(() => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve([])
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      let data: any = [];
+      if (url && typeof url === 'string' && url.includes('/api/settings')) {
+        data = {};
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(data)
+      });
     });
   });
 

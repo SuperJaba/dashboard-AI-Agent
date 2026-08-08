@@ -201,14 +201,14 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
   };
 
   return (
-    <div className="glass-card animate-in delay-1" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
-      {notification && (
-        <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10B981', border: '1px solid #10B981', borderRadius: '8px', padding: '0.5rem 1rem', marginBottom: '1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Check size={16} /> {notification}
-        </div>
-      )}
+    <>
+      <header className="header animate-in delay-1" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '1.5rem' }}>
+        {notification && (
+          <div style={{ width: '100%', background: 'rgba(16, 185, 129, 0.2)', color: '#10B981', border: '1px solid #10B981', borderRadius: '8px', padding: '0.5rem 1rem', marginBottom: '1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Check size={16} /> {notification}
+          </div>
+        )}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <Cpu size={22} color="var(--primary)" />
           <div>
@@ -220,7 +220,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
-          {/* Dropdown serwerów z DB */}
           <div style={{ position: 'relative' }}>
             <select
               aria-label="Wybierz serwer LLM"
@@ -230,7 +229,7 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid var(--glass-border)',
                 borderRadius: '8px',
-                padding: '0.5rem 2rem 0.5rem 0.75rem',
+                padding: '0.45rem 2rem 0.45rem 0.75rem',
                 color: 'white',
                 fontSize: '0.85rem',
                 outline: 'none',
@@ -246,7 +245,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
             </select>
           </div>
 
-          {/* Button "New LLM Server" */}
           <button
             type="button"
             className="btn btn-primary"
@@ -256,7 +254,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
             <Plus size={16} /> New LLM Server
           </button>
 
-          {/* Button Export */}
           <button
             type="button"
             className="btn-add-project"
@@ -267,7 +264,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
             <Download size={15} /> Export
           </button>
 
-          {/* Button Import */}
           <button
             type="button"
             className="btn-add-project"
@@ -297,22 +293,22 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
             </button>
           )}
         </div>
-      </div>
 
-      {/* Details of active server */}
-      {activeServer && (
-        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Globe size={14} color="#38bdf8" /> <span>URL:</span> <strong style={{ color: '#f3f4f6' }}>{activeServer.url}</strong>
+        {/* Details of active server */}
+        {activeServer && (
+          <div style={{ width: '100%', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Globe size={14} color="#38bdf8" /> <span>URL:</span> <strong style={{ color: '#f3f4f6' }}>{activeServer.url}</strong>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Layers size={14} color="#a855f7" /> <span>Model:</span> <strong style={{ color: '#f3f4f6' }}>{activeServer.model || 'Domyślny'}</strong>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Key size={14} color="#f59e0b" /> <span>API Key:</span> <strong style={{ color: '#f3f4f6' }}>{activeServer.api_key ? '••••••••' : 'Brak'}</strong>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Layers size={14} color="#a855f7" /> <span>Model:</span> <strong style={{ color: '#f3f4f6' }}>{activeServer.model || 'Domyślny'}</strong>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Key size={14} color="#f59e0b" /> <span>API Key:</span> <strong style={{ color: '#f3f4f6' }}>{activeServer.api_key ? '••••••••' : 'Brak'}</strong>
-          </div>
-        </div>
-      )}
+        )}
+      </header>
 
       {/* Modal Nowy / Edycja Serwera LLM */}
       {showModal && (
@@ -412,6 +408,6 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

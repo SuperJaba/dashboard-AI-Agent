@@ -96,12 +96,17 @@ export const apiClient = {
  * @returns A promise resolving to the standard Response object.
  */
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  let finalInput = input;
+  if (typeof input === 'string' && input.startsWith('/')) {
+    finalInput = `${getApiConfig().baseUrl}${input}`;
+  }
+  
   const token = localStorage.getItem('dashboard_token');
   const headers = new Headers(init?.headers || {});
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  return fetch(input, { ...init, headers });
+  return fetch(finalInput, { ...init, headers });
 }
 
 export type ApiClient = typeof apiClient;

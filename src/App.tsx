@@ -270,8 +270,8 @@ function App() {
               onLaunchTerminal={setTerminalConfig} 
             />
             
-            <div className="grid-top" style={{ marginBottom: '2rem' }}>
-              <div className="glass-card animate-in delay-2" style={{ gridColumn: '1 / -1' }}>
+            <div style={{ marginBottom: '2rem' }}>
+              <div className="glass-card animate-in delay-2" style={{ maxWidth: '100%' }}>
                 <span className="info-label" style={{ marginBottom: '1rem', display: 'block' }}>Agent Operations</span>
                 
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
@@ -458,7 +458,7 @@ function App() {
 
               <RepoStatus directory={activeProject.path} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
-              <section className="glass-card animate-in delay-3">
+              <section className="glass-card animate-in delay-3" style={{ maxWidth: '100%' }}>
                 <button 
                   type="button"
                   className="sidebar-title-btn tasks-header" 

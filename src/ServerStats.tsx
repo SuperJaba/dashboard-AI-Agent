@@ -58,7 +58,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
       <div className="grid-top">
         {/* CPU */}
         <div className="glass-card animate-in delay-1" style={{ display: 'flex', flexDirection: 'column', padding: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60a5fa', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60a5fa', marginBottom: '0.5rem', paddingTop: '8px' }}>
             <Cpu size={20} />
             <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>CPU Usage</span>
           </div>
