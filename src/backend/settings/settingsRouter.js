@@ -43,9 +43,9 @@ settingsRouter.post('/llm/tune', async (req, res) => {
     let autoDetectedUrl = '';
     let autoDetectedType = '';
     let latency = null;
-    let speed = null;
+    const speed = null;
     let status = 'failed';
-    let recommendations = [];
+    const recommendations = [];
 
     const localLLMs = [
       { url: 'http://localhost:11434', type: 'Ollama' },
@@ -53,7 +53,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
       { url: 'http://localhost:8000/v1', type: 'vLLM / local API' }
     ];
 
-    let testUrls = [];
+    const testUrls = [];
     if (currentUrl) {
       testUrls.push({ url: currentUrl, type: 'Current' });
     }
@@ -151,11 +151,11 @@ settingsRouter.post('/llm/tune', async (req, res) => {
 
     if (status === 'success') {
       recommendations.push(`Connected to ${autoDetectedType} LLM server at ${autoDetectedUrl}.`);
-      if (latency !== null) recommendations.push(`Latency: ${latency}ms.`);
+      if (latency !== null) {recommendations.push(`Latency: ${latency}ms.`);}
       if (speed !== null) {
         recommendations.push(`Generation Speed: ~${speed} tokens/sec.`);
-        if (speed < 10) recommendations.push("Slow generation. Suggest offloading more layers to GPU.");
-        else recommendations.push("Excellent speed and throughput.");
+        if (speed < 10) {recommendations.push('Slow generation. Suggest offloading more layers to GPU.');}
+        else {recommendations.push('Excellent speed and throughput.');}
       }
 
       if (autoDetectedUrl && currentUrl !== autoDetectedUrl) {
@@ -169,11 +169,11 @@ settingsRouter.post('/llm/tune', async (req, res) => {
           status = 'success';
           autoDetectedUrl = 'http://localhost:11434';
           autoDetectedType = 'Ollama';
-          recommendations.push("Ollama detected running locally on port 11434. Standard OpenAI endpoints are active.");
+          recommendations.push('Ollama detected running locally on port 11434. Standard OpenAI endpoints are active.');
           await settingsRepo.saveSettings({ llmUrl: autoDetectedUrl });
         }
       } catch (e) {
-        recommendations.push("No local or configured LLM server detected. Please ensure Ollama (11434) or LM Studio (1234) is running.");
+        recommendations.push('No local or configured LLM server detected. Please ensure Ollama (11434) or LM Studio (1234) is running.');
       }
     }
 

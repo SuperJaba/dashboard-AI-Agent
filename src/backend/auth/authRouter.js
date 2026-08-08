@@ -9,7 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 authRouter.post('/setup', async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Nazwa użytkownika i hasło są wymagane' });
+    if (!username || !password) {return res.status(400).json({ error: 'Nazwa użytkownika i hasło są wymagane' });}
     
     // Check if any user exists
     const result = await safeQuery('SELECT COUNT(*) FROM users');
@@ -33,7 +33,7 @@ authRouter.post('/setup', async (req, res) => {
 authRouter.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Nazwa użytkownika i hasło są wymagane' });
+    if (!username || !password) {return res.status(400).json({ error: 'Nazwa użytkownika i hasło są wymagane' });}
 
     const result = await safeQuery('SELECT id, password_hash FROM users WHERE username = $1', [username]);
     if (result.rows.length === 0) {
@@ -69,7 +69,7 @@ authRouter.post('/refresh', async (req, res) => {
     const authHeader = req.headers.authorization;
     const token = req.body.token || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
     
-    if (!token) return res.status(400).json({ error: 'Token required' });
+    if (!token) {return res.status(400).json({ error: 'Token required' });}
 
     try {
       const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });

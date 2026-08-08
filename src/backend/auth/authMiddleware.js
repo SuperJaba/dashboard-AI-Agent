@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 
 export const authMiddleware = (req, res, next) => {
   // Allow OPTIONS requests for CORS
-  if (req.method === 'OPTIONS') return next();
+  if (req.method === 'OPTIONS') {return next();}
   
   let token;
   const authHeader = req.headers.authorization;

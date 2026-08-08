@@ -13,7 +13,7 @@ export async function getServers() {
 
 export async function getServerById(id, raw = false) {
   const { rows } = await pool.query('SELECT * FROM servers WHERE id = $1', [id]);
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {return null;}
   
   const server = rows[0];
   if (raw) {

@@ -7,13 +7,13 @@ export async function getAgents() {
 
 export async function getAgentById(id) {
   const { rows } = await pool.query('SELECT * FROM cli_agents WHERE id = $1', [id]);
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {return null;}
   return rows[0];
 }
 
 export async function findAgentByName(name) {
   const { rows } = await pool.query('SELECT * FROM cli_agents WHERE name = $1', [name]);
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {return null;}
   return rows[0];
 }
 
@@ -36,7 +36,7 @@ export async function updateAgentPathAndConfig(name, path, configUri) {
 export async function updateAgent(id, fields) {
   const { config_uri, name, description, path: binPath, llm_model, temperature, max_tokens } = fields;
   let query = 'UPDATE cli_agents SET config_uri = $1';
-  let values = [config_uri];
+  const values = [config_uri];
   let count = 1;
   
   if (name) { count++; query += `, name = $${count}`; values.push(name); }

@@ -61,7 +61,7 @@ projectsRouter.delete('/projects/:id', async (req, res) => {
 // Pick Folder API
 projectsRouter.get('/pick-folder', (req, res) => {
   if (process.platform === 'win32') {
-    const psCmd = `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Wybierz folder projektu'; if ($d.ShowDialog() -eq 'OK') { Write-Output $d.SelectedPath }"`;
+    const psCmd = 'powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = \'Wybierz folder projektu\'; if ($d.ShowDialog() -eq \'OK\') { Write-Output $d.SelectedPath }"';
     exec(psCmd, (error, stdout) => {
       if (error || !stdout.trim()) {
         return res.status(204).send();
@@ -71,7 +71,7 @@ projectsRouter.get('/pick-folder', (req, res) => {
   } else {
     exec('zenity --file-selection --directory --title="Wybierz folder projektu"', (error, stdout) => {
       if (error) {
-        if (error.code === 1) return res.status(204).send();
+        if (error.code === 1) {return res.status(204).send();}
         return res.status(500).json({ error: error.message });
       }
       res.json({ path: stdout.trim() });
@@ -81,8 +81,8 @@ projectsRouter.get('/pick-folder', (req, res) => {
 
 // Init Git
 projectsRouter.post('/init-git', (req, res) => {
-  let { directory } = req.body;
-  if (!directory) return res.status(400).json({ error: 'Missing directory' });
+  const { directory } = req.body;
+  if (!directory) {return res.status(400).json({ error: 'Missing directory' });}
   
   try {
     const result = gitService.initGit(directory);
@@ -95,7 +95,7 @@ projectsRouter.post('/init-git', (req, res) => {
 // Analyze project directory
 projectsRouter.post('/analyze', async (req, res) => {
   let { directory } = req.body;
-  if (!directory) return res.status(400).json({ error: 'Missing directory' });
+  if (!directory) {return res.status(400).json({ error: 'Missing directory' });}
   
   if (directory.startsWith('~/')) {
     const home = process.env.HOME || process.env.USERPROFILE;
@@ -107,17 +107,17 @@ projectsRouter.post('/analyze', async (req, res) => {
   }
 
   let techStack = 'Unknown';
-  let tasks = [];
+  const tasks = [];
   
   try {
     const files = fs.readdirSync(directory);
     
     if (files.includes('package.json')) {
       const pkg = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
-      if (pkg.dependencies?.next) techStack = 'Next.js (Node.js)';
-      else if (pkg.dependencies?.react || pkg.devDependencies?.vite) techStack = 'React / Vite';
-      else if (pkg.dependencies?.express) techStack = 'Node.js Express';
-      else techStack = 'Node.js / JS';
+      if (pkg.dependencies?.next) {techStack = 'Next.js (Node.js)';}
+      else if (pkg.dependencies?.react || pkg.devDependencies?.vite) {techStack = 'React / Vite';}
+      else if (pkg.dependencies?.express) {techStack = 'Node.js Express';}
+      else {techStack = 'Node.js / JS';}
     } else if (files.includes('pom.xml')) {
       techStack = 'Java Maven';
     } else if (files.includes('build.gradle')) {
@@ -164,14 +164,14 @@ projectsRouter.post('/analyze', async (req, res) => {
       lines.forEach(line => {
         const match = line.match(/^([^:]+):(\d+):(.*)$/);
         if (match) {
-           const file = path.basename(match[1]);
-           let text = match[3].replace(/TOD[O]:/g, '').replace(/FIXM[E]:/g, '').trim();
-           if (text.startsWith('//')) text = text.substring(2).trim();
-           if (text.startsWith('*')) text = text.substring(1).trim();
-           if (text.length > 60) text = text.substring(0, 57) + '...';
-           if (text && !tasks.find(t => t.title === text)) {
-             tasks.push({ id: idCounter++, title: text, meta: `Code: ${file}`, status: 'pending' });
-           }
+          const file = path.basename(match[1]);
+          let text = match[3].replace(/TOD[O]:/g, '').replace(/FIXM[E]:/g, '').trim();
+          if (text.startsWith('//')) {text = text.substring(2).trim();}
+          if (text.startsWith('*')) {text = text.substring(1).trim();}
+          if (text.length > 60) {text = text.substring(0, 57) + '...';}
+          if (text && !tasks.find(t => t.title === text)) {
+            tasks.push({ id: idCounter++, title: text, meta: `Code: ${file}`, status: 'pending' });
+          }
         }
       });
     } catch(e) {}
@@ -235,7 +235,7 @@ projectsRouter.post('/analyze', async (req, res) => {
         }
       }
     } catch (e) {
-      console.error("LLM error in analyze:", e);
+      console.error('LLM error in analyze:', e);
     }
 
     if (tasks.length === 0) {
@@ -278,7 +278,7 @@ projectsRouter.post('/deploy', async (req, res) => {
 
     let command = '';
     let args = [];
-    let env = { ...process.env };
+    const env = { ...process.env };
 
     if (llmUrl) {
       env.ANTHROPIC_BASE_URL = llmUrl;
