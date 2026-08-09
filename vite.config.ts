@@ -8,7 +8,14 @@ export default defineConfig({
       '/api': 'http://localhost:3001',
       '/socket.io': {
         target: 'http://localhost:3001',
-        ws: true
+        ws: true,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err: any) => {
+            if (err?.code === 'ECONNRESET') return;
+            console.error('Vite Socket Proxy Error:', err?.message);
+          });
+        }
       }
     },
     watch: {

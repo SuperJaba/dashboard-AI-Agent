@@ -353,6 +353,10 @@ projectsRouter.post('/deploy', async (req, res) => {
 
     const scriptContent = `#!/bin/bash
 cd "${targetDir}"
+stty cols 100 rows 30 2>/dev/null || true
+export COLUMNS=100
+export LINES=30
+export TERM=xterm-256color
 ${exportEnvLines.join('\n')}
 echo -e "\\033[1;34m🚀 Initializing AI Agent (${agent})...\\033[0m"
 echo -ne "\\033[1;36m📡 Preparing environment: \\033[0m"
@@ -373,7 +377,9 @@ exec bash
     fs.writeFileSync(scriptPath, scriptContent);
     fs.chmodSync(scriptPath, '755');
       
-    if (useBrowserTerminal) {
+    // Always return browserTerminal configuration when requested or running in web mode
+    const isBrowserMode = useBrowserTerminal !== false;
+    if (isBrowserMode) {
       return res.json({ 
         success: true, 
         browserTerminal: true, 

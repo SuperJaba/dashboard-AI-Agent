@@ -457,7 +457,7 @@ function App() {
                 </div>
               </div>
 
-              <RepoStatus directory={activeProject.path} onLaunchTerminal={(config) => setTerminalConfig(config)} />
+              <RepoStatus directory={activeProject.path || ''} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
               <section className="glass-card animate-in delay-3" style={{ maxWidth: '100%' }}>
                 <div 

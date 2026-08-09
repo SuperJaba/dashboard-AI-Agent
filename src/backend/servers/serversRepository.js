@@ -26,11 +26,12 @@ export async function getServerById(id, raw = false) {
   };
 }
 
-export async function createServer({ name, host, username, port, use_devil, ssh_password }) {
+export async function createServer({ name, host, username, port, use_devil, ssh_password, provider, url }) {
   const encPass = ssh_password ? encrypt(ssh_password) : null;
+  const serverUrl = url || (host ? `http://${host}:${port || 22}` : 'http://localhost');
   const { rows } = await pool.query(
-    'INSERT INTO servers (name, host, username, port, use_devil, ssh_password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-    [name, host, username, port || 22, use_devil === true, encPass]
+    'INSERT INTO servers (name, host, username, port, use_devil, ssh_password, provider, url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+    [name, host, username, port || 22, use_devil === true, encPass, provider || 'local', serverUrl]
   );
   return {
     ...rows[0],
@@ -39,10 +40,11 @@ export async function createServer({ name, host, username, port, use_devil, ssh_
   };
 }
 
-export async function updateServer(id, { name, host, username, port, use_devil, ssh_password }) {
+export async function updateServer(id, { name, host, username, port, use_devil, ssh_password, provider, url }) {
   const encPass = ssh_password !== undefined ? (ssh_password ? encrypt(ssh_password) : null) : undefined;
-  const fields = ['name=$2', 'host=$3', 'username=$4', 'port=$5', 'use_devil=$6'];
-  const vals = [id, name, host, username, port || 22, use_devil === true];
+  const serverUrl = url || (host ? `http://${host}:${port || 22}` : 'http://localhost');
+  const fields = ['name=$2', 'host=$3', 'username=$4', 'port=$5', 'use_devil=$6', 'provider=$7', 'url=$8'];
+  const vals = [id, name, host, username, port || 22, use_devil === true, provider || 'local', serverUrl];
   
   if (encPass !== undefined) {
     fields.push(`ssh_password=$${vals.length + 1}`);

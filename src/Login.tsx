@@ -62,6 +62,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
       if (data.token) {
         localStorage.setItem('dashboard_token', data.token);
         setIsAuthenticated(true);
+        window.location.reload();
       } else if (needsSetup) {
         setNeedsSetup(false);
         setError('Inicjalizacja zakończona. Zaloguj się podanymi danymi.');

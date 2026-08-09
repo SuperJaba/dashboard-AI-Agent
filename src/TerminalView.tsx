@@ -34,9 +34,12 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   useEffect(() => {
     if (!config || !terminalRef.current) return;
     
-    // Init Xterm
+    // Init Xterm with explicit dimensions and wrapping options
     const term = new Terminal({
       cursorBlink: true,
+      cols: 100,
+      rows: 30,
+      convertEol: true,
       theme: {
         background: '#0f172a',
         foreground: '#f8fafc',
@@ -54,8 +57,12 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     termInstance.current = term;
     fitAddonInstance.current = fitAddon;
 
-    // Connect to WebSocket
-    const socket = io();
+    // Connect to WebSocket with token authentication and fallback transports
+    const token = localStorage.getItem('dashboard_token');
+    const socket = io({
+      auth: { token },
+      transports: ['polling', 'websocket']
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => {

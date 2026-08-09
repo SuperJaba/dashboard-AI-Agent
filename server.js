@@ -9,9 +9,12 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import pty from 'node-pty';
 
+import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
 import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 
 import { settingsRouter } from './src/backend/settings/settingsRouter.js';
 import { projectsRouter } from './src/backend/projects/projectsRouter.js';
@@ -19,6 +22,11 @@ import { serversRouter } from './src/backend/servers/serversRouter.js';
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
+
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isTestEnvironment = process.env.NODE_ENV === 'test';
 dotenv.config();
@@ -28,7 +36,7 @@ if (isTestEnvironment) {
 
 const app = express();
 
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 // Initialize Prometheus client
 const register = new client.Registry();
@@ -38,7 +46,9 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: '*',
-  }
+    methods: ['GET', 'POST']
+  },
+  transports: ['polling', 'websocket']
 });
 
 function findShellExecutable(requestedCmd) {
@@ -69,15 +79,16 @@ function findShellExecutable(requestedCmd) {
 // Socket.io authentication middleware
 io.use((socket, next) => {
   try {
-    const authHeader = socket.handshake.auth?.token ||
-      (socket.handshake.headers && socket.handshake.headers.authorization)
-        ? socket.handshake.headers.authorization.split(' ')[1]
-        : null;
-    if (!authHeader) {
+    let token = socket.handshake.auth?.token;
+    if (!token && socket.handshake.headers && socket.handshake.headers.authorization) {
+      const parts = socket.handshake.headers.authorization.split(' ');
+      token = parts.length === 2 ? parts[1] : parts[0];
+    }
+    if (!token) {
       return next(new Error('Unauthorized'));
     }
     // Verify JWT
-    jwt.verify(authHeader, JWT_SECRET);
+    jwt.verify(token, JWT_SECRET);
     next();
   } catch (err) {
     console.error('Socket auth error:', err.message || err);
@@ -105,11 +116,18 @@ io.on('connection', (socket) => {
         : process.env.PATH;
 
       ptyProcess = pty.spawn(shellCmd, args || [], {
-        name: 'xterm-color',
-        cols: 80,
-        rows: 24,
+        name: 'xterm-256color',
+        cols: 100,
+        rows: 30,
         cwd: targetCwd,
-        env: { ...process.env, ...env, PATH: extendedPath },
+        env: { 
+          ...process.env, 
+          ...env, 
+          PATH: extendedPath,
+          COLUMNS: '100',
+          LINES: '30',
+          TERM: 'xterm-256color'
+        },
         useConpty: false
       });
 
@@ -196,6 +214,21 @@ app.use('/api', serversRouter);
 app.use('/api/widgets', widgetsRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api', llmServersRouter);
+
+// Serve built frontend static assets if available (dist or public)
+const staticDist = path.join(__dirname, 'dist');
+const staticPublic = path.join(__dirname, 'public');
+const staticPath = fs.existsSync(staticDist) ? staticDist : (fs.existsSync(staticPublic) ? staticPublic : null);
+
+if (staticPath) {
+  app.use(express.static(staticPath));
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
+      return res.sendFile(path.join(staticPath, 'index.html'));
+    }
+    next();
+  });
+}
 
 // Init DB
 async function initDB() {
