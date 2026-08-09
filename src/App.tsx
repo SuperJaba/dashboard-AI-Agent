@@ -2,7 +2,7 @@ import { startTransition } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -31,6 +31,7 @@ function App() {
     isWorkspacesExpanded, setIsWorkspacesExpanded,
     isRemoteExpanded, setIsRemoteExpanded,
     showTasks, setShowTasks,
+    hideCompleted, setHideCompleted,
     useBrowserTerminal,
     terminalConfig, setTerminalConfig,
     selectedTaskIds, setSelectedTaskIds,
@@ -456,7 +457,7 @@ function App() {
                 </div>
               </div>
 
-              <RepoStatus directory={activeProject.path} onLaunchTerminal={(config) => setTerminalConfig(config)} />
+              <RepoStatus directory={activeProject.path || ''} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
               <section className="glass-card animate-in delay-3" style={{ maxWidth: '100%' }}>
                 <div 
@@ -477,23 +478,38 @@ function App() {
                     <Clock size={24} color="var(--primary)" aria-hidden="true" />
                     Current Tasks ({(activeProject.tasks || []).length})
                   </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     {showTasks && (
-                      <button 
-                        type="button"
-                        className="btn-add-project" 
-                        style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0) {
-                            setSelectedTaskIds([]);
-                          } else {
-                            setSelectedTaskIds((activeProject.tasks || []).map((t: any) => t.id));
-                          }
-                        }}
-                      >
-                        {selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0 ? 'Uncheck All' : 'Check All'}
-                      </button>
+                      <>
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHideCompleted(!hideCompleted);
+                          }}
+                          title={hideCompleted ? 'Pokaż zakończone zadania' : 'Ukryj zakończone zadania'}
+                        >
+                          {hideCompleted ? <Eye size={14} /> : <EyeOff size={14} />}
+                          {hideCompleted ? 'Show Completed' : 'Hide Completed'}
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0) {
+                              setSelectedTaskIds([]);
+                            } else {
+                              setSelectedTaskIds((activeProject.tasks || []).map((t: any) => t.id));
+                            }
+                          }}
+                        >
+                          {selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0 ? 'Uncheck All' : 'Check All'}
+                        </button>
+                      </>
                     )}
                     {showTasks ? <ChevronUp size={24} color="var(--text-muted)" aria-hidden="true" /> : <ChevronDown size={24} color="var(--text-muted)" aria-hidden="true" />}
                   </div>
@@ -501,7 +517,9 @@ function App() {
                 
                 {showTasks && (
                   <div id="tasks-list" className="task-list animate-in">
-                    {(activeProject.tasks || []).map((task: any) => (
+                    {(activeProject.tasks || [])
+                      .filter((task: any) => !hideCompleted || task.status !== 'completed')
+                      .map((task: any) => (
                       <div 
                         className="task-item" 
                         key={task.id}

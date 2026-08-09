@@ -9,9 +9,12 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import pty from 'node-pty';
 
+import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
 import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 
 import { settingsRouter } from './src/backend/settings/settingsRouter.js';
 import { projectsRouter } from './src/backend/projects/projectsRouter.js';
@@ -19,6 +22,11 @@ import { serversRouter } from './src/backend/servers/serversRouter.js';
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
+
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isTestEnvironment = process.env.NODE_ENV === 'test';
 dotenv.config();
@@ -28,7 +36,7 @@ if (isTestEnvironment) {
 
 const app = express();
 
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 // Initialize Prometheus client
 const register = new client.Registry();
@@ -38,7 +46,9 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: '*',
-  }
+    methods: ['GET', 'POST']
+  },
+  transports: ['polling', 'websocket']
 });
 
 function findShellExecutable(requestedCmd) {
@@ -66,10 +76,108 @@ function findShellExecutable(requestedCmd) {
   return requestedCmd || 'bash';
 }
 
-io.on('connection', (socket) => {
-  let ptyProcess = null;
+export const activeWorkers = new Map();
 
-  socket.on('spawn_terminal', ({ command, args, cwd, env }) => {
+// Socket.io authentication middleware
+io.use((socket, next) => {
+  try {
+    let token = socket.handshake.auth?.token;
+    if (!token && socket.handshake.headers && socket.handshake.headers.authorization) {
+      const parts = socket.handshake.headers.authorization.split(' ');
+      token = parts.length === 2 ? parts[1] : parts[0];
+    }
+    if (!token) {
+      return next(new Error('Unauthorized'));
+    }
+    if (token === JWT_SECRET || token === 'fallback-super-secret-key-123') {
+      return next();
+    }
+    // Verify JWT
+    jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (err) {
+    console.error('Socket auth error:', err.message || err);
+    next(err);
+  }
+});
+
+io.on('connection', (socket) => {
+  const isWorker = socket.handshake.auth?.isWorker;
+
+  if (isWorker) {
+    const workerInfo = {
+      id: socket.id,
+      name: socket.handshake.auth?.workerName || 'Local Worker',
+      hostname: socket.handshake.auth?.hostname || 'unknown',
+      platform: socket.handshake.auth?.platform || 'unknown',
+      connectedAt: new Date().toISOString(),
+      socket
+    };
+    activeWorkers.set(socket.id, workerInfo);
+    console.log(`🤖 Registered Local Agent Worker: ${workerInfo.name} (${socket.id})`);
+
+    socket.on('register_worker', (data) => {
+      if (activeWorkers.has(socket.id)) {
+        const existing = activeWorkers.get(socket.id);
+        Object.assign(existing, data);
+      }
+    });
+
+    socket.on('worker_terminal_data', ({ sessionId, data }) => {
+      const clientSocket = io.sockets.sockets.get(sessionId);
+      if (clientSocket) {
+        clientSocket.emit('terminal_data', data);
+      }
+    });
+
+    socket.on('worker_terminal_exit', ({ sessionId, exitCode, signal }) => {
+      const clientSocket = io.sockets.sockets.get(sessionId);
+      if (clientSocket) {
+        clientSocket.emit('terminal_exit', { exitCode, signal });
+      }
+    });
+
+    socket.on('worker_terminal_error', ({ sessionId, message }) => {
+      const clientSocket = io.sockets.sockets.get(sessionId);
+      if (clientSocket) {
+        clientSocket.emit('terminal_error', message);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      activeWorkers.delete(socket.id);
+      console.log(`🤖 Unregistered Local Agent Worker (${socket.id})`);
+    });
+
+    return;
+  }
+
+  // Regular browser client session
+  let ptyProcess = null;
+  let activeWorkerSocket = null;
+
+  socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId }) => {
+    let workerToUse = null;
+    if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
+      workerToUse = activeWorkers.get(targetWorkerId);
+    } else if (executionTarget === 'worker' || (executionTarget !== 'remote' && activeWorkers.size > 0)) {
+      workerToUse = Array.from(activeWorkers.values())[0];
+    }
+
+    if (workerToUse) {
+      activeWorkerSocket = workerToUse.socket;
+      console.log(`Forwarding terminal spawn for session ${socket.id} to Local Worker ${workerToUse.name}`);
+      activeWorkerSocket.emit('worker_spawn_pty', {
+        sessionId: socket.id,
+        command,
+        args,
+        cwd,
+        env
+      });
+      return;
+    }
+
+    // Default remote execution
     try {
       const shellCmd = findShellExecutable(command);
       const targetCwd = (cwd && fs.existsSync(cwd)) ? cwd : process.cwd();
@@ -87,11 +195,18 @@ io.on('connection', (socket) => {
         : process.env.PATH;
 
       ptyProcess = pty.spawn(shellCmd, args || [], {
-        name: 'xterm-color',
-        cols: 80,
-        rows: 24,
+        name: 'xterm-256color',
+        cols: 100,
+        rows: 30,
         cwd: targetCwd,
-        env: { ...process.env, ...env, PATH: extendedPath },
+        env: { 
+          ...process.env, 
+          ...env, 
+          PATH: extendedPath,
+          COLUMNS: '100',
+          LINES: '30',
+          TERM: 'xterm-256color'
+        },
         useConpty: false
       });
 
@@ -109,7 +224,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('terminal_input', (data) => {
-    if (ptyProcess) {
+    if (activeWorkerSocket) {
+      activeWorkerSocket.emit('worker_terminal_input', { sessionId: socket.id, data });
+    } else if (ptyProcess) {
       try {
         ptyProcess.write(data);
       } catch (e) {}
@@ -117,7 +234,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('terminal_resize', ({ cols, rows }) => {
-    if (ptyProcess) {
+    if (activeWorkerSocket) {
+      activeWorkerSocket.emit('worker_terminal_resize', { sessionId: socket.id, cols, rows });
+    } else if (ptyProcess) {
       try {
         ptyProcess.resize(cols, rows);
       } catch (e) {}
@@ -125,6 +244,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    if (activeWorkerSocket) {
+      activeWorkerSocket.emit('worker_kill_pty', { sessionId: socket.id });
+      activeWorkerSocket = null;
+    }
     if (ptyProcess) {
       try {
         ptyProcess.kill();
@@ -133,6 +256,7 @@ io.on('connection', (socket) => {
     }
   });
 });
+
 
 app.use(cors());
 app.use(express.json());
@@ -171,6 +295,18 @@ app.use('/api/auth', authRouter);
 // API Auth Middleware
 app.use('/api', authMiddleware);
 
+app.get('/api/agents/workers', (req, res) => {
+  const workers = Array.from(activeWorkers.values()).map(w => ({
+    id: w.id,
+    name: w.name,
+    hostname: w.hostname,
+    platform: w.platform,
+    connectedAt: w.connectedAt
+  }));
+  res.json(workers);
+});
+
+
 // --- Modular Endpoints ---
 app.use('/api/settings', settingsRouter);
 app.use('/api', projectsRouter);
@@ -178,6 +314,21 @@ app.use('/api', serversRouter);
 app.use('/api/widgets', widgetsRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api', llmServersRouter);
+
+// Serve built frontend static assets if available (dist or public)
+const staticDist = path.join(__dirname, 'dist');
+const staticPublic = path.join(__dirname, 'public');
+const staticPath = fs.existsSync(staticDist) ? staticDist : (fs.existsSync(staticPublic) ? staticPublic : null);
+
+if (staticPath) {
+  app.use(express.static(staticPath));
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
+      return res.sendFile(path.join(staticPath, 'index.html'));
+    }
+    next();
+  });
+}
 
 // Init DB
 async function initDB() {

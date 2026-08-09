@@ -5,11 +5,11 @@ dotenv.config();
 const { Pool } = pkg;
 
 export const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || '127.0.0.1',
-  database: process.env.DB_NAME || 'dashboard',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
+  user: process.env.DB_USER || process.env.PGUSER || 'postgres',
+  host: process.env.DB_HOST || process.env.PGHOST || '127.0.0.1',
+  database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboard',
+  password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres',
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
   connectionTimeoutMillis: 2000,
 });
 
@@ -111,14 +111,28 @@ export async function migrate() {
   const queries = [
     `CREATE TABLE IF NOT EXISTS servers (
       id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      provider TEXT NOT NULL,
-      url TEXT NOT NULL,
-      model TEXT,
+      name VARCHAR(255) NOT NULL,
+      host VARCHAR(255),
+      username VARCHAR(255),
+      port INTEGER DEFAULT 22,
+      provider VARCHAR(255) DEFAULT 'local',
+      url VARCHAR(512),
+      model VARCHAR(255),
       api_key TEXT,
+      use_devil BOOLEAN DEFAULT false,
+      ssh_password TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );`
+    );`,
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS host VARCHAR(255);',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS username VARCHAR(255);',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS port INTEGER DEFAULT 22;',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS provider VARCHAR(255) DEFAULT \'local\';',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS url VARCHAR(512);',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS model VARCHAR(255);',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS api_key TEXT;',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS use_devil BOOLEAN DEFAULT false;',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;'
   ];
   for (const q of queries) {
     await safeQuery(q);

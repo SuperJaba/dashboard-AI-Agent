@@ -36,15 +36,13 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
   // State for showing Agent Best Picks suggestions
   const [showBestPicks, setShowBestPicks] = useState(false);
 
-  // Predefined widget command suggestions
     const bestPicks = [
-      { name: 'CPU Usage', command: 'wmic cpu get loadpercentage', type: 'number', color: '#ef4444' },
-      { name: 'Memory Free %', command: "powershell -NoProfile -Command \"$free=(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; $total=(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize; [math]::Round(($free/$total)*100,2)\"", type: 'number', color: '#10b981' },
-      { name: 'Disk Space (Root)', command: "powershell -NoProfile -Command \"(Get-PSDrive -PSProvider 'FileSystem' | Where-Object {$_.Root -eq 'C:'}).Used/1GB\"", type: 'string', color: '#3b82f6' },
-      { name: 'System Uptime', command: "powershell -NoProfile -Command \"(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss')\"", type: 'string', color: '#f59e0b' },
+      { name: 'Jagger2 CPU', command: "ssh -i ~/.ssh/id_ed25519_antigravity jagger2@s1.ct8.pl mpstat 1 1 | awk '{print $3}'", type: 'number', color: '#ef4444' },
+      { name: 'Memory Free %', command: "free | awk '/Mem:/ {printf \"%.2f\", $3/$2 * 100}' || vmstat | tail -n 1 | awk '{print $5}'", type: 'number', color: '#10b981' },
+      { name: 'Disk Space (Root)', command: "df -h / | awk 'NR==2 {print $3 \" / \" $2 \" (\" $5 \")\"}'", type: 'string', color: '#3b82f6' },
+      { name: 'System Uptime', command: "uptime -p || uptime", type: 'string', color: '#f59e0b' },
       { name: 'Local Docker Containers', command: "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'", type: 'text', color: '#8b5cf6' },
-      { name: 'Grafana Dashboard Image', command: "curl -s \"http://grafana.example.com/render/d-solo/abcd?orgId=1&panelId=2&width=800&height=400\"", type: 'image', color: '#f59e0b' },
-      { name: 'Network Usage', command: "powershell -NoProfile -Command \"Get-NetAdapterStatistics | Select-Object Name, ReceivedBytes, SentBytes\"", type: 'string', color: '#6366f1' },
+      { name: 'Network Usage', command: "ifconfig | grep -E 'bytes|RX|TX' | head -n 4", type: 'text', color: '#6366f1' }
     ];
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [showModal, setShowModal] = useState(false);
