@@ -4,6 +4,20 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    proxy: {
+      '/api': 'http://localhost:3001',
+      '/socket.io': {
+        target: 'http://localhost:3001',
+        ws: true,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err: any) => {
+            if (err?.code === 'ECONNRESET') return;
+            console.error('Vite Socket Proxy Error:', err?.message);
+          });
+        }
+      }
+    },
     watch: {
       ignored: ['**/.start_agent.sh', '**/.ai_tasks.md', '**/*.log', '**/coverage/**']
     }

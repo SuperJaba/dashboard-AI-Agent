@@ -46,24 +46,38 @@ export const ProjectSchema = z.object({
   id: z.number(),
   name: z.string(),
   desc: z.string().nullable().optional(),
-  path: z.string(),
+  path: z.string().nullable().optional(),
   branch: z.string().nullable().optional(),
   tech: z.string().nullable().optional(),
   complete: z.number().optional().default(0),
-  tasks: z.array(TaskSchema).optional().default([])
-});
+  tasks: z.preprocess(
+    (val) => {
+      if (!val) return [];
+      if (typeof val === 'string') {
+        try { 
+          const parsed = JSON.parse(val);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch { 
+          return []; 
+        }
+      }
+      return Array.isArray(val) ? val : [];
+    },
+    z.array(TaskSchema).optional().default([])
+  )
+}).passthrough();
 
 export type ProjectData = z.infer<typeof ProjectSchema>;
 
 export const ServerSchema = z.object({
   id: z.number(),
   name: z.string(),
-  host: z.string(),
-  username: z.string(),
-  port: z.number().default(22),
+  host: z.string().nullable().optional().default(''),
+  username: z.string().nullable().optional().default(''),
+  port: z.number().optional().default(22),
   use_devil: z.boolean().optional().default(false),
   ssh_password: z.string().nullable().optional()
-});
+}).passthrough();
 
 export type ServerData = z.infer<typeof ServerSchema>;
 

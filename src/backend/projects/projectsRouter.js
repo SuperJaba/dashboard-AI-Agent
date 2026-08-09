@@ -48,6 +48,53 @@ projectsRouter.put('/projects/:id', async (req, res) => {
   }
 });
 
+// Update all tasks for a project directly
+projectsRouter.put('/projects/:id/tasks', async (req, res) => {
+  try {
+    const { tasks } = req.body;
+    if (!Array.isArray(tasks)) {
+      return res.status(400).json({ error: 'Field "tasks" must be an array' });
+    }
+    const complete = tasks.length > 0
+      ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100)
+      : 0;
+    const row = await projectsRepo.updateProject(req.params.id, { tasks, complete });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a single task within a project
+projectsRouter.patch('/projects/:id/tasks/:taskId', async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const taskId = parseInt(req.params.taskId, 10);
+    const projects = await projectsRepo.getProjects();
+    const project = projects.find(p => p.id === parseInt(projectId, 10));
+
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const currentTasks = project.tasks || [];
+    const taskIndex = currentTasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    currentTasks[taskIndex] = { ...currentTasks[taskIndex], ...req.body, id: taskId };
+    const complete = currentTasks.length > 0
+      ? Math.round((currentTasks.filter(t => t.status === 'completed').length / currentTasks.length) * 100)
+      : 0;
+
+    const row = await projectsRepo.updateProject(projectId, { tasks: currentTasks, complete });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete Project
 projectsRouter.delete('/projects/:id', async (req, res) => {
   try {
@@ -353,6 +400,10 @@ projectsRouter.post('/deploy', async (req, res) => {
 
     const scriptContent = `#!/bin/bash
 cd "${targetDir}"
+stty cols 100 rows 30 2>/dev/null || true
+export COLUMNS=100
+export LINES=30
+export TERM=xterm-256color
 ${exportEnvLines.join('\n')}
 echo -e "\\033[1;34m🚀 Initializing AI Agent (${agent})...\\033[0m"
 echo -ne "\\033[1;36m📡 Preparing environment: \\033[0m"
@@ -373,7 +424,9 @@ exec bash
     fs.writeFileSync(scriptPath, scriptContent);
     fs.chmodSync(scriptPath, '755');
       
-    if (useBrowserTerminal) {
+    // Always return browserTerminal configuration when requested or running in web mode
+    const isBrowserMode = useBrowserTerminal !== false;
+    if (isBrowserMode) {
       return res.json({ 
         success: true, 
         browserTerminal: true, 

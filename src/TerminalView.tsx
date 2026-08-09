@@ -12,6 +12,8 @@ interface TerminalViewProps {
     args: string[];
     cwd: string;
     env: any;
+    executionTarget?: 'remote' | 'worker' | 'auto';
+    targetWorkerId?: string;
   } | null;
   onClose: () => void;
 }
@@ -27,16 +29,33 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [execTarget, setExecTarget] = useState<'remote' | 'worker' | 'auto'>(config?.executionTarget || 'auto');
+  const [workers, setWorkers] = useState<any[]>([]);
+
   const dragStartPos = useRef({ x: 0, y: 0 });
   const initialPos = useRef({ x: 0, y: 0 });
   const initialSize = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
+    // Fetch active workers list
+    const token = localStorage.getItem('dashboard_token');
+    fetch('/api/agents/workers', {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setWorkers(Array.isArray(data) ? data : []))
+      .catch(() => setWorkers([]));
+  }, []);
+
+  useEffect(() => {
     if (!config || !terminalRef.current) return;
     
-    // Init Xterm
+    // Init Xterm with explicit dimensions and wrapping options
     const term = new Terminal({
       cursorBlink: true,
+      cols: 100,
+      rows: 30,
+      convertEol: true,
       theme: {
         background: '#0f172a',
         foreground: '#f8fafc',
@@ -54,20 +73,26 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     termInstance.current = term;
     fitAddonInstance.current = fitAddon;
 
-    // Connect to WebSocket
-    const socket = io('http://localhost:3001');
+    // Connect to WebSocket with token authentication and fallback transports
+    const token = localStorage.getItem('dashboard_token');
+    const socket = io({
+      auth: { token },
+      transports: ['polling', 'websocket']
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => {
       term.write('\x1b[32m[Connected to Backend]\x1b[0m\r\n');
       term.focus();
       
-      // Spawn pty on backend
+      // Spawn pty on backend or local worker
       socket.emit('spawn_terminal', {
         command: config.command,
         args: config.args,
         cwd: config.cwd,
-        env: config.env
+        env: config.env,
+        executionTarget: execTarget,
+        targetWorkerId: config.targetWorkerId
       });
       
       // Resize to current xterm size
@@ -104,7 +129,8 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
       socket.disconnect();
       term.dispose();
     };
-  }, [config]);
+  }, [config, execTarget]);
+
 
   // Handle resizing terminal when restoring from minimized state
   useEffect(() => {
@@ -219,8 +245,29 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444' }} />
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#f59e0b' }} />
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#10b981' }} />
-          <span style={{ marginLeft: '1rem', color: '#94a3b8', fontSize: '0.85rem', fontFamily: 'var(--mono)', pointerEvents: 'none' }}>Live Agent Terminal</span>
+          <span style={{ marginLeft: '0.5rem', color: '#94a3b8', fontSize: '0.85rem', fontFamily: 'var(--mono)', pointerEvents: 'none' }}>Live Agent Terminal</span>
+          <div style={{ marginLeft: '1rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#0f172a', borderRadius: '4px', padding: '2px 6px', border: '1px solid #334155' }}>
+            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Target:</span>
+            <select
+              value={execTarget}
+              onChange={(e) => setExecTarget(e.target.value as 'remote' | 'worker' | 'auto')}
+              style={{
+                background: 'transparent',
+                color: execTarget === 'worker' ? '#38bdf8' : execTarget === 'remote' ? '#a855f7' : '#10b981',
+                border: 'none',
+                fontSize: '0.75rem',
+                fontFamily: 'var(--mono)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="auto">⚡ Auto ({workers.length > 0 ? 'Local Worker' : 'Remote'})</option>
+              <option value="worker" disabled={workers.length === 0}>💻 Local Worker ({workers.length})</option>
+              <option value="remote">🌐 Remote Server</option>
+            </select>
+          </div>
         </div>
+
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button 
             onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }} 
