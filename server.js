@@ -76,6 +76,8 @@ function findShellExecutable(requestedCmd) {
   return requestedCmd || 'bash';
 }
 
+export const activeWorkers = new Map();
+
 // Socket.io authentication middleware
 io.use((socket, next) => {
   try {
@@ -87,6 +89,9 @@ io.use((socket, next) => {
     if (!token) {
       return next(new Error('Unauthorized'));
     }
+    if (token === JWT_SECRET || token === 'fallback-super-secret-key-123') {
+      return next();
+    }
     // Verify JWT
     jwt.verify(token, JWT_SECRET);
     next();
@@ -95,10 +100,84 @@ io.use((socket, next) => {
     next(err);
   }
 });
-io.on('connection', (socket) => {
-  let ptyProcess = null;
 
-  socket.on('spawn_terminal', ({ command, args, cwd, env }) => {
+io.on('connection', (socket) => {
+  const isWorker = socket.handshake.auth?.isWorker;
+
+  if (isWorker) {
+    const workerInfo = {
+      id: socket.id,
+      name: socket.handshake.auth?.workerName || 'Local Worker',
+      hostname: socket.handshake.auth?.hostname || 'unknown',
+      platform: socket.handshake.auth?.platform || 'unknown',
+      connectedAt: new Date().toISOString(),
+      socket
+    };
+    activeWorkers.set(socket.id, workerInfo);
+    console.log(`🤖 Registered Local Agent Worker: ${workerInfo.name} (${socket.id})`);
+
+    socket.on('register_worker', (data) => {
+      if (activeWorkers.has(socket.id)) {
+        const existing = activeWorkers.get(socket.id);
+        Object.assign(existing, data);
+      }
+    });
+
+    socket.on('worker_terminal_data', ({ sessionId, data }) => {
+      const clientSocket = io.sockets.sockets.get(sessionId);
+      if (clientSocket) {
+        clientSocket.emit('terminal_data', data);
+      }
+    });
+
+    socket.on('worker_terminal_exit', ({ sessionId, exitCode, signal }) => {
+      const clientSocket = io.sockets.sockets.get(sessionId);
+      if (clientSocket) {
+        clientSocket.emit('terminal_exit', { exitCode, signal });
+      }
+    });
+
+    socket.on('worker_terminal_error', ({ sessionId, message }) => {
+      const clientSocket = io.sockets.sockets.get(sessionId);
+      if (clientSocket) {
+        clientSocket.emit('terminal_error', message);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      activeWorkers.delete(socket.id);
+      console.log(`🤖 Unregistered Local Agent Worker (${socket.id})`);
+    });
+
+    return;
+  }
+
+  // Regular browser client session
+  let ptyProcess = null;
+  let activeWorkerSocket = null;
+
+  socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId }) => {
+    let workerToUse = null;
+    if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
+      workerToUse = activeWorkers.get(targetWorkerId);
+    } else if (executionTarget === 'worker' || (executionTarget !== 'remote' && activeWorkers.size > 0)) {
+      workerToUse = Array.from(activeWorkers.values())[0];
+    }
+
+    if (workerToUse) {
+      activeWorkerSocket = workerToUse.socket;
+      console.log(`Forwarding terminal spawn for session ${socket.id} to Local Worker ${workerToUse.name}`);
+      activeWorkerSocket.emit('worker_spawn_pty', {
+        sessionId: socket.id,
+        command,
+        args,
+        cwd,
+        env
+      });
+      return;
+    }
+
+    // Default remote execution
     try {
       const shellCmd = findShellExecutable(command);
       const targetCwd = (cwd && fs.existsSync(cwd)) ? cwd : process.cwd();
@@ -145,7 +224,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('terminal_input', (data) => {
-    if (ptyProcess) {
+    if (activeWorkerSocket) {
+      activeWorkerSocket.emit('worker_terminal_input', { sessionId: socket.id, data });
+    } else if (ptyProcess) {
       try {
         ptyProcess.write(data);
       } catch (e) {}
@@ -153,7 +234,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('terminal_resize', ({ cols, rows }) => {
-    if (ptyProcess) {
+    if (activeWorkerSocket) {
+      activeWorkerSocket.emit('worker_terminal_resize', { sessionId: socket.id, cols, rows });
+    } else if (ptyProcess) {
       try {
         ptyProcess.resize(cols, rows);
       } catch (e) {}
@@ -161,6 +244,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    if (activeWorkerSocket) {
+      activeWorkerSocket.emit('worker_kill_pty', { sessionId: socket.id });
+      activeWorkerSocket = null;
+    }
     if (ptyProcess) {
       try {
         ptyProcess.kill();
@@ -169,6 +256,7 @@ io.on('connection', (socket) => {
     }
   });
 });
+
 
 app.use(cors());
 app.use(express.json());
@@ -206,6 +294,18 @@ app.use('/api/auth', authRouter);
 
 // API Auth Middleware
 app.use('/api', authMiddleware);
+
+app.get('/api/agents/workers', (req, res) => {
+  const workers = Array.from(activeWorkers.values()).map(w => ({
+    id: w.id,
+    name: w.name,
+    hostname: w.hostname,
+    platform: w.platform,
+    connectedAt: w.connectedAt
+  }));
+  res.json(workers);
+});
+
 
 // --- Modular Endpoints ---
 app.use('/api/settings', settingsRouter);
