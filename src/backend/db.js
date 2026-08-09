@@ -5,11 +5,11 @@ dotenv.config();
 const { Pool } = pkg;
 
 export const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || '127.0.0.1',
-  database: process.env.DB_NAME || 'dashboard',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
+  user: process.env.DB_USER || process.env.PGUSER || 'postgres',
+  host: process.env.DB_HOST || process.env.PGHOST || '127.0.0.1',
+  database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboard',
+  password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres',
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
   connectionTimeoutMillis: 2000,
 });
 
