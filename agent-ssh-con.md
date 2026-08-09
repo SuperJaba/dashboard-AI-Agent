@@ -37,7 +37,7 @@ ssh -i /home/seba/.ssh/id_ed25519_antigravity -p 22 jagger2@s1.ct8.pl
 W przypadku agentów, skryptów CI/CD i automatyzacji należy podać flagi `-o StrictHostKeyChecking=accept-new` oraz `-o BatchMode=yes`:
 
 ```bash
-ssh -i /home/seba/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes jagger2@s1.ct8.pl -p 22 'uname -a; uptime; id; ls -la'
+ssh -i /home/seba/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes jagger2@s1.ct8.pl -p 22
 ```
 
 ---
