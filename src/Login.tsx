@@ -16,7 +16,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     let retryTimeout: any;
 
     const checkSetup = () => {
-      fetch('http://localhost:3001/api/auth/check-setup')
+      fetch('/api/auth/check-setup')
         .then(res => res.json())
         .then(data => {
           if (!active) return;
@@ -47,7 +47,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     const endpoint = needsSetup ? '/api/auth/setup' : '/api/auth/login';
     
     try {
-      const res = await fetch(`http://localhost:3001${endpoint}`, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -98,7 +98,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
 
   const handleResetAuth = async () => {
     try {
-      await fetch('http://localhost:3001/api/auth/reset', { method: 'POST' });
+      await fetch('/api/auth/reset', { method: 'POST' });
       localStorage.removeItem('dashboard_token');
       setNeedsSetup(true);
       setError('Zresetowano stan autentykacji. Utwórz nowe konto administratora.');

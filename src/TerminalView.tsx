@@ -55,7 +55,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     fitAddonInstance.current = fitAddon;
 
     // Connect to WebSocket
-    const socket = io('http://localhost:3001');
+    const socket = io();
     socketRef.current = socket;
 
     socket.on('connect', () => {

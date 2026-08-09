@@ -66,6 +66,24 @@ function findShellExecutable(requestedCmd) {
   return requestedCmd || 'bash';
 }
 
+// Socket.io authentication middleware
+io.use((socket, next) => {
+  try {
+    const authHeader = socket.handshake.auth?.token ||
+      (socket.handshake.headers && socket.handshake.headers.authorization)
+        ? socket.handshake.headers.authorization.split(' ')[1]
+        : null;
+    if (!authHeader) {
+      return next(new Error('Unauthorized'));
+    }
+    // Verify JWT
+    jwt.verify(authHeader, JWT_SECRET);
+    next();
+  } catch (err) {
+    console.error('Socket auth error:', err.message || err);
+    next(err);
+  }
+});
 io.on('connection', (socket) => {
   let ptyProcess = null;
 

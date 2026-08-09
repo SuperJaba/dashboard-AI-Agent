@@ -11,7 +11,7 @@ export const AnalyticsPanel = () => {
   } | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/analytics', {
+    fetch('/api/analytics', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('dashboard_token')}`
       }
