@@ -19,7 +19,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 import { settingsRouter } from './src/backend/settings/settingsRouter.js';
 import { projectsRouter } from './src/backend/projects/projectsRouter.js';
 import { serversRouter } from './src/backend/servers/serversRouter.js';
-import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
+
+// Import background worker and start it.
+import { startBackgroundWorker } from './src/backend/agents/backgroundWorker.js';
+startBackgroundWorker();import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
 
