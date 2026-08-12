@@ -8,25 +8,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development & Build
 - `npm run dev` - Start both frontend (Vite) and backend (Express) concurrently
-- `npm run dev:frontend` - Run Vite dev server only
-- `npm run dev:backend` - Run Express server only
-- `npm run build` - Build production-ready frontend bundle
-- `npm run lint` - Run Oxlint/ESLint on all source files
-- `npm test` - Run Vitest unit tests (once)
-- `npm run test:watch` - Run Vitest with watch mode
-- `npm run test:ui` - Run Vitest with UI for visual debugging
-- `npm run preview` - Preview production build from dist folder
+- `npm run dev:frontend` - Run Vite dev server only (port 5173)
+- `npm run dev:backend` - Run Express server only (port 3001)
+- `npm run build` - Build production-ready frontend bundle to `dist/`
+- `npm run lint` - Run ESLint on all source files (excludes `dist/**`)
+- `npm test` - Run Vitest unit tests once (generates coverage in `coverage/`)
+- `npm run test:watch` - Run Vitest with watch mode for interactive debugging
+- `npm run test:ui` - Run Vitest with UI for visual feedback
+- `npm run preview` - Preview production build from `dist/` folder
+- `npm run db:migrate` - Run PostgreSQL database migrations
 
 ### Database & Migration
-- `npm run db:migrate` - Run PostgreSQL migrations
 - Backend uses `src/backend/db.js` with automatic migration on startup
+- Connection pooling via `pg.Pool` in production mode
 - In-memory fallback available if PostgreSQL unavailable
 
 ### Testing
-- Unit tests: Vitest (Vitest + React Testing Library for components)
-- Integration tests: Supertest covers all API endpoints
-- E2E tests: Playwright (`npm run test:e2e`)
-- CI pipeline: `npm run ci-tdd` (continuous integration with TDD bot)
+- **Unit tests**: Vitest + React Testing Library for component logic
+- **Integration tests**: Supertest covers all Express API endpoints
+- **E2E tests**: Playwright (`npm run test:e2e`) - full UI flows including agent deployment
+- **CI pipeline**: `npm run ci-tdd` (continuous integration with TDD bot)
 
 ### Git & Agents
 - Initialize git in project directory: `npm run agent:worker` (local agent worker)
@@ -63,7 +64,10 @@ dashboard/
 │   ├── shared/                    # Shared utilities, API client, schemas
 │   └── hooks/                     # Custom React hooks (useDashboardState)
 ├── package.json                   # Dependencies & npm scripts
-└── README.md                      # Full project documentation
+├── AGENTS.md                      # Repository guidelines for contributors
+├── CLAUDE.md                      # This file - Claude coding guidance
+├── README.md                      # Full project documentation
+└── .hermes/skills/                # Hermes agent skills (not tracked in git)
 ```
 
 ### Data Flow & Communication
@@ -151,3 +155,33 @@ value TEXT
 3. **Terminal Mode**: Browser-based terminal toggle persists to localStorage
 4. **Git Integration**: Projects can be analyzed for tasks via Git (`/api/init-git`, `/api/analyze`)
 5. **SSH Setup**: Remote server deployment requires SSH key setup via `/api/servers/:id/setup-ssh`
+
+---
+
+## Codebase Statistics (as of 2026-08-12)
+
+### Language Distribution
+- **JavaScript**: 53 files, 7,363 lines (24%)
+- **TypeScript**: 52 files, 5,116 lines (16%)
+- **TSX**: 18 files, 3,577 lines (11%)
+- **HTML/XML**: 17 files, 6,644 lines (21%)
+- **JSON**: 38 files, 2,407 lines (8%)
+- **Bash**: 28 files, 2,300 lines (7%)
+- **YAML**: 13 files, 363 lines (1%)
+- **Markdown**: 47 files, documentation only
+
+### Total Codebase
+- **Total Lines of Code**: ~31,167
+- **Comment Lines**: ~3,472 (7.6%)
+- **File Count**: 323 tracked files
+
+---
+
+## Agent Skills Configuration
+
+Hermes agent skills are stored in `.hermes/skills/` directory:
+- `software-development/claude` - Claude integration via LM Studio
+- `github/github-repo-management` - GitHub repository management
+- `codebase-inspection` - Codebase analysis with pygount
+
+These files are **not tracked in git** as they are configuration-specific to the agent setup.
