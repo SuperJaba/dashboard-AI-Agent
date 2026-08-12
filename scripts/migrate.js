@@ -3,13 +3,28 @@ import { safeQuery } from '../src/backend/db.js';
 async function runMigrations() {
   console.log('🔄 Running database migrations...');
   try {
+    // Drop tables if they exist (to fix corruption)
+    console.log('📊 Dropping existing tables to ensure clean state...');
     await safeQuery(`
-      CREATE TABLE IF NOT EXISTS settings (
+      DROP TABLE IF EXISTS settings CASCADE;
+      DROP TABLE IF EXISTS projects CASCADE;
+      DROP TABLE IF EXISTS servers CASCADE;
+      DROP TABLE IF EXISTS cli_agents CASCADE;
+      DROP TABLE IF EXISTS custom_widgets CASCADE;
+      DROP TABLE IF EXISTS llm_servers CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
+    `);
+    
+    // Create tables with correct structure
+    console.log('📝 Creating database tables...');
+    await safeQuery(`
+      CREATE TABLE settings (
         id SERIAL PRIMARY KEY,
         key VARCHAR(255) UNIQUE NOT NULL,
         value TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS projects (
+      
+      CREATE TABLE projects (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         "desc" TEXT,
@@ -19,7 +34,8 @@ async function runMigrations() {
         complete INTEGER DEFAULT 0,
         tasks JSONB DEFAULT '[]'::jsonb
       );
-      CREATE TABLE IF NOT EXISTS servers (
+      
+      CREATE TABLE servers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         host VARCHAR(255) NOT NULL,
@@ -28,15 +44,20 @@ async function runMigrations() {
         use_devil BOOLEAN DEFAULT false,
         ssh_password TEXT
       );
-      CREATE TABLE IF NOT EXISTS cli_agents (
+      
+      CREATE TABLE cli_agents (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
         description TEXT,
         path VARCHAR(255),
         config_uri TEXT,
-        installed BOOLEAN DEFAULT false
+        installed BOOLEAN DEFAULT false,
+        llm_model VARCHAR(255),
+        temperature NUMERIC DEFAULT 0.7,
+        max_tokens INTEGER DEFAULT 4096
       );
-      CREATE TABLE IF NOT EXISTS custom_widgets (
+      
+      CREATE TABLE custom_widgets (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         command TEXT NOT NULL,
@@ -44,7 +65,8 @@ async function runMigrations() {
         color VARCHAR(50) DEFAULT '#c084fc',
         server_id INTEGER
       );
-      CREATE TABLE IF NOT EXISTS llm_servers (
+      
+      CREATE TABLE llm_servers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         url VARCHAR(512) NOT NULL,
@@ -54,29 +76,38 @@ async function runMigrations() {
         is_active BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE TABLE IF NOT EXISTS users (
+      
+      CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT NOT NULL
       );
     `);
-
-    // Ensure alter columns exist for upgrades
-    await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS use_devil BOOLEAN DEFAULT false;');
-    await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;');
-    await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS llm_model VARCHAR(255);');
-    await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS temperature NUMERIC DEFAULT 0.7;');
-    await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS max_tokens INTEGER DEFAULT 4096;');
-
+    
+    // Create additional tables if missing
+    console.log('📝 Creating additional tables...');
+    await safeQuery(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        description TEXT,
+        server_id INTEGER REFERENCES servers(id),
+        status VARCHAR(50) DEFAULT 'stopped',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    
     // Default settings seeding
-    await safeQuery('INSERT INTO settings (key, value) VALUES (\'llmName\', \'AtomicChat\') ON CONFLICT (key) DO NOTHING;');
-    await safeQuery('INSERT INTO settings (key, value) VALUES (\'llmUrl\', \'http://127.0.0.1:1337/v1\') ON CONFLICT (key) DO NOTHING;');
-    await safeQuery('INSERT INTO settings (key, value) VALUES (\'llmModel\', \'AtomicChat/qwen35-4b-Q8_0\') ON CONFLICT (key) DO NOTHING;');
-
+    console.log('📝 Seeding default settings...');
+    await safeQuery("INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat')");
+    await safeQuery("INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1')");
+    await safeQuery("INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0')");
+    
     console.log('✅ Database migration completed successfully!');
     process.exit(0);
   } catch (err) {
     console.error('❌ Migration failed:', err.message);
+    console.error(err.stack);
     process.exit(1);
   }
 }
