@@ -300,6 +300,29 @@ export function useDashboardState() {
     }
   };
 
+  const handleCloneProject = async (repoUrl: string, targetDir: string, projectName?: string) => {
+    try {
+      const name = projectName || targetDir.split('/').pop() || targetDir.split('\\').pop() || 'Cloned Repo';
+      const data = await apiClient.post<any>('/api/git/clone', {
+        repoUrl,
+        targetDir,
+        name
+      });
+      if (data.project) {
+        setProjects(prev => [...prev, data.project]);
+        setActiveProjectId(data.project.id);
+      } else {
+        const newProj = await apiClient.post<any>('/api/projects', { name, desc: `Cloned from ${repoUrl}`, path: data.directory || targetDir });
+        setProjects(prev => [...prev, newProj]);
+        setActiveProjectId(newProj.id);
+      }
+      return data;
+    } catch (err: any) {
+      console.error('Failed to clone project:', err);
+      throw err;
+    }
+  };
+
   const setupSshKey = async (serverId: number) => {
     try {
       const data = await apiClient.post<any>(`/api/servers/${serverId}/setup-ssh`);
@@ -318,6 +341,7 @@ export function useDashboardState() {
     projects, setProjects,
     activeProjectId, setActiveProjectId,
     servers, setServers,
+    handleCloneProject,
     agents, setAgents,
     showAddServer, setShowAddServer,
     newServer, setNewServer,

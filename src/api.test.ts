@@ -3,7 +3,10 @@ import { apiClient } from './shared/api-client';
 
 describe('apiClient', () => {
   beforeEach(() => {
-    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue('mock-jwt-token');
+    localStorage.setItem('dashboard_token', 'mock-jwt-token');
+    if (typeof localStorage.getItem === 'function') {
+      vi.spyOn(localStorage, 'getItem').mockReturnValue('mock-jwt-token');
+    }
     globalThis.fetch = vi.fn(() =>
       Promise.resolve({
         ok: true,

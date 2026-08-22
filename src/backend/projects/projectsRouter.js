@@ -527,3 +527,157 @@ projectsRouter.post('/git/deploy', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// Git Branches
+projectsRouter.post('/git/branches', async (req, res) => {
+  try {
+    const { directory } = req.body;
+    const result = gitService.getBranches(directory);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Checkout
+projectsRouter.post('/git/checkout', async (req, res) => {
+  try {
+    const { directory, branch, createNew } = req.body;
+    if (!branch) return res.status(400).json({ error: 'Branch name is required' });
+    const result = gitService.checkoutBranch(directory, branch, createNew);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Create Branch
+projectsRouter.post('/git/branch', async (req, res) => {
+  try {
+    const { directory, branch } = req.body;
+    if (!branch) return res.status(400).json({ error: 'Branch name is required' });
+    const result = gitService.createBranch(directory, branch);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Delete Branch
+projectsRouter.delete('/git/branch', async (req, res) => {
+  try {
+    const { directory, branch, force } = req.body;
+    if (!branch) return res.status(400).json({ error: 'Branch name is required' });
+    const result = gitService.deleteBranch(directory, branch, force);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Diff
+projectsRouter.post('/git/diff', async (req, res) => {
+  try {
+    const { directory, staged, file } = req.body;
+    const result = gitService.getDiff(directory, staged, file);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Stage
+projectsRouter.post('/git/stage', async (req, res) => {
+  try {
+    const { directory, files } = req.body;
+    const result = gitService.stageFiles(directory, files);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Unstage
+projectsRouter.post('/git/unstage', async (req, res) => {
+  try {
+    const { directory, files } = req.body;
+    const result = gitService.unstageFiles(directory, files);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Commit
+projectsRouter.post('/git/commit', async (req, res) => {
+  try {
+    const { directory, message } = req.body;
+    if (!message || !message.trim()) return res.status(400).json({ error: 'Commit message is required' });
+    const result = gitService.commitChanges(directory, message);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Pull
+projectsRouter.post('/git/pull', async (req, res) => {
+  try {
+    const { directory, remote, branch } = req.body;
+    const result = gitService.pullChanges(directory, remote, branch);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Push
+projectsRouter.post('/git/push', async (req, res) => {
+  try {
+    const { directory, remote, branch, force } = req.body;
+    const result = gitService.pushChanges(directory, remote, branch, force);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Fetch
+projectsRouter.post('/git/fetch', async (req, res) => {
+  try {
+    const { directory, remote } = req.body;
+    const result = gitService.fetchChanges(directory, remote);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Clone
+projectsRouter.post('/git/clone', async (req, res) => {
+  try {
+    const { repoUrl, targetDir, name, desc } = req.body;
+    if (!repoUrl) return res.status(400).json({ error: 'Repository URL is required' });
+    if (!targetDir) return res.status(400).json({ error: 'Target directory is required' });
+
+    const result = gitService.cloneRepo(repoUrl, targetDir);
+
+    let project = null;
+    if (name) {
+      project = await projectsRepo.createProject({
+        name,
+        desc: desc || `Cloned from ${repoUrl}`,
+        path: result.directory,
+        branch: 'main',
+        tech: 'Git Repo',
+        complete: 0,
+        tasks: []
+      });
+    }
+
+    res.json({ ...result, project });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+

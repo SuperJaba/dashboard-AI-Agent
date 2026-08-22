@@ -2,32 +2,43 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 
-function isGitRepo(directory) {
-  return fs.existsSync(path.join(directory, '.git'));
+export function resolveDirectory(dir) {
+  if (!dir) return dir;
+  if (dir.startsWith('~/')) {
+    const home = process.env.HOME || process.env.USERPROFILE || '';
+    return path.join(home, dir.slice(2));
+  }
+  return path.resolve(dir);
+}
+
+export function isGitRepo(directory) {
+  const resolved = resolveDirectory(directory);
+  return fs.existsSync(path.join(resolved, '.git'));
 }
 
 export function getStatus(directory) {
-  if (!isGitRepo(directory)) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
     throw new Error('Not a git repository');
   }
   
-  const execOpts = { stdio: ['pipe', 'pipe', 'pipe'] };
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
   let branch = '';
   let changes = [];
   let commits = [];
 
   try {
-    branch = execSync(`git -C "${directory}" branch --show-current`, execOpts).toString().trim();
+    branch = execSync('git branch --show-current', execOpts).toString().trim();
   } catch (e) {}
 
   try {
-    const statusOut = execSync(`git -C "${directory}" status -s`, execOpts).toString().trim();
-    changes = statusOut ? statusOut.split('\n') : [];
+    const statusOut = execSync('git status -s', execOpts).toString().trim();
+    changes = statusOut ? statusOut.split(/\r?\n/) : [];
   } catch (e) {}
 
   try {
-    const logOut = execSync(`git -C "${directory}" log -n 5 --pretty=format:"%h|%s|%ar|%an"`, execOpts).toString().trim();
-    commits = logOut ? logOut.split('\n').map(line => {
+    const logOut = execSync('git log -n 10 --pretty=format:"%h|%s|%ar|%an"', execOpts).toString().trim();
+    commits = logOut ? logOut.split(/\r?\n/).map(line => {
       const parts = line.split('|');
       return { hash: parts[0], msg: parts[1], time: parts[2], author: parts[3] };
     }) : [];
@@ -36,14 +47,246 @@ export function getStatus(directory) {
   return { branch, changes, commits };
 }
 
+export function getBranches(directory) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  let current = '';
+  const local = [];
+  const remote = [];
+
+  try {
+    current = execSync('git branch --show-current', execOpts).toString().trim();
+  } catch (e) {}
+
+  try {
+    const branchOut = execSync('git branch -a --format="%(refname:short)|%(HEAD)"', execOpts).toString().trim();
+    const lines = branchOut ? branchOut.split(/\r?\n/) : [];
+    
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const [ref, headMark] = line.split('|');
+      const isHead = headMark === '*';
+      if (isHead && !current) {
+        current = ref;
+      }
+      if (ref.startsWith('origin/')) {
+        if (!ref.endsWith('/HEAD')) {
+          remote.push(ref);
+        }
+      } else {
+        local.push(ref);
+      }
+    }
+  } catch (e) {
+    // Fallback simple list
+    try {
+      const simpleOut = execSync('git branch', execOpts).toString().trim();
+      simpleOut.split(/\r?\n/).forEach(b => {
+        const clean = b.replace('*', '').trim();
+        if (clean) local.push(clean);
+      });
+    } catch (err) {}
+  }
+
+  return { current, local, remote };
+}
+
+export function checkoutBranch(directory, branch, createNew = false) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  if (createNew) {
+    execSync(`git checkout -b "${branch}"`, execOpts);
+  } else {
+    execSync(`git checkout "${branch}"`, execOpts);
+  }
+
+  const current = execSync('git branch --show-current', execOpts).toString().trim();
+  return { success: true, current };
+}
+
+export function createBranch(directory, branch) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  execSync(`git branch "${branch}"`, execOpts);
+  return { success: true, branch };
+}
+
+export function deleteBranch(directory, branch, force = false) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  execSync(`git branch ${force ? '-D' : '-d'} "${branch}"`, execOpts);
+  return { success: true, branch };
+}
+
+export function getDiff(directory, staged = false, file = null) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 10 * 1024 * 1024 };
+  const fileArg = file ? ` -- "${file}"` : '';
+  const stagedFlag = staged ? ' --staged' : '';
+  
+  let diff = '';
+  let stat = '';
+
+  try {
+    diff = execSync(`git diff${stagedFlag}${fileArg}`, execOpts).toString();
+  } catch (e) {
+    diff = e.stdout ? e.stdout.toString() : '';
+  }
+
+  try {
+    stat = execSync(`git diff --stat${stagedFlag}${fileArg}`, execOpts).toString();
+  } catch (e) {
+    stat = '';
+  }
+
+  return { diff, stat, staged: Boolean(staged) };
+}
+
+export function stageFiles(directory, files = ['.']) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  const fileList = Array.isArray(files) ? files : [files];
+  const fileArgs = fileList.map(f => `"${f}"`).join(' ');
+  execSync(`git add ${fileArgs}`, execOpts);
+
+  return { success: true, staged: fileList };
+}
+
+export function unstageFiles(directory, files = ['.']) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  const fileList = Array.isArray(files) ? files : [files];
+  const fileArgs = fileList.map(f => `"${f}"`).join(' ');
+  try {
+    execSync(`git restore --staged ${fileArgs}`, execOpts);
+  } catch (e) {
+    execSync(`git reset HEAD -- ${fileArgs}`, execOpts);
+  }
+
+  return { success: true, unstaged: fileList };
+}
+
+export function commitChanges(directory, message) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+  if (!message || !message.trim()) {
+    throw new Error('Commit message is required');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  const cleanMsg = message.replace(/"/g, '\\"');
+  const output = execSync(`git commit -m "${cleanMsg}"`, execOpts).toString();
+
+  return { success: true, output };
+}
+
+export function pullChanges(directory, remote = 'origin', branch = '') {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  const branchArg = branch ? ` "${branch}"` : '';
+  const output = execSync(`git pull --rebase "${remote}"${branchArg}`, execOpts).toString();
+
+  return { success: true, log: output };
+}
+
+export function pushChanges(directory, remote = 'origin', branch = '', force = false) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  let currentBranch = branch;
+  if (!currentBranch) {
+    try {
+      currentBranch = execSync('git branch --show-current', execOpts).toString().trim();
+    } catch (e) {}
+  }
+
+  const forceFlag = force ? ' --force-with-lease' : '';
+  const branchArg = currentBranch ? ` "${currentBranch}"` : '';
+  const output = execSync(`git push -u "${remote}"${branchArg}${forceFlag}`, execOpts).toString();
+
+  return { success: true, log: output };
+}
+
+export function fetchChanges(directory, remote = 'origin') {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  const output = execSync(`git fetch "${remote}" --prune`, execOpts).toString();
+
+  return { success: true, log: output };
+}
+
+export function cloneRepo(repoUrl, targetDir) {
+  if (!repoUrl || !repoUrl.trim()) {
+    throw new Error('Repository URL is required');
+  }
+  if (!targetDir || !targetDir.trim()) {
+    throw new Error('Target directory is required');
+  }
+
+  const resolved = resolveDirectory(targetDir);
+  if (fs.existsSync(resolved) && fs.readdirSync(resolved).length > 0) {
+    throw new Error(`Target directory is not empty: ${resolved}`);
+  }
+
+  const parentDir = path.dirname(resolved);
+  if (!fs.existsSync(parentDir)) {
+    fs.mkdirSync(parentDir, { recursive: true });
+  }
+
+  const output = execSync(`git clone "${repoUrl.trim()}" "${resolved}"`, { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+  return { success: true, directory: resolved, log: output };
+}
+
 export function getGithubPRsAndRuns(directory) {
-  if (!isGitRepo(directory)) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
     throw new Error('Not a git repository');
   }
   
   let prs = [];
   try {
-    const prsOut = execSync('gh pr list --json title,number,url,state --limit 5', { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const prsOut = execSync('gh pr list --json title,number,url,state --limit 5', { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
     prs = JSON.parse(prsOut || '[]');
   } catch (e) {
     // gh CLI might not be authenticated
@@ -51,7 +294,7 @@ export function getGithubPRsAndRuns(directory) {
   
   let latestRun = null;
   try {
-    const runsOut = execSync('gh run list --limit 1 --json status,conclusion', { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const runsOut = execSync('gh run list --limit 1 --json status,conclusion', { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
     const runs = JSON.parse(runsOut || '[]');
     latestRun = runs.length > 0 ? runs[0] : null;
   } catch (e) {
@@ -62,13 +305,14 @@ export function getGithubPRsAndRuns(directory) {
 }
 
 export function cancelCIJobs(directory) {
-  if (!isGitRepo(directory)) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
     throw new Error('Not a git repository');
   }
   
   let runIds = [];
   try {
-    const runsOut = execSync('gh run list --status in_progress --json databaseId -q ".[].databaseId"', { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const runsOut = execSync('gh run list --status in_progress --json databaseId -q ".[].databaseId"', { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
     runIds = runsOut.trim().split('\n').filter(Boolean);
   } catch (e) {
     // gh CLI might not be authenticated or fail
@@ -80,7 +324,7 @@ export function cancelCIJobs(directory) {
   
   for (const id of runIds) {
     try {
-      execSync(`gh run cancel ${id}`, { cwd: directory });
+      execSync(`gh run cancel ${id}`, { cwd: resolved });
     } catch (e) {
       // Ignore single cancellation error
     }
@@ -90,32 +334,33 @@ export function cancelCIJobs(directory) {
 }
 
 export function autoDeploy(directory) {
-  if (!isGitRepo(directory)) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
     throw new Error('Not a git repository');
   }
 
   // 1. Commit any uncommitted changes
-  const statusOut = execSync(`git -C "${directory}" status -s`).toString().trim();
+  const statusOut = execSync('git status -s', { cwd: resolved }).toString().trim();
   if (statusOut) {
-    execSync(`git -C "${directory}" add .`);
-    execSync(`git -C "${directory}" commit -m "Auto deploy from dashboard"`);
+    execSync('git add .', { cwd: resolved });
+    execSync('git commit -m "Auto deploy from dashboard"', { cwd: resolved });
   }
 
   // 2. Pull and Push to remote
   try {
-    execSync(`git -C "${directory}" pull --rebase`);
+    execSync('git pull --rebase', { cwd: resolved });
   } catch (pullError) {
     console.warn('Git pull failed, pushing anyway (might be a new branch):', pullError.message);
   }
-  execSync(`git -C "${directory}" push`);
+  execSync('git push', { cwd: resolved });
 
   let deployLog = 'Pushed successfully.\n';
 
   // 3. Execute deploy script if exists
-  const deployScriptPath = path.join(directory, 'scripts', 'deploy-ct8-optimized.sh');
+  const deployScriptPath = path.join(resolved, 'scripts', 'deploy-ct8-optimized.sh');
   if (fs.existsSync(deployScriptPath)) {
     deployLog += 'Executing custom deploy script...\n';
-    const scriptOutput = execSync(`bash "${deployScriptPath}"`, { cwd: directory }).toString();
+    const scriptOutput = execSync(`bash "${deployScriptPath}"`, { cwd: resolved }).toString();
     deployLog += scriptOutput;
   } else {
     deployLog += 'No custom deploy script found. Skipped remote execution.\n';
@@ -125,10 +370,9 @@ export function autoDeploy(directory) {
 }
 
 export function initGit(directory) {
-  let targetDir = directory;
-  if (targetDir.startsWith('~/')) {
-    const home = process.env.HOME || process.env.USERPROFILE;
-    targetDir = path.join(home, targetDir.slice(2));
+  const targetDir = resolveDirectory(directory);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
   }
   
   execSync(`git -C "${targetDir}" init && git -C "${targetDir}" branch -m main`);
