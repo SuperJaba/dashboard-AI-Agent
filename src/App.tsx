@@ -372,42 +372,44 @@ function App() {
               </>
             ) : activeProject ? (
           <>
-            <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
-              <div>
-                <h1>{activeProject.name}</h1>
-                <p style={{ color: 'var(--text-muted)' }}>{activeProject.desc}</p>
+            <header className="header animate-in delay-1" style={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingBottom: '1rem' }}>
+              <div style={{ minWidth: '180px' }}>
+                <h1 style={{ fontSize: '1.4rem', margin: 0, lineHeight: 1.2 }}>{activeProject.name}</h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0, marginTop: '2px' }}>{activeProject.desc}</p>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  {agents.length === 0 && (
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Brak wykrytych agentów.</span>
-                  )}
-                  {agents.filter(a => a.installed).map(agent => (
-                    <button 
-                      key={agent.id}
-                      type="button"
-                      className="btn btn-primary" 
-                      onClick={() => deployAgent(agent.name.toLowerCase())}
-                      disabled={deploying !== null}
-                      style={{ 
-                        opacity: deploying === agent.name.toLowerCase() ? 0.7 : 1,
-                        background: agent.name.toLowerCase() === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
-                      }}
-                    >
-                      <Rocket size={20} aria-hidden="true" />
-                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
-                    </button>
-                  ))}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={useBrowserTerminal}
-                      onChange={(e) => handleTerminalToggle(e.target.checked)}
-                      style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
-                    />
-                    Use Browser Terminal
-                  </label>
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {agents.length === 0 && (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Brak wykrytych agentów.</span>
+                )}
+                {agents.filter(a => a.installed).map(agent => (
+                  <button 
+                    key={agent.id}
+                    type="button"
+                    className="btn btn-primary" 
+                    onClick={() => deployAgent(agent.name.toLowerCase())}
+                    disabled={deploying !== null}
+                    style={{ 
+                      padding: '0.35rem 0.75rem',
+                      fontSize: '0.8rem',
+                      gap: '0.35rem',
+                      borderRadius: '8px',
+                      opacity: deploying === agent.name.toLowerCase() ? 0.7 : 1,
+                      background: agent.name.toLowerCase() === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
+                    }}
+                  >
+                    <Rocket size={14} aria-hidden="true" />
+                    <span>{deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}</span>
+                  </button>
+                ))}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap', padding: '0.35rem 0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={useBrowserTerminal}
+                    onChange={(e) => handleTerminalToggle(e.target.checked)}
+                    style={{ accentColor: 'var(--primary)', width: '14px', height: '14px' }}
+                  />
+                  <span>Browser Terminal</span>
+                </label>
               </div>
             </header>
 
