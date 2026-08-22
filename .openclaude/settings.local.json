@@ -1,5 +1,6 @@
 {
   "enabledMcpjsonServers": [
-    "MCP_DOCKER"
+    "MCP_DOCKER",
+    "codegraph"
   ]
 }
