@@ -26,8 +26,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.ts',
-    // exclude noise & generated placeholders
-    exclude: ['**/node_modules/**', '**/playwright/**', '**/tests/**', '**/__tests__/*.generated.test.ts'],
+    // exclude noise, generated placeholders, and the standalone Jest suite
+    // under modernized/ (characterization tests for a not-yet-created
+    // authRouter.ts rewrite; run via Jest per modernized/test-README.md, not Vitest)
+    exclude: ['**/node_modules/**', '**/playwright/**', '**/tests/**', '**/__tests__/*.generated.test.ts', '**/modernized/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
