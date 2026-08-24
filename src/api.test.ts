@@ -16,7 +16,7 @@ describe('apiClient', () => {
   it('calls fetch with the correct Authorization header', async () => {
     await apiClient.get('/test-endpoint');
 
-    expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:3001/test-endpoint', expect.objectContaining({
+    expect(globalThis.fetch).toHaveBeenCalledWith('/test-endpoint', expect.objectContaining({
       headers: expect.objectContaining({
         'Authorization': 'Bearer mock-jwt-token'
       })
@@ -26,7 +26,7 @@ describe('apiClient', () => {
   it('merges custom options and headers', async () => {
     await apiClient.post('/test-endpoint', { foo: 'bar' });
 
-    expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:3001/test-endpoint', expect.objectContaining({
+    expect(globalThis.fetch).toHaveBeenCalledWith('/test-endpoint', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({ foo: 'bar' }),
       headers: expect.objectContaining({

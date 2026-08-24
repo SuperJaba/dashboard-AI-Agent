@@ -12,7 +12,7 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
       fontFamily: '"JetBrains Mono", "Courier New", monospace',
       backgroundColor: '#000',
       color: '#00FF41',
-      padding: '2rem',
+      padding: '1.25rem',
       minHeight: '100%',
       letterSpacing: '-0.02em',
       boxSizing: 'border-box'
@@ -22,7 +22,7 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
         
         .industrial-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
           gap: 0;
           border-top: 2px solid #333;
           border-left: 2px solid #333;
@@ -30,13 +30,13 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
         .industrial-tile {
           border-right: 2px solid #333;
           border-bottom: 2px solid #333;
-          padding: 1.5rem;
+          padding: 1rem;
           cursor: pointer;
           transition: background 0.1s, color 0.1s;
           background: #000;
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: 0.75rem;
         }
         .industrial-tile:hover {
           background: #00FF41;
@@ -54,10 +54,10 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
         }
       `}</style>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', borderBottom: '4px solid #00FF41', paddingBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.25rem', borderBottom: '4px solid #00FF41', paddingBottom: '0.75rem' }}>
         <div>
-          <h1 style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '3rem', fontWeight: 800, margin: 0, textTransform: 'uppercase', lineHeight: 1, color: '#00FF41' }}>SYSTEM_INDEX</h1>
-          <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', color: '#888' }}>// OPERATIONAL WORKSPACES_</div>
+          <h1 style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '1.9rem', fontWeight: 800, margin: 0, textTransform: 'uppercase', lineHeight: 1, color: '#00FF41' }}>SYSTEM_INDEX</h1>
+          <div style={{ fontSize: '0.8rem', marginTop: '0.4rem', color: '#888' }}>// OPERATIONAL WORKSPACES_</div>
         </div>
         
         <input 
@@ -69,17 +69,17 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
             background: '#000',
             border: '2px solid #333',
             color: '#00FF41',
-            padding: '0.75rem 1rem',
+            padding: '0.5rem 0.75rem',
             fontFamily: 'inherit',
-            fontSize: '1rem',
-            width: '300px',
+            fontSize: '0.85rem',
+            width: '220px',
             textTransform: 'uppercase'
           }}
         />
       </div>
 
       {projects.length === 0 ? (
-        <div style={{ border: '2px dashed #333', padding: '4rem', textAlign: 'center', color: '#666', textTransform: 'uppercase' }}>
+        <div style={{ border: '2px dashed #333', padding: '2.5rem', textAlign: 'center', color: '#666', textTransform: 'uppercase' }}>
           [ NO_RECORDS_FOUND ]
         </div>
       ) : (
@@ -87,7 +87,7 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
           {displayed.map(p => (
             <button type="button" key={p.id} className="industrial-tile" onClick={() => onProjectClick(p.id)} style={{ textAlign: 'left', width: '100%', font: 'inherit', margin: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, textTransform: 'uppercase', wordBreak: 'break-all', fontFamily: '"JetBrains Mono", monospace' }}>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', wordBreak: 'break-all', fontFamily: '"JetBrains Mono", monospace' }}>
                   {p.name}
                 </h2>
                 <div 
@@ -103,11 +103,11 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
                 </div>
               </div>
               
-              <div style={{ fontSize: '0.85rem', color: '#888', flex: 1, textTransform: 'uppercase' }} className="accent-text">
+              <div style={{ fontSize: '0.8rem', color: '#888', flex: 1, textTransform: 'uppercase' }} className="accent-text">
                 {p.desc || 'NO_DESC_PROVIDED'}
               </div>
               
-              <div className="accent-text" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #333', paddingTop: '1rem', fontSize: '0.75rem', color: '#888' }}>
+              <div className="accent-text" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #333', paddingTop: '0.75rem', fontSize: '0.7rem', color: '#888' }}>
                 <div>TECH: {p.tech || 'UNKNOWN'}</div>
                 <div>COMPLETION: {p.complete}%</div>
               </div>

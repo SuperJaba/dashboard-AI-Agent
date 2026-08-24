@@ -1,4 +1,4 @@
-import { startTransition } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
@@ -61,6 +61,17 @@ function App() {
     agents
   } = useDashboardState();
   const token = localStorage.getItem('token') || '';
+
+  // Dropdown-based agent selection for the "Local workspace" project view,
+  // replacing what used to be a growing row of "Deploy <Agent>" buttons.
+  const [selectedAgentName, setSelectedAgentName] = useState('');
+  useEffect(() => {
+    const installed = agents.filter((a: any) => a.installed);
+    if (installed.length > 0 && !installed.some((a: any) => a.name.toLowerCase() === selectedAgentName)) {
+      setSelectedAgentName(installed[0].name.toLowerCase());
+    }
+  }, [agents]);
+
   return (
     <div className="layout">
       {/* Sidebar */}
@@ -379,25 +390,45 @@ function App() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  {agents.length === 0 && (
+                  {agents.length === 0 ? (
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Brak wykrytych agentów.</span>
+                  ) : (
+                    <>
+                      <label htmlFor="local-agent-select" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Agent:</label>
+                      <select
+                        id="local-agent-select"
+                        value={selectedAgentName}
+                        onChange={(e) => setSelectedAgentName(e.target.value)}
+                        style={{
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: '8px',
+                          padding: '0.5rem 0.75rem',
+                          color: 'var(--text-main)',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        {agents.filter(a => a.installed).map(agent => (
+                          <option key={agent.id} value={agent.name.toLowerCase()} style={{ background: 'var(--bg-color)' }}>
+                            {agent.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => selectedAgentName && deployAgent(selectedAgentName)}
+                        disabled={deploying !== null || !selectedAgentName}
+                        style={{
+                          opacity: (deploying === selectedAgentName || !selectedAgentName) ? 0.7 : 1,
+                          background: selectedAgentName === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
+                        }}
+                      >
+                        <Rocket size={20} aria-hidden="true" />
+                        {deploying === selectedAgentName ? 'Deploying...' : 'Deploy'}
+                      </button>
+                    </>
                   )}
-                  {agents.filter(a => a.installed).map(agent => (
-                    <button 
-                      key={agent.id}
-                      type="button"
-                      className="btn btn-primary" 
-                      onClick={() => deployAgent(agent.name.toLowerCase())}
-                      disabled={deploying !== null}
-                      style={{ 
-                        opacity: deploying === agent.name.toLowerCase() ? 0.7 : 1,
-                        background: agent.name.toLowerCase() === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
-                      }}
-                    >
-                      <Rocket size={20} aria-hidden="true" />
-                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
-                    </button>
-                  ))}
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
                     <input 
                       type="checkbox" 
