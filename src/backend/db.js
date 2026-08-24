@@ -31,7 +31,8 @@ const inMemoryStore = {
   projects: [],
   servers: [],
   cli_agents: [],
-  custom_widgets: []
+  custom_widgets: [],
+  user_settings: []
 };
 
 let useInMemoryFallback = false;
@@ -102,6 +103,25 @@ export async function safeQuery(text, params = []) {
     return { rows: inMemoryStore.custom_widgets };
   }
 
+  // User settings (theme/language per user)
+  if (sql.includes('FROM user_settings')) {
+    const row = inMemoryStore.user_settings.find(r => r.user_id === params[0]);
+    return { rows: row ? [row] : [] };
+  }
+
+  if (sql.includes('INSERT INTO user_settings')) {
+    const [userId, theme, language] = params;
+    let row = inMemoryStore.user_settings.find(r => r.user_id === userId);
+    if (row) {
+      if (theme !== null && theme !== undefined) {row.theme = theme;}
+      if (language !== null && language !== undefined) {row.language = language;}
+    } else {
+      row = { user_id: userId, theme: theme || 'dark', language: language || 'pl' };
+      inMemoryStore.user_settings.push(row);
+    }
+    return { rows: [row] };
+  }
+
   return { rows: [] };
 }
 
@@ -132,7 +152,13 @@ export async function migrate() {
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS model VARCHAR(255);',
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS api_key TEXT;',
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS use_devil BOOLEAN DEFAULT false;',
-    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;'
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;',
+    `CREATE TABLE IF NOT EXISTS user_settings (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      theme VARCHAR(20) DEFAULT 'dark',
+      language VARCHAR(10) DEFAULT 'pl',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`
   ];
   for (const q of queries) {
     await safeQuery(q);

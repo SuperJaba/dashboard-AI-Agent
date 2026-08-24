@@ -2,7 +2,7 @@ import { startTransition, useEffect, useState } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -17,6 +17,7 @@ import { AgentsView } from './AgentsView';
 
 import { useDashboardState } from './hooks/useDashboardState';
 import { DashboardTiles } from './TilesView';
+import { usePreferences, type Language } from './preferences/PreferencesContext';
 
 function App() {
   const {
@@ -61,6 +62,8 @@ function App() {
     agents
   } = useDashboardState();
   const token = localStorage.getItem('token') || '';
+  const { theme, setTheme, language, setLanguage, t } = usePreferences();
+  const [showSettings, setShowSettings] = useState(false);
 
   // Dropdown-based agent selection for the "Local workspace" project view,
   // replacing what used to be a growing row of "Deploy <Agent>" buttons.
@@ -258,6 +261,16 @@ function App() {
           </button>
           <button 
             type="button"
+            onClick={() => setShowSettings(true)}
+            aria-label={t('settings.title')}
+            title={t('settings.title')}
+            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.5rem', transition: '0.3s' }}
+          >
+            <Settings size={16} aria-hidden="true" />
+            {t('settings.title')}
+          </button>
+          <button 
+            type="button"
             onClick={() => {
               localStorage.removeItem('dashboard_token');
               window.location.reload();
@@ -267,10 +280,74 @@ function App() {
             onMouseOut={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
           >
             <LogOut size={16} aria-hidden="true" />
-            Sign Out
+            {t('sidebar.signOut')}
           </button>
         </div>
       </aside>
+
+      {showSettings && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('settings.title')}
+          onClick={() => setShowSettings(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '320px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{t('settings.title')}</h2>
+              <button
+                type="button"
+                onClick={() => setShowSettings(false)}
+                aria-label={t('settings.close')}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.theme')}</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setTheme('dark')}
+                  aria-pressed={theme === 'dark'}
+                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'dark' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'dark' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer' }}
+                >
+                  {t('settings.theme.dark')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTheme('light')}
+                  aria-pressed={theme === 'light'}
+                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'light' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'light' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer' }}
+                >
+                  {t('settings.theme.light')}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label htmlFor="language-select" className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.language')}</label>
+              <select
+                id="language-select"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+              >
+                <option value="pl">Polski</option>
+                <option value="en">English</option>
+                <option value="hi">हिन्दी (Hindi)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Area */}
       <main id="main-content" tabIndex={-1} className="dashboard-container">

@@ -59,6 +59,12 @@ async function runMigrations() {
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS user_settings (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        theme VARCHAR(20) DEFAULT 'dark',
+        language VARCHAR(10) DEFAULT 'pl',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Ensure alter columns exist for upgrades
