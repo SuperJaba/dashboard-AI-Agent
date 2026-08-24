@@ -64,6 +64,10 @@ async function runMigrations() {
     // Ensure alter columns exist for upgrades
     await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS use_devil BOOLEAN DEFAULT false;');
     await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;');
+    await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS provider VARCHAR(255) DEFAULT \'local\';');
+    await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS url VARCHAR(512);');
+    await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS model VARCHAR(255);');
+    await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS api_key TEXT;');
     await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS llm_model VARCHAR(255);');
     await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS temperature NUMERIC DEFAULT 0.7;');
     await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS max_tokens INTEGER DEFAULT 4096;');
