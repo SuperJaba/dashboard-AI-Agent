@@ -55,6 +55,8 @@ function App() {
     handleAddServer,
     deleteServer,
     handleAddProject,
+    handleProjectFolderSelected,
+    projectFolderInputRef,
     setupSshKey,
     agents
   } = useDashboardState();
@@ -118,6 +120,19 @@ function App() {
               <Plus size={18} aria-hidden="true" />
               Add Project
             </button>
+            {/* Hidden native browser folder picker (webkitdirectory). We only get a
+                folder name back (browsers never expose absolute paths), so the user
+                confirms/completes the full path in a follow-up prompt. */}
+            <input
+              type="file"
+              ref={projectFolderInputRef}
+              // @ts-expect-error non-standard attributes not in React's typings
+              webkitdirectory=""
+              directory=""
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleProjectFolderSelected}
+            />
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../shared/api-client';
 import { ProjectSchema, ServerSchema, SettingsSchema } from '../shared/api-client/schemas';
 import type { ProjectData, ServerData } from '../shared/api-client/schemas';
@@ -35,6 +35,7 @@ export function useDashboardState() {
   const [customLlmModel, setCustomLlmModel] = useState('AtomicChat/qwen35-4b-Q8_0');
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const projectFolderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     apiClient.get<unknown>('/api/projects')
@@ -270,33 +271,39 @@ export function useDashboardState() {
     } catch (e) { console.error(e); }
   };
 
-  const handleAddProject = async () => {
-    try {
-      let folderPath = '';
-      try {
-        const data = await apiClient.get<any>('/api/pick-folder');
-        if (data && data.path) {
-          folderPath = data.path;
-        }
-      } catch (e) {
-        // Fallback to manual entry if dialog returns error or non-json
-      }
+  const handleAddProject = () => {
+    // Opens the browser's native folder picker (webkitdirectory input).
+    // Browsers never expose the absolute filesystem path for security reasons,
+    // so we only get the folder name here and ask the user to confirm/complete
+    // the full path afterwards (prefilled to minimize typing).
+    projectFolderInputRef.current?.click();
+  };
 
-      if (!folderPath) {
-        const manualPath = prompt('Wprowadź lub wklej pełną ścieżkę do folderu projektu (np. F:\\AI-Agents\\dashboard):');
-        if (!manualPath || !manualPath.trim()) return;
-        folderPath = manualPath.trim();
-      }
-      
-      const folderName = folderPath.split('/').pop() || folderPath.split('\\').pop() || `New Project`;
-      
-      const newProject = await apiClient.post<any>('/api/projects', { name: folderName, desc: 'Local workspace', path: folderPath });
-      
+  const handleProjectFolderSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    // Allow re-selecting the same folder later.
+    e.target.value = '';
+    if (!files || files.length === 0) return;
+
+    const relativePath = (files[0] as any).webkitRelativePath || files[0].name;
+    const folderName = relativePath.split('/')[0] || 'New Project';
+
+    const manualPath = prompt(
+      'Wybrano folder: ' + folderName + '\nPotwierdź lub uzupełnij pełną ścieżkę do folderu projektu (np. F:\\AI-Agents\\' + folderName + '):',
+      folderName
+    );
+    if (!manualPath || !manualPath.trim()) return;
+    const folderPath = manualPath.trim();
+
+    try {
+      const finalName = folderPath.split('/').pop() || folderPath.split('\\').pop() || folderName;
+      const newProject = await apiClient.post<any>('/api/projects', { name: finalName, desc: 'Local workspace', path: folderPath });
+
       setProjects([...projects, newProject]);
       setActiveProjectId(newProject.id);
       setShowTasks(false);
     } catch (err) {
-      console.error('Failed to pick folder:', err);
+      console.error('Failed to add project:', err);
     }
   };
 
@@ -350,6 +357,8 @@ export function useDashboardState() {
     handleAddServer,
     deleteServer,
     handleAddProject,
+    handleProjectFolderSelected,
+    projectFolderInputRef,
     setupSshKey
   };
 }

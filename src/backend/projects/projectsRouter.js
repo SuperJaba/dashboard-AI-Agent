@@ -1,7 +1,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { spawn, exec, execSync } from 'child_process';
+import { spawn, exec, execFile, execSync } from 'child_process';
 import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import * as gitService from '../git/gitService.js';
@@ -108,9 +108,36 @@ projectsRouter.delete('/projects/:id', async (req, res) => {
 // Pick Folder API
 projectsRouter.get('/pick-folder', (req, res) => {
   if (process.platform === 'win32') {
-    const psCmd = 'powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = \'Wybierz folder projektu\'; if ($d.ShowDialog() -eq \'OK\') { Write-Output $d.SelectedPath }"';
-    exec(psCmd, (error, stdout) => {
+    // Build the dialog script as a here-string to avoid fragile quote-escaping in a
+    // one-line command, and force it into the foreground via a hidden TopMost owner
+    // form (otherwise FolderBrowserDialog can open behind the browser/terminal window,
+    // making it look like nothing happened).
+    const psScript = [
+      'Add-Type -AssemblyName System.Windows.Forms',
+      'Add-Type -AssemblyName System.Drawing',
+      '$owner = New-Object System.Windows.Forms.Form',
+      '$owner.TopMost = $true',
+      '$owner.StartPosition = "CenterScreen"',
+      '$owner.ShowInTaskbar = $false',
+      '$owner.Size = New-Object System.Drawing.Size(0,0)',
+      '$owner.Show()',
+      '$owner.Activate()',
+      '$d = New-Object System.Windows.Forms.FolderBrowserDialog',
+      '$d.Description = "Wybierz folder projektu"',
+      'try {',
+      '  if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.SelectedPath }',
+      '} finally {',
+      '  $owner.Close()',
+      '}'
+    ].join('; ');
+
+    // -STA is required for WinForms dialogs; run via execFile with an args array
+    // instead of a single quoted string to avoid shell-escaping issues.
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Sta', '-Command', psScript], (error, stdout, stderr) => {
       if (error || !stdout.trim()) {
+        if (error) {
+          console.error('pick-folder dialog failed:', error.message, stderr && stderr.trim());
+        }
         return res.status(204).send();
       }
       res.json({ path: stdout.trim() });

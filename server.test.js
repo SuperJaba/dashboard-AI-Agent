@@ -5,14 +5,17 @@ import app from './server.js';
 vi.mock('child_process', async (importOriginal) => {
   const mod = await importOriginal();
   const mockedExec = vi.fn((cmd, cb) => cb(null, '/mocked/path\n', ''));
+  const mockedExecFile = vi.fn((file, args, cb) => cb(null, '/mocked/path\n', ''));
   const mockedSpawn = vi.fn(() => ({ unref: vi.fn() }));
   return {
     ...mod,
     exec: mockedExec,
+    execFile: mockedExecFile,
     spawn: mockedSpawn,
     default: {
       ...mod.default,
       exec: mockedExec,
+      execFile: mockedExecFile,
       spawn: mockedSpawn
     }
   };
