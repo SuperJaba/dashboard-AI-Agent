@@ -15,6 +15,7 @@ import { RepoStatus } from './RepoStatus';
 import CustomWidgets from './CustomWidgets';
 
 import { AgentsView } from './AgentsView';
+import { OpsRampView } from './OpsRampView';
 
 import { useDashboardState } from './hooks/useDashboardState';
 import { DashboardTiles } from './TilesView';
@@ -91,6 +92,15 @@ function App() {
           >
             <Bot size={18} aria-hidden="true" />
             <span>Agenci AI</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'opsramp' ? 'active' : ''}`}
+            onClick={() => startTransition(() => setActiveView('opsramp'))}
+            aria-current={activeView === 'opsramp' ? 'page' : undefined}
+          >
+            <Activity size={18} aria-hidden="true" />
+            <span>OpsRamp AIOps</span>
           </button>
         </nav>
 
@@ -265,6 +275,8 @@ function App() {
       <main id="main-content" tabIndex={-1} className="dashboard-container">
         {activeView === 'agents' ? (
           <AgentsView />
+        ) : activeView === 'opsramp' ? (
+          <OpsRampView />
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
             <LlmServerManager />

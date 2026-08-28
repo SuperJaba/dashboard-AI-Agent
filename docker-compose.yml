@@ -60,6 +60,20 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - postgres_data:/var/lib/postgresql
 
+  opsramp_mock:
+    image: node:20-alpine
+    container_name: opsramp_mock
+    working_dir: /app
+    volumes:
+      - ./scripts/opsramp-mock-server.js:/app/server.js:ro
+    command: ["node", "server.js"]
+    ports:
+      - "8085:8085"
+    environment:
+      - PORT=8085
+      - TENANT_ID=${OPSRAMP_TENANT_ID:-client_mock_corp_01}
+    restart: unless-stopped
+
 volumes:
   postgres_data:
 

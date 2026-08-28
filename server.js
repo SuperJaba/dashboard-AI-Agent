@@ -27,6 +27,7 @@ startBackgroundWorker();
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
+import { opsrampRouter } from './src/backend/opsramp/opsrampRouter.js';
 
 import { fileURLToPath } from 'url';
 
@@ -319,6 +320,7 @@ app.use('/api', serversRouter);
 app.use('/api/widgets', widgetsRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api', llmServersRouter);
+app.use('/api/opsramp', opsrampRouter);
 
 // Serve built frontend static assets if available (dist or public)
 const staticDist = path.join(__dirname, 'dist');
