@@ -28,6 +28,7 @@ A full-stack, modern dashboard application built with React, TypeScript, Vite, a
 ## 📦 Quick Start
 
 ### Prerequisites
+
 - **Node.js** v18 or higher
 - **PostgreSQL** (running locally or remotely configured)
 - **npm** or **yarn**
@@ -35,11 +36,13 @@ A full-stack, modern dashboard application built with React, TypeScript, Vite, a
 ### Installation
 
 1. Clone the repository and install dependencies:
+
    ```bash
    npm install
    ```
 
 2. Configure environment variables (`.env`):
+
    ```env
    DATABASE_URL=postgres://username:password@localhost:5432/dashboard
    JWT_SECRET=your_super_secret_jwt_token_key
@@ -47,15 +50,17 @@ A full-stack, modern dashboard application built with React, TypeScript, Vite, a
    ```
 
 3. Start development servers:
+
    ```bash
    npm run dev
    ```
+
    - Frontend: `http://localhost:5173`
    - Backend API: `http://localhost:3001`
 
 ## 📂 Project Structure
 
-```
+```text
 dashboard/
 ├── src/
 │   ├── App.tsx                 # Main React component
@@ -84,6 +89,7 @@ dashboard/
 ## 🚀 Available Scripts
 
 ### Development
+
 ```bash
 npm run dev              # Start frontend + backend concurrently
 npm run dev:frontend    # Start Vite frontend only
@@ -91,12 +97,14 @@ npm run dev:backend     # Start Express backend only
 ```
 
 ### Building & Production
+
 ```bash
 npm run build           # Compile TypeScript and bundle with Vite
 npm run preview         # Preview production build locally
 ```
 
 ### Testing
+
 ```bash
 npm test                # Run unit tests once
 npm run test:watch      # Run tests in watch mode
@@ -107,6 +115,7 @@ npm run ci-tdd          # Run CI/TDD bot tests
 ```
 
 ### Database & Linting
+
 ```bash
 npm run db:migrate      # Run database migrations
 npm run lint            # Run Oxlint & ESLint
@@ -115,6 +124,7 @@ npm run lint            # Run Oxlint & ESLint
 ## 🔐 Authentication
 
 The application uses JWT (JSON Web Token) authentication:
+
 - Tokens are generated on login and stored in localStorage
 - All API requests automatically include the JWT token via the `apiFetch` wrapper
 - Passwords are hashed using bcrypt before storage
@@ -122,6 +132,7 @@ The application uses JWT (JSON Web Token) authentication:
 ## 📊 API Integration
 
 The frontend communicates with the backend via REST APIs. Key endpoints:
+
 - `/api/auth/` - Authentication (login/logout)
 - `/api/servers/` - Server management
 - `/api/projects/` - Project management
@@ -132,12 +143,14 @@ The frontend communicates with the backend via REST APIs. Key endpoints:
 ## 🧪 Testing
 
 This project includes comprehensive test coverage:
+
 - **Unit Tests**: Vitest for component and utility testing
 - **Integration Tests**: Supertest for API endpoint testing
 - **E2E Tests**: Playwright for browser-based testing
 - **Python Tests**: Full end-to-end test suite
 
 Run all tests:
+
 ```bash
 npm test
 npm run test:e2e
@@ -146,17 +159,21 @@ npm run test:e2e
 ## 🔧 Development Considerations
 
 ### Styling & Tailwind CSS v4
+
 The project uses **Tailwind CSS v4** with the new `@tailwindcss/postcss` plugin. Configuration is handled via `postcss.config.js` (no separate tailwind.config.js needed). Tailwind directives are processed through PostCSS during the build process.
 
 ### API Key Format
+
 The LLM Server management expects the API key field as **`apiKey`** (camelCase) instead of `api_key`. All forms have been updated to use this format.
 
 ### Performance
+
 - Source maps are disabled in production builds
 - Chunk sizes are monitored with a 1000 kB limit
 - Strict TypeScript checking ensures type safety
 
 ### Code Quality
+
 - Oxlint for ESLint-compatible linting
 - TypeScript for static type checking
 - Regular linting with `npm run lint`
@@ -174,6 +191,7 @@ The LLM Server management expects the API key field as **`apiKey`** (camelCase) 
 ## 🐳 Docker & Monitoring
 
 The project includes Docker Compose configurations for:
+
 - PostgreSQL database
 - Prometheus metrics collection
 - Grafana dashboard visualization
