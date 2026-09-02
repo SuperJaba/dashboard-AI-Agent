@@ -528,12 +528,13 @@ projectsRouter.post('/git/status', async (req, res) => {
 projectsRouter.post('/git/github', async (req, res) => {
   try {
     const { directory } = req.body;
-    const result = gitService.getGithubPRsAndRuns(directory);
+    const result = await gitService.getGithubPRsAndRuns(directory);
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
+
 
 projectsRouter.post('/git/cancel-ci', async (req, res) => {
   try {
