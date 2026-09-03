@@ -18,6 +18,7 @@ export function useDashboardState() {
   const [servers, setServers] = useState<ServerData[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [showAddServer, setShowAddServer] = useState(false);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [newServer, setNewServer] = useState({ name: '', host: '', username: '', port: 22, use_devil: false, ssh_password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [remotePrompt, setRemotePrompt] = useState('');
@@ -272,11 +273,22 @@ export function useDashboardState() {
   };
 
   const handleAddProject = () => {
-    // Opens the browser's native folder picker (webkitdirectory input).
-    // Browsers never expose the absolute filesystem path for security reasons,
-    // so we only get the folder name here and ask the user to confirm/complete
-    // the full path afterwards (prefilled to minimize typing).
-    projectFolderInputRef.current?.click();
+    setShowFolderPicker(true);
+  };
+
+  const handleFolderPicked = async (folderPath: string, folderName: string) => {
+    try {
+      const finalName = folderPath.split('/').pop() || folderPath.split('\\').pop() || folderName;
+      const newProject = await apiClient.post<any>('/api/projects', { name: finalName, desc: 'Local workspace', path: folderPath });
+
+      setProjects(prev => [...prev, newProject]);
+      setActiveProjectId(newProject.id);
+      setActiveView('dashboard');
+      setShowTasks(false);
+    } catch (err: any) {
+      console.error('Failed to add project:', err);
+      alert('Nie udało się dodać projektu: ' + (err.message || 'Wystąpił błąd serwera.'));
+    }
   };
 
   const handleProjectFolderSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,11 +311,13 @@ export function useDashboardState() {
       const finalName = folderPath.split('/').pop() || folderPath.split('\\').pop() || folderName;
       const newProject = await apiClient.post<any>('/api/projects', { name: finalName, desc: 'Local workspace', path: folderPath });
 
-      setProjects([...projects, newProject]);
+      setProjects(prev => [...prev, newProject]);
       setActiveProjectId(newProject.id);
+      setActiveView('dashboard');
       setShowTasks(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to add project:', err);
+      alert('Nie udało się dodać projektu: ' + (err.message || 'Wystąpił błąd serwera.'));
     }
   };
 
@@ -357,6 +371,8 @@ export function useDashboardState() {
     handleAddServer,
     deleteServer,
     handleAddProject,
+    showFolderPicker, setShowFolderPicker,
+    handleFolderPicked,
     handleProjectFolderSelected,
     projectFolderInputRef,
     setupSshKey

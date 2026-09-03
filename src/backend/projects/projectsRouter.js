@@ -1,6 +1,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { spawn, exec, execFile, execSync } from 'child_process';
 import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
@@ -8,6 +9,49 @@ import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
 
 export const projectsRouter = express.Router();
+
+// List directories for folder picker
+projectsRouter.get('/fs/directories', (req, res) => {
+  try {
+    let targetPath = req.query.path ? String(req.query.path) : os.homedir();
+    targetPath = path.resolve(targetPath);
+
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ error: 'Ścieżka nie istnieje', currentPath: targetPath });
+    }
+
+    const stat = fs.statSync(targetPath);
+    if (!stat.isDirectory()) {
+      targetPath = path.dirname(targetPath);
+    }
+
+    const parentPath = path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null;
+    const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+
+    const directories = [];
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue; // ignore hidden folders
+      if (entry.name === 'node_modules') continue;
+
+      if (entry.isDirectory()) {
+        directories.push({
+          name: entry.name,
+          path: path.join(targetPath, entry.name)
+        });
+      }
+    }
+
+    directories.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+    res.json({
+      currentPath: targetPath,
+      parentPath,
+      directories
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Get Projects
 projectsRouter.get('/projects', async (req, res) => {

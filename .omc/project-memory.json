@@ -79,7 +79,14 @@
   },
   "structure": {
     "isMonorepo": false,
-    "workspaces": [],
+    "workspaces": [
+      {
+        "name": "codegraph-mcp",
+        "path": ".codegraph/versions/v1.5.0",
+        "purpose": "CodeGraph MCP server (v1.5.0)",
+        "keyFiles": ["bin/codegraph.js", "lib/dist/mcp/daemon.js"]
+      }
+    ],
     "mainDirectories": [
       "public",
       "scripts",

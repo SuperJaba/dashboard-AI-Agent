@@ -14,6 +14,7 @@ import { RepoStatus } from './RepoStatus';
 import CustomWidgets from './CustomWidgets';
 
 import { AgentsView } from './AgentsView';
+import { FolderPickerDialog } from './FolderPickerDialog';
 
 import { useDashboardState } from './hooks/useDashboardState';
 import { DashboardTiles } from './TilesView';
@@ -56,12 +57,15 @@ function App() {
     handleAddServer,
     deleteServer,
     handleAddProject,
+    showFolderPicker,
+    setShowFolderPicker,
+    handleFolderPicked,
     handleProjectFolderSelected,
     projectFolderInputRef,
     setupSshKey,
     agents
   } = useDashboardState();
-  const token = localStorage.getItem('token') || '';
+  const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
   const [showSettings, setShowSettings] = useState(false);
 
@@ -748,7 +752,7 @@ function App() {
             </div>
           </>
         ) : (
-          <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} />
+          <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
         )}
           </div>
         )}
@@ -862,6 +866,14 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showFolderPicker && (
+        <FolderPickerDialog
+          isOpen={showFolderPicker}
+          onClose={() => setShowFolderPicker(false)}
+          onSelectFolder={handleFolderPicked}
+        />
       )}
 
     </div>

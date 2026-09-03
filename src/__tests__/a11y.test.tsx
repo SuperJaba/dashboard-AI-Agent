@@ -74,6 +74,23 @@ describe('Accessibility (WCAG 2.1 AA) Auditing Suite', () => {
       expect(dialog).toHaveAttribute('aria-modal', 'true');
       expect(dialog).toHaveAttribute('aria-labelledby', 'add-server-modal-title');
     });
+
+    it('renders FolderPicker modal with proper dialog semantics when Add Project is triggered', async () => {
+      await act(async () => {
+        render(<PreferencesProvider><App /></PreferencesProvider>);
+      });
+
+      const addProjectButton = screen.getByRole('button', { name: /Add Project/i });
+      await act(async () => {
+        fireEvent.click(addProjectButton);
+      });
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-labelledby', 'folder-picker-title');
+      expect(screen.getByText('Wybierz folder projektu')).toBeInTheDocument();
+    });
   });
 
   describe('AuthWrapper / Login Component Accessibility', () => {

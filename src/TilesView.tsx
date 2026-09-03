@@ -1,8 +1,17 @@
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 
 import type { ProjectData } from './shared/api-client/schemas';
 
-export function DashboardTiles({ projects, onProjectClick }: { projects: ProjectData[], onProjectClick: (id: number) => void }) {
+export function DashboardTiles({ 
+  projects, 
+  onProjectClick,
+  onAddProject
+}: { 
+  projects: ProjectData[], 
+  onProjectClick: (id: number) => void,
+  onAddProject?: () => void
+}) {
   const [filter, setFilter] = useState('');
 
   const displayed = projects.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
@@ -60,22 +69,55 @@ export function DashboardTiles({ projects, onProjectClick }: { projects: Project
           <div style={{ fontSize: '0.8rem', marginTop: '0.4rem', color: '#888' }}>// OPERATIONAL WORKSPACES_</div>
         </div>
         
-        <input 
-          className="industrial-input"
-          placeholder="> QUERY_DB..."
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          style={{
-            background: '#000',
-            border: '2px solid #333',
-            color: '#00FF41',
-            padding: '0.5rem 0.75rem',
-            fontFamily: 'inherit',
-            fontSize: '0.85rem',
-            width: '220px',
-            textTransform: 'uppercase'
-          }}
-        />
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <input 
+            className="industrial-input"
+            placeholder="> QUERY_DB..."
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            style={{
+              background: '#000',
+              border: '2px solid #333',
+              color: '#00FF41',
+              padding: '0.5rem 0.75rem',
+              fontFamily: 'inherit',
+              fontSize: '0.85rem',
+              width: '200px',
+              textTransform: 'uppercase'
+            }}
+          />
+          {onAddProject && (
+            <button
+              type="button"
+              onClick={onAddProject}
+              style={{
+                background: '#000',
+                border: '2px solid #00FF41',
+                color: '#00FF41',
+                padding: '0.5rem 0.85rem',
+                fontFamily: 'inherit',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                textTransform: 'uppercase'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#00FF41';
+                e.currentTarget.style.color = '#000';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#000';
+                e.currentTarget.style.color = '#00FF41';
+              }}
+            >
+              <Plus size={16} />
+              <span>+ NEW_WORKSPACE</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {projects.length === 0 ? (
