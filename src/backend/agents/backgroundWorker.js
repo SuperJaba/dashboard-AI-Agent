@@ -9,6 +9,23 @@ import { pathToFileURL } from 'url';
  */
 const AGENT_DIR = path.resolve(process.cwd(), 'src/backend/agents');
 
+// Agents that accept a --config <path> flag
+const AGENTS_WITH_CONFIG_FLAG = new Set(['antigravity', 'claude', 'claude code']);
+
+// Per-agent environment overrides
+function agentEnv(agent) {
+  const base = { ...process.env };
+
+  const nameLower = (agent.name || '').toLowerCase();
+
+  if (nameLower.includes('gemini')) {
+    // Trust the workspace so Gemini CLI doesn't block on an interactive trust prompt
+    base.GEMINI_CLI_TRUST_WORKSPACE = 'true';
+  }
+
+  return base;
+}
+
 export function startBackgroundWorker(intervalMs = 5 * 60 * 1000) {
   // Run immediately then on interval
   runAgents();
@@ -30,9 +47,35 @@ async function runAgents() {
         continue;
       }
 
-      // Skip if already running – in a real system we would track PIDs
       console.log(`Starting background worker for ${agent.name}`);
-      const child = spawn(agent.path, ["--config", agent.config_uri], { stdio: 'inherit' });
+
+      // Build command arguments based on agent type.
+      // Only pass --config to agents that support that flag (claude, antigravity).
+      const args = [];
+      const nameLower = (agent.name || '').toLowerCase();
+      if (
+        agent.config_uri &&
+        fs.existsSync(agent.config_uri) &&
+        AGENTS_WITH_CONFIG_FLAG.has(nameLower)
+      ) {
+        args.push('--config', agent.config_uri);
+      }
+
+      const child = spawn(agent.path, args, {
+        // Use 'pipe'/'ignore' so the child never inherits the server's stdin.
+        // This prevents "stdin is not a terminal" errors on Linux / Windows / WSL.
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: agentEnv(agent),
+        detached: false,
+      });
+
+      child.stdout?.on('data', (data) => {
+        process.stdout.write(`[${agent.name}] ${data}`);
+      });
+      child.stderr?.on('data', (data) => {
+        process.stderr.write(`[${agent.name}] ${data}`);
+      });
+
       // Prevent an unhandled 'error' event (e.g. missing binary) from crashing the process.
       child.on('error', (err) => {
         console.error(`Failed to start background worker for ${agent.name}:`, err.message);

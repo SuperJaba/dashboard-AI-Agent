@@ -421,27 +421,43 @@ projectsRouter.post('/deploy', async (req, res) => {
     let agentCmd = '';
     
     // Map full names from frontend to CLI commands
-    let agentBaseCmd = agent;
-    if (agent === 'codex') {
-      agentBaseCmd = 'codex --oss -m gemma-4-26b-a4b-it';
-    } else if (agent === 'antigravity') {
-      agentBaseCmd = 'agy';
-    } else if (agent === 'claude code') {
-      agentBaseCmd = 'claude';
-    }
+    // Each entry: { cmd, promptFlag } where promptFlag is how this CLI accepts a prompt
+    // non-interactively. '' means the prompt is passed as a positional arg.
+    const agentMap = {
+      'codex':       { cmd: 'codex --oss -m gemma-4-26b-a4b-it', promptFlag: '' },
+      'antigravity': { cmd: 'agy',    promptFlag: '-i' },
+      'claude code': { cmd: 'claude', promptFlag: '-p' },
+      'claude':      { cmd: 'claude', promptFlag: '-p' },
+      'opencode':    { cmd: 'opencode run', promptFlag: '' },
+    };
+    const agentDef = agentMap[agent.toLowerCase()] || { cmd: agent, promptFlag: '' };
+    const agentBaseCmd = agentDef.cmd;
+    const promptFlag   = agentDef.promptFlag;
     
     const scriptPath = path.join(targetDir, '.start_agent.sh');
-    
+
+    // Build the prompt text
+    let promptText = '';
     if (remoteServer) {
       const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
-      const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt 
+      promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt
       || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
-      agentCmd = agentBaseCmd === 'agy' ? `agy -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
     } else if (tasks && tasks.length > 0) {
       const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
-      const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
-      const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-      agentCmd = agentBaseCmd === 'agy' ? `agy -i "${escapedPrompt}"` : `${agentBaseCmd} "${escapedPrompt}"`;
+      promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
+    }
+
+    // Build the shell invocation. We write the prompt to a temp file via a
+    // single-quoted heredoc so backticks, $vars, and special chars in task
+    // titles are NEVER interpreted by bash.
+    if (promptText) {
+      agentCmd = `
+_PROMPT_FILE=$(mktemp /tmp/agent_prompt.XXXXXX)
+cat > "$_PROMPT_FILE" << 'AGENT_PROMPT_EOF'
+${promptText}
+AGENT_PROMPT_EOF
+${agentBaseCmd} ${promptFlag ? `${promptFlag} "$(cat "$_PROMPT_FILE")"` : `"$(cat "$_PROMPT_FILE")"`}
+rm -f "$_PROMPT_FILE"`;
     } else {
       agentCmd = agentBaseCmd;
     }
@@ -453,7 +469,8 @@ projectsRouter.post('/deploy', async (req, res) => {
     // Do not export global LLM env vars for codex to avoid overriding its CLI flags
     if (agent !== 'codex') {
       if (llmUrl) {
-        const safeUrl = llmUrl.replace('127.0.0.1', 'localhost');
+        // Strip any accidental leading 'http://' before we add our own prefix
+        const safeUrl = llmUrl.replace('127.0.0.1', 'localhost').replace(/^https?:\/\//, '');
         exportEnvLines.push(`export ANTHROPIC_BASE_URL="http://${safeUrl}"`);
         exportEnvLines.push(`export OPENAI_BASE_URL="http://${safeUrl}"`);
       }
@@ -489,6 +506,7 @@ echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
 exec bash
 `;
+
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
