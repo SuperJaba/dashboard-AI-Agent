@@ -299,22 +299,22 @@
       "type": "directory"
     },
     {
+      "path": "src\\App.tsx",
+      "accessCount": 7,
+      "lastAccessed": 1789316522514,
+      "type": "directory"
+    },
+    {
+      "path": "src\\hooks\\useDashboardState.ts",
+      "accessCount": 7,
+      "lastAccessed": 1789317061277,
+      "type": "file"
+    },
+    {
       "path": "C:\\Users\\picho\\.ssh\\config",
       "accessCount": 5,
       "lastAccessed": 1789300533005,
       "type": "file"
-    },
-    {
-      "path": "src\\hooks\\useDashboardState.ts",
-      "accessCount": 5,
-      "lastAccessed": 1789312342966,
-      "type": "file"
-    },
-    {
-      "path": "src\\App.tsx",
-      "accessCount": 5,
-      "lastAccessed": 1789313403975,
-      "type": "directory"
     },
     {
       "path": "src",
@@ -327,6 +327,12 @@
       "accessCount": 2,
       "lastAccessed": 1789315418643,
       "type": "file"
+    },
+    {
+      "path": ".",
+      "accessCount": 2,
+      "lastAccessed": 1789317120030,
+      "type": "directory"
     },
     {
       "path": "src\\backend\\projects\\projectsRouter.js",
@@ -393,6 +399,12 @@
       "accessCount": 1,
       "lastAccessed": 1789315443018,
       "type": "directory"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 1,
+      "lastAccessed": 1789317226322,
+      "type": "file"
     }
   ],
   "userDirectives": []

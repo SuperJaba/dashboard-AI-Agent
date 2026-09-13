@@ -7,6 +7,7 @@ import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
+import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects } from './tasksSyncService.js';
 
 export const projectsRouter = express.Router();
 
@@ -183,17 +184,50 @@ projectsRouter.patch('/projects/:id/tasks/:taskId', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    currentTasks[taskIndex] = { ...currentTasks[taskIndex], ...req.body, id: taskId };
+    const existingTask = currentTasks[taskIndex];
+    currentTasks[taskIndex] = { ...existingTask, ...req.body, id: taskId };
     const complete = currentTasks.length > 0
       ? Math.round((currentTasks.filter(t => t.status === 'completed').length / currentTasks.length) * 100)
       : 0;
 
     const row = await projectsRepo.updateProject(projectId, { tasks: currentTasks, complete });
-    res.json(row);
+
+    // If status was changed and project has a valid workspace path, sync the markdown checklist in workspace
+    let workspaceResult = { updated: false };
+    if (req.body.status && project.path && (req.body.status === 'completed' || req.body.status === 'pending')) {
+      workspaceResult = updateTaskInWorkspaceFile(project.path, existingTask.title, req.body.status, existingTask.meta);
+    }
+
+    res.json({
+      ...row,
+      workspaceUpdated: workspaceResult.updated,
+      workspaceFile: workspaceResult.file || null
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Synchronize tasks between workspace files and DB for a specific project
+projectsRouter.post('/projects/:id/sync-tasks', async (req, res) => {
+  try {
+    const result = await syncProjectTasks(req.params.id, req.body || {});
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Synchronize tasks across all projects
+projectsRouter.post('/projects/sync-tasks', async (req, res) => {
+  try {
+    const results = await syncAllProjects(req.body || {});
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Delete Project
 projectsRouter.delete('/projects/:id', async (req, res) => {

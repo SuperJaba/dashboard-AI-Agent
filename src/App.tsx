@@ -2,7 +2,8 @@ import { startTransition, useEffect, useState } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
+  RefreshCw, Circle, CheckCheck
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -53,6 +54,9 @@ function App() {
     analyzeProject,
     addTask,
     deleteTask,
+    toggleTaskStatus,
+    syncProjectTasks,
+    clearCompletedTasks,
     initGit,
     handleAddServer,
     deleteServer,
@@ -68,6 +72,7 @@ function App() {
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
   const [showSettings, setShowSettings] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   // Dropdown-based agent selection for the "Local workspace" project view,
   // replacing what used to be a growing row of "Deploy <Agent>" buttons.
@@ -622,11 +627,46 @@ function App() {
                 >
                   <h2 className="section-title">
                     <Clock size={24} color="var(--primary)" aria-hidden="true" />
-                    Current Tasks ({(activeProject.tasks || []).length})
+                    Current Tasks ({(activeProject.tasks || []).filter((t: any) => t.status !== 'completed').length} active{((activeProject.tasks || []).filter((t: any) => t.status === 'completed').length > 0) ? ` / ${(activeProject.tasks || []).length} total` : ''})
                   </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {showTasks && (
                       <>
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const res = await syncProjectTasks();
+                            if (res && res.success) {
+                              const msg = `Synced: ${res.updatedInWorkspace.length} in workspace, ${res.updatedInDb.length} in DB`;
+                              setSyncNotice(msg);
+                              setTimeout(() => setSyncNotice(null), 3500);
+                            }
+                          }}
+                          title="Synchronizuj statusy zadań między plikami projektu a bazą danych"
+                        >
+                          <RefreshCw size={14} className={deploying === 'sync-tasks' ? 'spin' : ''} />
+                          Sync Tasks
+                        </button>
+                        {(activeProject.tasks || []).some((t: any) => t.status === 'completed') && (
+                          <button
+                            type="button"
+                            className="btn-add-project"
+                            style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#f59e0b' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm('Czy na pewno chcesz usunąć ukończone zadania z tabeli projektu?')) {
+                                clearCompletedTasks();
+                              }
+                            }}
+                            title="Usuń zakończone zadania z tabelki"
+                          >
+                            <CheckCheck size={14} />
+                            Clear Completed
+                          </button>
+                        )}
                         <button 
                           type="button"
                           className="btn-add-project" 
@@ -663,6 +703,12 @@ function App() {
                 
                 {showTasks && (
                   <div id="tasks-list" className="task-list animate-in">
+                    {syncNotice && (
+                      <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid #10b981', borderRadius: '6px', color: '#10b981', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <CheckCircle2 size={16} />
+                        {syncNotice}
+                      </div>
+                    )}
                     {(activeProject.tasks || [])
                       .filter((task: any) => !hideCompleted || task.status !== 'completed')
                       .map((task: any) => (
@@ -702,28 +748,49 @@ function App() {
                               }}
                             />
                             <div className="task-info">
-                              <span className="task-title">{task.title}</span>
+                              <span className="task-title" style={{ textDecoration: task.status === 'completed' ? 'line-through' : 'none' }}>
+                                {task.title}
+                              </span>
                               <span className="task-meta">{task.meta}</span>
                             </div>
                           </div>
                           <div className="task-status" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {task.status === 'completed' && (
-                              <span className="status-badge status-completed">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTaskStatus(task.id);
+                              }}
+                              className={`status-badge ${task.status === 'completed' ? 'status-completed' : (task.status === 'progress' ? 'status-progress' : 'status-pending')}`}
+                              style={{
+                                cursor: 'pointer',
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '0.25rem 0.65rem',
+                                borderRadius: '6px',
+                                transition: 'all 0.2s',
+                                fontSize: '0.75rem',
+                                background: task.status === 'completed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.06)'
+                              }}
+                              title={task.status === 'completed' ? 'Kliknij, aby odznaczyć jako oczekujące (Pending)' : 'Kliknij, aby oznaczyć jako zakończone w bazie i workspace (Completed)'}
+                              aria-label={`Przełącz status zadania: ${task.title}`}
+                            >
+                              {task.status === 'completed' ? (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <CheckCircle2 size={14} aria-hidden="true" /> Completed
                                 </span>
-                              </span>
-                            )}
-                            {task.status === 'progress' && (
-                              <span className="status-badge status-progress">
+                              ) : task.status === 'progress' ? (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <CircleDashed size={14} aria-hidden="true" /> In Progress
                                 </span>
-                              </span>
-                            )}
-                            {task.status === 'pending' && (
-                              <span className="status-badge status-pending">Pending</span>
-                            )}
+                              ) : (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Circle size={14} style={{ opacity: 0.5 }} aria-hidden="true" /> Pending
+                                </span>
+                              )}
+                            </button>
                             <button 
                               type="button"
                               onClick={(e) => {
