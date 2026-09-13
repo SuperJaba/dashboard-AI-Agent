@@ -22,7 +22,9 @@ import { serversRouter } from './src/backend/servers/serversRouter.js';
 
 // Import background worker and start it.
 import { startBackgroundWorker } from './src/backend/agents/backgroundWorker.js';
-startBackgroundWorker();import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
+startBackgroundWorker();
+
+import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
 import { userSettingsRouter } from './src/backend/settings/userSettingsRouter.js';

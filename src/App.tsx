@@ -3,7 +3,7 @@ import {
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
-  RefreshCw, Circle, CheckCheck, Archive, RotateCcw
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -22,6 +22,13 @@ import { DashboardTiles } from './TilesView';
 import { usePreferences, type Language } from './preferences/PreferencesContext';
 
 function App() {
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloneRepoUrl, setCloneRepoUrl] = useState('');
+  const [cloneTargetDir, setCloneTargetDir] = useState('');
+  const [cloneProjectName, setCloneProjectName] = useState('');
+  const [cloneLoading, setCloneLoading] = useState(false);
+  const [cloneError, setCloneError] = useState<string | null>(null);
+
   const {
     activeView, setActiveView,
     projects,
@@ -63,11 +70,15 @@ function App() {
     handleAddServer,
     deleteServer,
     handleAddProject,
+<<<<<<< HEAD
     showFolderPicker,
     setShowFolderPicker,
     handleFolderPicked,
     handleProjectFolderSelected,
     projectFolderInputRef,
+=======
+    handleCloneProject,
+>>>>>>> origin/master
     setupSshKey,
     agents
   } = useDashboardState();
@@ -168,10 +179,12 @@ function App() {
                 </button>
               </div>
             ))}
-            <button className="btn-add-project" onClick={handleAddProject}>
-              <Plus size={18} aria-hidden="true" />
-              Add Project
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.5rem' }}>
+              <button className="btn-add-project" aria-label="Add Project" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem' }} onClick={handleAddProject} title="Add existing local project folder">
+                <Plus size={16} aria-hidden="true" />
+                Add Local
             </button>
+<<<<<<< HEAD
             {/* Hidden native browser folder picker (webkitdirectory). We only get a
                 folder name back (browsers never expose absolute paths), so the user
                 confirms/completes the full path in a follow-up prompt. */}
@@ -185,6 +198,13 @@ function App() {
               style={{ display: 'none' }}
               onChange={handleProjectFolderSelected}
             />
+=======
+              <button className="btn-add-project" aria-label="Clone Git" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }} onClick={() => { setShowCloneModal(true); setCloneError(null); }} title="Clone Git repository">
+                <DownloadCloud size={16} aria-hidden="true" />
+                Clone Git
+              </button>
+            </div>
+>>>>>>> origin/master
           </div>
         )}
 
@@ -1090,6 +1110,107 @@ function App() {
           onClose={() => setShowFolderPicker(false)}
           onSelectFolder={handleFolderPicked}
         />
+      )}
+
+      {/* Clone Git Repository Modal */}
+      {showCloneModal && (
+        <div className="modal-overlay" onClick={() => !cloneLoading && setShowCloneModal(false)}>
+          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+            <h3 className="section-title" style={{ color: '#38bdf8' }}>
+              <DownloadCloud size={20} />
+              Clone Git Repository
+            </h3>
+
+            {cloneError && (
+              <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                {cloneError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label htmlFor="clone-repo-url" className="info-label">Repository URL (HTTPS or SSH)</label>
+                <input
+                  id="clone-repo-url"
+                  type="text"
+                  value={cloneRepoUrl}
+                  onChange={e => {
+                    setCloneRepoUrl(e.target.value);
+                    if (!cloneProjectName && e.target.value) {
+                      const match = e.target.value.trim().match(/\/([^/]+?)(\.git)?$/);
+                      if (match && match[1]) setCloneProjectName(match[1]);
+                    }
+                  }}
+                  className="config-input"
+                  placeholder="https://github.com/username/repository.git"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clone-target-dir" className="info-label">Target Directory</label>
+                <input
+                  id="clone-target-dir"
+                  type="text"
+                  value={cloneTargetDir}
+                  onChange={e => setCloneTargetDir(e.target.value)}
+                  className="config-input"
+                  placeholder="C:\Projects\my-repo or ~/projects/my-repo"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clone-project-name" className="info-label">Project Name in Dashboard (optional)</label>
+                <input
+                  id="clone-project-name"
+                  type="text"
+                  value={cloneProjectName}
+                  onChange={e => setCloneProjectName(e.target.value)}
+                  className="config-input"
+                  placeholder="My Repo"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ flex: 1, padding: '0.5rem' }}
+                  onClick={() => setShowCloneModal(false)}
+                  disabled={cloneLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
+                  disabled={!cloneRepoUrl.trim() || !cloneTargetDir.trim() || cloneLoading}
+                  onClick={async () => {
+                    setCloneLoading(true);
+                    setCloneError(null);
+                    try {
+                      await handleCloneProject(cloneRepoUrl.trim(), cloneTargetDir.trim(), cloneProjectName.trim() || undefined);
+                      setShowCloneModal(false);
+                      setCloneRepoUrl('');
+                      setCloneTargetDir('');
+                      setCloneProjectName('');
+                    } catch (err: any) {
+                      setCloneError(err.message || 'Failed to clone repository');
+                    } finally {
+                      setCloneLoading(false);
+                    }
+                  }}
+                >
+                  {cloneLoading ? 'Cloning...' : 'Clone Repository'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

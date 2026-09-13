@@ -171,5 +171,35 @@ describe('Backend API Tests', () => {
       expect(res.body.success).toBe(true);
     });
   });
+
+  describe('Git Repository API Endpoints', () => {
+    it('POST /api/git/checkout should require branch', async () => {
+      const res = await request(app)
+        .post('/api/git/checkout')
+        .set('Authorization', `Bearer ${testToken}`)
+        .send({ directory: '/mocked/path' });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Branch name is required');
 });
+
+    it('POST /api/git/commit should require message', async () => {
+      const res = await request(app)
+        .post('/api/git/commit')
+        .set('Authorization', `Bearer ${testToken}`)
+        .send({ directory: '/mocked/path' });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Commit message is required');
+    });
+
+    it('POST /api/git/clone should require repoUrl and targetDir', async () => {
+      const res = await request(app)
+        .post('/api/git/clone')
+        .set('Authorization', `Bearer ${testToken}`)
+        .send({});
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Repository URL is required');
+    });
+  });
+});
+
 
