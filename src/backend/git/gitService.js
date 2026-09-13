@@ -50,10 +50,6 @@ export function getStatus(directory) {
   return { branch, changes, commits };
 }
 
-<<<<<<< HEAD
-export async function getGithubPRsAndRuns(directory) {
-  if (!isGitRepo(directory)) {
-=======
 export function getBranches(directory) {
   const resolved = resolveDirectory(directory);
   if (!isGitRepo(resolved)) {

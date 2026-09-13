@@ -70,15 +70,12 @@ function App() {
     handleAddServer,
     deleteServer,
     handleAddProject,
-<<<<<<< HEAD
     showFolderPicker,
     setShowFolderPicker,
     handleFolderPicked,
     handleProjectFolderSelected,
     projectFolderInputRef,
-=======
     handleCloneProject,
->>>>>>> origin/master
     setupSshKey,
     agents
   } = useDashboardState();
@@ -183,8 +180,12 @@ function App() {
               <button className="btn-add-project" aria-label="Add Project" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem' }} onClick={handleAddProject} title="Add existing local project folder">
                 <Plus size={16} aria-hidden="true" />
                 Add Local
-            </button>
-<<<<<<< HEAD
+              </button>
+              <button className="btn-add-project" aria-label="Clone Git" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }} onClick={() => { setShowCloneModal(true); setCloneError(null); }} title="Clone Git repository">
+                <DownloadCloud size={16} aria-hidden="true" />
+                Clone Git
+              </button>
+            </div>
             {/* Hidden native browser folder picker (webkitdirectory). We only get a
                 folder name back (browsers never expose absolute paths), so the user
                 confirms/completes the full path in a follow-up prompt. */}
@@ -198,13 +199,6 @@ function App() {
               style={{ display: 'none' }}
               onChange={handleProjectFolderSelected}
             />
-=======
-              <button className="btn-add-project" aria-label="Clone Git" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }} onClick={() => { setShowCloneModal(true); setCloneError(null); }} title="Clone Git repository">
-                <DownloadCloud size={16} aria-hidden="true" />
-                Clone Git
-              </button>
-            </div>
->>>>>>> origin/master
           </div>
         )}
 
