@@ -2,7 +2,8 @@ import { startTransition, useEffect, useState } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -21,6 +22,13 @@ import { DashboardTiles } from './TilesView';
 import { usePreferences, type Language } from './preferences/PreferencesContext';
 
 function App() {
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloneRepoUrl, setCloneRepoUrl] = useState('');
+  const [cloneTargetDir, setCloneTargetDir] = useState('');
+  const [cloneProjectName, setCloneProjectName] = useState('');
+  const [cloneLoading, setCloneLoading] = useState(false);
+  const [cloneError, setCloneError] = useState<string | null>(null);
+
   const {
     activeView, setActiveView,
     projects,
@@ -53,6 +61,11 @@ function App() {
     analyzeProject,
     addTask,
     deleteTask,
+    toggleTaskStatus,
+    syncProjectTasks,
+    clearCompletedTasks,
+    archiveTasks,
+    restoreTask,
     initGit,
     handleAddServer,
     deleteServer,
@@ -62,12 +75,15 @@ function App() {
     handleFolderPicked,
     handleProjectFolderSelected,
     projectFolderInputRef,
+    handleCloneProject,
     setupSshKey,
     agents
   } = useDashboardState();
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
   const [showSettings, setShowSettings] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   // Dropdown-based agent selection for the "Local workspace" project view,
   // replacing what used to be a growing row of "Deploy <Agent>" buttons.
@@ -78,6 +94,13 @@ function App() {
       setSelectedAgentName(installed[0].name.toLowerCase());
     }
   }, [agents]);
+
+  const allProjectTasks = activeProject?.tasks || [];
+  const activeTasks = allProjectTasks.filter((t: any) => t.status !== 'archived');
+  const archivedTasks = allProjectTasks.filter((t: any) => t.status === 'archived');
+  const completedTasks = activeTasks.filter((t: any) => t.status === 'completed');
+  const pendingTasks = activeTasks.filter((t: any) => t.status !== 'completed');
+  const selectedCompletedCount = selectedTaskIds.filter(id => completedTasks.some((t: any) => t.id === id)).length;
 
   return (
     <div className="layout">
@@ -124,20 +147,45 @@ function App() {
         {isWorkspacesExpanded && (
           <div id="workspaces-list" className="projects-list">
             {projects.map(proj => (
-              <button 
-                type="button"
-                key={proj.id} 
+              <div
+                key={proj.id}
                 className={`project-item ${activeProjectId === proj.id ? 'active' : ''}`}
-                onClick={() => setActiveProjectId(proj.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}
               >
-                <Folder size={18} aria-hidden="true" />
-                <span>{proj.name}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveProjectId(proj.id)}
+                  style={{ flex: 1, textAlign: 'left' }}
+                >
+                  <Folder size={18} aria-hidden="true" />
+                  <span>{proj.name.split(/[/\\]/).pop()}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Czy na pewno chcesz usunąć projekt "${proj.name.split(/[/\\]/).pop()}"?`)) {
+                      handleAddProject(proj.id, 'delete');
+                    }
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
+                  aria-label={`Usuń projekt ${proj.name.split(/[/\\]/).pop()}`}
+                  title="Usuń projekt"
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              </div>
             ))}
-            <button className="btn-add-project" onClick={handleAddProject}>
-              <Plus size={18} aria-hidden="true" />
-              Add Project
-            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.5rem' }}>
+              <button className="btn-add-project" aria-label="Add Project" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem' }} onClick={handleAddProject} title="Add existing local project folder">
+                <Plus size={16} aria-hidden="true" />
+                Add Local
+              </button>
+              <button className="btn-add-project" aria-label="Clone Git" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }} onClick={() => { setShowCloneModal(true); setCloneError(null); }} title="Clone Git repository">
+                <DownloadCloud size={16} aria-hidden="true" />
+                Clone Git
+              </button>
+            </div>
             {/* Hidden native browser folder picker (webkitdirectory). We only get a
                 folder name back (browsers never expose absolute paths), so the user
                 confirms/completes the full path in a follow-up prompt. */}
@@ -603,11 +651,75 @@ function App() {
                 >
                   <h2 className="section-title">
                     <Clock size={24} color="var(--primary)" aria-hidden="true" />
-                    Current Tasks ({(activeProject.tasks || []).length})
+                    Current Tasks ({pendingTasks.length} active{completedTasks.length > 0 ? ` / ${activeTasks.length} total` : ''})
                   </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {showTasks && (
                       <>
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const res = await syncProjectTasks();
+                            if (res && res.success) {
+                              const msg = `Synced: ${res.updatedInWorkspace.length} in workspace, ${res.updatedInDb.length} in DB`;
+                              setSyncNotice(msg);
+                              setTimeout(() => setSyncNotice(null), 3500);
+                            }
+                          }}
+                          title="Synchronizuj statusy zadań między plikami projektu a bazą danych"
+                        >
+                          <RefreshCw size={14} className={deploying === 'sync-tasks' ? 'spin' : ''} />
+                          Sync Tasks
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ 
+                            padding: '0.2rem 0.6rem', 
+                            fontSize: '0.75rem', 
+                            zIndex: 2, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.3rem',
+                            opacity: completedTasks.length === 0 ? 0.5 : 1,
+                            cursor: completedTasks.length === 0 ? 'not-allowed' : 'pointer'
+                          }}
+                          disabled={completedTasks.length === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            archiveTasks();
+                          }}
+                          title={
+                            completedTasks.length === 0
+                              ? 'Brak zakończonych zadań do archiwizacji'
+                              : selectedCompletedCount > 0
+                              ? `Zarchiwizuj tylko zaznaczone ukończone zadania (${selectedCompletedCount})`
+                              : `Zarchiwizuj wszystkie ukończone zadania (${completedTasks.length})`
+                          }
+                        >
+                          <Archive size={14} />
+                          {selectedCompletedCount > 0 ? `Archive (${selectedCompletedCount})` : 'Archive'}
+                        </button>
+                        {completedTasks.length > 0 && (
+                          <button
+                            type="button"
+                            className="btn-add-project"
+                            style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#f59e0b' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm('Czy na pewno chcesz usunąć ukończone zadania z tabeli projektu?')) {
+                                clearCompletedTasks();
+                              }
+                            }}
+                            title="Usuń zakończone zadania z tabelki"
+                          >
+                            <CheckCheck size={14} />
+                            Clear Completed
+                          </button>
+                        )}
                         <button 
                           type="button"
                           className="btn-add-project" 
@@ -627,14 +739,14 @@ function App() {
                           style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2 }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0) {
+                            if (selectedTaskIds.length === activeTasks.length && activeTasks.length > 0) {
                               setSelectedTaskIds([]);
                             } else {
-                              setSelectedTaskIds((activeProject.tasks || []).map((t: any) => t.id));
+                              setSelectedTaskIds(activeTasks.map((t: any) => t.id));
                             }
                           }}
                         >
-                          {selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0 ? 'Uncheck All' : 'Check All'}
+                          {selectedTaskIds.length === activeTasks.length && activeTasks.length > 0 ? 'Uncheck All' : 'Check All'}
                         </button>
                       </>
                     )}
@@ -644,7 +756,13 @@ function App() {
                 
                 {showTasks && (
                   <div id="tasks-list" className="task-list animate-in">
-                    {(activeProject.tasks || [])
+                    {syncNotice && (
+                      <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid #10b981', borderRadius: '6px', color: '#10b981', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <CheckCircle2 size={16} />
+                        {syncNotice}
+                      </div>
+                    )}
+                    {activeTasks
                       .filter((task: any) => !hideCompleted || task.status !== 'completed')
                       .map((task: any) => (
                       <div 
@@ -683,28 +801,49 @@ function App() {
                               }}
                             />
                             <div className="task-info">
-                              <span className="task-title">{task.title}</span>
+                              <span className="task-title" style={{ textDecoration: task.status === 'completed' ? 'line-through' : 'none' }}>
+                                {task.title}
+                              </span>
                               <span className="task-meta">{task.meta}</span>
                             </div>
                           </div>
                           <div className="task-status" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {task.status === 'completed' && (
-                              <span className="status-badge status-completed">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTaskStatus(task.id);
+                              }}
+                              className={`status-badge ${task.status === 'completed' ? 'status-completed' : (task.status === 'progress' ? 'status-progress' : 'status-pending')}`}
+                              style={{
+                                cursor: 'pointer',
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '0.25rem 0.65rem',
+                                borderRadius: '6px',
+                                transition: 'all 0.2s',
+                                fontSize: '0.75rem',
+                                background: task.status === 'completed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.06)'
+                              }}
+                              title={task.status === 'completed' ? 'Kliknij, aby odznaczyć jako oczekujące (Pending)' : 'Kliknij, aby oznaczyć jako zakończone w bazie i workspace (Completed)'}
+                              aria-label={`Przełącz status zadania: ${task.title}`}
+                            >
+                              {task.status === 'completed' ? (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <CheckCircle2 size={14} aria-hidden="true" /> Completed
                                 </span>
-                              </span>
-                            )}
-                            {task.status === 'progress' && (
-                              <span className="status-badge status-progress">
+                              ) : task.status === 'progress' ? (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <CircleDashed size={14} aria-hidden="true" /> In Progress
                                 </span>
-                              </span>
-                            )}
-                            {task.status === 'pending' && (
-                              <span className="status-badge status-pending">Pending</span>
-                            )}
+                              ) : (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Circle size={14} style={{ opacity: 0.5 }} aria-hidden="true" /> Pending
+                                </span>
+                              )}
+                            </button>
                             <button 
                               type="button"
                               onClick={(e) => {
@@ -746,6 +885,97 @@ function App() {
                         <PlusCircle size={20} aria-hidden="true" />
                       </button>
                     </form>
+
+                    {archivedTasks.length > 0 && (
+                      <div style={{ marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowArchived(!showArchived)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            padding: '0.25rem 0'
+                          }}
+                          title="Pokaż lub ukryj zarchiwizowane zadania"
+                        >
+                          <Archive size={14} />
+                          <span>{showArchived ? 'Hide Archived' : 'Show Archived'} ({archivedTasks.length})</span>
+                          {showArchived ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+
+                        {showArchived && (
+                          <div className="task-list animate-in" style={{ marginTop: '0.5rem', opacity: 0.85 }}>
+                            {archivedTasks.map((task: any) => (
+                              <div
+                                className="task-item"
+                                key={task.id}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.015)',
+                                  border: '1px solid rgba(255, 255, 255, 0.04)',
+                                  cursor: 'default'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <Archive size={16} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+                                    <div className="task-info">
+                                      <span className="task-title" style={{ textDecoration: 'line-through', opacity: 0.7 }}>
+                                        {task.title}
+                                      </span>
+                                      <span className="task-meta">{task.meta || 'Archived Task'}</span>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => restoreTask(task.id)}
+                                      title="Przywróć zadanie do zakończonych (Restore)"
+                                      aria-label={`Przywróć zadanie: ${task.title}`}
+                                      className="btn-add-project"
+                                      style={{
+                                        padding: '0.2rem 0.5rem',
+                                        fontSize: '0.75rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem'
+                                      }}
+                                    >
+                                      <RotateCcw size={13} />
+                                      Restore
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteTask(task.id)}
+                                      aria-label={`Usuń trwale ${task.title}`}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        padding: '0.25rem',
+                                        borderRadius: '4px',
+                                        display: 'flex'
+                                      }}
+                                      onMouseOver={(e) => (e.currentTarget.style.color = '#ef4444')}
+                                      onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                                      title="Delete permanently"
+                                    >
+                                      <Trash2 size={16} aria-hidden="true" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
@@ -874,6 +1104,107 @@ function App() {
           onClose={() => setShowFolderPicker(false)}
           onSelectFolder={handleFolderPicked}
         />
+      )}
+
+      {/* Clone Git Repository Modal */}
+      {showCloneModal && (
+        <div className="modal-overlay" onClick={() => !cloneLoading && setShowCloneModal(false)}>
+          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+            <h3 className="section-title" style={{ color: '#38bdf8' }}>
+              <DownloadCloud size={20} />
+              Clone Git Repository
+            </h3>
+
+            {cloneError && (
+              <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                {cloneError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label htmlFor="clone-repo-url" className="info-label">Repository URL (HTTPS or SSH)</label>
+                <input
+                  id="clone-repo-url"
+                  type="text"
+                  value={cloneRepoUrl}
+                  onChange={e => {
+                    setCloneRepoUrl(e.target.value);
+                    if (!cloneProjectName && e.target.value) {
+                      const match = e.target.value.trim().match(/\/([^/]+?)(\.git)?$/);
+                      if (match && match[1]) setCloneProjectName(match[1]);
+                    }
+                  }}
+                  className="config-input"
+                  placeholder="https://github.com/username/repository.git"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clone-target-dir" className="info-label">Target Directory</label>
+                <input
+                  id="clone-target-dir"
+                  type="text"
+                  value={cloneTargetDir}
+                  onChange={e => setCloneTargetDir(e.target.value)}
+                  className="config-input"
+                  placeholder="C:\Projects\my-repo or ~/projects/my-repo"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clone-project-name" className="info-label">Project Name in Dashboard (optional)</label>
+                <input
+                  id="clone-project-name"
+                  type="text"
+                  value={cloneProjectName}
+                  onChange={e => setCloneProjectName(e.target.value)}
+                  className="config-input"
+                  placeholder="My Repo"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ flex: 1, padding: '0.5rem' }}
+                  onClick={() => setShowCloneModal(false)}
+                  disabled={cloneLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
+                  disabled={!cloneRepoUrl.trim() || !cloneTargetDir.trim() || cloneLoading}
+                  onClick={async () => {
+                    setCloneLoading(true);
+                    setCloneError(null);
+                    try {
+                      await handleCloneProject(cloneRepoUrl.trim(), cloneTargetDir.trim(), cloneProjectName.trim() || undefined);
+                      setShowCloneModal(false);
+                      setCloneRepoUrl('');
+                      setCloneTargetDir('');
+                      setCloneProjectName('');
+                    } catch (err: any) {
+                      setCloneError(err.message || 'Failed to clone repository');
+                    } finally {
+                      setCloneLoading(false);
+                    }
+                  }}
+                >
+                  {cloneLoading ? 'Cloning...' : 'Clone Repository'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

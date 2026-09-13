@@ -8,7 +8,7 @@ Welcome to the **Dashboard** project! This guide is designed to get you up and r
 
 Our dashboard is built on a modern, modular stack:
 * **Frontend**: React (TypeScript) + Vite
-* **Styling**: Vanilla CSS (sleek, custom variables-based styling)
+* **Styling**: Tailwind CSS v4 + PostCSS
 * **Backend**: Node.js Express API + Socket.io (for real-time terminal shells)
 * **Database**: PostgreSQL (relational storage for settings, projects, servers, and widgets)
 
@@ -16,7 +16,7 @@ Our dashboard is built on a modern, modular stack:
 
 ## 🏗️ Codebase Architecture
 
-We recently refactored our backend and frontend monoliths into clean, modular domain directories. Refer to [DESIGN.md](file:///home/seba/Documents/dashboard/DESIGN.md) for deep system diagrams. Here is the structure:
+We recently refactored our backend and frontend monoliths into clean, modular domain directories. Refer to [DESIGN.md](./DESIGN.md) for deep system diagrams. Here is the structure:
 
 ```
 dashboard/

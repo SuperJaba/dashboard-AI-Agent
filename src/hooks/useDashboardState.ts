@@ -25,7 +25,23 @@ export function useDashboardState() {
   const [isWorkspacesExpanded, setIsWorkspacesExpanded] = useState(true);
   const [isRemoteExpanded, setIsRemoteExpanded] = useState(true);
   const [showTasks, setShowTasks] = useState(false);
-  const [hideCompleted, setHideCompleted] = useState(false);
+  const [hideCompleted, setHideCompletedState] = useState(() => {
+    try {
+      return localStorage.getItem('hideCompleted') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const setHideCompleted = (value: boolean | ((prev: boolean) => boolean)) => {
+    setHideCompletedState(prev => {
+      const nextVal = typeof value === 'function' ? value(prev) : value;
+      try {
+        localStorage.setItem('hideCompleted', String(nextVal));
+      } catch {}
+      return nextVal;
+    });
+  };
   const [useBrowserTerminal, setUseBrowserTerminal] = useState(false);
   const [terminalConfig, setTerminalConfig] = useState<any>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
@@ -177,23 +193,36 @@ export function useDashboardState() {
     try {
       const data = await apiClient.post<any>('/api/analyze', { directory: activeProject.path });
       if (!data.error) {
-        // Merge tasks: keep existing, add new ones from disk
+        // Merge tasks: keep existing, update statuses if completed on disk, add new pending tasks from disk
         const currentTasks = activeProject.tasks || [];
-        const existingTitles = new Set(currentTasks.map((t: any) => t.title));
-        const newTasks = data.tasks.filter((t: any) => !existingTitles.has(t.title));
-        
-        // Ensure unique IDs
+        const currentTitles = new Set(currentTasks.map((t: any) => t.title.trim().toLowerCase()));
+
+        // Update status of existing tasks if completed on disk
+        const mergedTasks = currentTasks.map((t: any) => {
+          const norm = t.title.trim().toLowerCase();
+          const diskMatch = (data.tasks || []).find((dt: any) => dt.title.trim().toLowerCase() === norm);
+          if (diskMatch && diskMatch.status === 'completed' && t.status !== 'completed') {
+            return { ...t, status: 'completed' };
+          }
+          return t;
+        });
+
+        // Only add brand-new tasks from disk if they are pending (do not flood table with old completed tasks)
         let maxId = currentTasks.length > 0 ? Math.max(...currentTasks.map((t: any) => t.id)) : 0;
-        const tasksToAdd = newTasks.map((t: any) => ({ ...t, id: ++maxId }));
+        const newPendingTasks = (data.tasks || []).filter((dt: any) => {
+          const norm = dt.title.trim().toLowerCase();
+          return !currentTitles.has(norm) && dt.status === 'pending';
+        });
+        const tasksToAdd = newPendingTasks.map((t: any) => ({ ...t, id: ++maxId }));
+
+        const finalTasks = [...mergedTasks, ...tasksToAdd];
+        const updatedComplete = finalTasks.length ? Math.round((finalTasks.filter(t => t.status === 'completed').length / finalTasks.length) * 100) : 0;
         
-        const mergedTasks = [...currentTasks, ...tasksToAdd];
-        const updatedComplete = mergedTasks.length ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
-        
-        await apiClient.put(`/api/projects/${activeProject.id}`, { tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null });
+        await apiClient.put(`/api/projects/${activeProject.id}`, { tech: data.tech, tasks: finalTasks, complete: updatedComplete, branch: data.branch || null });
         
         setProjects(prevProjects => prevProjects.map(p => 
           p.id === activeProject.id 
-            ? { ...p, tech: data.tech, tasks: mergedTasks, complete: updatedComplete, branch: data.branch || null }
+            ? { ...p, tech: data.tech, tasks: finalTasks, complete: updatedComplete, branch: data.branch || null }
             : p
         ));
         setShowTasks(true);
@@ -207,6 +236,145 @@ export function useDashboardState() {
     }
   };
 
+  const toggleTaskStatus = async (taskId: number) => {
+    if (!activeProject) return;
+    const currentTasks = activeProject.tasks || [];
+    const task = currentTasks.find((t: any) => t.id === taskId);
+    if (!task) return;
+
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    const updatedTasks = currentTasks.map((t: any) => 
+      t.id === taskId ? { ...t, status: newStatus } : t
+    );
+    const updatedComplete = updatedTasks.length > 0 
+      ? Math.round((updatedTasks.filter((t: any) => t.status === 'completed').length / updatedTasks.length) * 100)
+      : 0;
+
+    // Optimistic update
+    setProjects(prevProjects => prevProjects.map(p => 
+      p.id === activeProject.id ? { ...p, tasks: updatedTasks, complete: updatedComplete } : p
+    ));
+
+    try {
+      const res = await apiClient.patch<any>(`/api/projects/${activeProject.id}/tasks/${taskId}`, {
+        status: newStatus
+      });
+      if (res && res.tasks) {
+        setProjects(prevProjects => prevProjects.map(p => 
+          p.id === activeProject.id ? { ...p, ...res } : p
+        ));
+      }
+    } catch (err) {
+      console.error('Failed to toggle task status:', err);
+      // Revert on error
+      setProjects(prevProjects => prevProjects.map(p => 
+        p.id === activeProject.id ? { ...p, tasks: currentTasks } : p
+      ));
+    }
+  };
+
+  const syncProjectTasks = async () => {
+    if (!activeProject) return null;
+    setDeploying('sync-tasks');
+    try {
+      const res = await apiClient.post<any>(`/api/projects/${activeProject.id}/sync-tasks`, {});
+      if (res && res.project) {
+        setProjects(prevProjects => prevProjects.map(p => 
+          p.id === activeProject.id ? { ...p, ...res.project } : p
+        ));
+      }
+      return res;
+    } catch (err) {
+      console.error('Failed to sync tasks:', err);
+      return null;
+    } finally {
+      setDeploying(null);
+    }
+  };
+
+  const clearCompletedTasks = async () => {
+    if (!activeProject) return;
+    const activeTasks = (activeProject.tasks || []).filter((t: any) => t.status !== 'completed');
+    const updatedComplete = activeTasks.length > 0 
+      ? Math.round((activeTasks.filter((t: any) => t.status === 'completed').length / activeTasks.length) * 100)
+      : 0;
+
+    try {
+      await apiClient.put(`/api/projects/${activeProject.id}/tasks`, { tasks: activeTasks });
+      setProjects(prevProjects => prevProjects.map(p => 
+        p.id === activeProject.id ? { ...p, tasks: activeTasks, complete: updatedComplete } : p
+      ));
+      setSelectedTaskIds(prev => prev.filter(id => activeTasks.some((t: any) => t.id === id)));
+    } catch (err) {
+      console.error('Failed to clear completed tasks:', err);
+    }
+  };
+
+  const archiveTasks = async () => {
+    if (!activeProject || !activeProject.tasks) return;
+    const currentTasks = activeProject.tasks;
+    const completedTasks = currentTasks.filter((t: any) => t.status === 'completed');
+    if (completedTasks.length === 0) return;
+
+    // Check which completed tasks are currently selected
+    const selectedCompletedIds = selectedTaskIds.filter(id =>
+      completedTasks.some((t: any) => t.id === id)
+    );
+
+    // If some completed tasks are selected, archive ONLY those.
+    // Otherwise, archive ALL completed tasks.
+    const idsToArchive = selectedCompletedIds.length > 0
+      ? selectedCompletedIds
+      : completedTasks.map((t: any) => t.id);
+
+    const updatedTasks = currentTasks.map((task: any) => {
+      if (idsToArchive.includes(task.id)) {
+        return { ...task, status: 'archived', archivedAt: new Date().toISOString() };
+      }
+      return task;
+    });
+
+    const activeTasks = updatedTasks.filter((t: any) => t.status !== 'archived');
+    const updatedComplete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter((t: any) => t.status === 'completed').length / activeTasks.length) * 100)
+      : 0;
+
+    try {
+      await apiClient.put(`/api/projects/${activeProject.id}/tasks`, { tasks: updatedTasks, complete: updatedComplete });
+      setProjects(prevProjects => prevProjects.map(p =>
+        p.id === activeProject.id ? { ...p, tasks: updatedTasks, complete: updatedComplete } : p
+      ));
+      setSelectedTaskIds(prev => prev.filter(id => !idsToArchive.includes(id)));
+    } catch (err) {
+      console.error('Failed to archive tasks:', err);
+    }
+  };
+
+  const restoreTask = async (taskId: number) => {
+    if (!activeProject || !activeProject.tasks) return;
+    const currentTasks = activeProject.tasks;
+    const updatedTasks = currentTasks.map((task: any) => {
+      if (task.id === taskId) {
+        return { ...task, status: 'completed' };
+      }
+      return task;
+    });
+
+    const activeTasks = updatedTasks.filter((t: any) => t.status !== 'archived');
+    const updatedComplete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter((t: any) => t.status === 'completed').length / activeTasks.length) * 100)
+      : 0;
+
+    try {
+      await apiClient.put(`/api/projects/${activeProject.id}/tasks`, { tasks: updatedTasks, complete: updatedComplete });
+      setProjects(prevProjects => prevProjects.map(p =>
+        p.id === activeProject.id ? { ...p, tasks: updatedTasks, complete: updatedComplete } : p
+      ));
+    } catch (err) {
+      console.error('Failed to restore task:', err);
+    }
+  };
+
   const addTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeProject || !newTaskTitle.trim()) return;
@@ -215,7 +383,8 @@ export function useDashboardState() {
     let maxId = currentTasks.length > 0 ? Math.max(...currentTasks.map((t: any) => t.id)) : 0;
     const newTask = { id: maxId + 1, title: newTaskTitle.trim(), meta: 'Custom Task', status: 'pending' };
     const mergedTasks = [...currentTasks, newTask];
-    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+    const activeTasks = mergedTasks.filter((t: any) => t.status !== 'archived');
+    const updatedComplete = activeTasks.length > 0 ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100) : 0;
     
     await apiClient.put(`/api/projects/${activeProject.id}`, { tasks: mergedTasks, complete: updatedComplete });
     
@@ -228,7 +397,8 @@ export function useDashboardState() {
   const deleteTask = async (taskId: number) => {
     if (!activeProject) return;
     const mergedTasks = (activeProject.tasks || []).filter((t: any) => t.id !== taskId);
-    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter((t: any) => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+    const activeTasks = mergedTasks.filter((t: any) => t.status !== 'archived');
+    const updatedComplete = activeTasks.length > 0 ? Math.round((activeTasks.filter((t: any) => t.status === 'completed').length / activeTasks.length) * 100) : 0;
     
     await apiClient.put(`/api/projects/${activeProject.id}`, { tasks: mergedTasks, complete: updatedComplete });
     
@@ -272,7 +442,15 @@ export function useDashboardState() {
     } catch (e) { console.error(e); }
   };
 
-  const handleAddProject = () => {
+  const handleAddProject = async (projectId?: number, action?: 'delete') => {
+    if (action === 'delete' && projectId) {
+      try {
+        await apiClient.delete(`/api/projects/${projectId}`);
+        setProjects(projects.filter(p => p.id !== projectId));
+        if (activeProjectId === projectId) setActiveProjectId(null);
+      } catch (e) { console.error(e); }
+      return;
+    }
     setShowFolderPicker(true);
   };
 
@@ -321,6 +499,29 @@ export function useDashboardState() {
     }
   };
 
+  const handleCloneProject = async (repoUrl: string, targetDir: string, projectName?: string) => {
+    try {
+      const name = projectName || targetDir.split('/').pop() || targetDir.split('\\').pop() || 'Cloned Repo';
+      const data = await apiClient.post<any>('/api/git/clone', {
+        repoUrl,
+        targetDir,
+        name
+      });
+      if (data.project) {
+        setProjects(prev => [...prev, data.project]);
+        setActiveProjectId(data.project.id);
+      } else {
+        const newProj = await apiClient.post<any>('/api/projects', { name, desc: `Cloned from ${repoUrl}`, path: data.directory || targetDir });
+        setProjects(prev => [...prev, newProj]);
+        setActiveProjectId(newProj.id);
+      }
+      return data;
+    } catch (err: any) {
+      console.error('Failed to clone project:', err);
+      throw err;
+    }
+  };
+
   const setupSshKey = async (serverId: number) => {
     try {
       const data = await apiClient.post<any>(`/api/servers/${serverId}/setup-ssh`);
@@ -339,6 +540,7 @@ export function useDashboardState() {
     projects, setProjects,
     activeProjectId, setActiveProjectId,
     servers, setServers,
+    handleCloneProject,
     agents, setAgents,
     showAddServer, setShowAddServer,
     newServer, setNewServer,
@@ -367,6 +569,11 @@ export function useDashboardState() {
     analyzeProject,
     addTask,
     deleteTask,
+    toggleTaskStatus,
+    syncProjectTasks,
+    clearCompletedTasks,
+    archiveTasks,
+    restoreTask,
     initGit,
     handleAddServer,
     deleteServer,

@@ -68,7 +68,9 @@ Before beginning the implementation, we will perform the following Git operation
 - [x] Create config UI in AgentsView
 - [x] Implement full user authentication (login view, sessions, passwords) /skill auth-implementation-patterns
 - [ ] Deploy dashboard to a remote server
-- [ ] Integrate Git repositories directly into the dashboard
+- [x] Integrate Git repositories directly into the dashboard
+  - Full Git operations API: branches, checkout, create/delete branch, diff viewer, stage/unstage, commit, push, pull, fetch, clone
+  - UI components: Branch switcher & creator dropdown, visual Diff modal with syntax highlights, Commit modal with Stage All, Fetch/Pull/Push buttons, Clone Git Repository dialog in workspace sidebar
 - [ ] Implement remote coding capabilities (containers / GitHub workspaces)
 - [x] Generate Dashboard-specific SSH keys for Agent remote access and store in DB
   - **Workflow dla zdalnego agenta w razie błędu braku klucza (BatchMode=yes fails):**

@@ -7,17 +7,61 @@ import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
+import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects } from './tasksSyncService.js';
 
 export const projectsRouter = express.Router();
+
+export function getAvailableDrives() {
+  if (process.platform !== 'win32') {
+    return ['/'];
+  }
+  const drives = [];
+  for (let i = 65; i <= 90; i++) {
+    const letter = String.fromCharCode(i);
+    const drivePath = `${letter}:\\`;
+    try {
+      if (fs.existsSync(drivePath)) {
+        drives.push(drivePath);
+      }
+    } catch (e) {
+      // Ignore drives that are not accessible
+    }
+  }
+  return drives;
+}
 
 // List directories for folder picker
 projectsRouter.get('/fs/directories', (req, res) => {
   try {
-    let targetPath = req.query.path ? String(req.query.path) : os.homedir();
+    const isWindows = process.platform === 'win32';
+    const rawPath = req.query.path !== undefined ? String(req.query.path).trim() : null;
+    const availableDrives = getAvailableDrives();
+
+    // If path is 'DRIVES' (navigating up from drive root or listing root disks)
+    if (rawPath && (rawPath.toUpperCase() === 'DRIVES' || rawPath === '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}')) {
+      return res.json({
+        currentPath: isWindows ? '' : '/',
+        parentPath: null,
+        directories: availableDrives.map(d => ({
+          name: isWindows ? `Dysk (${d.replace(/\\$/, '')})` : 'Root (/)',
+          path: d,
+          isDrive: true
+        })),
+        drives: availableDrives
+      });
+    }
+
+    let targetPath = rawPath && rawPath !== '' ? rawPath : os.homedir();
+
+    // Normalize Windows drive letter inputs like 'c:' or 'C:' or 'c:/' to 'C:\'
+    if (isWindows && /^[a-zA-Z]:[/\\]?$/.test(targetPath)) {
+      targetPath = targetPath.substring(0, 2).toUpperCase() + '\\';
+    }
+
     targetPath = path.resolve(targetPath);
 
     if (!fs.existsSync(targetPath)) {
-      return res.status(404).json({ error: 'Ścieżka nie istnieje', currentPath: targetPath });
+      return res.status(404).json({ error: `Ścieżka nie istnieje: ${targetPath}`, currentPath: targetPath, drives: availableDrives });
     }
 
     const stat = fs.statSync(targetPath);
@@ -25,7 +69,15 @@ projectsRouter.get('/fs/directories', (req, res) => {
       targetPath = path.dirname(targetPath);
     }
 
-    const parentPath = path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null;
+    // Determine parent path
+    let parentPath = null;
+    const isDriveRoot = isWindows && /^[a-zA-Z]:\\?$/.test(targetPath);
+    if (isWindows && isDriveRoot) {
+      parentPath = 'DRIVES';
+    } else {
+      parentPath = path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null;
+    }
+
     const entries = fs.readdirSync(targetPath, { withFileTypes: true });
 
     const directories = [];
@@ -33,11 +85,15 @@ projectsRouter.get('/fs/directories', (req, res) => {
       if (entry.name.startsWith('.')) continue; // ignore hidden folders
       if (entry.name === 'node_modules') continue;
 
-      if (entry.isDirectory()) {
-        directories.push({
-          name: entry.name,
-          path: path.join(targetPath, entry.name)
-        });
+      try {
+        if (entry.isDirectory()) {
+          directories.push({
+            name: entry.name,
+            path: path.join(targetPath, entry.name)
+          });
+        }
+      } catch (e) {
+        // Skip inaccessible directories
       }
     }
 
@@ -46,10 +102,11 @@ projectsRouter.get('/fs/directories', (req, res) => {
     res.json({
       currentPath: targetPath,
       parentPath,
-      directories
+      directories,
+      drives: availableDrives
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, drives: getAvailableDrives() });
   }
 });
 
@@ -99,8 +156,9 @@ projectsRouter.put('/projects/:id/tasks', async (req, res) => {
     if (!Array.isArray(tasks)) {
       return res.status(400).json({ error: 'Field "tasks" must be an array' });
     }
-    const complete = tasks.length > 0
-      ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100)
+    const activeTasks = tasks.filter(t => t.status !== 'archived');
+    const complete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
       : 0;
     const row = await projectsRepo.updateProject(req.params.id, { tasks, complete });
     res.json(row);
@@ -127,17 +185,51 @@ projectsRouter.patch('/projects/:id/tasks/:taskId', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    currentTasks[taskIndex] = { ...currentTasks[taskIndex], ...req.body, id: taskId };
-    const complete = currentTasks.length > 0
-      ? Math.round((currentTasks.filter(t => t.status === 'completed').length / currentTasks.length) * 100)
+    const existingTask = currentTasks[taskIndex];
+    currentTasks[taskIndex] = { ...existingTask, ...req.body, id: taskId };
+    const activeTasks = currentTasks.filter(t => t.status !== 'archived');
+    const complete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
       : 0;
 
     const row = await projectsRepo.updateProject(projectId, { tasks: currentTasks, complete });
-    res.json(row);
+
+    // If status was changed and project has a valid workspace path, sync the markdown checklist in workspace
+    let workspaceResult = { updated: false };
+    if (req.body.status && project.path && (req.body.status === 'completed' || req.body.status === 'pending')) {
+      workspaceResult = updateTaskInWorkspaceFile(project.path, existingTask.title, req.body.status, existingTask.meta);
+    }
+
+    res.json({
+      ...row,
+      workspaceUpdated: workspaceResult.updated,
+      workspaceFile: workspaceResult.file || null
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Synchronize tasks between workspace files and DB for a specific project
+projectsRouter.post('/projects/:id/sync-tasks', async (req, res) => {
+  try {
+    const result = await syncProjectTasks(req.params.id, req.body || {});
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Synchronize tasks across all projects
+projectsRouter.post('/projects/sync-tasks', async (req, res) => {
+  try {
+    const results = await syncAllProjects(req.body || {});
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Delete Project
 projectsRouter.delete('/projects/:id', async (req, res) => {
@@ -617,3 +709,157 @@ projectsRouter.post('/git/deploy', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// Git Branches
+projectsRouter.post('/git/branches', async (req, res) => {
+  try {
+    const { directory } = req.body;
+    const result = gitService.getBranches(directory);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Checkout
+projectsRouter.post('/git/checkout', async (req, res) => {
+  try {
+    const { directory, branch, createNew } = req.body;
+    if (!branch) return res.status(400).json({ error: 'Branch name is required' });
+    const result = gitService.checkoutBranch(directory, branch, createNew);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Create Branch
+projectsRouter.post('/git/branch', async (req, res) => {
+  try {
+    const { directory, branch } = req.body;
+    if (!branch) return res.status(400).json({ error: 'Branch name is required' });
+    const result = gitService.createBranch(directory, branch);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Delete Branch
+projectsRouter.delete('/git/branch', async (req, res) => {
+  try {
+    const { directory, branch, force } = req.body;
+    if (!branch) return res.status(400).json({ error: 'Branch name is required' });
+    const result = gitService.deleteBranch(directory, branch, force);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Diff
+projectsRouter.post('/git/diff', async (req, res) => {
+  try {
+    const { directory, staged, file } = req.body;
+    const result = gitService.getDiff(directory, staged, file);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Stage
+projectsRouter.post('/git/stage', async (req, res) => {
+  try {
+    const { directory, files } = req.body;
+    const result = gitService.stageFiles(directory, files);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Unstage
+projectsRouter.post('/git/unstage', async (req, res) => {
+  try {
+    const { directory, files } = req.body;
+    const result = gitService.unstageFiles(directory, files);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Commit
+projectsRouter.post('/git/commit', async (req, res) => {
+  try {
+    const { directory, message } = req.body;
+    if (!message || !message.trim()) return res.status(400).json({ error: 'Commit message is required' });
+    const result = gitService.commitChanges(directory, message);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Pull
+projectsRouter.post('/git/pull', async (req, res) => {
+  try {
+    const { directory, remote, branch } = req.body;
+    const result = gitService.pullChanges(directory, remote, branch);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Push
+projectsRouter.post('/git/push', async (req, res) => {
+  try {
+    const { directory, remote, branch, force } = req.body;
+    const result = gitService.pushChanges(directory, remote, branch, force);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Fetch
+projectsRouter.post('/git/fetch', async (req, res) => {
+  try {
+    const { directory, remote } = req.body;
+    const result = gitService.fetchChanges(directory, remote);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Git Clone
+projectsRouter.post('/git/clone', async (req, res) => {
+  try {
+    const { repoUrl, targetDir, name, desc } = req.body;
+    if (!repoUrl) return res.status(400).json({ error: 'Repository URL is required' });
+    if (!targetDir) return res.status(400).json({ error: 'Target directory is required' });
+
+    const result = gitService.cloneRepo(repoUrl, targetDir);
+
+    let project = null;
+    if (name) {
+      project = await projectsRepo.createProject({
+        name,
+        desc: desc || `Cloned from ${repoUrl}`,
+        path: result.directory,
+        branch: 'main',
+        tech: 'Git Repo',
+        complete: 0,
+        tasks: []
+      });
+    }
+
+    res.json({ ...result, project });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+

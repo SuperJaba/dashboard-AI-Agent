@@ -27,7 +27,7 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/setupTests.ts',
     // exclude noise & generated placeholders
-    exclude: ['**/node_modules/**', '**/playwright/**', '**/tests/**', '**/__tests__/*.generated.test.ts'],
+    exclude: ['**/node_modules/**', '**/playwright/**', '**/tests/**', '**/modernized/**', '**/__tests__/*.generated.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

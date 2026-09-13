@@ -11,21 +11,25 @@ It covers the folder layout, build and test commands, coding style rules, and ho
 ## Build, Test, and Development Commands
 | Command | Purpose |
 |---------|---------|
+| Command | Purpose |
+|---------|---------|
 | `npm install` | Install dependencies. |
-| `npm run build` | Transpile TypeScript to JavaScript (outputs to `dist/`). |
-| `npm test` | Run the Jest test suite and generate coverage reports in `coverage/`. |
-| `npm start` | Launch the development server on `localhost:3000`. |
+| `npm run dev` | Launch development server (Vite on 5173 + Express on 3001). |
+| `npm run build` | Build client bundle via Vite (outputs to `dist/`). |
+| `npm test` | Run the Vitest test suite. |
+| `npm run test:e2e` | Run Playwright end-to-end tests. |
+| `npm run lint` | Run ESLint and Oxlint checks. |
 
 ## Coding Style & Naming Conventions
 - Indent with **2 spaces** (no tabs).
 - Use **camelCase** for variables, functions, and props.
 - Export modules using named exports; default exports are avoided unless a single primary value is exported.
-- Run `npm run lint` to check ESLint rules (`.eslintrc.json`).
+- Run `npm run lint` to check ESLint/Oxlint rules.
 
 ## Testing Guidelines
-- Tests use **Jest** with the `ts-jest` preset for TypeScript support.
-- Test files should be placed alongside the module they test, e.g., `src/utils/helpers.ts` → `tests/utils/helpers.test.ts`.
-- Coverage must reach at least 80 % before merging. Run `npm test -- --coverage` to view detailed reports.
+- Tests use **Vitest** for unit/component tests and **Playwright** for E2E tests.
+- Test files reside alongside modules or in `tests/` and mirror the structure of `src`.
+- Ensure all tests pass before submitting changes (`npm test`).
 
 ## Commit & Pull Request Guidelines
 - **Commit messages** follow the Conventional Commits format: `<type>[optional scope]: <subject>` (e.g., `feat(auth): add JWT support`).
