@@ -1,9 +1,9 @@
-import { useState, startTransition } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff,
-  DownloadCloud
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -15,9 +15,11 @@ import { RepoStatus } from './RepoStatus';
 import CustomWidgets from './CustomWidgets';
 
 import { AgentsView } from './AgentsView';
+import { FolderPickerDialog } from './FolderPickerDialog';
 
 import { useDashboardState } from './hooks/useDashboardState';
 import { DashboardTiles } from './TilesView';
+import { usePreferences, type Language } from './preferences/PreferencesContext';
 
 function App() {
   const [showCloneModal, setShowCloneModal] = useState(false);
@@ -59,15 +61,47 @@ function App() {
     analyzeProject,
     addTask,
     deleteTask,
+    toggleTaskStatus,
+    syncProjectTasks,
+    clearCompletedTasks,
+    archiveTasks,
+    restoreTask,
     initGit,
     handleAddServer,
     deleteServer,
     handleAddProject,
+    showFolderPicker,
+    setShowFolderPicker,
+    handleFolderPicked,
+    handleProjectFolderSelected,
+    projectFolderInputRef,
     handleCloneProject,
     setupSshKey,
     agents
   } = useDashboardState();
-  const token = localStorage.getItem('token') || '';
+  const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
+  const { theme, setTheme, language, setLanguage, t } = usePreferences();
+  const [showSettings, setShowSettings] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  // Dropdown-based agent selection for the "Local workspace" project view,
+  // replacing what used to be a growing row of "Deploy <Agent>" buttons.
+  const [selectedAgentName, setSelectedAgentName] = useState('');
+  useEffect(() => {
+    const installed = agents.filter((a: any) => a.installed);
+    if (installed.length > 0 && !installed.some((a: any) => a.name.toLowerCase() === selectedAgentName)) {
+      setSelectedAgentName(installed[0].name.toLowerCase());
+    }
+  }, [agents]);
+
+  const allProjectTasks = activeProject?.tasks || [];
+  const activeTasks = allProjectTasks.filter((t: any) => t.status !== 'archived');
+  const archivedTasks = allProjectTasks.filter((t: any) => t.status === 'archived');
+  const completedTasks = activeTasks.filter((t: any) => t.status === 'completed');
+  const pendingTasks = activeTasks.filter((t: any) => t.status !== 'completed');
+  const selectedCompletedCount = selectedTaskIds.filter(id => completedTasks.some((t: any) => t.id === id)).length;
+
   return (
     <div className="layout">
       {/* Sidebar */}
@@ -113,15 +147,34 @@ function App() {
         {isWorkspacesExpanded && (
           <div id="workspaces-list" className="projects-list">
             {projects.map(proj => (
-              <button 
-                type="button"
-                key={proj.id} 
+              <div
+                key={proj.id}
                 className={`project-item ${activeProjectId === proj.id ? 'active' : ''}`}
-                onClick={() => setActiveProjectId(proj.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}
               >
-                <Folder size={18} aria-hidden="true" />
-                <span>{proj.name}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveProjectId(proj.id)}
+                  style={{ flex: 1, textAlign: 'left' }}
+                >
+                  <Folder size={18} aria-hidden="true" />
+                  <span>{proj.name.split(/[/\\]/).pop()}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Czy na pewno chcesz usunąć projekt "${proj.name.split(/[/\\]/).pop()}"?`)) {
+                      handleAddProject(proj.id, 'delete');
+                    }
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
+                  aria-label={`Usuń projekt ${proj.name.split(/[/\\]/).pop()}`}
+                  title="Usuń projekt"
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              </div>
             ))}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.5rem' }}>
               <button className="btn-add-project" aria-label="Add Project" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem' }} onClick={handleAddProject} title="Add existing local project folder">
@@ -133,6 +186,19 @@ function App() {
                 Clone Git
               </button>
             </div>
+            {/* Hidden native browser folder picker (webkitdirectory). We only get a
+                folder name back (browsers never expose absolute paths), so the user
+                confirms/completes the full path in a follow-up prompt. */}
+            <input
+              type="file"
+              ref={projectFolderInputRef}
+              // @ts-expect-error non-standard attributes not in React's typings
+              webkitdirectory=""
+              directory=""
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleProjectFolderSelected}
+            />
           </div>
         )}
 
@@ -247,6 +313,16 @@ function App() {
           </button>
           <button 
             type="button"
+            onClick={() => setShowSettings(true)}
+            aria-label={t('settings.title')}
+            title={t('settings.title')}
+            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.5rem', transition: '0.3s' }}
+          >
+            <Settings size={16} aria-hidden="true" />
+            {t('settings.title')}
+          </button>
+          <button 
+            type="button"
             onClick={() => {
               localStorage.removeItem('dashboard_token');
               window.location.reload();
@@ -256,10 +332,74 @@ function App() {
             onMouseOut={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
           >
             <LogOut size={16} aria-hidden="true" />
-            Sign Out
+            {t('sidebar.signOut')}
           </button>
         </div>
       </aside>
+
+      {showSettings && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('settings.title')}
+          onClick={() => setShowSettings(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '320px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{t('settings.title')}</h2>
+              <button
+                type="button"
+                onClick={() => setShowSettings(false)}
+                aria-label={t('settings.close')}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.theme')}</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setTheme('dark')}
+                  aria-pressed={theme === 'dark'}
+                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'dark' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'dark' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer' }}
+                >
+                  {t('settings.theme.dark')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTheme('light')}
+                  aria-pressed={theme === 'light'}
+                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'light' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'light' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer' }}
+                >
+                  {t('settings.theme.light')}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label htmlFor="language-select" className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.language')}</label>
+              <select
+                id="language-select"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+              >
+                <option value="pl">Polski</option>
+                <option value="en">English</option>
+                <option value="hi">हिन्दी (Hindi)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Area */}
       <main id="main-content" tabIndex={-1} className="dashboard-container">
@@ -379,25 +519,45 @@ function App() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  {agents.length === 0 && (
+                  {agents.length === 0 ? (
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Brak wykrytych agentów.</span>
+                  ) : (
+                    <>
+                      <label htmlFor="local-agent-select" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Agent:</label>
+                      <select
+                        id="local-agent-select"
+                        value={selectedAgentName}
+                        onChange={(e) => setSelectedAgentName(e.target.value)}
+                        style={{
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: '8px',
+                          padding: '0.5rem 0.75rem',
+                          color: 'var(--text-main)',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        {agents.filter(a => a.installed).map(agent => (
+                          <option key={agent.id} value={agent.name.toLowerCase()} style={{ background: 'var(--bg-color)' }}>
+                            {agent.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => selectedAgentName && deployAgent(selectedAgentName)}
+                        disabled={deploying !== null || !selectedAgentName}
+                        style={{
+                          opacity: (deploying === selectedAgentName || !selectedAgentName) ? 0.7 : 1,
+                          background: selectedAgentName === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
+                        }}
+                      >
+                        <Rocket size={20} aria-hidden="true" />
+                        {deploying === selectedAgentName ? 'Deploying...' : 'Deploy'}
+                      </button>
+                    </>
                   )}
-                  {agents.filter(a => a.installed).map(agent => (
-                    <button 
-                      key={agent.id}
-                      type="button"
-                      className="btn btn-primary" 
-                      onClick={() => deployAgent(agent.name.toLowerCase())}
-                      disabled={deploying !== null}
-                      style={{ 
-                        opacity: deploying === agent.name.toLowerCase() ? 0.7 : 1,
-                        background: agent.name.toLowerCase() === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
-                      }}
-                    >
-                      <Rocket size={20} aria-hidden="true" />
-                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
-                    </button>
-                  ))}
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
                     <input 
                       type="checkbox" 
@@ -491,11 +651,75 @@ function App() {
                 >
                   <h2 className="section-title">
                     <Clock size={24} color="var(--primary)" aria-hidden="true" />
-                    Current Tasks ({(activeProject.tasks || []).length})
+                    Current Tasks ({pendingTasks.length} active{completedTasks.length > 0 ? ` / ${activeTasks.length} total` : ''})
                   </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {showTasks && (
                       <>
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const res = await syncProjectTasks();
+                            if (res && res.success) {
+                              const msg = `Synced: ${res.updatedInWorkspace.length} in workspace, ${res.updatedInDb.length} in DB`;
+                              setSyncNotice(msg);
+                              setTimeout(() => setSyncNotice(null), 3500);
+                            }
+                          }}
+                          title="Synchronizuj statusy zadań między plikami projektu a bazą danych"
+                        >
+                          <RefreshCw size={14} className={deploying === 'sync-tasks' ? 'spin' : ''} />
+                          Sync Tasks
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ 
+                            padding: '0.2rem 0.6rem', 
+                            fontSize: '0.75rem', 
+                            zIndex: 2, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.3rem',
+                            opacity: completedTasks.length === 0 ? 0.5 : 1,
+                            cursor: completedTasks.length === 0 ? 'not-allowed' : 'pointer'
+                          }}
+                          disabled={completedTasks.length === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            archiveTasks();
+                          }}
+                          title={
+                            completedTasks.length === 0
+                              ? 'Brak zakończonych zadań do archiwizacji'
+                              : selectedCompletedCount > 0
+                              ? `Zarchiwizuj tylko zaznaczone ukończone zadania (${selectedCompletedCount})`
+                              : `Zarchiwizuj wszystkie ukończone zadania (${completedTasks.length})`
+                          }
+                        >
+                          <Archive size={14} />
+                          {selectedCompletedCount > 0 ? `Archive (${selectedCompletedCount})` : 'Archive'}
+                        </button>
+                        {completedTasks.length > 0 && (
+                          <button
+                            type="button"
+                            className="btn-add-project"
+                            style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#f59e0b' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm('Czy na pewno chcesz usunąć ukończone zadania z tabeli projektu?')) {
+                                clearCompletedTasks();
+                              }
+                            }}
+                            title="Usuń zakończone zadania z tabelki"
+                          >
+                            <CheckCheck size={14} />
+                            Clear Completed
+                          </button>
+                        )}
                         <button 
                           type="button"
                           className="btn-add-project" 
@@ -515,14 +739,14 @@ function App() {
                           style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2 }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0) {
+                            if (selectedTaskIds.length === activeTasks.length && activeTasks.length > 0) {
                               setSelectedTaskIds([]);
                             } else {
-                              setSelectedTaskIds((activeProject.tasks || []).map((t: any) => t.id));
+                              setSelectedTaskIds(activeTasks.map((t: any) => t.id));
                             }
                           }}
                         >
-                          {selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0 ? 'Uncheck All' : 'Check All'}
+                          {selectedTaskIds.length === activeTasks.length && activeTasks.length > 0 ? 'Uncheck All' : 'Check All'}
                         </button>
                       </>
                     )}
@@ -532,7 +756,13 @@ function App() {
                 
                 {showTasks && (
                   <div id="tasks-list" className="task-list animate-in">
-                    {(activeProject.tasks || [])
+                    {syncNotice && (
+                      <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid #10b981', borderRadius: '6px', color: '#10b981', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <CheckCircle2 size={16} />
+                        {syncNotice}
+                      </div>
+                    )}
+                    {activeTasks
                       .filter((task: any) => !hideCompleted || task.status !== 'completed')
                       .map((task: any) => (
                       <div 
@@ -571,28 +801,49 @@ function App() {
                               }}
                             />
                             <div className="task-info">
-                              <span className="task-title">{task.title}</span>
+                              <span className="task-title" style={{ textDecoration: task.status === 'completed' ? 'line-through' : 'none' }}>
+                                {task.title}
+                              </span>
                               <span className="task-meta">{task.meta}</span>
                             </div>
                           </div>
                           <div className="task-status" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {task.status === 'completed' && (
-                              <span className="status-badge status-completed">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTaskStatus(task.id);
+                              }}
+                              className={`status-badge ${task.status === 'completed' ? 'status-completed' : (task.status === 'progress' ? 'status-progress' : 'status-pending')}`}
+                              style={{
+                                cursor: 'pointer',
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '0.25rem 0.65rem',
+                                borderRadius: '6px',
+                                transition: 'all 0.2s',
+                                fontSize: '0.75rem',
+                                background: task.status === 'completed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.06)'
+                              }}
+                              title={task.status === 'completed' ? 'Kliknij, aby odznaczyć jako oczekujące (Pending)' : 'Kliknij, aby oznaczyć jako zakończone w bazie i workspace (Completed)'}
+                              aria-label={`Przełącz status zadania: ${task.title}`}
+                            >
+                              {task.status === 'completed' ? (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <CheckCircle2 size={14} aria-hidden="true" /> Completed
                                 </span>
-                              </span>
-                            )}
-                            {task.status === 'progress' && (
-                              <span className="status-badge status-progress">
+                              ) : task.status === 'progress' ? (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <CircleDashed size={14} aria-hidden="true" /> In Progress
                                 </span>
-                              </span>
-                            )}
-                            {task.status === 'pending' && (
-                              <span className="status-badge status-pending">Pending</span>
-                            )}
+                              ) : (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Circle size={14} style={{ opacity: 0.5 }} aria-hidden="true" /> Pending
+                                </span>
+                              )}
+                            </button>
                             <button 
                               type="button"
                               onClick={(e) => {
@@ -634,13 +885,104 @@ function App() {
                         <PlusCircle size={20} aria-hidden="true" />
                       </button>
                     </form>
+
+                    {archivedTasks.length > 0 && (
+                      <div style={{ marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowArchived(!showArchived)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            padding: '0.25rem 0'
+                          }}
+                          title="Pokaż lub ukryj zarchiwizowane zadania"
+                        >
+                          <Archive size={14} />
+                          <span>{showArchived ? 'Hide Archived' : 'Show Archived'} ({archivedTasks.length})</span>
+                          {showArchived ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+
+                        {showArchived && (
+                          <div className="task-list animate-in" style={{ marginTop: '0.5rem', opacity: 0.85 }}>
+                            {archivedTasks.map((task: any) => (
+                              <div
+                                className="task-item"
+                                key={task.id}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.015)',
+                                  border: '1px solid rgba(255, 255, 255, 0.04)',
+                                  cursor: 'default'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <Archive size={16} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+                                    <div className="task-info">
+                                      <span className="task-title" style={{ textDecoration: 'line-through', opacity: 0.7 }}>
+                                        {task.title}
+                                      </span>
+                                      <span className="task-meta">{task.meta || 'Archived Task'}</span>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => restoreTask(task.id)}
+                                      title="Przywróć zadanie do zakończonych (Restore)"
+                                      aria-label={`Przywróć zadanie: ${task.title}`}
+                                      className="btn-add-project"
+                                      style={{
+                                        padding: '0.2rem 0.5rem',
+                                        fontSize: '0.75rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem'
+                                      }}
+                                    >
+                                      <RotateCcw size={13} />
+                                      Restore
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteTask(task.id)}
+                                      aria-label={`Usuń trwale ${task.title}`}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        padding: '0.25rem',
+                                        borderRadius: '4px',
+                                        display: 'flex'
+                                      }}
+                                      onMouseOver={(e) => (e.currentTarget.style.color = '#ef4444')}
+                                      onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                                      title="Delete permanently"
+                                    >
+                                      <Trash2 size={16} aria-hidden="true" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
             </div>
           </>
         ) : (
-          <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} />
+          <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
         )}
           </div>
         )}
@@ -754,6 +1096,14 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showFolderPicker && (
+        <FolderPickerDialog
+          isOpen={showFolderPicker}
+          onClose={() => setShowFolderPicker(false)}
+          onSelectFolder={handleFolderPicked}
+        />
       )}
 
       {/* Clone Git Repository Modal */}

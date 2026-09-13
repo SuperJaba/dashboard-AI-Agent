@@ -9,7 +9,7 @@
     "dev": "concurrently \"vite\" \"node server.js\"",
     "db:migrate": "node scripts/migrate.js",
     "build": "vite build",
-    "lint": "eslint . --ignore-pattern dist/**",
+    "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -17,6 +17,7 @@
     "autotest": "bash scripts/autotest_ai.sh",
     "ci-tdd": "bash scripts/ci_tdd_bot.sh",
     "agent:worker": "node scripts/local-agent-worker.js",
+    "sync-tasks": "node src/backend/scripts/syncTasks.js",
     "test:e2e": "set NODE_ENV=test&& node tests/full_test_suite.js"
   },
   "dependencies": {
@@ -63,7 +64,7 @@
     "supertest": "^7.2.2",
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2",
-    "vite": "^8.1.1",
+    "vite": "^8.2.2",
     "vitest": "^4.1.10"
   },
   "allowScripts": {

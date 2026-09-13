@@ -25,8 +25,17 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const socketRef = useRef<Socket | null>(null);
 
   const [isMinimized, setIsMinimized] = useState(false);
-  const [position, setPosition] = useState({ x: window.innerWidth / 2 - 400, y: window.innerHeight / 2 - 300 });
-  const [size, setSize] = useState({ width: 800, height: 600 });
+  // Default to a size that comfortably fits smaller/laptop-class screens
+  // (e.g. 14" displays), scaled to a fraction of the viewport, capped at 800x600.
+  const defaultSize = {
+    width: Math.min(800, Math.round(window.innerWidth * 0.7)),
+    height: Math.min(600, Math.round(window.innerHeight * 0.7))
+  };
+  const [position, setPosition] = useState({
+    x: window.innerWidth / 2 - defaultSize.width / 2,
+    y: window.innerHeight / 2 - defaultSize.height / 2
+  });
+  const [size, setSize] = useState(defaultSize);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [execTarget, setExecTarget] = useState<'remote' | 'worker' | 'auto'>(config?.executionTarget || 'auto');

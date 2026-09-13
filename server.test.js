@@ -5,14 +5,17 @@ import app from './server.js';
 vi.mock('child_process', async (importOriginal) => {
   const mod = await importOriginal();
   const mockedExec = vi.fn((cmd, cb) => cb(null, '/mocked/path\n', ''));
+  const mockedExecFile = vi.fn((file, args, cb) => cb(null, '/mocked/path\n', ''));
   const mockedSpawn = vi.fn(() => ({ unref: vi.fn() }));
   return {
     ...mod,
     exec: mockedExec,
+    execFile: mockedExecFile,
     spawn: mockedSpawn,
     default: {
       ...mod.default,
       exec: mockedExec,
+      execFile: mockedExecFile,
       spawn: mockedSpawn
     }
   };
@@ -49,6 +52,41 @@ describe('Backend API Tests', () => {
       .set('Authorization', `Bearer ${testToken}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.path).toBe('/mocked/path');
+  });
+
+  describe('GET /api/fs/directories', () => {
+    it('should return current directory and drives list', async () => {
+      const res = await request(app)
+        .get('/api/fs/directories')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveProperty('currentPath');
+      expect(Array.isArray(res.body.directories)).toBe(true);
+      expect(Array.isArray(res.body.drives)).toBe(true);
+      expect(res.body.drives.length).toBeGreaterThan(0);
+    });
+
+    it('should return list of drives when querying path=DRIVES', async () => {
+      const res = await request(app)
+        .get('/api/fs/directories?path=DRIVES')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(Array.isArray(res.body.directories)).toBe(true);
+      if (process.platform === 'win32') {
+        expect(res.body.currentPath).toBe('');
+        expect(res.body.parentPath).toBeNull();
+        expect(res.body.directories.length).toBeGreaterThan(0);
+        expect(res.body.directories[0].isDrive).toBe(true);
+      }
+    });
+
+    it('should return 404 for non-existent path', async () => {
+      const res = await request(app)
+        .get('/api/fs/directories?path=' + encodeURIComponent('Z:\\invalid_folder_9999_xyz'))
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error).toContain('nie istnieje');
+    });
   });
 
   it('POST /api/analyze should fail if no directory provided', async () => {
@@ -142,7 +180,7 @@ describe('Backend API Tests', () => {
         .send({ directory: '/mocked/path' });
       expect(res.statusCode).toBe(400);
       expect(res.body.error).toBe('Branch name is required');
-    });
+});
 
     it('POST /api/git/commit should require message', async () => {
       const res = await request(app)

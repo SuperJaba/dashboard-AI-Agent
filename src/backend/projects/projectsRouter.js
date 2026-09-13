@@ -1,13 +1,114 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { spawn, exec, execSync } from 'child_process';
+import os from 'os';
+import { spawn, exec, execFile, execSync } from 'child_process';
 import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
+import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects } from './tasksSyncService.js';
 
 export const projectsRouter = express.Router();
+
+export function getAvailableDrives() {
+  if (process.platform !== 'win32') {
+    return ['/'];
+  }
+  const drives = [];
+  for (let i = 65; i <= 90; i++) {
+    const letter = String.fromCharCode(i);
+    const drivePath = `${letter}:\\`;
+    try {
+      if (fs.existsSync(drivePath)) {
+        drives.push(drivePath);
+      }
+    } catch (e) {
+      // Ignore drives that are not accessible
+    }
+  }
+  return drives;
+}
+
+// List directories for folder picker
+projectsRouter.get('/fs/directories', (req, res) => {
+  try {
+    const isWindows = process.platform === 'win32';
+    const rawPath = req.query.path !== undefined ? String(req.query.path).trim() : null;
+    const availableDrives = getAvailableDrives();
+
+    // If path is 'DRIVES' (navigating up from drive root or listing root disks)
+    if (rawPath && (rawPath.toUpperCase() === 'DRIVES' || rawPath === '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}')) {
+      return res.json({
+        currentPath: isWindows ? '' : '/',
+        parentPath: null,
+        directories: availableDrives.map(d => ({
+          name: isWindows ? `Dysk (${d.replace(/\\$/, '')})` : 'Root (/)',
+          path: d,
+          isDrive: true
+        })),
+        drives: availableDrives
+      });
+    }
+
+    let targetPath = rawPath && rawPath !== '' ? rawPath : os.homedir();
+
+    // Normalize Windows drive letter inputs like 'c:' or 'C:' or 'c:/' to 'C:\'
+    if (isWindows && /^[a-zA-Z]:[/\\]?$/.test(targetPath)) {
+      targetPath = targetPath.substring(0, 2).toUpperCase() + '\\';
+    }
+
+    targetPath = path.resolve(targetPath);
+
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ error: `Ścieżka nie istnieje: ${targetPath}`, currentPath: targetPath, drives: availableDrives });
+    }
+
+    const stat = fs.statSync(targetPath);
+    if (!stat.isDirectory()) {
+      targetPath = path.dirname(targetPath);
+    }
+
+    // Determine parent path
+    let parentPath = null;
+    const isDriveRoot = isWindows && /^[a-zA-Z]:\\?$/.test(targetPath);
+    if (isWindows && isDriveRoot) {
+      parentPath = 'DRIVES';
+    } else {
+      parentPath = path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null;
+    }
+
+    const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+
+    const directories = [];
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue; // ignore hidden folders
+      if (entry.name === 'node_modules') continue;
+
+      try {
+        if (entry.isDirectory()) {
+          directories.push({
+            name: entry.name,
+            path: path.join(targetPath, entry.name)
+          });
+        }
+      } catch (e) {
+        // Skip inaccessible directories
+      }
+    }
+
+    directories.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+    res.json({
+      currentPath: targetPath,
+      parentPath,
+      directories,
+      drives: availableDrives
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, drives: getAvailableDrives() });
+  }
+});
 
 // Get Projects
 projectsRouter.get('/projects', async (req, res) => {
@@ -55,8 +156,9 @@ projectsRouter.put('/projects/:id/tasks', async (req, res) => {
     if (!Array.isArray(tasks)) {
       return res.status(400).json({ error: 'Field "tasks" must be an array' });
     }
-    const complete = tasks.length > 0
-      ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100)
+    const activeTasks = tasks.filter(t => t.status !== 'archived');
+    const complete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
       : 0;
     const row = await projectsRepo.updateProject(req.params.id, { tasks, complete });
     res.json(row);
@@ -83,17 +185,51 @@ projectsRouter.patch('/projects/:id/tasks/:taskId', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    currentTasks[taskIndex] = { ...currentTasks[taskIndex], ...req.body, id: taskId };
-    const complete = currentTasks.length > 0
-      ? Math.round((currentTasks.filter(t => t.status === 'completed').length / currentTasks.length) * 100)
+    const existingTask = currentTasks[taskIndex];
+    currentTasks[taskIndex] = { ...existingTask, ...req.body, id: taskId };
+    const activeTasks = currentTasks.filter(t => t.status !== 'archived');
+    const complete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
       : 0;
 
     const row = await projectsRepo.updateProject(projectId, { tasks: currentTasks, complete });
-    res.json(row);
+
+    // If status was changed and project has a valid workspace path, sync the markdown checklist in workspace
+    let workspaceResult = { updated: false };
+    if (req.body.status && project.path && (req.body.status === 'completed' || req.body.status === 'pending')) {
+      workspaceResult = updateTaskInWorkspaceFile(project.path, existingTask.title, req.body.status, existingTask.meta);
+    }
+
+    res.json({
+      ...row,
+      workspaceUpdated: workspaceResult.updated,
+      workspaceFile: workspaceResult.file || null
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Synchronize tasks between workspace files and DB for a specific project
+projectsRouter.post('/projects/:id/sync-tasks', async (req, res) => {
+  try {
+    const result = await syncProjectTasks(req.params.id, req.body || {});
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Synchronize tasks across all projects
+projectsRouter.post('/projects/sync-tasks', async (req, res) => {
+  try {
+    const results = await syncAllProjects(req.body || {});
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Delete Project
 projectsRouter.delete('/projects/:id', async (req, res) => {
@@ -108,9 +244,36 @@ projectsRouter.delete('/projects/:id', async (req, res) => {
 // Pick Folder API
 projectsRouter.get('/pick-folder', (req, res) => {
   if (process.platform === 'win32') {
-    const psCmd = 'powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = \'Wybierz folder projektu\'; if ($d.ShowDialog() -eq \'OK\') { Write-Output $d.SelectedPath }"';
-    exec(psCmd, (error, stdout) => {
+    // Build the dialog script as a here-string to avoid fragile quote-escaping in a
+    // one-line command, and force it into the foreground via a hidden TopMost owner
+    // form (otherwise FolderBrowserDialog can open behind the browser/terminal window,
+    // making it look like nothing happened).
+    const psScript = [
+      'Add-Type -AssemblyName System.Windows.Forms',
+      'Add-Type -AssemblyName System.Drawing',
+      '$owner = New-Object System.Windows.Forms.Form',
+      '$owner.TopMost = $true',
+      '$owner.StartPosition = "CenterScreen"',
+      '$owner.ShowInTaskbar = $false',
+      '$owner.Size = New-Object System.Drawing.Size(0,0)',
+      '$owner.Show()',
+      '$owner.Activate()',
+      '$d = New-Object System.Windows.Forms.FolderBrowserDialog',
+      '$d.Description = "Wybierz folder projektu"',
+      'try {',
+      '  if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.SelectedPath }',
+      '} finally {',
+      '  $owner.Close()',
+      '}'
+    ].join('; ');
+
+    // -STA is required for WinForms dialogs; run via execFile with an args array
+    // instead of a single quoted string to avoid shell-escaping issues.
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Sta', '-Command', psScript], (error, stdout, stderr) => {
       if (error || !stdout.trim()) {
+        if (error) {
+          console.error('pick-folder dialog failed:', error.message, stderr && stderr.trim());
+        }
         return res.status(204).send();
       }
       res.json({ path: stdout.trim() });
@@ -501,12 +664,13 @@ projectsRouter.post('/git/status', async (req, res) => {
 projectsRouter.post('/git/github', async (req, res) => {
   try {
     const { directory } = req.body;
-    const result = gitService.getGithubPRsAndRuns(directory);
+    const result = await gitService.getGithubPRsAndRuns(directory);
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
+
 
 projectsRouter.post('/git/cancel-ci', async (req, res) => {
   try {

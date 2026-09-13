@@ -162,4 +162,9 @@ or the MCP tool `codegraph_explore` to get verbatim source + call paths before r
 2. Enable `prettier --check .` in linting pipeline to enforce consistent formatting across new contributors.
 3. Consider adding a code‑coverage badge to the README for quick visibility.
 
+## MemPalace Protocol
+- **Search-Before-Answer:** Always check the memory palace (`mempalace_search` / `mempalace_kg_query`) when asked about past sessions, decisions, architectural choices, or previous bug resolutions before guessing.
+- **Verbatim Recall:** Maintain high fidelity by quoting verbatim drawer contents retrieved from MemPalace.
+- **Session Continuity:** Record notable architectural updates and fixes via MemPalace tools (`mempalace_diary_write`).
+
 > *All metrics were gathered from the latest CI run (commit <hash>).*

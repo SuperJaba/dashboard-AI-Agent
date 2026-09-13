@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "writing-for-agents": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/writing-for-agents/SKILL.md",
+      "computedHash": "831e996c177c6c5233eb3bb472a33edee2b3ce1ee5a6d7e8b696c1c3fb4eda3d"
+    },
+    "find-skills": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/discovery/find-skills/SKILL.md",
+      "computedHash": "a17f22b8c3d9e4f50123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }
+}

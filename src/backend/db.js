@@ -5,12 +5,12 @@ dotenv.config();
 const { Pool } = pkg;
 
 export const pool = new Pool({
-  user: process.env.DB_USER || process.env.PGUSER || 'postgres',
-  host: process.env.DB_HOST || process.env.PGHOST || '127.0.0.1',
-  database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboard',
-  password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres',
+  user: process.env.DB_USER || process.env.PGUSER || 'SebaP',
+  host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+  database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboarddb',
+  password: process.env.DB_PASSWORD || process.env.PGPASSWORD,
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
 });
 
 // Suppress unhandled connection error events from pg pool
@@ -31,7 +31,9 @@ const inMemoryStore = {
   projects: [],
   servers: [],
   cli_agents: [],
-  custom_widgets: []
+  custom_widgets: [],
+  agents: [],
+  user_settings: []
 };
 
 let useInMemoryFallback = false;
@@ -97,16 +99,38 @@ export async function safeQuery(text, params = []) {
     return { rows: inMemoryStore.cli_agents };
   }
 
+  if (sql.includes('FROM agents')) {
+    return { rows: inMemoryStore.agents };
+  }
+
   // Custom widgets
   if (sql.includes('FROM custom_widgets')) {
     return { rows: inMemoryStore.custom_widgets };
+  }
+
+  // User settings (theme/language per user)
+  if (sql.includes('FROM user_settings')) {
+    const row = inMemoryStore.user_settings.find(r => r.user_id === params[0]);
+    return { rows: row ? [row] : [] };
+  }
+
+  if (sql.includes('INSERT INTO user_settings')) {
+    const [userId, theme, language] = params;
+    let row = inMemoryStore.user_settings.find(r => r.user_id === userId);
+    if (row) {
+      if (theme !== null && theme !== undefined) {row.theme = theme;}
+      if (language !== null && language !== undefined) {row.language = language;}
+    } else {
+      row = { user_id: userId, theme: theme || 'dark', language: language || 'pl' };
+      inMemoryStore.user_settings.push(row);
+    }
+    return { rows: [row] };
   }
 
   return { rows: [] };
 }
 
 // ---------- Database Migration ----------
-// Ensure the 'servers' table exists for storing LLM server configurations.
 export async function migrate() {
   const queries = [
     `CREATE TABLE IF NOT EXISTS servers (
@@ -124,6 +148,58 @@ export async function migrate() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
+    `CREATE TABLE IF NOT EXISTS llm_servers (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      url VARCHAR(512) NOT NULL,
+      api_key TEXT,
+      model VARCHAR(255),
+      provider VARCHAR(255) DEFAULT 'Custom',
+      is_active BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS projects (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      "desc" TEXT,
+      path TEXT NOT NULL,
+      branch VARCHAR(255) DEFAULT 'main',
+      tech VARCHAR(255) DEFAULT 'Unknown',
+      complete INTEGER DEFAULT 0,
+      tasks JSONB DEFAULT '[]'::jsonb
+    );`,
+    `CREATE TABLE IF NOT EXISTS cli_agents (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL UNIQUE,
+      description TEXT,
+      path VARCHAR(255),
+      config_uri TEXT,
+      installed BOOLEAN DEFAULT false,
+      llm_model VARCHAR(255),
+      temperature NUMERIC DEFAULT 0.7,
+      max_tokens INTEGER DEFAULT 4096
+    );`,
+    `CREATE TABLE IF NOT EXISTS custom_widgets (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      command TEXT NOT NULL,
+      type VARCHAR(50) DEFAULT 'number',
+      color VARCHAR(50) DEFAULT '#c084fc',
+      server_id INTEGER
+    );`,
+    `CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL
+    );`,
+    `CREATE TABLE IF NOT EXISTS agents (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL UNIQUE,
+      description TEXT,
+      server_id INTEGER REFERENCES servers(id),
+      status VARCHAR(50) DEFAULT 'stopped',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS host VARCHAR(255);',
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS username VARCHAR(255);',
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS port INTEGER DEFAULT 22;',
@@ -132,11 +208,23 @@ export async function migrate() {
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS model VARCHAR(255);',
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS api_key TEXT;',
     'ALTER TABLE servers ADD COLUMN IF NOT EXISTS use_devil BOOLEAN DEFAULT false;',
-    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;'
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;',
+    `CREATE TABLE IF NOT EXISTS user_settings (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      theme VARCHAR(20) DEFAULT 'dark',
+      language VARCHAR(10) DEFAULT 'pl',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`
   ];
+
   for (const q of queries) {
     await safeQuery(q);
   }
+
+  // Default settings seeding
+  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;");
+  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1') ON CONFLICT (key) DO NOTHING;");
+  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0') ON CONFLICT (key) DO NOTHING;");
 }
 
 // Run migrations automatically when the module is loaded.

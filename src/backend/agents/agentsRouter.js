@@ -7,6 +7,37 @@ import { getBestAvailableModel } from '../utils/llm.js';
 
 export const agentsRouter = express.Router();
 
+// Canonical catalog of well-known CLI coding agents we know how to auto-detect.
+// Extend this list (rather than hardcoding one-off entries) whenever a new
+// agent CLI should be discoverable by the "System scan" feature.
+const KNOWN_AGENTS = [
+  { name: 'Claude Code', cmd: 'claude', desc: 'Anthropic Claude Code CLI', configPath: (home) => `${home}/.claude.json` },
+  { name: 'Codex', cmd: 'codex', desc: 'OpenAI Codex CLI', configPath: (home) => `${home}/.codex/config.json` },
+  { name: 'Antigravity', cmd: 'agy', desc: 'Google AI Antigravity CLI', configPath: (home) => `${home}/.gemini/config.json` },
+  { name: 'Aider', cmd: 'aider', desc: 'Aider AI pair programming', configPath: (home) => `${home}/.aider.conf.yml` },
+  { name: 'Gemini CLI', cmd: 'gemini', desc: 'Google Gemini CLI', configPath: (home) => `${home}/.gemini/config.json` },
+  { name: 'OpenCode', cmd: 'opencode', desc: 'OpenCode AI coding agent CLI', configPath: (home) => `${home}/.opencode/config.json` },
+  { name: 'GitHub Copilot CLI', cmd: 'copilot', desc: 'GitHub Copilot CLI', configPath: () => '' },
+  { name: 'Cursor Agent', cmd: 'cursor-agent', desc: 'Cursor CLI agent', configPath: () => '' }
+];
+
+/**
+ * Resolves the absolute path of a CLI executable on PATH, cross-platform.
+ * Uses `where` on Windows and `which` everywhere else (avoids relying on a
+ * Unix-only tool that silently fails as ENOENT on Windows).
+ */
+function findInPath(cmd) {
+  try {
+    const command = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+    const stdout = execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (!stdout) {return null;}
+    // `where` can list multiple matches, one per line; use the first.
+    return stdout.split(/\r?\n/)[0].trim();
+  } catch (e) {
+    return null;
+  }
+}
+
 // Get agents
 agentsRouter.get('/', async (req, res) => {
   try {
@@ -20,49 +51,47 @@ agentsRouter.get('/', async (req, res) => {
 // Scan agents
 agentsRouter.post('/scan', async (req, res) => {
   try {
-    const agentsToScan = [
-      { name: 'Claude Code', cmd: 'claude', desc: 'Anthropic Claude Code CLI' },
-      { name: 'Codex', cmd: 'codex', desc: 'OpenAI Codex CLI' },
-      { name: 'Antigravity', cmd: 'agy', desc: 'Google AI Antigravity CLI' },
-      { name: 'Aider', cmd: 'aider', desc: 'Aider AI pair programming' }
-    ];
-    
+    const home = process.env.HOME || process.env.USERPROFILE;
     const found = [];
-    for (const agent of agentsToScan) {
-      try {
-        const stdout = execSync(`which ${agent.cmd}`, { encoding: 'utf8' }).trim();
-        if (stdout) {
-          // Auto-discover config files
-          let configUri = '';
-          const home = process.env.HOME || process.env.USERPROFILE;
-          if (agent.cmd === 'claude') {configUri = `${home}/.claude.json`;}
-          else if (agent.cmd === 'codex') {configUri = `${home}/.codex/config.json`;}
-          else if (agent.cmd === 'agy') {configUri = `${home}/.gemini/config.json`;}
-          else if (agent.cmd === 'aider') {configUri = `${home}/.aider.conf.yml`;}
 
-          // Verify if config exists
-          if (configUri && !fs.existsSync(configUri)) {
-            configUri = '';
-          }
+    for (const agent of KNOWN_AGENTS) {
+      const resolvedPath = findInPath(agent.cmd);
+      const existing = await agentsRepo.findAgentByName(agent.name);
 
-          const existing = await agentsRepo.findAgentByName(agent.name);
-          if (!existing) {
-            await agentsRepo.createAgent({
-              name: agent.name,
-              description: agent.desc,
-              path: stdout,
-              config_uri: configUri
-            });
-          } else {
-            // Update if empty, otherwise preserve user's custom config_uri
-            await agentsRepo.updateAgentPathAndConfig(agent.name, stdout, configUri);
-          }
-          found.push(agent.name);
+      if (resolvedPath) {
+        let configUri = agent.configPath(home) || '';
+        if (configUri && !fs.existsSync(configUri)) {
+          configUri = '';
         }
-      } catch (e) {
-        // Not found or error
+
+        if (!existing) {
+          await agentsRepo.createAgent({
+            name: agent.name,
+            description: agent.desc,
+            path: resolvedPath,
+            config_uri: configUri
+          });
+        } else {
+          // Update if empty, otherwise preserve user's custom config_uri
+          await agentsRepo.updateAgentPathAndConfig(agent.name, resolvedPath, configUri);
+        }
+        found.push(agent.name);
+      } else if (existing && existing.installed) {
+        // Previously discovered but no longer resolvable (uninstalled, PATH
+        // changed, etc.) — mark as not installed so nothing tries to spawn it.
+        await agentsRepo.setAgentInstalled(existing.id, false);
       }
     }
+
+    // Also flag any other stored agent whose path no longer exists on disk
+    // (e.g. stale/manually-entered entries), so the background worker skips them.
+    const allAgents = await agentsRepo.getAgents();
+    for (const agent of allAgents) {
+      if (agent.installed && agent.path && !fs.existsSync(agent.path) && !found.includes(agent.name)) {
+        await agentsRepo.setAgentInstalled(agent.id, false);
+      }
+    }
+
     res.json({ success: true, found });
   } catch (err) {
     res.status(500).json({ error: err.message });

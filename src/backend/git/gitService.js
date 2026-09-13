@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync, exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = typeof exec === 'function' ? promisify(exec) : async () => ({ stdout: '' });
 
 export function resolveDirectory(dir) {
   if (!dir) return dir;
@@ -22,7 +25,7 @@ export function getStatus(directory) {
     throw new Error('Not a git repository');
   }
   
-  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
+  const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 };
   let branch = '';
   let changes = [];
   let commits = [];
@@ -278,27 +281,35 @@ export function cloneRepo(repoUrl, targetDir) {
   return { success: true, directory: resolved, log: output };
 }
 
-export function getGithubPRsAndRuns(directory) {
+export async function getGithubPRsAndRuns(directory) {
   const resolved = resolveDirectory(directory);
   if (!isGitRepo(resolved)) {
     throw new Error('Not a git repository');
   }
+
+  const GH_TIMEOUT_MS = 8000;
   
   let prs = [];
   try {
-    const prsOut = execSync('gh pr list --json title,number,url,state --limit 5', { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const { stdout: prsOut } = await execAsync(
+      'gh pr list --json title,number,url,state --limit 5',
+      { cwd: resolved, timeout: GH_TIMEOUT_MS }
+    );
     prs = JSON.parse(prsOut || '[]');
   } catch (e) {
-    // gh CLI might not be authenticated
+    // gh CLI might not be authenticated or timed out
   }
   
   let latestRun = null;
   try {
-    const runsOut = execSync('gh run list --limit 1 --json status,conclusion', { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const { stdout: runsOut } = await execAsync(
+      'gh run list --limit 1 --json status,conclusion',
+      { cwd: resolved, timeout: GH_TIMEOUT_MS }
+    );
     const runs = JSON.parse(runsOut || '[]');
     latestRun = runs.length > 0 ? runs[0] : null;
   } catch (e) {
-    // gh CLI might not be authenticated
+    // gh CLI might not be authenticated or timed out
   }
   
   return { prs, latestRun };
