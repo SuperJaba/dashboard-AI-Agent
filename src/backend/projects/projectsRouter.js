@@ -156,8 +156,9 @@ projectsRouter.put('/projects/:id/tasks', async (req, res) => {
     if (!Array.isArray(tasks)) {
       return res.status(400).json({ error: 'Field "tasks" must be an array' });
     }
-    const complete = tasks.length > 0
-      ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100)
+    const activeTasks = tasks.filter(t => t.status !== 'archived');
+    const complete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
       : 0;
     const row = await projectsRepo.updateProject(req.params.id, { tasks, complete });
     res.json(row);
@@ -186,8 +187,9 @@ projectsRouter.patch('/projects/:id/tasks/:taskId', async (req, res) => {
 
     const existingTask = currentTasks[taskIndex];
     currentTasks[taskIndex] = { ...existingTask, ...req.body, id: taskId };
-    const complete = currentTasks.length > 0
-      ? Math.round((currentTasks.filter(t => t.status === 'completed').length / currentTasks.length) * 100)
+    const activeTasks = currentTasks.filter(t => t.status !== 'archived');
+    const complete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
       : 0;
 
     const row = await projectsRepo.updateProject(projectId, { tasks: currentTasks, complete });

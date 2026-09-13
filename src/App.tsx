@@ -3,7 +3,7 @@ import {
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
-  RefreshCw, Circle, CheckCheck
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -57,6 +57,8 @@ function App() {
     toggleTaskStatus,
     syncProjectTasks,
     clearCompletedTasks,
+    archiveTasks,
+    restoreTask,
     initGit,
     handleAddServer,
     deleteServer,
@@ -72,6 +74,7 @@ function App() {
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
   const [showSettings, setShowSettings] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   // Dropdown-based agent selection for the "Local workspace" project view,
@@ -83,6 +86,13 @@ function App() {
       setSelectedAgentName(installed[0].name.toLowerCase());
     }
   }, [agents]);
+
+  const allProjectTasks = activeProject?.tasks || [];
+  const activeTasks = allProjectTasks.filter((t: any) => t.status !== 'archived');
+  const archivedTasks = allProjectTasks.filter((t: any) => t.status === 'archived');
+  const completedTasks = activeTasks.filter((t: any) => t.status === 'completed');
+  const pendingTasks = activeTasks.filter((t: any) => t.status !== 'completed');
+  const selectedCompletedCount = selectedTaskIds.filter(id => completedTasks.some((t: any) => t.id === id)).length;
 
   return (
     <div className="layout">
@@ -627,7 +637,7 @@ function App() {
                 >
                   <h2 className="section-title">
                     <Clock size={24} color="var(--primary)" aria-hidden="true" />
-                    Current Tasks ({(activeProject.tasks || []).filter((t: any) => t.status !== 'completed').length} active{((activeProject.tasks || []).filter((t: any) => t.status === 'completed').length > 0) ? ` / ${(activeProject.tasks || []).length} total` : ''})
+                    Current Tasks ({pendingTasks.length} active{completedTasks.length > 0 ? ` / ${activeTasks.length} total` : ''})
                   </h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {showTasks && (
@@ -650,7 +660,36 @@ function App() {
                           <RefreshCw size={14} className={deploying === 'sync-tasks' ? 'spin' : ''} />
                           Sync Tasks
                         </button>
-                        {(activeProject.tasks || []).some((t: any) => t.status === 'completed') && (
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ 
+                            padding: '0.2rem 0.6rem', 
+                            fontSize: '0.75rem', 
+                            zIndex: 2, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.3rem',
+                            opacity: completedTasks.length === 0 ? 0.5 : 1,
+                            cursor: completedTasks.length === 0 ? 'not-allowed' : 'pointer'
+                          }}
+                          disabled={completedTasks.length === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            archiveTasks();
+                          }}
+                          title={
+                            completedTasks.length === 0
+                              ? 'Brak zakończonych zadań do archiwizacji'
+                              : selectedCompletedCount > 0
+                              ? `Zarchiwizuj tylko zaznaczone ukończone zadania (${selectedCompletedCount})`
+                              : `Zarchiwizuj wszystkie ukończone zadania (${completedTasks.length})`
+                          }
+                        >
+                          <Archive size={14} />
+                          {selectedCompletedCount > 0 ? `Archive (${selectedCompletedCount})` : 'Archive'}
+                        </button>
+                        {completedTasks.length > 0 && (
                           <button
                             type="button"
                             className="btn-add-project"
@@ -686,14 +725,14 @@ function App() {
                           style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', zIndex: 2 }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0) {
+                            if (selectedTaskIds.length === activeTasks.length && activeTasks.length > 0) {
                               setSelectedTaskIds([]);
                             } else {
-                              setSelectedTaskIds((activeProject.tasks || []).map((t: any) => t.id));
+                              setSelectedTaskIds(activeTasks.map((t: any) => t.id));
                             }
                           }}
                         >
-                          {selectedTaskIds.length === (activeProject.tasks || []).length && (activeProject.tasks || []).length > 0 ? 'Uncheck All' : 'Check All'}
+                          {selectedTaskIds.length === activeTasks.length && activeTasks.length > 0 ? 'Uncheck All' : 'Check All'}
                         </button>
                       </>
                     )}
@@ -709,7 +748,7 @@ function App() {
                         {syncNotice}
                       </div>
                     )}
-                    {(activeProject.tasks || [])
+                    {activeTasks
                       .filter((task: any) => !hideCompleted || task.status !== 'completed')
                       .map((task: any) => (
                       <div 
@@ -832,6 +871,97 @@ function App() {
                         <PlusCircle size={20} aria-hidden="true" />
                       </button>
                     </form>
+
+                    {archivedTasks.length > 0 && (
+                      <div style={{ marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowArchived(!showArchived)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            padding: '0.25rem 0'
+                          }}
+                          title="Pokaż lub ukryj zarchiwizowane zadania"
+                        >
+                          <Archive size={14} />
+                          <span>{showArchived ? 'Hide Archived' : 'Show Archived'} ({archivedTasks.length})</span>
+                          {showArchived ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+
+                        {showArchived && (
+                          <div className="task-list animate-in" style={{ marginTop: '0.5rem', opacity: 0.85 }}>
+                            {archivedTasks.map((task: any) => (
+                              <div
+                                className="task-item"
+                                key={task.id}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.015)',
+                                  border: '1px solid rgba(255, 255, 255, 0.04)',
+                                  cursor: 'default'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <Archive size={16} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+                                    <div className="task-info">
+                                      <span className="task-title" style={{ textDecoration: 'line-through', opacity: 0.7 }}>
+                                        {task.title}
+                                      </span>
+                                      <span className="task-meta">{task.meta || 'Archived Task'}</span>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => restoreTask(task.id)}
+                                      title="Przywróć zadanie do zakończonych (Restore)"
+                                      aria-label={`Przywróć zadanie: ${task.title}`}
+                                      className="btn-add-project"
+                                      style={{
+                                        padding: '0.2rem 0.5rem',
+                                        fontSize: '0.75rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem'
+                                      }}
+                                    >
+                                      <RotateCcw size={13} />
+                                      Restore
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteTask(task.id)}
+                                      aria-label={`Usuń trwale ${task.title}`}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        padding: '0.25rem',
+                                        borderRadius: '4px',
+                                        display: 'flex'
+                                      }}
+                                      onMouseOver={(e) => (e.currentTarget.style.color = '#ef4444')}
+                                      onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                                      title="Delete permanently"
+                                    >
+                                      <Trash2 size={16} aria-hidden="true" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>

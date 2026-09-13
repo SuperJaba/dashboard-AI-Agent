@@ -294,9 +294,15 @@
   "hotPaths": [
     {
       "path": "",
-      "accessCount": 7,
-      "lastAccessed": 1789314324469,
+      "accessCount": 8,
+      "lastAccessed": 1789318426096,
       "type": "directory"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 8,
+      "lastAccessed": 1789318729218,
+      "type": "file"
     },
     {
       "path": "src\\App.tsx",
@@ -335,6 +341,12 @@
       "type": "directory"
     },
     {
+      "path": "tests\\full_test_suite.js",
+      "accessCount": 2,
+      "lastAccessed": 1789319255874,
+      "type": "file"
+    },
+    {
       "path": "src\\backend\\projects\\projectsRouter.js",
       "accessCount": 1,
       "lastAccessed": 1789312354058,
@@ -356,12 +368,6 @@
       "path": "src\\backend\\db.js",
       "accessCount": 1,
       "lastAccessed": 1789313846820,
-      "type": "file"
-    },
-    {
-      "path": "tests\\full_test_suite.js",
-      "accessCount": 1,
-      "lastAccessed": 1789314098883,
       "type": "file"
     },
     {
@@ -401,9 +407,39 @@
       "type": "directory"
     },
     {
-      "path": "package.json",
+      "path": "vite.config.ts",
       "accessCount": 1,
-      "lastAccessed": 1789317226322,
+      "lastAccessed": 1789318152878,
+      "type": "file"
+    },
+    {
+      "path": "server.js",
+      "accessCount": 1,
+      "lastAccessed": 1789318152948,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\picho\\AppData\\Local\\Temp\\claude\\F--AI-Agents-dashboard\\7d58e7f1-9586-44e6-bab8-f42b9fb55ea3\\tasks\\ba5bhmigt.output",
+      "accessCount": 1,
+      "lastAccessed": 1789318943595,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\picho\\AppData\\Local\\Temp\\claude\\F--AI-Agents-dashboard\\7d58e7f1-9586-44e6-bab8-f42b9fb55ea3\\tasks\\bjtnqr49q.output",
+      "accessCount": 1,
+      "lastAccessed": 1789319055111,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\picho\\AppData\\Local\\Temp\\claude\\F--AI-Agents-dashboard\\7d58e7f1-9586-44e6-bab8-f42b9fb55ea3\\tasks\\blj6ew74q.output",
+      "accessCount": 1,
+      "lastAccessed": 1789319070773,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\picho\\AppData\\Local\\Temp\\claude\\F--AI-Agents-dashboard\\7d58e7f1-9586-44e6-bab8-f42b9fb55ea3\\tasks\\b3qvjt0wu.output",
+      "accessCount": 1,
+      "lastAccessed": 1789319195657,
       "type": "file"
     }
   ],

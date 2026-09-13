@@ -310,6 +310,71 @@ export function useDashboardState() {
     }
   };
 
+  const archiveTasks = async () => {
+    if (!activeProject || !activeProject.tasks) return;
+    const currentTasks = activeProject.tasks;
+    const completedTasks = currentTasks.filter((t: any) => t.status === 'completed');
+    if (completedTasks.length === 0) return;
+
+    // Check which completed tasks are currently selected
+    const selectedCompletedIds = selectedTaskIds.filter(id =>
+      completedTasks.some((t: any) => t.id === id)
+    );
+
+    // If some completed tasks are selected, archive ONLY those.
+    // Otherwise, archive ALL completed tasks.
+    const idsToArchive = selectedCompletedIds.length > 0
+      ? selectedCompletedIds
+      : completedTasks.map((t: any) => t.id);
+
+    const updatedTasks = currentTasks.map((task: any) => {
+      if (idsToArchive.includes(task.id)) {
+        return { ...task, status: 'archived', archivedAt: new Date().toISOString() };
+      }
+      return task;
+    });
+
+    const activeTasks = updatedTasks.filter((t: any) => t.status !== 'archived');
+    const updatedComplete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter((t: any) => t.status === 'completed').length / activeTasks.length) * 100)
+      : 0;
+
+    try {
+      await apiClient.put(`/api/projects/${activeProject.id}/tasks`, { tasks: updatedTasks, complete: updatedComplete });
+      setProjects(prevProjects => prevProjects.map(p =>
+        p.id === activeProject.id ? { ...p, tasks: updatedTasks, complete: updatedComplete } : p
+      ));
+      setSelectedTaskIds(prev => prev.filter(id => !idsToArchive.includes(id)));
+    } catch (err) {
+      console.error('Failed to archive tasks:', err);
+    }
+  };
+
+  const restoreTask = async (taskId: number) => {
+    if (!activeProject || !activeProject.tasks) return;
+    const currentTasks = activeProject.tasks;
+    const updatedTasks = currentTasks.map((task: any) => {
+      if (task.id === taskId) {
+        return { ...task, status: 'completed' };
+      }
+      return task;
+    });
+
+    const activeTasks = updatedTasks.filter((t: any) => t.status !== 'archived');
+    const updatedComplete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter((t: any) => t.status === 'completed').length / activeTasks.length) * 100)
+      : 0;
+
+    try {
+      await apiClient.put(`/api/projects/${activeProject.id}/tasks`, { tasks: updatedTasks, complete: updatedComplete });
+      setProjects(prevProjects => prevProjects.map(p =>
+        p.id === activeProject.id ? { ...p, tasks: updatedTasks, complete: updatedComplete } : p
+      ));
+    } catch (err) {
+      console.error('Failed to restore task:', err);
+    }
+  };
+
   const addTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeProject || !newTaskTitle.trim()) return;
@@ -318,7 +383,8 @@ export function useDashboardState() {
     let maxId = currentTasks.length > 0 ? Math.max(...currentTasks.map((t: any) => t.id)) : 0;
     const newTask = { id: maxId + 1, title: newTaskTitle.trim(), meta: 'Custom Task', status: 'pending' };
     const mergedTasks = [...currentTasks, newTask];
-    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter(t => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+    const activeTasks = mergedTasks.filter((t: any) => t.status !== 'archived');
+    const updatedComplete = activeTasks.length > 0 ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100) : 0;
     
     await apiClient.put(`/api/projects/${activeProject.id}`, { tasks: mergedTasks, complete: updatedComplete });
     
@@ -331,7 +397,8 @@ export function useDashboardState() {
   const deleteTask = async (taskId: number) => {
     if (!activeProject) return;
     const mergedTasks = (activeProject.tasks || []).filter((t: any) => t.id !== taskId);
-    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter((t: any) => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+    const activeTasks = mergedTasks.filter((t: any) => t.status !== 'archived');
+    const updatedComplete = activeTasks.length > 0 ? Math.round((activeTasks.filter((t: any) => t.status === 'completed').length / activeTasks.length) * 100) : 0;
     
     await apiClient.put(`/api/projects/${activeProject.id}`, { tasks: mergedTasks, complete: updatedComplete });
     
@@ -481,6 +548,8 @@ export function useDashboardState() {
     toggleTaskStatus,
     syncProjectTasks,
     clearCompletedTasks,
+    archiveTasks,
+    restoreTask,
     initGit,
     handleAddServer,
     deleteServer,

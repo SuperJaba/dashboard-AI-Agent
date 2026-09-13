@@ -195,6 +195,7 @@ export async function syncProjectTasks(projectId, options = {}) {
 
     for (let i = 0; i < currentTasks.length; i++) {
       const task = currentTasks[i];
+      if (task.status === 'archived') continue;
       const normTitle = normalizeTitle(task.title);
 
       // Match against workspace checklist items
@@ -248,8 +249,9 @@ export async function syncProjectTasks(projectId, options = {}) {
       finalTasks = finalTasks.filter(t => t.status !== 'completed');
     }
 
-    const totalCount = finalTasks.length;
-    const completedCount = finalTasks.filter(t => t.status === 'completed').length;
+    const activeTasks = finalTasks.filter(t => t.status !== 'archived');
+    const totalCount = activeTasks.length;
+    const completedCount = activeTasks.filter(t => t.status === 'completed').length;
     const completePercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
     const updatedProject = await projectsRepo.updateProject(projectId, {
