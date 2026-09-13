@@ -30,4 +30,33 @@ describe('App Component', () => {
     });
     expect(screen.getByRole('button', { name: /Add Project/i })).toBeInTheDocument();
   });
+
+  it('renders Mark Completed button when workspace has active project and tasks header is open', async () => {
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url && typeof url === 'string' && url.includes('/api/projects')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([
+            { id: 1, name: 'Test Project', path: '/test', tasks: [{ id: 101, title: 'Task 1', status: 'pending' }], complete: 0 }
+          ])
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({})
+      });
+    });
+
+    await act(async () => {
+      render(<PreferencesProvider><App /></PreferencesProvider>);
+    });
+
+    const tasksHeader = screen.getByRole('button', { name: /Current Tasks/i });
+    await act(async () => {
+      tasksHeader.click();
+    });
+
+    expect(screen.getByRole('button', { name: /^Mark Completed$/i })).toBeInTheDocument();
+  });
 });
+

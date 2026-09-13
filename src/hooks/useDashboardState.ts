@@ -408,6 +408,24 @@ export function useDashboardState() {
     setSelectedTaskIds(selectedTaskIds.filter(id => id !== taskId));
   };
 
+  const markTasksCompleted = async (taskIds?: number[]) => {
+    if (!activeProject) return;
+    const idsToComplete = taskIds && taskIds.length > 0 ? taskIds : selectedTaskIds;
+    if (!idsToComplete || idsToComplete.length === 0) return;
+
+    const mergedTasks = (activeProject.tasks || []).map((t: any) => 
+      idsToComplete.includes(t.id) ? { ...t, status: 'completed' } : t
+    );
+    const updatedComplete = mergedTasks.length > 0 ? Math.round((mergedTasks.filter((t: any) => t.status === 'completed').length / mergedTasks.length) * 100) : 0;
+
+    await apiClient.put(`/api/projects/${activeProject.id}`, { tasks: mergedTasks, complete: updatedComplete });
+
+    setProjects(projects.map(p => 
+      p.id === activeProject.id ? { ...p, tasks: mergedTasks, complete: updatedComplete } : p
+    ));
+    setSelectedTaskIds([]);
+  };
+
   const initGit = async () => {
     if (!activeProject) return;
     try {
@@ -574,6 +592,7 @@ export function useDashboardState() {
     clearCompletedTasks,
     archiveTasks,
     restoreTask,
+    markTasksCompleted,
     initGit,
     handleAddServer,
     deleteServer,

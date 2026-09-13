@@ -66,6 +66,7 @@ function App() {
     clearCompletedTasks,
     archiveTasks,
     restoreTask,
+    markTasksCompleted,
     initGit,
     handleAddServer,
     deleteServer,
@@ -747,6 +748,29 @@ function App() {
                           }}
                         >
                           {selectedTaskIds.length === activeTasks.length && activeTasks.length > 0 ? 'Uncheck All' : 'Check All'}
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn-add-project" 
+                          style={{ 
+                            padding: '0.2rem 0.6rem', 
+                            fontSize: '0.75rem', 
+                            zIndex: 2, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.3rem',
+                            opacity: selectedTaskIds.length > 0 ? 1 : 0.6,
+                            cursor: selectedTaskIds.length > 0 ? 'pointer' : 'not-allowed'
+                          }}
+                          disabled={selectedTaskIds.length === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markTasksCompleted();
+                          }}
+                          title="Oznacz zaznaczone zadania jako ukończone"
+                        >
+                          <CheckCircle2 size={13} />
+                          Mark Completed
                         </button>
                       </>
                     )}
