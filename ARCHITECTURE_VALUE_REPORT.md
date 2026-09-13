@@ -33,4 +33,4 @@ We refactored both the backend and frontend monoliths into a clean, modular stru
 | **Developer Onboarding** | Monolithic codebase; steep learning curve. | Clean, domain-separated architecture. | **~50% reduction** in time-to-productivity for new engineers. |
 | **CI Build Pass Rate** | Large-scope agent changes (60% build failure). | Small-scope, subdirectory-scoped changes. | **Increased build pass rate** to over 90%. |
 | **FinOps Cost Control** | Untracked, run-away LLM sessions. | Encapsulated parameters & token limits. | **20-30% saving** in LLM runtime API costs. |
-| **Credential Safety** | Risk of hardcoded secrets in Git. | local-only, git-ignored `.agent/context/`. | **Zero risk** of database credentials leaking to remote. |
+| **Credential Safety** | Risk of hardcoded secrets in Git. | local-only, git-ignored `.claude/` settings. | **Zero risk** of database credentials leaking to remote. |

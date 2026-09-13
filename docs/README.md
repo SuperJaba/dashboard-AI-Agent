@@ -4,23 +4,24 @@
 
 The Dashboard is a single‑page application built with React, Vite and TypeScript that visualises real‑time metrics from our services.
 
-- **Frontend:** Next.js (React 18) + TailwindCSS
-- **Backend API:** FastAPI (Python) exposing REST endpoints under `/api/*`
-- **Auth:** JWT based – see the updated authentication section below
+- **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS v4
+- **Backend API:** Node.js Express 5 + Socket.io exposing REST endpoints under `/api/*` and real-time terminal streams
+- **Auth:** JWT-based authentication middleware in `src/backend/auth/`
+- **Database:** PostgreSQL with automatic in-memory fallback
 
 ---
 
 ## Authentication Flow
 
-The project now uses a JWT‑based flow with an optional refresh token. The following endpoints are used for user management:
+The project uses a JWT-based flow. The following endpoints are used for user management:
 
 | Endpoint | Method | Description |
 |--------|-------|-------------|
-| `POST /api/auth/login` | **Login** <br>Payload: `{ email, password }`<br>Returns access and refresh tokens.<br>`Authorization: Bearer <access_token>` is required on subsequent requests. |
-| `GET  /api/user/me`   | **Current User** <br>Requires the bearer token in the header.<br>Responds with user data (`id`, `name`, `role`). |
-| `POST /api/auth/refresh` (optional) | **Refresh Token**<br>Accepts a refresh token and returns a new access token. |
+| `POST /api/auth/login` | **Login** <br>Payload: `{ email, password }`<br>Returns access token.<br>`Authorization: Bearer <token>` is required on subsequent requests. |
+| `POST /api/auth/register` | **Register** <br>Payload: `{ email, password, name }`<br>Registers a new user and returns JWT token. |
+| `GET  /api/auth/me` | **Current User** <br>Requires the bearer token in the header.<br>Responds with user session data. |
 
-*All routes are protected by the FastAPI dependency that validates the JWT before executing the handler.*
+*Routes are protected by Express JWT auth middleware (`src/backend/auth/authMiddleware.js`).*
 
 ---
 
