@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => {
   return {
     existsSync: vi.fn(),
     mkdirSync: vi.fn(),
-    execSync: vi.fn()
+    execSync: vi.fn(),
+    exec: vi.fn()
   };
 });
 
@@ -22,9 +23,11 @@ vi.mock('fs', () => {
 vi.mock('child_process', () => {
   return {
     default: {
-      execSync: mocks.execSync
+      execSync: mocks.execSync,
+      exec: mocks.exec
     },
-    execSync: mocks.execSync
+    execSync: mocks.execSync,
+    exec: mocks.exec
   };
 });
 
