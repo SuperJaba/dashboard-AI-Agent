@@ -8,19 +8,13 @@
       "Bash(gh config *)",
       "Bash(gh pr *)",
       "Bash(curl -s https://api.github.com/repos/SuperJaba/dashboard/pulls?state=all)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(npm run *)"
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "MCP_DOCKER"
-  ],
+  "enabledMcpjsonServers": [],
   "disabledMcpjsonServers": [
     "MCP_DOCKER"
-  ],
-  "permissions": {
-    "allow": [
-      "Bash(npm run *)"
-    ]
-  }
+  ]
 }

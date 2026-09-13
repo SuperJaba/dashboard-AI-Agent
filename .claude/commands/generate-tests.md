@@ -24,15 +24,11 @@ Generate comprehensive test suite for: $ARGUMENTS
 5. **Integration Tests** — test component interactions, API layers with mocked responses, and end-to-end user workflows where applicable
 6. **Quality Check** — verify naming describes behavior not implementation; confirm 80%+ coverage on critical business logic; ensure test isolation
 
-## Framework-Specific Guidance
+## Project-Specific Guidance
 
-- **React**: Component testing with React Testing Library; test user interactions and rendering
-- **Vue**: Component testing with Vue Test Utils; test props, events, and slots
-- **Angular**: Component and service testing with TestBed; test dependency injection
-- **Node.js**: API endpoint and middleware testing; test request/response cycles
-- **Python**: `pytest` with fixtures, `unittest.mock` for patching, `pytest-cov` for coverage
-- **Go**: Table-driven tests in `_test.go` files, `testify/assert` for assertions, subtests via `t.Run()`
-- **Rust**: `#[cfg(test)]` modules, `#[test]` attributes, `mockall` for mocking
+- **React Components**: Test with Vitest and React Testing Library (`@testing-library/react`). Verify user interactions, renders, and DOM assertions.
+- **Custom Hooks**: Test state transitions and return values with `renderHook` and `act`.
+- **Backend API & Middleware**: Test Express endpoints with Vitest using supertest or route handler unit tests with mocked database queries (`safeQuery`).
 
 ## Best Practices
 

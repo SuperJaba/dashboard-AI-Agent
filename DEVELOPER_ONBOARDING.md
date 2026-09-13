@@ -1,91 +1,54 @@
-# 🚀 Developer Onboarding Guide
+# Developer Onboarding Guide
 
-Welcome to the **Dashboard** project! This guide is designed to get you up and running with your local development environment, introduce you to our codebase architecture, and prepare you for your first contributions.
-
----
-
-## 🛠️ Tech Stack Overview
-
-Our dashboard is built on a modern, modular stack:
-* **Frontend**: React (TypeScript) + Vite
-* **Styling**: Tailwind CSS v4 + PostCSS
-* **Backend**: Node.js Express API + Socket.io (for real-time terminal shells)
-* **Database**: PostgreSQL (relational storage for settings, projects, servers, and widgets)
+Welcome to the **Dashboard** project! This guide gets you up and running with your local development environment and introduces core conventions.
 
 ---
 
-## 🏗️ Codebase Architecture
-
-We recently refactored our backend and frontend monoliths into clean, modular domain directories. Refer to [DESIGN.md](./DESIGN.md) for deep system diagrams. Here is the structure:
-
-```
-dashboard/
-├── server.js                   # Main Entrypoint / Express Bootstrap
-├── src/
-│   ├── App.tsx                 # Core UI render layer (Stateless View)
-│   ├── hooks/
-│   │   └── useDashboardState.ts # Central React hook managing API actions & state
-│   ├── backend/                # Domain-Driven Backend modules
-│   │   ├── auth/               # User registration and JWT session auth
-│   │   ├── settings/           # LLM credentials & dashboard parameters
-│   │   ├── projects/           # Local workspaces, analysis, & deployments
-│   │   ├── servers/            # Server registries, stats scanning, & devil tools
-│   │   ├── widgets/            # Custom executor widget parameters
-│   │   ├── agents/             # CLI AI agent tuning and configurations
-│   │   ├── git/                # gitService.js encapsulating Git/CLI parser rules
-│   │   ├── db.js               # Shared PostgreSQL pg.Pool wrapper
-│   │   └── utils/              # Centralized crypto (AES-256) and ssh formatting
-```
+## 🛠️ Tech Stack & Key Characteristics
+- **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS v4
+- **Backend:** Node.js Express 5 + Socket.io (real-time terminal streaming)
+- **Database:** PostgreSQL with automatic in-memory fallback
+- **Architecture Reference:** [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md)
 
 ---
 
-## ⚙️ Development Environment Setup
+## ⚙️ Quick Start Setup
 
 ### 1. Prerequisites
-Ensure you have the following installed locally:
-* **Node.js** (v18+ recommended)
-* **PostgreSQL** (running locally or accessible via configuration)
-* **git** & **gh CLI** (GitHub commands)
+- **Node.js** v20+
+- **PostgreSQL** (optional: automatic fallback to in-memory store if offline)
+- **Git**
 
-### 2. Quick Start Configuration
-1. Clone the repository and install dependencies:
-   ```bash
-   npm install
-   ```
-2. Set up your local environment file (`.env`):
-   ```env
-   DATABASE_URL=postgres://username:password@localhost:5432/dashboard
-   JWT_SECRET=your_super_secret_jwt_token_key
-   ENCRYPTION_KEY=32_character_long_secret_key_here
-   ```
-3. Initialize the database schema and start the developer server:
-   ```bash
-   npm run dev
-   ```
-   This command starts the local frontend client on `http://localhost:5173` and boots the Express backend API on port `3001`.
+### 2. Installation
+```bash
+# Clone and install dependencies
+git clone <repo-url> && cd dashboard
+npm install
+
+# Configure environment
+cp .env.example .env
+
+# Start dev server (Vite on 5173 + Express API on 3001)
+npm run dev
+```
 
 ---
 
 ## 🧪 Verification & Testing
 
-Before staging any commits, always verify your changes against the compiler and test suites:
+Before creating a commit or PR, verify that all test suites pass:
 
-* **Verify Code Compiles**:
-  ```bash
-  npm run build
-  ```
-* **Run Unit & Integration Tests**:
-  ```bash
-  npm test
-  ```
+```bash
+npm test            # Run Vitest unit & integration tests
+npm run lint        # Run Oxlint / ESLint rules
+npm run build       # Verify Vite production bundle compiles
+```
 
 ---
 
-## 📂 Your First Contribution (Day 1-7 Checklist)
+## 📋 Contribution Workflow
 
-- [ ] **Setup**: Fork/Clone this repository and verify `npm test` runs successfully.
-- [ ] **Explore**: Connect a mock PostgreSQL database and verify you can log in on the UI.
-- [ ] **First Task**: Pick a task from the backlog (or look for the `good first issue` label).
-- [ ] **Code**: Create a feature branch: `feature/your-feature-name`.
-- [ ] **Verify**: Ensure the build succeeds and tests pass.
-- [ ] **PR**: Open a Pull Request targeting the `master` branch. Add a clear description showing the verification steps.
+1. Create a feature branch: `git checkout -b feat/your-feature-name`
+2. Follow commit conventions: `feat(scope): Subject in imperative mood`
+3. Ensure all tests and linting pass cleanly.
+4. Open a Pull Request targeting `dev`.
