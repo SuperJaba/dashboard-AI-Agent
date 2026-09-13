@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import app from './server.js';
+import app from '../../server.js';
+
 
 vi.mock('child_process', async (importOriginal) => {
   const mod = await importOriginal();

@@ -272,16 +272,16 @@ The LLM Server management expects the API key field as **`apiKey`** (camelCase) 
 
 ## 📚 Additional Documentation
 
-| Document | Description |
-|----------|-------------|
 | **[docs/C4_ARCHITECTURE.md](./docs/C4_ARCHITECTURE.md)** | C4 Architecture Diagrams (Mermaid) - System architecture visualization |
+| **[docs/ARCHITECTURE_DOCUMENTATION.md](./docs/ARCHITECTURE_DOCUMENTATION.md)** | System architecture overview and subsystem details |
+| **[docs/API_DOCUMENTATION.md](./docs/API_DOCUMENTATION.md)** | REST API and WebSocket specifications |
 | **[docs/TUTORIAL_ADD_WIDGET.md](./docs/TUTORIAL_ADD_WIDGET.md)** | Step-by-step guide for adding new Custom Widgets |
-| **[DESIGN.md](./DESIGN.md)** | Architecture decisions and design patterns |
-| **[DEVELOPER_ONBOARDING.md](./DEVELOPER_ONBOARDING.md)** | Detailed onboarding guide for new developers |
-| **[ARCHITECTURE_VALUE_REPORT.md](./ARCHITECTURE_VALUE_REPORT.md)** | System architecture overview and value proposition |
-| **[CONTEXT_MANAGEMENT.md](./CONTEXT_MANAGEMENT.md)** | Context management strategy |
+| **[docs/DESIGN.md](./docs/DESIGN.md)** | Architecture decisions and design patterns |
+| **[docs/DEVELOPER_ONBOARDING.md](./docs/DEVELOPER_ONBOARDING.md)** | Detailed onboarding guide for new developers |
+| **[docs/CONTEXT_MANAGEMENT.md](./docs/CONTEXT_MANAGEMENT.md)** | Context management strategy |
 | **[CLAUDE.md](./CLAUDE.md)** | Claude Code integration guide with LM Studio |
 | **[AGENTS.md](./AGENTS.md)** | Repository guidelines for contributors |
+
 
 ---
 
@@ -307,7 +307,7 @@ This project is part of the AI-Agents dashboard initiative.
 
 ## 🤝 Contributing
 
-Please follow the development workflow described in [DEVELOPER_ONBOARDING.md](./DEVELOPER_ONBOARDING.md):
+Please follow the development workflow described in [DEVELOPER_ONBOARDING.md](./docs/DEVELOPER_ONBOARDING.md):
 
 1. **Create a feature branch**: `feature/your-feature-name`
 2. **Ensure tests pass**: `npm test`
@@ -336,7 +336,7 @@ Please follow the development workflow described in [DEVELOPER_ONBOARDING.md](./
 ## 📞 Support & Resources
 
 For questions or issues:
-- Check [DEVELOPER_ONBOARDING.md](./DEVELOPER_ONBOARDING.md) for setup help
+- Check [DEVELOPER_ONBOARDING.md](./docs/DEVELOPER_ONBOARDING.md) for setup help
 - Review [docs/C4_ARCHITECTURE.md](./docs/C4_ARCHITECTURE.md) for architecture details
 - Examine test files for usage examples
 

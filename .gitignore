@@ -32,6 +32,18 @@ entities.json
 # Temporary agent launcher files
 .ai_tasks.md
 .start_agent.sh
-artifacts/*.zip
 codex-hud
 coverage/
+test-results/
+artifacts/*.zip
+artifacts/*.png
+artifacts/*.html
+artifacts/*.json
+
+# AI agent session states and checkpoints
+.omc/sessions/
+.omc/state/
+
+# Jupyter notebooks and screenshots in root
+*.ipynb
+

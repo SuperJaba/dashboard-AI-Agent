@@ -19,7 +19,8 @@ Consult these references on demand when handling specific subsystem tasks:
 - **API Spec & Route Definitions**: [`docs/openapi.yaml`](docs/openapi.yaml) or [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md)
 - **C4 Architecture & Service Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md)
 - **Widget Creation & Registration**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md)
-- **Automated SSH & Remote Execution**: [`agent-ssh-con.md`](agent-ssh-con.md)
+- **Automated SSH & Remote Execution**: [`docs/agent-ssh-con.md`](docs/agent-ssh-con.md)
+
 
 ## Coding & Architectural Conventions
 - Indent with **2 spaces** (no tabs).
