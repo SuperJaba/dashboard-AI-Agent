@@ -8,47 +8,34 @@ It covers the folder layout, build and test commands, coding style rules, and ho
 - **tests/** – Unit and integration tests. Test files mirror the structure of `src` and end with `.test.js` or `.spec.ts`.
 - **assets/** – Static assets such as images, stylesheets, and JSON fixtures.
   
-## Build, Test, and Development Commands
-| Command | Purpose |
-|---------|---------|
-| Command | Purpose |
-|---------|---------|
-| `npm install` | Install dependencies. |
-| `npm run dev` | Launch development server (Vite on 5173 + Express on 3001). |
-| `npm run build` | Build client bundle via Vite (outputs to `dist/`). |
-| `npm test` | Run the Vitest test suite. |
-| `npm run test:e2e` | Run Playwright end-to-end tests. |
-| `npm run lint` | Run ESLint and Oxlint checks. |
+## Key Environment Gotchas
+- **UI Language:** Labels and messages in UI components are in Polish.
+- **Database Fallback:** `src/backend/db.js` automatically falls back to an in-memory store if PostgreSQL is unavailable.
+- **Port Mapping:** Development uses Vite on port 5173 (proxies API requests) and Express API on port 3001.
+- **Styling:** Uses Tailwind CSS v4 via `@tailwindcss/postcss` (no `tailwind.config.js`).
 
-## Coding Style & Naming Conventions
+## Context Pointers (Disclosed Reference)
+Consult these references on demand when handling specific subsystem tasks:
+- **API Spec & Route Definitions**: [`docs/openapi.yaml`](docs/openapi.yaml) or [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md)
+- **C4 Architecture & Service Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md)
+- **Widget Creation & Registration**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md)
+- **Automated SSH & Remote Execution**: [`agent-ssh-con.md`](agent-ssh-con.md)
+
+## Coding & Architectural Conventions
 - Indent with **2 spaces** (no tabs).
-- Use **camelCase** for variables, functions, and props.
-- Export modules using named exports; default exports are avoided unless a single primary value is exported.
-- Run `npm run lint` to check ESLint/Oxlint rules.
+- Use **camelCase** for variables, functions, and props; name files in **kebab-case** (e.g. `user-profile.ts`).
+- Prefer **named exports** over default exports.
+- **Backend Architecture:** Follow the domain repository pattern in `src/backend/{domain}/` using the `safeQuery()` wrapper.
+- **Central State:** State is centralized in `src/hooks/useDashboardState.ts`.
 
-## Testing Guidelines
-- Tests use **Vitest** for unit/component tests and **Playwright** for E2E tests.
-- Test files reside alongside modules or in `tests/` and mirror the structure of `src`.
-- Ensure all tests pass before submitting changes (`npm test`).
+## Testing & Verification
+- Unit & component tests: Vitest (`npm test`).
+- End-to-end tests: Playwright (`npm run test:e2e`).
+- Preserve existing test suites; author new test stubs alongside new or modified modules in `src/` or `tests/`.
+- Ensure all tests and linter (`npm run lint`) pass cleanly before concluding tasks.
 
-## Commit & Pull Request Guidelines
-- **Commit messages** follow the Conventional Commits format: `<type>[optional scope]: <subject>` (e.g., `feat(auth): add JWT support`).
-- PR titles should mirror the first line of the commit message and include a short description. 
-- Link any related issue with `Closes #<issue-number>`. Include screenshots or logs if UI changes are made.
-  
-## Agent‑Specific Instructions
-Agents operating in this repository must respect these guidelines when creating or modifying files:
-1. Do **not** alter existing tests unless the change is intentional.
-2. When adding new modules, place them under `src/` and create corresponding test stubs.
-3. Keep file names lowercase with hyphens (e.g., `user-profile.ts`).
-
-## MemPalace Protocol
-This repository leverages MemPalace for long-term project memory and cross-session knowledge continuity:
-- **Search before answering:** When inquiring about past decisions, previous bugs/fixes, architecture discussions, or user preferences, call `mempalace_search` (or `mempalace_kg_query` for relational/temporal facts) before guessing.
-- **Verbatim retrieval:** Quote verbatim drawer content retrieved from the memory palace rather than hallucinating or summarizing lossily.
-- **Record continuity:** Significant architectural milestones, tricky bug fixes, or key setup decisions should be logged or updated in MemPalace (`mempalace_diary_write`, `mempalace_add_drawer`, or KG updates).
-
-Feel free to raise questions in the repository discussions or open an issue for clarification.
+## Commit Guidelines
+- Follow Conventional Commits: `<type>[optional scope]: <subject>` (e.g., `feat(auth): add JWT support`).
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph
