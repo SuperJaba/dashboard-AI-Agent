@@ -33,6 +33,14 @@ export async function updateAgentPathAndConfig(name, path, configUri) {
   return rows[0];
 }
 
+export async function setAgentInstalled(id, installed) {
+  const { rows } = await pool.query(
+    'UPDATE cli_agents SET installed = $1 WHERE id = $2 RETURNING *',
+    [installed, id]
+  );
+  return rows[0];
+}
+
 export async function updateAgent(id, fields) {
   const { config_uri, name, description, path: binPath, llm_model, temperature, max_tokens } = fields;
   let query = 'UPDATE cli_agents SET config_uri = $1';

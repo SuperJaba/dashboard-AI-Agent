@@ -19,9 +19,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 import { settingsRouter } from './src/backend/settings/settingsRouter.js';
 import { projectsRouter } from './src/backend/projects/projectsRouter.js';
 import { serversRouter } from './src/backend/servers/serversRouter.js';
-import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
+
+// Import background worker and start it.
+import { startBackgroundWorker } from './src/backend/agents/backgroundWorker.js';
+startBackgroundWorker();import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
+import { userSettingsRouter } from './src/backend/settings/userSettingsRouter.js';
 
 import { fileURLToPath } from 'url';
 
@@ -314,6 +318,7 @@ app.use('/api', serversRouter);
 app.use('/api/widgets', widgetsRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api', llmServersRouter);
+app.use('/api/user-settings', userSettingsRouter);
 
 // Serve built frontend static assets if available (dist or public)
 const staticDist = path.join(__dirname, 'dist');
@@ -405,7 +410,7 @@ async function initDB() {
 }
 initDB();
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
   httpServer.listen(port, () => {
     console.log(`Backend API running on http://localhost:${port}`);
     console.log(`Prometheus metrics available at http://localhost:${port}/metrics`);

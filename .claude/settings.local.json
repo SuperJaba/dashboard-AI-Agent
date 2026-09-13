@@ -17,5 +17,10 @@
   ],
   "disabledMcpjsonServers": [
     "MCP_DOCKER"
-  ]
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)"
+    ]
+  }
 }

@@ -32,7 +32,8 @@ const inMemoryStore = {
   servers: [],
   cli_agents: [],
   custom_widgets: [],
-  agents: []
+  agents: [],
+  user_settings: []
 };
 
 let useInMemoryFallback = false;
@@ -107,6 +108,25 @@ export async function safeQuery(text, params = []) {
     return { rows: inMemoryStore.custom_widgets };
   }
 
+  // User settings (theme/language per user)
+  if (sql.includes('FROM user_settings')) {
+    const row = inMemoryStore.user_settings.find(r => r.user_id === params[0]);
+    return { rows: row ? [row] : [] };
+  }
+
+  if (sql.includes('INSERT INTO user_settings')) {
+    const [userId, theme, language] = params;
+    let row = inMemoryStore.user_settings.find(r => r.user_id === userId);
+    if (row) {
+      if (theme !== null && theme !== undefined) {row.theme = theme;}
+      if (language !== null && language !== undefined) {row.language = language;}
+    } else {
+      row = { user_id: userId, theme: theme || 'dark', language: language || 'pl' };
+      inMemoryStore.user_settings.push(row);
+    }
+    return { rows: [row] };
+  }
+
   return { rows: [] };
 }
 
@@ -116,11 +136,17 @@ export async function migrate() {
     `CREATE TABLE IF NOT EXISTS servers (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
-      host VARCHAR(255) NOT NULL,
-      username VARCHAR(255) NOT NULL,
+      host VARCHAR(255),
+      username VARCHAR(255),
       port INTEGER DEFAULT 22,
+      provider VARCHAR(255) DEFAULT 'local',
+      url VARCHAR(512),
+      model VARCHAR(255),
+      api_key TEXT,
       use_devil BOOLEAN DEFAULT false,
-      ssh_password TEXT
+      ssh_password TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS llm_servers (
       id SERIAL PRIMARY KEY,
@@ -173,6 +199,21 @@ export async function migrate() {
       server_id INTEGER REFERENCES servers(id),
       status VARCHAR(50) DEFAULT 'stopped',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS host VARCHAR(255);',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS username VARCHAR(255);',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS port INTEGER DEFAULT 22;',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS provider VARCHAR(255) DEFAULT \'local\';',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS url VARCHAR(512);',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS model VARCHAR(255);',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS api_key TEXT;',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS use_devil BOOLEAN DEFAULT false;',
+    'ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;',
+    `CREATE TABLE IF NOT EXISTS user_settings (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      theme VARCHAR(20) DEFAULT 'dark',
+      language VARCHAR(10) DEFAULT 'pl',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];
 
@@ -181,9 +222,9 @@ export async function migrate() {
   }
 
   // Default settings seeding
-  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat')");
-  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1')");
-  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0')");
+  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;");
+  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1') ON CONFLICT (key) DO NOTHING;");
+  await safeQuery("INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0') ON CONFLICT (key) DO NOTHING;");
 }
 
 // Run migrations automatically when the module is loaded.

@@ -2,8 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LlmServerManager } from './LlmServerManager';
 
-describe('LlmServerManager Component', () => {
-
 vi.mock('./shared/api-client', () => ({
   apiFetch: vi.fn((url: string) => {
     if (url.includes('/api/llm-servers')) {
@@ -37,6 +35,8 @@ vi.mock('./shared/api-client', () => ({
     });
   })
 }));
+
+describe('LlmServerManager Component', () => {
 
   it('renders LLM Server selection dropdown with servers from DB', async () => {
     render(<LlmServerManager />);
