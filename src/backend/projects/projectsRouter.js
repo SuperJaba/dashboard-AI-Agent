@@ -37,13 +37,13 @@ projectsRouter.get('/fs/directories', (req, res) => {
     const rawPath = req.query.path !== undefined ? String(req.query.path).trim() : null;
     const availableDrives = getAvailableDrives();
 
-    // If on Windows and path is 'DRIVES' (navigating up from drive root)
-    if (isWindows && rawPath && (rawPath.toUpperCase() === 'DRIVES' || rawPath === '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}')) {
+    // If path is 'DRIVES' (navigating up from drive root or listing root disks)
+    if (rawPath && (rawPath.toUpperCase() === 'DRIVES' || rawPath === '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}')) {
       return res.json({
-        currentPath: '',
+        currentPath: isWindows ? '' : '/',
         parentPath: null,
         directories: availableDrives.map(d => ({
-          name: `Dysk (${d.replace(/\\$/, '')})`,
+          name: isWindows ? `Dysk (${d.replace(/\\$/, '')})` : 'Root (/)',
           path: d,
           isDrive: true
         })),
