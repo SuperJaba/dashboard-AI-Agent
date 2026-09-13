@@ -10,14 +10,57 @@ import { getBestAvailableModel } from '../utils/llm.js';
 
 export const projectsRouter = express.Router();
 
+export function getAvailableDrives() {
+  if (process.platform !== 'win32') {
+    return ['/'];
+  }
+  const drives = [];
+  for (let i = 65; i <= 90; i++) {
+    const letter = String.fromCharCode(i);
+    const drivePath = `${letter}:\\`;
+    try {
+      if (fs.existsSync(drivePath)) {
+        drives.push(drivePath);
+      }
+    } catch (e) {
+      // Ignore drives that are not accessible
+    }
+  }
+  return drives;
+}
+
 // List directories for folder picker
 projectsRouter.get('/fs/directories', (req, res) => {
   try {
-    let targetPath = req.query.path ? String(req.query.path) : os.homedir();
+    const isWindows = process.platform === 'win32';
+    const rawPath = req.query.path !== undefined ? String(req.query.path).trim() : null;
+    const availableDrives = getAvailableDrives();
+
+    // If on Windows and path is 'DRIVES' (navigating up from drive root)
+    if (isWindows && rawPath && (rawPath.toUpperCase() === 'DRIVES' || rawPath === '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}')) {
+      return res.json({
+        currentPath: '',
+        parentPath: null,
+        directories: availableDrives.map(d => ({
+          name: `Dysk (${d.replace(/\\$/, '')})`,
+          path: d,
+          isDrive: true
+        })),
+        drives: availableDrives
+      });
+    }
+
+    let targetPath = rawPath && rawPath !== '' ? rawPath : os.homedir();
+
+    // Normalize Windows drive letter inputs like 'c:' or 'C:' or 'c:/' to 'C:\'
+    if (isWindows && /^[a-zA-Z]:[/\\]?$/.test(targetPath)) {
+      targetPath = targetPath.substring(0, 2).toUpperCase() + '\\';
+    }
+
     targetPath = path.resolve(targetPath);
 
     if (!fs.existsSync(targetPath)) {
-      return res.status(404).json({ error: 'Ścieżka nie istnieje', currentPath: targetPath });
+      return res.status(404).json({ error: `Ścieżka nie istnieje: ${targetPath}`, currentPath: targetPath, drives: availableDrives });
     }
 
     const stat = fs.statSync(targetPath);
@@ -25,7 +68,15 @@ projectsRouter.get('/fs/directories', (req, res) => {
       targetPath = path.dirname(targetPath);
     }
 
-    const parentPath = path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null;
+    // Determine parent path
+    let parentPath = null;
+    const isDriveRoot = isWindows && /^[a-zA-Z]:\\?$/.test(targetPath);
+    if (isWindows && isDriveRoot) {
+      parentPath = 'DRIVES';
+    } else {
+      parentPath = path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null;
+    }
+
     const entries = fs.readdirSync(targetPath, { withFileTypes: true });
 
     const directories = [];
@@ -33,11 +84,15 @@ projectsRouter.get('/fs/directories', (req, res) => {
       if (entry.name.startsWith('.')) continue; // ignore hidden folders
       if (entry.name === 'node_modules') continue;
 
-      if (entry.isDirectory()) {
-        directories.push({
-          name: entry.name,
-          path: path.join(targetPath, entry.name)
-        });
+      try {
+        if (entry.isDirectory()) {
+          directories.push({
+            name: entry.name,
+            path: path.join(targetPath, entry.name)
+          });
+        }
+      } catch (e) {
+        // Skip inaccessible directories
       }
     }
 
@@ -46,10 +101,11 @@ projectsRouter.get('/fs/directories', (req, res) => {
     res.json({
       currentPath: targetPath,
       parentPath,
-      directories
+      directories,
+      drives: availableDrives
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, drives: getAvailableDrives() });
   }
 });
 

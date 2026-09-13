@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1784684841933,
+  "lastScanned": 1789296415055,
   "projectRoot": "F:\\AI-Agents\\dashboard",
   "techStack": {
     "languages": [
@@ -38,8 +38,13 @@
         "category": "frontend"
       },
       {
+        "name": "@playwright/test",
+        "version": "1.61.1",
+        "category": "testing"
+      },
+      {
         "name": "vite",
-        "version": "8.1.1",
+        "version": "8.2.2",
         "category": "build"
       },
       {
@@ -61,33 +66,29 @@
       "dev:backend": "node server.js",
       "dev": "concurrently \"vite\" \"node server.js\"",
       "db:migrate": "node scripts/migrate.js",
-      "build": "tsc -b && vite build",
-      "lint": "eslint .",
+      "build": "vite build",
+      "lint": "eslint . --ignore-pattern dist/**",
       "preview": "vite preview",
       "test": "vitest run",
       "test:watch": "vitest",
       "test:ui": "vitest --ui",
       "autotest": "bash scripts/autotest_ai.sh",
-      "ci-tdd": "bash scripts/ci_tdd_bot.sh"
+      "ci-tdd": "bash scripts/ci_tdd_bot.sh",
+      "agent:worker": "node scripts/local-agent-worker.js",
+      "test:e2e": "set NODE_ENV=test&& node tests/full_test_suite.js"
     }
   },
   "conventions": {
     "namingStyle": null,
     "importStyle": "ES modules",
-    "testPattern": "*.test.ts",
-    "fileOrganization": null
+    "testPattern": null,
+    "fileOrganization": "type-based"
   },
   "structure": {
     "isMonorepo": false,
-    "workspaces": [
-      {
-        "name": "codegraph-mcp",
-        "path": ".codegraph/versions/v1.5.0",
-        "purpose": "CodeGraph MCP server (v1.5.0)",
-        "keyFiles": ["bin/codegraph.js", "lib/dist/mcp/daemon.js"]
-      }
-    ],
+    "workspaces": [],
     "mainDirectories": [
+      "docs",
       "public",
       "scripts",
       "src",
@@ -100,29 +101,72 @@
   },
   "customNotes": [],
   "directoryMap": {
+    "artifacts": {
+      "path": "artifacts",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1789296415026,
+      "keyFiles": [
+        "dashboard.png",
+        "login_failure.html",
+        "login_failure.png",
+        "test_report.html",
+        "test_report.json"
+      ]
+    },
     "dist": {
       "path": "dist",
       "purpose": "Distribution/build output",
       "fileCount": 3,
-      "lastAccessed": 1784684841331,
+      "lastAccessed": 1789296415026,
       "keyFiles": [
         "favicon.svg",
         "icons.svg",
         "index.html"
       ]
     },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 4,
+      "lastAccessed": 1789296415035,
+      "keyFiles": [
+        "C4_ARCHITECTURE.md",
+        "openapi.yaml",
+        "README.md",
+        "TUTORIAL_ADD_WIDGET.md"
+      ]
+    },
+    "dogfood-output": {
+      "path": "dogfood-output",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1789296415035,
+      "keyFiles": [
+        "report.md"
+      ]
+    },
     "grafana": {
       "path": "grafana",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1784684841387,
+      "lastAccessed": 1789296415036,
       "keyFiles": []
+    },
+    "modernized": {
+      "path": "modernized",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1789296415036,
+      "keyFiles": [
+        "test-README.md"
+      ]
     },
     "playwright": {
       "path": "playwright",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1784684841394,
+      "lastAccessed": 1789296415036,
       "keyFiles": [
         "show-url.spec.js"
       ]
@@ -131,16 +175,25 @@
       "path": "prometheus",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1784684841400,
+      "lastAccessed": 1789296415036,
       "keyFiles": [
         "prometheus.yml"
+      ]
+    },
+    "prometheus-grafana-stack": {
+      "path": "prometheus-grafana-stack",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1789296415036,
+      "keyFiles": [
+        "docker-compose.yml"
       ]
     },
     "public": {
       "path": "public",
       "purpose": "Public files",
       "fileCount": 2,
-      "lastAccessed": 1784684841407,
+      "lastAccessed": 1789296415037,
       "keyFiles": [
         "favicon.svg",
         "icons.svg"
@@ -149,73 +202,180 @@
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 4,
-      "lastAccessed": 1784684841413,
+      "fileCount": 6,
+      "lastAccessed": 1789296415037,
       "keyFiles": [
         "autotest_ai.sh",
         "ci_tdd_bot.sh",
+        "disk_usage_monitor.js",
         "forecast.py",
-        "migrate.js"
+        "local-agent-worker.js"
       ]
     },
     "src": {
       "path": "src",
       "purpose": "Source code",
-      "fileCount": 18,
-      "lastAccessed": 1784684841419,
+      "fileCount": 23,
+      "lastAccessed": 1789296415037,
       "keyFiles": [
+        "AgentsView.integration.test.tsx",
         "AgentsView.tsx",
         "AnalyticsPanel.tsx",
         "api.test.ts",
-        "App.css",
-        "App.test.tsx"
+        "App.css"
       ]
     },
     "test-results": {
       "path": "test-results",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1784684841425,
+      "lastAccessed": 1789296415038,
       "keyFiles": []
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
-      "fileCount": 1,
-      "lastAccessed": 1784684841430,
+      "fileCount": 7,
+      "lastAccessed": 1789296415038,
       "keyFiles": [
-        "e2e.test.ts"
+        "accessibility.test.js",
+        "e2e.test.ts",
+        "errorHandling.test.js",
+        "full_test_suite.js",
+        "performance.test.js"
       ]
     },
     "dist\\assets": {
       "path": "dist\\assets",
       "purpose": "Static assets",
       "fileCount": 2,
-      "lastAccessed": 1784684841440,
+      "lastAccessed": 1789296415039,
       "keyFiles": [
-        "index-BTLFTUlg.js",
-        "index-mt5CYhTz.css"
+        "index-BzIFxIS7.js",
+        "index-CW5v2xxo.css"
       ]
+    },
+    "modernized\\src": {
+      "path": "modernized\\src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1789296415040,
+      "keyFiles": []
     },
     "src\\assets": {
       "path": "src\\assets",
       "purpose": "Static assets",
       "fileCount": 3,
-      "lastAccessed": 1784684841464,
+      "lastAccessed": 1789296415041,
       "keyFiles": [
         "hero.png",
         "react.svg",
         "vite.svg"
       ]
     },
+    "src\\components": {
+      "path": "src\\components",
+      "purpose": "UI components",
+      "fileCount": 2,
+      "lastAccessed": 1789296415041,
+      "keyFiles": [
+        "ProcessCard.module.css",
+        "ProcessCard.tsx"
+      ]
+    },
     "tests\\node_modules": {
       "path": "tests\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 0,
-      "lastAccessed": 1784684841477,
+      "lastAccessed": 1789296415041,
       "keyFiles": []
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "",
+      "accessCount": 7,
+      "lastAccessed": 1789314324469,
+      "type": "directory"
+    },
+    {
+      "path": "C:\\Users\\picho\\.ssh\\config",
+      "accessCount": 5,
+      "lastAccessed": 1789300533005,
+      "type": "file"
+    },
+    {
+      "path": "src\\hooks\\useDashboardState.ts",
+      "accessCount": 5,
+      "lastAccessed": 1789312342966,
+      "type": "file"
+    },
+    {
+      "path": "src\\App.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1789313403975,
+      "type": "directory"
+    },
+    {
+      "path": "src",
+      "accessCount": 3,
+      "lastAccessed": 1789313283017,
+      "type": "directory"
+    },
+    {
+      "path": "src\\backend\\projects\\projectsRouter.js",
+      "accessCount": 1,
+      "lastAccessed": 1789312354058,
+      "type": "file"
+    },
+    {
+      "path": "src\\backend\\auth\\authMiddleware.js",
+      "accessCount": 1,
+      "lastAccessed": 1789313792877,
+      "type": "file"
+    },
+    {
+      "path": "src\\backend\\auth\\authRouter.js",
+      "accessCount": 1,
+      "lastAccessed": 1789313805837,
+      "type": "file"
+    },
+    {
+      "path": "src\\backend\\db.js",
+      "accessCount": 1,
+      "lastAccessed": 1789313846820,
+      "type": "file"
+    },
+    {
+      "path": "tests\\full_test_suite.js",
+      "accessCount": 1,
+      "lastAccessed": 1789314098883,
+      "type": "file"
+    },
+    {
+      "path": "src\\declarations.d.ts",
+      "accessCount": 1,
+      "lastAccessed": 1789314361496,
+      "type": "file"
+    },
+    {
+      "path": "src\\shared\\api-client\\types.ts",
+      "accessCount": 1,
+      "lastAccessed": 1789314371955,
+      "type": "file"
+    },
+    {
+      "path": "mempalace.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1789314473665,
+      "type": "file"
+    },
+    {
+      "path": "grafana",
+      "accessCount": 1,
+      "lastAccessed": 1789314545859,
+      "type": "directory"
+    }
+  ],
   "userDirectives": []
 }

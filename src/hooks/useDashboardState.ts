@@ -272,7 +272,15 @@ export function useDashboardState() {
     } catch (e) { console.error(e); }
   };
 
-  const handleAddProject = () => {
+  const handleAddProject = async (projectId?: number, action?: 'delete') => {
+    if (action === 'delete' && projectId) {
+      try {
+        await apiClient.delete(`/api/projects/${projectId}`);
+        setProjects(projects.filter(p => p.id !== projectId));
+        if (activeProjectId === projectId) setActiveProjectId(null);
+      } catch (e) { console.error(e); }
+      return;
+    }
     setShowFolderPicker(true);
   };
 

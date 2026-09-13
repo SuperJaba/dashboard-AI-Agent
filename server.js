@@ -410,7 +410,7 @@ async function initDB() {
 }
 initDB();
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
   httpServer.listen(port, () => {
     console.log(`Backend API running on http://localhost:${port}`);
     console.log(`Prometheus metrics available at http://localhost:${port}/metrics`);

@@ -124,15 +124,34 @@ function App() {
         {isWorkspacesExpanded && (
           <div id="workspaces-list" className="projects-list">
             {projects.map(proj => (
-              <button 
-                type="button"
-                key={proj.id} 
+              <div
+                key={proj.id}
                 className={`project-item ${activeProjectId === proj.id ? 'active' : ''}`}
-                onClick={() => setActiveProjectId(proj.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}
               >
-                <Folder size={18} aria-hidden="true" />
-                <span>{proj.name}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveProjectId(proj.id)}
+                  style={{ flex: 1, textAlign: 'left' }}
+                >
+                  <Folder size={18} aria-hidden="true" />
+                  <span>{proj.name.split(/[/\\]/).pop()}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Czy na pewno chcesz usunąć projekt "${proj.name.split(/[/\\]/).pop()}"?`)) {
+                      handleAddProject(proj.id, 'delete');
+                    }
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
+                  aria-label={`Usuń projekt ${proj.name.split(/[/\\]/).pop()}`}
+                  title="Usuń projekt"
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              </div>
             ))}
             <button className="btn-add-project" onClick={handleAddProject}>
               <Plus size={18} aria-hidden="true" />

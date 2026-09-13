@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"C:\\\\Users\\\\user\\\\.claude\\\\worktrees\\\\main\\\\src\\\\backend\\\\auth\\\\authMiddleware.js\"}",
+  "error": "File does not exist. Note: your current working directory is F:\\AI-Agents\\dashboard.",
+  "timestamp": "2026-09-13T15:36:22.905Z",
+  "retry_count": 1
+}

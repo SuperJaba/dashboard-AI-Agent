@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Folder, FolderPlus, ChevronUp, ChevronRight, X, Loader2, Check } from 'lucide-react';
+import { Folder, FolderPlus, ChevronUp, ChevronRight, X, Loader2, Check, HardDrive, ArrowRight } from 'lucide-react';
 import { apiClient } from './shared/api-client';
 
 interface FolderPickerDialogProps {
@@ -11,12 +11,14 @@ interface FolderPickerDialogProps {
 interface DirectoryItem {
   name: string;
   path: string;
+  isDrive?: boolean;
 }
 
 interface FsResponse {
   currentPath: string;
   parentPath: string | null;
   directories: DirectoryItem[];
+  drives?: string[];
 }
 
 export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
@@ -25,8 +27,10 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
   onSelectFolder
 }) => {
   const [currentPath, setCurrentPath] = useState<string>('');
+  const [inputPath, setInputPath] = useState<string>('');
   const [parentPath, setParentPath] = useState<string | null>(null);
   const [directories, setDirectories] = useState<DirectoryItem[]>([]);
+  const [drives, setDrives] = useState<string[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<DirectoryItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,11 +39,17 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : '';
+      const query = targetPath !== undefined ? `?path=${encodeURIComponent(targetPath)}` : '';
       const data = await apiClient.get<FsResponse>(`/api/fs/directories${query}`);
-      setCurrentPath(data.currentPath);
-      setParentPath(data.parentPath);
-      setDirectories(data.directories || []);
+      const safeData = data || ({} as Partial<FsResponse>);
+      const resolvedPath = safeData.currentPath || '';
+      setCurrentPath(resolvedPath);
+      setInputPath(resolvedPath);
+      setParentPath(safeData.parentPath || null);
+      setDirectories(Array.isArray(safeData.directories) ? safeData.directories : []);
+      if (Array.isArray(safeData.drives) && safeData.drives.length > 0) {
+        setDrives(safeData.drives);
+      }
       setSelectedFolder(null);
     } catch (err: any) {
       setError(err.message || 'Nie udało się odczytać zawartości folderu');
@@ -56,14 +66,29 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
 
   if (!isOpen) return null;
 
-  const handleConfirm = () => {
-    if (selectedFolder) {
-      onSelectFolder(selectedFolder.path, selectedFolder.name);
-    } else if (currentPath) {
-      const name = currentPath.split('/').pop() || currentPath.split('\\').pop() || 'Project';
-      onSelectFolder(currentPath, name);
+  const handlePathSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const target = (inputPath || '').trim();
+    if (target) {
+      loadDirectory(target);
     }
-    onClose();
+  };
+
+  const handleConfirm = () => {
+    const trimmedInput = (inputPath || '').trim();
+    if (selectedFolder) {
+      const name = selectedFolder.name.replace(/^Dysk\s*\((.*)\)$/, '$1') || selectedFolder.name;
+      onSelectFolder(selectedFolder.path, name);
+      onClose();
+    } else if (trimmedInput && trimmedInput !== currentPath) {
+      const name = trimmedInput.replace(/[/\\]$/, '').split(/[/\\]/).pop() || trimmedInput;
+      onSelectFolder(trimmedInput, name);
+      onClose();
+    } else if (currentPath) {
+      const name = currentPath.replace(/[/\\]$/, '').split(/[/\\]/).pop() || currentPath;
+      onSelectFolder(currentPath, name);
+      onClose();
+    }
   };
 
   return (
@@ -89,8 +114,8 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
       <div
         className="glass-card"
         style={{
-          width: '580px',
-          maxWidth: '92vw',
+          width: '640px',
+          maxWidth: '94vw',
           maxHeight: '85vh',
           display: 'flex',
           flexDirection: 'column',
@@ -123,36 +148,85 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
         </div>
 
         {/* Current Path Bar & Parent folder button */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'nowrap' }}>
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => parentPath && loadDirectory(parentPath)}
-            disabled={!parentPath || loading}
-            style={{ padding: '0.45rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-            title="Katalog w górę"
+            onClick={() => parentPath !== null && loadDirectory(parentPath)}
+            disabled={parentPath === null || loading}
+            style={{ padding: '0.45rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
+            title={parentPath === 'DRIVES' ? 'W górę (lista dysków)' : 'Katalog w górę'}
           >
             <ChevronUp size={16} />
             <span>W górę</span>
           </button>
-          <div
-            style={{
-              flex: 1,
-              background: 'rgba(0,0,0,0.3)',
-              borderRadius: '8px',
-              border: '1px solid var(--glass-border)',
-              padding: '0.45rem 0.75rem',
-              color: 'var(--text-main)',
-              fontSize: '0.85rem',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              fontFamily: 'monospace'
-            }}
-            title={currentPath}
-          >
-            {currentPath || 'Wczytywanie...'}
-          </div>
+
+          {/* Drive selector for fast switching */}
+          {drives && drives.length > 0 && (
+            <select
+              value={drives.find(d => currentPath.toUpperCase().startsWith(d.toUpperCase())) || ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  loadDirectory(e.target.value);
+                }
+              }}
+              title="Zmień dysk"
+              aria-label="Wybierz dysk"
+              style={{
+                background: 'rgba(0,0,0,0.3)',
+                color: 'var(--text-main)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '8px',
+                padding: '0.45rem 0.5rem',
+                fontSize: '0.85rem',
+                fontFamily: 'monospace',
+                cursor: 'pointer',
+                outline: 'none',
+                fontWeight: 'bold'
+              }}
+            >
+              <option value="" disabled>Dysk...</option>
+              {drives.map(drive => (
+                <option key={drive} value={drive} style={{ background: '#1e293b', color: '#fff' }}>
+                  {drive}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Editable path input */}
+          <form onSubmit={handlePathSubmit} style={{ display: 'flex', flex: 1, gap: '0.35rem' }}>
+            <input
+              type="text"
+              value={inputPath}
+              onChange={(e) => setInputPath(e.target.value)}
+              placeholder="Wpisz lub wklej ścieżkę (np. C:\...)"
+              aria-label="Ścieżka folderu"
+              style={{
+                flex: 1,
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '8px',
+                border: '1px solid var(--glass-border)',
+                padding: '0.45rem 0.75rem',
+                color: 'var(--text-main)',
+                fontSize: '0.85rem',
+                fontFamily: 'monospace',
+                outline: 'none',
+                minWidth: '100px'
+              }}
+            />
+            <button
+              type="submit"
+              className="btn btn-secondary"
+              disabled={loading || !(inputPath || '').trim()}
+              title="Przejdź do wpisanej ścieżki"
+              aria-label="Przejdź do ścieżki"
+              style={{ padding: '0.45rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
+            >
+              <ArrowRight size={15} />
+              <span>Przejdź</span>
+            </button>
+          </form>
         </div>
 
         {/* Directory List Container */}
@@ -187,6 +261,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
           ) : (
             directories.map((dir) => {
               const isSelected = selectedFolder?.path === dir.path;
+              const isDriveItem = dir.isDrive || /^[a-zA-Z]:\\?$/.test(dir.path);
               return (
                 <div
                   key={dir.path}
@@ -204,10 +279,14 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
                     color: isSelected ? '#fff' : 'var(--text-main)',
                     userSelect: 'none'
                   }}
-                  title="Kliknij raz, aby zaznaczyć; dwukrotnie, aby wejść do środka"
+                  title={isDriveItem ? "Kliknij, aby wejść na dysk" : "Kliknij raz, aby zaznaczyć; dwukrotnie, aby wejść do środka"}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
-                    <Folder size={18} color={isSelected ? '#60a5fa' : 'var(--primary)'} />
+                    {isDriveItem ? (
+                      <HardDrive size={18} color={isSelected ? '#60a5fa' : '#38bdf8'} />
+                    ) : (
+                      <Folder size={18} color={isSelected ? '#60a5fa' : 'var(--primary)'} />
+                    )}
                     <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {dir.name}
                     </span>
@@ -223,8 +302,10 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
         <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           {selectedFolder ? (
             <span>Wybrano do dodania: <strong style={{ color: '#60a5fa' }}>{selectedFolder.path}</strong></span>
-          ) : (
+          ) : currentPath ? (
             <span>Zostanie dodany bieżący katalog: <strong style={{ color: 'var(--text-main)' }}>{currentPath}</strong></span>
+          ) : (
+            <span>Wybierz dysk z listy lub wpisz ścieżkę powyżej</span>
           )}
         </div>
 
@@ -243,7 +324,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
             className="btn btn-primary"
             style={{ flex: 1.5, padding: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
             onClick={handleConfirm}
-            disabled={loading || !currentPath}
+            disabled={loading || (!selectedFolder && !currentPath && !(inputPath || '').trim())}
           >
             <Check size={18} />
             <span>Wybierz ten folder</span>
