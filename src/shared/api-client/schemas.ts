@@ -100,7 +100,7 @@ export const SettingsSchema = z.object({
   apiKey: z.string().optional(),
   llmName: z.string().optional(),
   llmModel: z.string().optional(),
-  useBrowserTerminal: z.string().optional()
+  useBrowserTerminal: z.boolean().optional()
 }).passthrough();
 
 export type SettingsData = z.infer<typeof SettingsSchema>;

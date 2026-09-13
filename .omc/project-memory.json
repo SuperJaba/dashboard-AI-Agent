@@ -57,7 +57,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "npm run build",
+    "buildCommand": "cd \"F:\\AI-Agents\\dashboard\" && npm run build 2>&1 | tail -20",
     "testCommand": "npm test",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
@@ -323,6 +323,12 @@
       "type": "directory"
     },
     {
+      "path": "src\\shared\\api-client\\schemas.ts",
+      "accessCount": 2,
+      "lastAccessed": 1789315418643,
+      "type": "file"
+    },
+    {
       "path": "src\\backend\\projects\\projectsRouter.js",
       "accessCount": 1,
       "lastAccessed": 1789312354058,
@@ -374,6 +380,18 @@
       "path": "grafana",
       "accessCount": 1,
       "lastAccessed": 1789314545859,
+      "type": "directory"
+    },
+    {
+      "path": "src\\shared\\api-client",
+      "accessCount": 1,
+      "lastAccessed": 1789315311050,
+      "type": "directory"
+    },
+    {
+      "path": "src\\backend",
+      "accessCount": 1,
+      "lastAccessed": 1789315443018,
       "type": "directory"
     }
   ],
