@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { loginSchema, setupSchema, refreshSchema } from '../../src/backend/schemas/authSchemas.js';
-import { validate } from '../../src/backend/schemas/validate.js';
+import { loginSchema, setupSchema, refreshSchema } from './authSchemas.js';
+import { validate } from './validate.js';
 
 describe('authSchemas', () => {
   describe('loginSchema', () => {
