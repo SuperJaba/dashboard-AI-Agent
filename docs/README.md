@@ -1,34 +1,20 @@
-# Dashboard – Project Overview
+# Documentation Index
 
-## Quick‑start
+Welcome to the internal technical documentation for the Dashboard application.
 
-The Dashboard is a single‑page application built with React, Vite and TypeScript that visualises real‑time metrics from our services.
+## Guides & Reference
+- [API Documentation](API_DOCUMENTATION.md) — Comprehensive REST API and Socket.io events reference.
+- [Architecture Documentation](ARCHITECTURE_DOCUMENTATION.md) — System design, domain modules, and security model.
+- [C4 Architecture Diagrams](C4_ARCHITECTURE.md) — Mermaid context, container, and component diagrams.
+- [System Tools MCP Servers](MCP-SYS-TOOLS.md) — Catalog and configuration for system and infrastructure MCP servers.
+- [Tutorial: Adding Custom Widgets](TUTORIAL_ADD_WIDGET.md) — Step-by-step guide for creating custom command widgets.
 
-- **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS v4
-- **Backend API:** Node.js Express 5 + Socket.io exposing REST endpoints under `/api/*` and real-time terminal streams
-- **Auth:** JWT-based authentication middleware in `src/backend/auth/`
-- **Database:** PostgreSQL with automatic in-memory fallback
-
----
-
-## Authentication Flow
-
-The project uses a JWT-based flow. The following endpoints are used for user management:
-
-| Endpoint | Method | Description |
-|--------|-------|-------------|
-| `POST /api/auth/login` | **Login** <br>Payload: `{ email, password }`<br>Returns access token.<br>`Authorization: Bearer <token>` is required on subsequent requests. |
-| `POST /api/auth/register` | **Register** <br>Payload: `{ email, password, name }`<br>Registers a new user and returns JWT token. |
-| `GET  /api/auth/me` | **Current User** <br>Requires the bearer token in the header.<br>Responds with user session data. |
-
-*Routes are protected by Express JWT auth middleware (`src/backend/auth/authMiddleware.js`).*
-
----
-
-## Contributing
-
-- Code style is enforced via ESLint + Prettier.
-- All changes must pass `npm test` and include tests where appropriate.
-- PRs should target the **main** branch; merge after a successful CI run.
-
----
+## Root Documentation
+- [AGENTS.md](../AGENTS.md) — Contributor commands, linting rules, and agent instructions.
+- [CLAUDE.md](../CLAUDE.md) — Agent architecture guidance and core patterns.
+- [DEVELOPER_ONBOARDING.md](../DEVELOPER_ONBOARDING.md) — Getting started guide for new developers.
+- [DEVELOPER_QUICK_START.md](../DEVELOPER_QUICK_START.md) — Rapid CLI command reference.
+- [DESIGN.md](../DESIGN.md) — Architectural decisions and data flow.
+- [CONTEXT_MANAGEMENT.md](../CONTEXT_MANAGEMENT.md) — Multi-agent context-passing protocol.
+- [agent-ssh-con.md](../agent-ssh-con.md) — SSH setup for automated remote agent execution.
+- [SECURITY.md](../SECURITY.md) — Security policy and credential storage.

@@ -41,7 +41,7 @@ Prace zostały zrealizowane na dwóch osobnych gałęziach Git zgodnie z zapotrz
 ```bash
 > npm test
 
- RUN  v4.1.10 /home/seba/Documents/dashboard
+ RUN  v4.1.10 /path/to/dashboard
 
  ✓ src/local-agent-worker.test.js (2 tests) 55ms
  ✓ src/TerminalView.test.tsx (1 test) 119ms

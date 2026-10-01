@@ -43,10 +43,10 @@ The dashboard will automatically begin executing the command at regular interval
 
 ## 5. Adding Pre-configured Widgets via Database Seed (Advanced)
 
-If you want to ship a standard set of widgets for all developers, you can add them to the database initialization in `server.js`:
+If you want to ship a standard set of widgets for all developers, you can add them to the database migrations/seed in `src/backend/db.js`:
 
 ```javascript
-// In server.js initDB() function:
+// In src/backend/db.js:
 INSERT INTO custom_widgets (name, command, type, color) 
 VALUES ('Load Avg', 'cat /proc/loadavg | awk "{print \$1}"', 'chart', '#f87171') 
 ON CONFLICT DO NOTHING;

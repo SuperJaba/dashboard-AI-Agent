@@ -48,4 +48,3 @@ If you add new legacy endpoints or modify existing ones, follow these steps:
 * All responses use JSON objects; the tests assert on status codes, presence of keys (`success`, `error`, `token`), and where applicable the payload shape.
 
 ---
-If you have questions about any test case or need a new scenario added, just let me know.  Happy testing!

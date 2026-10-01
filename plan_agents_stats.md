@@ -67,7 +67,7 @@ Before beginning the implementation, we will perform the following Git operation
 - [x] Store LLM config in DB
 - [x] Create config UI in AgentsView
 - [x] Implement full user authentication (login view, sessions, passwords) /skill auth-implementation-patterns
-- [ ] Deploy dashboard to a remote server
+- [x] Deploy dashboard to a remote server (deployed to dashboard.jagger2.ct8.pl with PM2)
 - [x] Integrate Git repositories directly into the dashboard
   - Full Git operations API: branches, checkout, create/delete branch, diff viewer, stage/unstage, commit, push, pull, fetch, clone
   - UI components: Branch switcher & creator dropdown, visual Diff modal with syntax highlights, Commit modal with Stage All, Fetch/Pull/Push buttons, Clone Git Repository dialog in workspace sidebar
