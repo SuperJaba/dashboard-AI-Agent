@@ -198,7 +198,7 @@ export function AgentsView() {
         </div>
       )}
       
-      <div className="p-8 max-w-6xl mx-auto">
+      <div className="agents-view-container">
         {/* Title and Top Panel */}
         <header className="header animate-in delay-1" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
           <div>

@@ -22,7 +22,7 @@ import { serversRouter } from './src/backend/servers/serversRouter.js';
 
 // Import background worker and start it.
 import { startBackgroundWorker } from './src/backend/agents/backgroundWorker.js';
-startBackgroundWorker();
+
 
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
@@ -235,7 +235,7 @@ io.on('connection', (socket) => {
     } else if (ptyProcess) {
       try {
         ptyProcess.write(data);
-      } catch (e) {}
+      } catch  {}
     }
   });
 
@@ -245,7 +245,7 @@ io.on('connection', (socket) => {
     } else if (ptyProcess) {
       try {
         ptyProcess.resize(cols, rows);
-      } catch (e) {}
+      } catch  {}
     }
   });
 
@@ -257,7 +257,7 @@ io.on('connection', (socket) => {
     if (ptyProcess) {
       try {
         ptyProcess.kill();
-      } catch (e) {}
+      } catch  {}
       ptyProcess = null;
     }
   });
@@ -413,9 +413,14 @@ async function initDB() {
 initDB();
 
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
-  httpServer.listen(port, () => {
+  httpServer.listen(port, '0.0.0.0', () => {
     console.log(`Backend API running on http://localhost:${port}`);
     console.log(`Prometheus metrics available at http://localhost:${port}/metrics`);
+    try {
+      startBackgroundWorker();
+    } catch (e) {
+      console.warn('Failed to start background worker:', e.message);
+    }
   });
 }
 

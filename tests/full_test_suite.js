@@ -51,7 +51,7 @@ async function setupAndLogin(page) {
         try {
           await page.waitForSelector('aside.sidebar', { timeout: 3000 });
           return;
-        } catch (e) {
+        } catch  {
           // Check for error message
           const errorMsgLocator = page.locator("div[role='alert'], .error-message, div[style*='color: #ef4444'], div[style*='color: rgb(239, 68, 68)']").first();
           if (await errorMsgLocator.isVisible()) {
@@ -70,7 +70,7 @@ async function setupAndLogin(page) {
       } else {
         await page.waitForTimeout(1000);
       }
-    } catch (e) {
+    } catch  {
       // ignore
     }
   }
@@ -104,11 +104,11 @@ async function testAddProjectButtonVisible(page) {
   let button = page.getByRole('button', { name: /add project/i });
   try {
     await button.waitFor({ state: 'visible', timeout: 12000 });
-  } catch (e) {
+  } catch  {
     button = page.locator('text=/add project/i');
     try {
       await button.waitFor({ state: 'visible', timeout: 12000 });
-    } catch (e2) {
+    } catch  {
       console.warn("[WARN] 'Add Project' button not found – skipping this check.");
       return;
     }

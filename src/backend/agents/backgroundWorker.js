@@ -15,25 +15,59 @@ export function startBackgroundWorker(intervalMs = 5 * 60 * 1000) {
   setInterval(runAgents, intervalMs);
 }
 
+function getAgentCmd(agentName) {
+  const norm = (agentName || '').toLowerCase().trim();
+  const map = {
+    'antigravity': 'agy',
+    'claude code': 'claude',
+    'codex': 'codex',
+    'gemini cli': 'gemini',
+    'opencode': 'opencode',
+    'aider': 'aider',
+    'github copilot cli': 'copilot',
+    'cursor agent': 'cursor-agent'
+  };
+  return map[norm] || norm.replace(/\s+code|\s+cli/g, '').trim();
+}
+
 async function runAgents() {
   try {
     const agentsPath = path.join(AGENT_DIR, 'agentsRepository.js');
-    const { getAgents } = await import(pathToFileURL(agentsPath).href);
+    const { getAgents, updateAgentPathAndConfig } = await import(pathToFileURL(agentsPath).href);
+    const { findInPath } = await import(pathToFileURL(path.join(AGENT_DIR, 'agentsRouter.js')).href);
     const agents = await getAgents();
     for (const agent of agents) {
-      // Only attempt to start agents that are actually installed and whose
-      // binary genuinely exists on disk. Run the "System scan" (POST
-      // /api/agents/scan) to (re)detect real CLI agents instead of relying
-      // on stale/manually-entered rows with bad paths.
-      if (!agent.installed || !agent.path || !fs.existsSync(agent.path)) {
-        console.log(`Skipping background worker for ${agent.name}: not installed or path missing (${agent.path}). Run a System scan to re-detect it.`);
+      if (!agent.installed || !agent.path) {
         continue;
       }
 
-      // Skip if already running – in a real system we would track PIDs
+      let execPath = agent.path;
+      if (process.platform === 'win32') {
+        const cmdName = getAgentCmd(agent.name);
+        const resolved = findInPath(cmdName);
+        if (resolved && fs.existsSync(resolved) && (resolved.toLowerCase().endsWith('.exe') || resolved.toLowerCase().endsWith('.cmd') || resolved.toLowerCase().endsWith('.bat'))) {
+          execPath = resolved;
+          if (agent.path !== resolved) {
+            updateAgentPathAndConfig(agent.name, resolved, agent.config_uri).catch(() => {});
+          }
+        } else if (!fs.existsSync(execPath)) {
+          if (fs.existsSync(execPath + '.cmd')) {
+            execPath = execPath + '.cmd';
+          } else if (fs.existsSync(execPath + '.exe')) {
+            execPath = execPath + '.exe';
+          }
+        }
+      }
+
+      if (!fs.existsSync(execPath)) {
+        console.log(`Skipping background worker for ${agent.name}: path missing (${execPath}). Run a System scan to re-detect it.`);
+        continue;
+      }
+
       console.log(`Starting background worker for ${agent.name}`);
-      const child = spawn(agent.path, ["--config", agent.config_uri], { stdio: 'inherit' });
-      // Prevent an unhandled 'error' event (e.g. missing binary) from crashing the process.
+      const args = (agent.config_uri && fs.existsSync(agent.config_uri)) ? ["--config", agent.config_uri] : [];
+      const useShell = process.platform === 'win32' && (execPath.toLowerCase().endsWith('.cmd') || execPath.toLowerCase().endsWith('.bat'));
+      const child = spawn(execPath, args, { stdio: ['ignore', 'pipe', 'pipe'], shell: useShell });
       child.on('error', (err) => {
         console.error(`Failed to start background worker for ${agent.name}:`, err.message);
       });

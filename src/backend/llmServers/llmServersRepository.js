@@ -9,7 +9,7 @@ export async function getLlmServers() {
     if (decryptedKey) {
       try {
         decryptedKey = decrypt(decryptedKey);
-      } catch (e) {
+      } catch  {
         decryptedKey = server.api_key;
       }
     }
@@ -91,7 +91,7 @@ export async function selectLlmServer(id) {
     if (apiKey) {
       try {
         apiKey = decrypt(apiKey);
-      } catch (e) {}
+      } catch  {}
     }
     await saveSettings({
       llmUrl: selected.url,

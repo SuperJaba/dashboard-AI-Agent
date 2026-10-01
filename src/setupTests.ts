@@ -14,7 +14,7 @@ const mockStorage = (() => {
 
 try {
   delete (globalThis as any).localStorage;
-} catch (_) {}
+} catch  {}
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: mockStorage,
@@ -26,7 +26,7 @@ Object.defineProperty(globalThis, 'localStorage', {
 if (typeof window !== 'undefined') {
   try {
     delete (window as any).localStorage;
-  } catch (_) {}
+  } catch  {}
   Object.defineProperty(window, 'localStorage', {
     value: mockStorage,
     writable: true,

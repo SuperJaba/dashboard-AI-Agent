@@ -111,7 +111,7 @@ serversRouter.get('/system-stats', async (req, res) => {
           try {
             const stats = JSON.parse(stdout.trim());
             return res.json(stats);
-          } catch (e) {
+          } catch  {
             return res.json({ error: 'Failed to parse remote stats output' });
           }
         });
@@ -242,7 +242,7 @@ serversRouter.post('/kill-app', async (req, res) => {
       killCmd = `${sshBase} "kill -9 ${pid}"`;
     }
 
-    exec(killCmd, (err, out) => {
+    exec(killCmd, (err) => {
       if (err) {return res.status(500).json({ error: err.message });}
       res.json({ success: true, message: 'App killed/restarted' });
     });

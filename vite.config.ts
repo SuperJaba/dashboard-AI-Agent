@@ -5,14 +5,23 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err: any) => {
+            if (err?.code === 'ECONNRESET' || err?.code === 'ECONNREFUSED') return;
+            console.error('Vite API Proxy Error:', err?.message);
+          });
+        }
+      },
       '/socket.io': {
-        target: 'http://localhost:3001',
+        target: 'http://127.0.0.1:3001',
         ws: true,
         changeOrigin: true,
         configure: (proxy) => {
           proxy.on('error', (err: any) => {
-            if (err?.code === 'ECONNRESET') return;
+            if (err?.code === 'ECONNRESET' || err?.code === 'ECONNREFUSED') return;
             console.error('Vite Socket Proxy Error:', err?.message);
           });
         }
@@ -23,6 +32,8 @@ export default defineConfig({
     }
   },
   test: {
+    pool: 'threads',
+    maxWorkers: 4,
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.ts',

@@ -67,10 +67,10 @@ socket.on('connect', () => {
 
 socket.on('disconnect', (reason) => {
   console.warn(`⚠️ Disconnected from Remote Dashboard: ${reason}`);
-  for (const [sessionId, ptyProc] of activeSessions.entries()) {
+  for (const ptyProc of activeSessions.values()) {
     try {
       ptyProc.kill();
-    } catch (e) {}
+    } catch {}
   }
   activeSessions.clear();
 });
@@ -136,7 +136,7 @@ socket.on('worker_terminal_input', ({ sessionId, data }) => {
   if (ptyProc) {
     try {
       ptyProc.write(data);
-    } catch (e) {}
+    } catch  {}
   }
 });
 
@@ -145,7 +145,7 @@ socket.on('worker_terminal_resize', ({ sessionId, cols, rows }) => {
   if (ptyProc) {
     try {
       ptyProc.resize(cols, rows);
-    } catch (e) {}
+    } catch  {}
   }
 });
 
@@ -154,7 +154,7 @@ socket.on('worker_kill_pty', ({ sessionId }) => {
   if (ptyProc) {
     try {
       ptyProc.kill();
-    } catch (e) {}
+    } catch  {}
     activeSessions.delete(sessionId);
   }
 });

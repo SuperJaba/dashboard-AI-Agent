@@ -11,7 +11,7 @@ widgetsRouter.get('/', async (req, res) => {
   try {
     const widgets = await widgetsRepo.getWidgets();
     res.json(widgets);
-  } catch (error) {
+  } catch  {
     res.status(500).json({ error: 'Failed to fetch widgets' });
   }
 });
@@ -76,7 +76,7 @@ widgetsRouter.get('/:id/run', async (req, res) => {
       }
     }
 
-    exec(widget.command, (error, stdout, stderr) => {
+    exec(widget.command, (error, stdout) => {
       if (error) {
         console.error('Widget execution error:', error);
         return res.json({ result: stdout ? stdout.trim() : 'Error' });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from './shared/api-client';
 import { 
@@ -56,9 +56,30 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
   const [newColor, setNewColor] = useState('#6366f1');
   const [agentInstructions, setAgentInstructions] = useState('');
 
+  const fetchWidgets = useCallback(async () => {
+    try {
+      const data = await apiClient.get<Widget[]>('/api/widgets');
+      setWidgets(data);
+    } catch (e) {
+      console.error('Failed to fetch widgets', e);
+    }
+  }, []);
+
+  const runWidget = useCallback(async (id: number) => {
+    setLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      const data = await apiClient.get<any>(`/api/widgets/${id}/run`);
+      setResults(prev => ({ ...prev, [id]: data.result }));
+    } catch {
+      setResults(prev => ({ ...prev, [id]: 'Error' }));
+    } finally {
+      setLoading(prev => ({ ...prev, [id]: false }));
+    }
+  }, []);
+
   useEffect(() => {
     fetchWidgets();
-  }, []);
+  }, [fetchWidgets]);
 
   useEffect(() => {
     if (widgets.length === 0) return;
@@ -70,28 +91,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
     }, 15000); // 15 seconds
 
     return () => clearInterval(interval);
-  }, [widgets]);
-
-  const fetchWidgets = async () => {
-    try {
-      const data = await apiClient.get<Widget[]>('/api/widgets');
-      setWidgets(data);
-    } catch (e) {
-      console.error('Failed to fetch widgets', e);
-    }
-  };
-
-  const runWidget = async (id: number) => {
-    setLoading(prev => ({ ...prev, [id]: true }));
-    try {
-      const data = await apiClient.get<any>(`/api/widgets/${id}/run`);
-      setResults(prev => ({ ...prev, [id]: data.result }));
-    } catch (e) {
-      setResults(prev => ({ ...prev, [id]: 'Error' }));
-    } finally {
-      setLoading(prev => ({ ...prev, [id]: false }));
-    }
-  };
+  }, [widgets, runWidget]);
 
   const addWidget = async () => {
     if (!newName || !newCommand) return;

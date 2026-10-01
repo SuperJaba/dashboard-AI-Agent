@@ -174,6 +174,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// oxlint-disable-next-line react/only-export-components
 export function usePreferences(): PreferencesContextValue {
   const ctx = useContext(PreferencesContext);
   if (!ctx) {

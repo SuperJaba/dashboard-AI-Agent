@@ -46,7 +46,7 @@ async function request<T>(method: HttpMethod, path: string, body?: unknown, opti
   let data: any;
   try {
     data = await response.json();
-  } catch (err) {
+  } catch  {
     if (!response.ok) {
       throw new ApiError('Invalid response format', response.status, 'INVALID_RESPONSE');
     }

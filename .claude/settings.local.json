@@ -1,14 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(gh repo *)",
-      "Bash(gh config *)",
-      "Bash(gh pr *)",
-      "Bash(curl -s https://api.github.com/repos/SuperJaba/dashboard/pulls?state=all)",
-      "Bash(git checkout *)"
+      "Bash(npm run *)"
     ]
   },
   "enableAllProjectMcpServers": true,
@@ -18,9 +11,5 @@
   "disabledMcpjsonServers": [
     "MCP_DOCKER"
   ],
-  "permissions": {
-    "allow": [
-      "Bash(npm run *)"
-    ]
-  }
+  "prefersReducedMotion": false
 }

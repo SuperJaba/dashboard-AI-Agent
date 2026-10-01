@@ -26,14 +26,30 @@ const KNOWN_AGENTS = [
  * Uses `where` on Windows and `which` everywhere else (avoids relying on a
  * Unix-only tool that silently fails as ENOENT on Windows).
  */
-function findInPath(cmd) {
+export function findInPath(cmd) {
   try {
-    const command = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+    const command = process.platform === 'win32' ? `where.exe ${cmd}` : `which ${cmd}`;
     const stdout = execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (!stdout) {return null;}
-    // `where` can list multiple matches, one per line; use the first.
-    return stdout.split(/\r?\n/)[0].trim();
-  } catch (e) {
+    const lines = stdout.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) {return null;}
+
+    if (process.platform === 'win32') {
+      const cwdLower = process.cwd().toLowerCase();
+      // 1. Prefer .exe, .cmd, .bat outside current working directory
+      const preferred = lines.find(l => {
+        const lower = l.toLowerCase();
+        return (lower.endsWith('.exe') || lower.endsWith('.cmd') || lower.endsWith('.bat')) && !lower.startsWith(cwdLower);
+      }) || lines.find(l => {
+        const lower = l.toLowerCase();
+        return lower.endsWith('.exe') || lower.endsWith('.cmd') || lower.endsWith('.bat');
+      }) || lines[0];
+
+      return preferred;
+    }
+
+    return lines[0];
+  } catch {
     return null;
   }
 }
