@@ -6,7 +6,7 @@ if (typeof PhusionPassenger !== 'undefined') {
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import client from 'prom-client';
+
 import fetch from 'node-fetch';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -19,6 +19,7 @@ import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
 import { authMiddleware } from './src/backend/auth/authMiddleware.js';
 import { logger, requestLogger } from './src/backend/utils/logger.js';
+import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
@@ -74,9 +75,8 @@ const app = express();
 
 const port = process.env.PORT || 3001;
 
-// Initialize Prometheus client
-const register = new client.Registry();
-client.collectDefaultMetrics({ register });
+// Prometheus registry and metrics defined in src/backend/metrics.js
+
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -150,7 +150,8 @@ io.on('connection', (socket) => {
       socket
     };
     activeWorkers.set(socket.id, workerInfo);
-    console.log(`🤖 Registered Local Agent Worker: ${workerInfo.name} (${socket.id})`);
+    activeAgentWorkers.set(activeWorkers.size);
+    logger.info({ workerId: socket.id, name: workerInfo.name }, '🤖 Registered Local Agent Worker');
 
     socket.on('register_worker', (data) => {
       if (activeWorkers.has(socket.id)) {
@@ -182,7 +183,8 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
       activeWorkers.delete(socket.id);
-      console.log(`🤖 Unregistered Local Agent Worker (${socket.id})`);
+      activeAgentWorkers.set(activeWorkers.size);
+      logger.info({ workerId: socket.id }, '🤖 Unregistered Local Agent Worker');
     });
 
     return;
@@ -308,6 +310,7 @@ io.on('connection', (socket) => {
 app.use(cors());
 app.use(express.json());
 app.use(requestLogger);
+app.use(metricsMiddleware);
 // Serve static assets from the public directory
 app.use(express.static('public'));
 
