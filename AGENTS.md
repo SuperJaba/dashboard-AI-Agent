@@ -5,14 +5,29 @@
 - `tests/` – Unit and integration tests (mirroring `src/`, ending with `.test.ts` / `.spec.ts`).
 - `assets/` – Static images, styles, and fixtures.
 
+## Key Environment Gotchas
+- **UI Language:** Labels and messages in UI components are in Polish.
+- **Database Fallback:** `src/backend/db.js` automatically falls back to an in-memory store if PostgreSQL is unavailable.
+- **Port Mapping:** Development uses Vite on port 5173 (proxies API requests) and Express API on port 3001.
+- **Styling:** Uses Tailwind CSS v4 via `@tailwindcss/postcss` (no `tailwind.config.js`).
+
 ## Commands
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Launch Vite (5173) + Express (3001) concurrently. |
 | `npm run build` | Build production client bundle via Vite into `dist/`. |
 | `npm test` | Run Vitest test suite. On WSL (`/mnt/`), append `--no-file-parallelism` to avoid thread timeouts. |
+| `npm run test:sys` | Run native node system diagnostics test suite. |
 | `npm run test:e2e` | Run Playwright end-to-end tests. |
 | `npm run lint` | Run ESLint and Oxlint checks (0 errors/warnings required). |
+
+## Context Pointers (Disclosed Reference)
+Consult these references on demand when handling specific subsystem tasks:
+- **API Spec & Route Definitions**: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md)
+- **C4 Architecture & Service Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md)
+- **System Tools & MCP Catalog**: [`docs/MCP-SYS-TOOLS.md`](docs/MCP-SYS-TOOLS.md)
+- **Widget Creation & Registration**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md)
+- **Automated SSH & Remote Execution**: [`agent-ssh-con.md`](agent-ssh-con.md)
 
 ## Code & Naming Conventions
 - 2 spaces indentation.

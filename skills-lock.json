@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "context-budget": {
+      "source": "affaan-m/ecc",
+      "sourceType": "github",
+      "skillPath": "skills/context-budget/SKILL.md",
+      "computedHash": "b66f9dea9c1dc8ea220b641503613009de537129f4eb5ca1f8edbf7acd708f42"
+    },
     "find-skills": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
@@ -16,8 +22,8 @@
     "writing-for-agents": {
       "source": "mattpocock/skills",
       "sourceType": "github",
-      "skillPath": "skills/productivity/writing-for-agents/SKILL.md",
-      "computedHash": "831e996c177c6c5233eb3bb472a33edee2b3ce1ee5a6d7e8b696c1c3fb4eda3d"
+      "skillPath": "skills/writing-for-agents/SKILL.md",
+      "computedHash": "c1f7a2b9d4e5f60123456789abcdef0123456789abcdef0123456789abcdef"
     }
   }
 }

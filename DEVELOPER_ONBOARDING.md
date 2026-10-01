@@ -12,8 +12,8 @@ Welcome to the **Dashboard** project! This guide gets you up and running with yo
 ## Local Setup
 
 ### 1. Prerequisites
-- Node.js v18+
-- PostgreSQL (or rely on in-memory DB fallback for local UI testing)
+- Node.js v20+ (v18+ supported)
+- PostgreSQL (optional: automatic fallback to in-memory store if offline)
 - Git
 
 ### 2. Installation & Environment
@@ -41,13 +41,13 @@ Starts frontend on `http://localhost:5173` and backend API on `http://localhost:
 Before submitting changes, run:
 ```bash
 npm test            # Run Vitest test suite
+npm run test:sys    # Run system diagnostics native test suite
 npm run lint        # Check Oxlint & ESLint (0 errors required)
 npm run build       # Verify production TypeScript bundle builds cleanly
 ```
 
-## First Contribution Workflow
-1. Pick an issue or task from [tasks.md](tasks.md).
-2. Create a branch: `git checkout -b feature/your-feature-name`.
-3. Follow project conventions in [AGENTS.md](AGENTS.md).
-4. Run `npm test` and `npm run lint`.
-5. Submit PR with a concise description and verification evidence.
+## Contribution Workflow
+1. Create a feature branch: `git checkout -b feat/your-feature-name`.
+2. Follow commit conventions: `<type>[optional scope]: <subject>` (Conventional Commits).
+3. Ensure all tests and linting pass cleanly.
+4. Open a Pull Request targeting `dev`.

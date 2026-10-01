@@ -1,20 +1,22 @@
 # Documentation Index
 
-Welcome to the internal technical documentation for the Dashboard application.
+Technical documentation, architecture specifications, and guides for the Dashboard project.
 
-## Guides & Reference
-- [API Documentation](API_DOCUMENTATION.md) — Comprehensive REST API and Socket.io events reference.
-- [Architecture Documentation](ARCHITECTURE_DOCUMENTATION.md) — System design, domain modules, and security model.
-- [C4 Architecture Diagrams](C4_ARCHITECTURE.md) — Mermaid context, container, and component diagrams.
-- [System Tools MCP Servers](MCP-SYS-TOOLS.md) — Catalog and configuration for system and infrastructure MCP servers.
-- [Tutorial: Adding Custom Widgets](TUTORIAL_ADD_WIDGET.md) — Step-by-step guide for creating custom command widgets.
+## Documents
 
-## Root Documentation
-- [AGENTS.md](../AGENTS.md) — Contributor commands, linting rules, and agent instructions.
-- [CLAUDE.md](../CLAUDE.md) — Agent architecture guidance and core patterns.
-- [DEVELOPER_ONBOARDING.md](../DEVELOPER_ONBOARDING.md) — Getting started guide for new developers.
-- [DEVELOPER_QUICK_START.md](../DEVELOPER_QUICK_START.md) — Rapid CLI command reference.
-- [DESIGN.md](../DESIGN.md) — Architectural decisions and data flow.
-- [CONTEXT_MANAGEMENT.md](../CONTEXT_MANAGEMENT.md) — Multi-agent context-passing protocol.
-- [agent-ssh-con.md](../agent-ssh-con.md) — SSH setup for automated remote agent execution.
-- [SECURITY.md](../SECURITY.md) — Security policy and credential storage.
+| Document | Purpose | Audience / Use Case |
+| :--- | :--- | :--- |
+| [C4 Architecture](C4_ARCHITECTURE.md) | C4 Context and Container diagrams showing system boundaries, dependencies, and protocols. | Agents & developers needing service boundary context. |
+| [Architecture Documentation](ARCHITECTURE_DOCUMENTATION.md) | Deep dive into full-stack architecture, component breakdown, data flows, and security model. | In-depth architectural review. |
+| [API Documentation](API_DOCUMENTATION.md) | Guide to backend REST endpoints, Git operations, and Socket.io terminal events. | Quick reference for API routes and payloads. |
+| [System Tools MCP Servers](MCP-SYS-TOOLS.md) | Catalog and configuration for system and infrastructure MCP servers and on-demand dispatchers. | DevOps, system monitoring, and remote CT8 management. |
+| [Widget Tutorial](TUTORIAL_ADD_WIDGET.md) | Step-by-step tutorial on creating, wiring, and registering custom dashboard widgets. | Frontend developers adding new dashboard components. |
+
+## Root Documentation References
+
+- [AGENTS.md](../AGENTS.md) – Contributor commands, linting rules, and agent instructions.
+- [CLAUDE.md](../CLAUDE.md) – Agent architecture guidance and core patterns.
+- [Developer Onboarding](../DEVELOPER_ONBOARDING.md) – Setup, local development commands, and environment configuration.
+- [Design Decisions & Tradeoffs](../DESIGN.md) – Architectural design records, state management, and fallback strategies.
+- [Agent SSH Automation](../agent-ssh-con.md) – SSH execution protocol and remote terminal connection rules.
+- [Security Policy](../SECURITY.md) – Security policy and credential storage.

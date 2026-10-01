@@ -52,3 +52,9 @@ Report findings structured by severity:
 
 Conclude with:
 > **Review Summary**: Examined [N] files. Found [N] CRITICAL, [N] HIGH, [N] MEDIUM, [N] LOW. Recommendation: **BLOCK** / **APPROVE WITH SUGGESTIONS** / **APPROVE**.
+
+## Review Principles
+- Prioritize security, correctness, and maintainability.
+- Provide specific line citations and actionable code replacements for every finding.
+- Explain the concrete risk, not merely the rule violated.
+- Verify that tests assert observable behavior rather than implementation details.
