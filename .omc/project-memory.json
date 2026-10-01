@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1789296415055,
+  "lastScanned": 1790826071908,
   "projectRoot": "F:\\AI-Agents\\dashboard",
   "techStack": {
     "languages": [
@@ -57,7 +57,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"F:\\AI-Agents\\dashboard\" && npm run build 2>&1 | tail -20",
+    "buildCommand": "npm run build",
     "testCommand": "npm test",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
@@ -67,7 +67,7 @@
       "dev": "concurrently \"vite\" \"node server.js\"",
       "db:migrate": "node scripts/migrate.js",
       "build": "vite build",
-      "lint": "eslint . --ignore-pattern dist/**",
+      "lint": "oxlint",
       "preview": "vite preview",
       "test": "vitest run",
       "test:watch": "vitest",
@@ -75,6 +75,7 @@
       "autotest": "bash scripts/autotest_ai.sh",
       "ci-tdd": "bash scripts/ci_tdd_bot.sh",
       "agent:worker": "node scripts/local-agent-worker.js",
+      "sync-tasks": "node src/backend/scripts/syncTasks.js",
       "test:e2e": "set NODE_ENV=test&& node tests/full_test_suite.js"
     }
   },
@@ -104,8 +105,8 @@
     "artifacts": {
       "path": "artifacts",
       "purpose": null,
-      "fileCount": 5,
-      "lastAccessed": 1789296415026,
+      "fileCount": 6,
+      "lastAccessed": 1790826071847,
       "keyFiles": [
         "dashboard.png",
         "login_failure.html",
@@ -118,7 +119,7 @@
       "path": "dist",
       "purpose": "Distribution/build output",
       "fileCount": 3,
-      "lastAccessed": 1789296415026,
+      "lastAccessed": 1790826071856,
       "keyFiles": [
         "favicon.svg",
         "icons.svg",
@@ -128,20 +129,21 @@
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 4,
-      "lastAccessed": 1789296415035,
+      "fileCount": 6,
+      "lastAccessed": 1790826071857,
       "keyFiles": [
+        "API_DOCUMENTATION.md",
+        "ARCHITECTURE_DOCUMENTATION.md",
         "C4_ARCHITECTURE.md",
         "openapi.yaml",
-        "README.md",
-        "TUTORIAL_ADD_WIDGET.md"
+        "README.md"
       ]
     },
     "dogfood-output": {
       "path": "dogfood-output",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1789296415035,
+      "lastAccessed": 1790826071857,
       "keyFiles": [
         "report.md"
       ]
@@ -150,23 +152,30 @@
       "path": "grafana",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1789296415036,
+      "lastAccessed": 1790826071858,
       "keyFiles": []
     },
     "modernized": {
       "path": "modernized",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1789296415036,
+      "lastAccessed": 1790826071858,
       "keyFiles": [
         "test-README.md"
       ]
+    },
+    "plans": {
+      "path": "plans",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1790826071859,
+      "keyFiles": []
     },
     "playwright": {
       "path": "playwright",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1789296415036,
+      "lastAccessed": 1790826071859,
       "keyFiles": [
         "show-url.spec.js"
       ]
@@ -175,7 +184,7 @@
       "path": "prometheus",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1789296415036,
+      "lastAccessed": 1790826071860,
       "keyFiles": [
         "prometheus.yml"
       ]
@@ -184,7 +193,7 @@
       "path": "prometheus-grafana-stack",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1789296415036,
+      "lastAccessed": 1790826071860,
       "keyFiles": [
         "docker-compose.yml"
       ]
@@ -193,7 +202,7 @@
       "path": "public",
       "purpose": "Public files",
       "fileCount": 2,
-      "lastAccessed": 1789296415037,
+      "lastAccessed": 1790826071861,
       "keyFiles": [
         "favicon.svg",
         "icons.svg"
@@ -202,21 +211,21 @@
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 6,
-      "lastAccessed": 1789296415037,
+      "fileCount": 7,
+      "lastAccessed": 1790826071861,
       "keyFiles": [
         "autotest_ai.sh",
         "ci_tdd_bot.sh",
+        "create_admin_user.js",
         "disk_usage_monitor.js",
-        "forecast.py",
-        "local-agent-worker.js"
+        "forecast.py"
       ]
     },
     "src": {
       "path": "src",
       "purpose": "Source code",
-      "fileCount": 23,
-      "lastAccessed": 1789296415037,
+      "fileCount": 24,
+      "lastAccessed": 1790826071862,
       "keyFiles": [
         "AgentsView.integration.test.tsx",
         "AgentsView.tsx",
@@ -229,14 +238,14 @@
       "path": "test-results",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1789296415038,
+      "lastAccessed": 1790826071863,
       "keyFiles": []
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
       "fileCount": 7,
-      "lastAccessed": 1789296415038,
+      "lastAccessed": 1790826071864,
       "keyFiles": [
         "accessibility.test.js",
         "e2e.test.ts",
@@ -249,24 +258,24 @@
       "path": "dist\\assets",
       "purpose": "Static assets",
       "fileCount": 2,
-      "lastAccessed": 1789296415039,
+      "lastAccessed": 1790826071865,
       "keyFiles": [
-        "index-BzIFxIS7.js",
-        "index-CW5v2xxo.css"
+        "index-CfWMxKuT.css",
+        "index-CkL6ISQZ.js"
       ]
     },
     "modernized\\src": {
       "path": "modernized\\src",
       "purpose": "Source code",
       "fileCount": 0,
-      "lastAccessed": 1789296415040,
+      "lastAccessed": 1790826071867,
       "keyFiles": []
     },
     "src\\assets": {
       "path": "src\\assets",
       "purpose": "Static assets",
       "fileCount": 3,
-      "lastAccessed": 1789296415041,
+      "lastAccessed": 1790826071869,
       "keyFiles": [
         "hero.png",
         "react.svg",
@@ -277,7 +286,7 @@
       "path": "src\\components",
       "purpose": "UI components",
       "fileCount": 2,
-      "lastAccessed": 1789296415041,
+      "lastAccessed": 1790826071869,
       "keyFiles": [
         "ProcessCard.module.css",
         "ProcessCard.tsx"
@@ -287,160 +296,34 @@
       "path": "tests\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 0,
-      "lastAccessed": 1789296415041,
+      "lastAccessed": 1790826071870,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
-      "path": "",
-      "accessCount": 8,
-      "lastAccessed": 1789318426096,
+      "path": "server.js",
+      "accessCount": 3,
+      "lastAccessed": 1790886181222,
       "type": "directory"
     },
     {
       "path": "package.json",
-      "accessCount": 8,
-      "lastAccessed": 1789318729218,
+      "accessCount": 1,
+      "lastAccessed": 1790886206644,
       "type": "file"
     },
     {
-      "path": "src\\App.tsx",
-      "accessCount": 7,
-      "lastAccessed": 1789316522514,
+      "path": "C:\\Users\\picho\\.claude",
+      "accessCount": 1,
+      "lastAccessed": 1790888548675,
       "type": "directory"
     },
     {
-      "path": "src\\hooks\\useDashboardState.ts",
-      "accessCount": 7,
-      "lastAccessed": 1789317061277,
-      "type": "file"
-    },
-    {
-      "path": "C:\\Users\\picho\\.ssh\\config",
-      "accessCount": 5,
-      "lastAccessed": 1789300533005,
-      "type": "file"
-    },
-    {
-      "path": "src",
-      "accessCount": 3,
-      "lastAccessed": 1789313283017,
+      "path": "C:\\Users\\picho\\.claude\\plugins\\cache\\omc\\oh-my-claudecode\\4.13.7",
+      "accessCount": 1,
+      "lastAccessed": 1790888860826,
       "type": "directory"
-    },
-    {
-      "path": "src\\shared\\api-client\\schemas.ts",
-      "accessCount": 2,
-      "lastAccessed": 1789315418643,
-      "type": "file"
-    },
-    {
-      "path": ".",
-      "accessCount": 2,
-      "lastAccessed": 1789317120030,
-      "type": "directory"
-    },
-    {
-      "path": "tests\\full_test_suite.js",
-      "accessCount": 2,
-      "lastAccessed": 1789319255874,
-      "type": "file"
-    },
-    {
-      "path": "src\\backend\\projects\\projectsRouter.js",
-      "accessCount": 1,
-      "lastAccessed": 1789312354058,
-      "type": "file"
-    },
-    {
-      "path": "src\\backend\\auth\\authMiddleware.js",
-      "accessCount": 1,
-      "lastAccessed": 1789313792877,
-      "type": "file"
-    },
-    {
-      "path": "src\\backend\\auth\\authRouter.js",
-      "accessCount": 1,
-      "lastAccessed": 1789313805837,
-      "type": "file"
-    },
-    {
-      "path": "src\\backend\\db.js",
-      "accessCount": 1,
-      "lastAccessed": 1789313846820,
-      "type": "file"
-    },
-    {
-      "path": "src\\declarations.d.ts",
-      "accessCount": 1,
-      "lastAccessed": 1789314361496,
-      "type": "file"
-    },
-    {
-      "path": "src\\shared\\api-client\\types.ts",
-      "accessCount": 1,
-      "lastAccessed": 1789314371955,
-      "type": "file"
-    },
-    {
-      "path": "mempalace.yaml",
-      "accessCount": 1,
-      "lastAccessed": 1789314473665,
-      "type": "file"
-    },
-    {
-      "path": "grafana",
-      "accessCount": 1,
-      "lastAccessed": 1789314545859,
-      "type": "directory"
-    },
-    {
-      "path": "src\\shared\\api-client",
-      "accessCount": 1,
-      "lastAccessed": 1789315311050,
-      "type": "directory"
-    },
-    {
-      "path": "src\\backend",
-      "accessCount": 1,
-      "lastAccessed": 1789315443018,
-      "type": "directory"
-    },
-    {
-      "path": "vite.config.ts",
-      "accessCount": 1,
-      "lastAccessed": 1789318152878,
-      "type": "file"
-    },
-    {
-      "path": "server.js",
-      "accessCount": 1,
-      "lastAccessed": 1789318152948,
-      "type": "file"
-    },
-    {
-      "path": "C:\\Users\\picho\\AppData\\Local\\Temp\\claude\\F--AI-Agents-dashboard\\7d58e7f1-9586-44e6-bab8-f42b9fb55ea3\\tasks\\ba5bhmigt.output",
-      "accessCount": 1,
-      "lastAccessed": 1789318943595,
-      "type": "file"
-    },
-    {
-      "path": "C:\\Users\\picho\\AppData\\Local\\Temp\\claude\\F--AI-Agents-dashboard\\7d58e7f1-9586-44e6-bab8-f42b9fb55ea3\\tasks\\bjtnqr49q.output",
-      "accessCount": 1,
-      "lastAccessed": 1789319055111,
-      "type": "file"
-    },
-    {
-      "path": "C:\\Users\\picho\\AppData\\Local\\Temp\\claude\\F--AI-Agents-dashboard\\7d58e7f1-9586-44e6-bab8-f42b9fb55ea3\\tasks\\blj6ew74q.output",
-      "accessCount": 1,
-      "lastAccessed": 1789319070773,
-      "type": "file"
-    },
-    {
-      "path": "C:\\Users\\picho\\AppData\\Local\\Temp\\claude\\F--AI-Agents-dashboard\\7d58e7f1-9586-44e6-bab8-f42b9fb55ea3\\tasks\\b3qvjt0wu.output",
-      "accessCount": 1,
-      "lastAccessed": 1789319195657,
-      "type": "file"
     }
   ],
   "userDirectives": []

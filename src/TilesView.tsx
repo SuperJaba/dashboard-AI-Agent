@@ -130,7 +130,7 @@ export function DashboardTiles({
             <button type="button" key={p.id} className="industrial-tile" onClick={() => onProjectClick(p.id)} style={{ textAlign: 'left', width: '100%', font: 'inherit', margin: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', wordBreak: 'break-all', fontFamily: '"JetBrains Mono", monospace' }}>
-                  {p.name}
+                  {p.name.split(/[/\\]/).filter(Boolean).pop() || p.name}
                 </h2>
                 <div 
                   className="accent-text"

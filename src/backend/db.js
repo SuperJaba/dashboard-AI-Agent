@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 const { Pool } = pkg;
 
+const schema = process.env.DB_SCHEMA || 'dashboard';
+
 export const pool = new Pool({
   user: process.env.DB_USER || process.env.PGUSER || 'SebaP',
   host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
@@ -11,12 +13,18 @@ export const pool = new Pool({
   password: process.env.DB_PASSWORD || process.env.PGPASSWORD,
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
   connectionTimeoutMillis: 10000,
+  options: `-c search_path=${schema},public`,
 });
 
 // Suppress unhandled connection error events from pg pool
 if (pool && typeof pool.on === 'function') {
   pool.on('error', (err) => {
     console.warn('PostgreSQL Pool background connection warning:', err.message);
+  });
+  pool.on('connect', (client) => {
+    client.query(`SET search_path TO ${schema}, public;`).catch((err) => {
+      console.warn('PostgreSQL search_path warning:', err.message);
+    });
   });
 }
 
@@ -38,13 +46,19 @@ const inMemoryStore = {
 
 let useInMemoryFallback = false;
 
+const rawPoolQuery = pool.query.bind(pool);
+
 export async function safeQuery(text, params = []) {
   if (!useInMemoryFallback) {
     try {
-      return await pool.query(text, params);
+      return await rawPoolQuery(text, params);
     } catch (err) {
-      console.warn('PostgreSQL query unavailable, using fallback store:', err.message);
-      useInMemoryFallback = true;
+      if (err.code === 'ECONNREFUSED' || err.code === '57P01' || err.message?.includes('connect ECONNREFUSED')) {
+        console.warn('PostgreSQL connection unavailable, using fallback store:', err.message);
+        useInMemoryFallback = true;
+      } else {
+        throw err;
+      }
     }
   }
 
@@ -73,8 +87,18 @@ export async function safeQuery(text, params = []) {
 
   // Settings queries
   if (sql.includes('FROM settings WHERE key')) {
+    if (sql.includes('WHERE key IN')) {
+      const keys = ['llmUrl', 'apiKey'];
+      const rows = keys.filter(k => inMemoryStore.settings[k] !== undefined).map(k => ({ key: k, value: inMemoryStore.settings[k] }));
+      return { rows };
+    }
     const val = inMemoryStore.settings[params[0]];
     return { rows: val !== undefined ? [{ value: val }] : [] };
+  }
+
+  if (sql.includes('FROM settings')) {
+    const rows = Object.entries(inMemoryStore.settings).map(([k, v]) => ({ key: k, value: v }));
+    return { rows };
   }
 
   if (sql.includes('INSERT INTO settings') || sql.includes('UPDATE settings')) {
@@ -86,17 +110,102 @@ export async function safeQuery(text, params = []) {
 
   // Projects queries
   if (sql.includes('FROM projects')) {
+    if (sql.includes('WHERE id = $1')) {
+      const p = inMemoryStore.projects.find(x => x.id === parseInt(params[0], 10));
+      return { rows: p ? [p] : [] };
+    }
     return { rows: inMemoryStore.projects };
+  }
+
+  if (sql.includes('INSERT INTO projects')) {
+    const newProj = {
+      id: inMemoryStore.projects.length + 1,
+      name: params[0],
+      desc: params[1],
+      path: params[2],
+      branch: params[3] || 'main',
+      tech: params[4] || 'Unknown',
+      complete: params[5] || 0,
+      tasks: typeof params[6] === 'string' ? JSON.parse(params[6] || '[]') : (params[6] || [])
+    };
+    inMemoryStore.projects.push(newProj);
+    return { rows: [newProj] };
+  }
+
+  if (sql.includes('UPDATE projects')) {
+    const id = params[params.length - 1];
+    const p = inMemoryStore.projects.find(x => x.id === parseInt(id, 10));
+    return { rows: p ? [p] : [] };
+  }
+
+  if (sql.includes('DELETE FROM projects')) {
+    const id = parseInt(params[0], 10);
+    inMemoryStore.projects = inMemoryStore.projects.filter(p => p.id !== id);
+    return { rows: [] };
   }
 
   // Servers queries
   if (sql.includes('FROM servers')) {
+    if (sql.includes('WHERE id = $1')) {
+      const s = inMemoryStore.servers.find(x => x.id === parseInt(params[0], 10));
+      return { rows: s ? [s] : [] };
+    }
     return { rows: inMemoryStore.servers };
   }
 
   // Agents queries
   if (sql.includes('FROM cli_agents')) {
+    if (sql.includes('WHERE id = $1')) {
+      const a = inMemoryStore.cli_agents.find(x => x.id === parseInt(params[0], 10));
+      return { rows: a ? [a] : [] };
+    }
+    if (sql.includes('WHERE name = $1')) {
+      const a = inMemoryStore.cli_agents.find(x => x.name.toLowerCase() === String(params[0]).toLowerCase());
+      return { rows: a ? [a] : [] };
+    }
     return { rows: inMemoryStore.cli_agents };
+  }
+
+  if (sql.includes('INSERT INTO cli_agents')) {
+    const newAgent = {
+      id: inMemoryStore.cli_agents.length + 1,
+      name: params[0],
+      description: params[1],
+      path: params[2],
+      config_uri: params[3],
+      installed: params[4] !== undefined ? params[4] : true,
+      llm_model: params[5] || 'gpt-4o',
+      temperature: params[6] !== undefined ? params[6] : 0.7,
+      max_tokens: params[7] !== undefined ? params[7] : 4096
+    };
+    const existingIdx = inMemoryStore.cli_agents.findIndex(x => x.name.toLowerCase() === newAgent.name.toLowerCase());
+    if (existingIdx >= 0) {
+      inMemoryStore.cli_agents[existingIdx] = { ...inMemoryStore.cli_agents[existingIdx], ...newAgent, id: inMemoryStore.cli_agents[existingIdx].id };
+      return { rows: [inMemoryStore.cli_agents[existingIdx]] };
+    }
+    inMemoryStore.cli_agents.push(newAgent);
+    return { rows: [newAgent] };
+  }
+
+  if (sql.includes('UPDATE cli_agents')) {
+    if (sql.includes('SET path = $1')) {
+      const [pathVal, configUri, name] = params;
+      const a = inMemoryStore.cli_agents.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+      if (a) {
+        a.path = pathVal;
+        if (configUri) a.config_uri = configUri;
+        a.installed = true;
+        return { rows: [a] };
+      }
+    } else if (sql.includes('SET installed = $1')) {
+      const [installed, id] = params;
+      const a = inMemoryStore.cli_agents.find(x => x.id === parseInt(id, 10));
+      if (a) {
+        a.installed = installed;
+        return { rows: [a] };
+      }
+    }
+    return { rows: [] };
   }
 
   if (sql.includes('FROM agents')) {
@@ -130,9 +239,18 @@ export async function safeQuery(text, params = []) {
   return { rows: [] };
 }
 
+// Redirect pool.query through safeQuery so all repositories gracefully use in-memory fallback if PG is down
+pool.query = async function(text, params = []) {
+  return safeQuery(text, params);
+};
+
 // ---------- Database Migration ----------
 export async function migrate() {
   const queries = [
+    `CREATE TABLE IF NOT EXISTS settings (
+      key VARCHAR(255) PRIMARY KEY,
+      value TEXT NOT NULL
+    );`,
     `CREATE TABLE IF NOT EXISTS servers (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,

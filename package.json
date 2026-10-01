@@ -6,19 +6,21 @@
   "scripts": {
     "dev:frontend": "vite",
     "dev:backend": "node server.js",
-    "dev": "concurrently \"vite\" \"node server.js\"",
+    "dev": "concurrently -k -n \"backend,frontend\" -c \"blue,green\" \"node server.js\" \"vite\"",
     "db:migrate": "node scripts/migrate.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:sys": "node --test scripts/test-sys-admin.js",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "autotest": "bash scripts/autotest_ai.sh",
     "ci-tdd": "bash scripts/ci_tdd_bot.sh",
     "agent:worker": "node scripts/local-agent-worker.js",
     "sync-tasks": "node src/backend/scripts/syncTasks.js",
-    "test:e2e": "set NODE_ENV=test&& node tests/full_test_suite.js"
+    "test:e2e": "set NODE_ENV=test&& node tests/full_test_suite.js",
+    "deploy:ct8": "bash scripts/deploy-ct8-optimized.sh"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -29,6 +31,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "framer-motion": "^12.42.2",
+    "fresh": "^2.0.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.24.0",
     "node-fetch": "^3.3.2",

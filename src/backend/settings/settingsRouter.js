@@ -88,7 +88,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
           status = 'success';
           break;
         }
-      } catch (e) {
+      } catch  {
         // Fallback to /v1/chat/completions POST probe
         try {
           const checkUrl = `${base}/v1/chat/completions`;
@@ -115,7 +115,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
             status = 'success';
             break;
           }
-        } catch (err2) {
+        } catch  {
           // Fallback to /v1/completions POST probe
           try {
             const checkUrl = `${base}/v1/completions`;
@@ -142,7 +142,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
               status = 'success';
               break;
             }
-          } catch (err3) {
+          } catch  {
             // Continue scanning
           }
         }
@@ -172,7 +172,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
           recommendations.push('Ollama detected running locally on port 11434. Standard OpenAI endpoints are active.');
           await settingsRepo.saveSettings({ llmUrl: autoDetectedUrl });
         }
-      } catch (e) {
+      } catch  {
         recommendations.push('No local or configured LLM server detected. Please ensure Ollama (11434) or LM Studio (1234) is running.');
       }
     }
@@ -198,7 +198,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
               }
             }
           }
-        } catch (e) {
+        } catch  {
           // Fallback
         }
       } else {
@@ -211,7 +211,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
               loadedModel = modelsData.data[0].id;
             }
           }
-        } catch (e) {
+        } catch  {
           // Fallback
         }
       }
@@ -233,7 +233,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
           return line.trim();
         }).join(', ');
       }
-    } catch (e) {
+    } catch  {
       // No nvidia-smi
     }
 

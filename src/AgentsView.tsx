@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Bot, Search, Check, RefreshCw, Sparkles, 
-  Sliders, Settings, Info, Gauge, Zap, Trash2, X
+  Sliders, Settings, Info, Gauge, Zap, Trash2, X, Laptop, Key
 } from 'lucide-react';
 import { apiFetch } from './shared/api-client';
 import { LlmServerManager } from './LlmServerManager';
+import { LocalWorkerModal } from './LocalWorkerModal';
 
 export interface Agent {
   id: number;
@@ -46,10 +47,24 @@ export function AgentsView() {
   const [tuningLLM, setTuningLLM] = useState(false);
   const [llmTuneResult, setLlmTuneResult] = useState<LLMTuningResult | null>(null);
   const [showLLMModal, setShowLLMModal] = useState(false);
+  const [showWorkerModal, setShowWorkerModal] = useState(false);
+  const [workersCount, setWorkersCount] = useState(0);
 
   const [editConfig, setEditConfig] = useState({ config_uri: '', llm_model: '', temperature: 0.7, max_tokens: 4096 });
   const [newAgent, setNewAgent] = useState({ name: '', description: '', path: '', config_uri: '', llm_model: 'gpt-4o', temperature: 0.7, max_tokens: 4096 });
   
+  useEffect(() => {
+    const fetchWorkers = () => {
+      apiFetch('/api/agents/workers')
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setWorkersCount(Array.isArray(data) ? data.length : 0))
+        .catch(() => setWorkersCount(0));
+    };
+    fetchWorkers();
+    const interval = setInterval(fetchWorkers, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(''), 3000);
@@ -198,7 +213,7 @@ export function AgentsView() {
         </div>
       )}
       
-      <div className="p-8 max-w-6xl mx-auto">
+      <div className="agents-view-container">
         {/* Title and Top Panel */}
         <header className="header animate-in delay-1" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
           <div>
@@ -212,6 +227,16 @@ export function AgentsView() {
           </div>
           
           <div className="agents-actions">
+            <button
+              onClick={() => setShowWorkerModal(true)}
+              className="btn btn-secondary"
+              title="Komenda połączenia i aktualny token do Socket.IO"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderColor: workersCount > 0 ? '#10b981' : undefined }}
+            >
+              <Laptop size={16} color={workersCount > 0 ? '#10b981' : '#38bdf8'} />
+              <span>Tunel PC / Socket {workersCount > 0 ? `(${workersCount})` : ''}</span>
+            </button>
+
             <button
               onClick={handleAutoTuneLLM}
               className="btn btn-tune"
@@ -237,6 +262,65 @@ export function AgentsView() {
             </button>
           </div>
         </header>
+
+        {/* Quick Socket Connection Banner */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          background: 'rgba(15, 23, 42, 0.65)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '12px',
+          padding: '0.85rem 1.25rem',
+          marginBottom: '1.5rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              background: workersCount > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+              border: `1px solid ${workersCount > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.25)'}`,
+              borderRadius: '8px',
+              padding: '0.5rem',
+              color: workersCount > 0 ? '#10b981' : '#ef4444'
+            }}>
+              <Laptop size={20} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#f8fafc' }}>
+                  Lokalny Worker (Socket.IO)
+                </span>
+                <span style={{
+                  fontSize: '0.7rem',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  background: workersCount > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.15)',
+                  color: workersCount > 0 ? '#34d399' : '#f87171',
+                  fontWeight: 600
+                }}>
+                  {workersCount > 0 ? `● Połączono (${workersCount})` : '○ Offline'}
+                </span>
+              </div>
+              <p style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+                {workersCount > 0
+                  ? 'Twój komputer jest podłączony do Socket.IO. Agenci CLI wykonują się w lokalnym środowisku.'
+                  : 'Podłącz swój komputer komendą Socket, aby agenci CLI uruchamiali się bezpośrednio na Twoim PC.'}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              onClick={() => setShowWorkerModal(true)}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+            >
+              <Key size={14} />
+              <span>Pokaż Komendę i Token Socket</span>
+            </button>
+          </div>
+        </div>
 
         <div style={{ marginBottom: '2rem' }}>
           <LlmServerManager />
@@ -598,6 +682,11 @@ export function AgentsView() {
           </div>
         </div>
       )}
+
+      <LocalWorkerModal 
+        isOpen={showWorkerModal} 
+        onClose={() => setShowWorkerModal(false)} 
+      />
     </>
   );
 }

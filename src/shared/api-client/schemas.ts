@@ -29,7 +29,7 @@ export const DeployRequestSchema = z.object({
   llmUrl: z.string().optional(),
   apiKey: z.string().optional(),
   tasks: z.array(z.any()).optional(),
-  useBrowserTerminal: z.boolean().optional(),
+  useBrowserTerminal: z.union([z.boolean(), z.string()]).transform(v => typeof v === 'string' ? v === 'true' : v).optional(),
   remoteServer: z.any().optional(),
   remotePrompt: SecurePromptSchema.optional()
 });
@@ -100,7 +100,7 @@ export const SettingsSchema = z.object({
   apiKey: z.string().optional(),
   llmName: z.string().optional(),
   llmModel: z.string().optional(),
-  useBrowserTerminal: z.boolean().optional()
+  useBrowserTerminal: z.union([z.boolean(), z.string()]).transform(v => typeof v === 'string' ? v === 'true' : v).optional()
 }).passthrough();
 
 export type SettingsData = z.infer<typeof SettingsSchema>;

@@ -22,6 +22,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCommits, setShowCommits] = useState(false);
+  const [showChanges, setShowChanges] = useState(true);
   const [showPRs, setShowPRs] = useState(false);
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [newBranchMode, setNewBranchMode] = useState(false);
@@ -493,8 +494,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
           {/* Git Local Status & Changes */}
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <div className="info-label">
-                Uncommitted Changes ({gitStatus?.changes?.length || 0})
+              <div 
+                className="info-label"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setShowChanges(!showChanges)}
+              >
+                <span>Uncommitted Changes ({gitStatus?.changes?.length || 0})</span>
+                {showChanges ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </div>
               {gitStatus?.changes?.length > 0 && (
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
@@ -532,41 +538,43 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
               )}
             </div>
             
-            <div style={{ marginBottom: '1rem' }}>
-              {gitStatus?.changes?.length > 0 ? (
-                <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '0.8rem', fontFamily: 'var(--mono)', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  {gitStatus.changes.map((c: string, i: number) => {
-                    const statusType = c.substring(0, 2).trim();
-                    const fileName = c.substring(3).trim();
-                    return (
-                      <div 
-                        key={i} 
-                        style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          padding: '0.2rem 0.4rem', 
-                          background: 'rgba(255,255,255,0.02)', 
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => handleOpenDiff(false, fileName)}
-                        title={`Click to view diff for ${fileName}`}
-                      >
-                        <span style={{ color: statusType === 'M' ? '#F59E0B' : statusType === '??' ? '#38bdf8' : '#10B981' }}>
-                          {c}
-                        </span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>view diff</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <span style={{ fontSize: '0.85rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <CheckCircle2 size={14} /> Working tree clean
-                </span>
-              )}
-            </div>
+            {showChanges && (
+              <div style={{ marginBottom: '1rem' }}>
+                {gitStatus?.changes?.length > 0 ? (
+                  <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '0.8rem', fontFamily: 'var(--mono)', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    {gitStatus.changes.map((c: string, i: number) => {
+                      const statusType = c.substring(0, 2).trim();
+                      const fileName = c.substring(3).trim();
+                      return (
+                        <div 
+                          key={i} 
+                          style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            padding: '0.2rem 0.4rem', 
+                            background: 'rgba(255,255,255,0.02)', 
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => handleOpenDiff(false, fileName)}
+                          title={`Click to view diff for ${fileName}`}
+                        >
+                          <span style={{ color: statusType === 'M' ? '#F59E0B' : statusType === '??' ? '#38bdf8' : '#10B981' }}>
+                            {c}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>view diff</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '0.85rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <CheckCircle2 size={14} /> Working tree clean
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Commits Section */}
             <div>

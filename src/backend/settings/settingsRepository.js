@@ -8,9 +8,11 @@ export async function getSettings() {
     if (row.key === 'apiKey' && row.value) {
       try {
         settings[row.key] = decrypt(row.value);
-      } catch (e) {
+      } catch  {
         settings[row.key] = row.value;
       }
+    } else if (row.key === 'useBrowserTerminal') {
+      settings[row.key] = row.value === 'true' || row.value === true;
     } else {
       settings[row.key] = row.value;
     }
@@ -61,7 +63,7 @@ export async function getLlmCredentials() {
     if (r.key === 'apiKey' && r.value) {
       try {
         apiKey = decrypt(r.value);
-      } catch (e) {
+      } catch  {
         apiKey = r.value;
       }
     }

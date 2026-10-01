@@ -59,7 +59,7 @@ authRouter.get('/check-setup', async (req, res) => {
     const result = await safeQuery('SELECT COUNT(*) FROM users');
     const count = parseInt(result.rows[0]?.count || '0');
     res.json({ needsSetup: count === 0 });
-  } catch (err) {
+  } catch  {
     res.json({ needsSetup: true });
   }
 });
@@ -81,7 +81,7 @@ authRouter.post('/refresh', async (req, res) => {
 
       const newToken = jwt.sign({ id: decoded.id, username: decoded.username }, JWT_SECRET, { expiresIn: '7d' });
       res.json({ success: true, token: newToken });
-    } catch (err) {
+    } catch  {
       return res.status(401).json({ error: 'Invalid token' });
     }
   } catch (err) {

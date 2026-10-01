@@ -17,6 +17,7 @@ type TranslationKey =
   | 'sidebar.addProject'
   | 'sidebar.remote'
   | 'sidebar.addServer'
+  | 'sidebar.socketTunnel'
   | 'sidebar.signOut';
 
 const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
@@ -34,6 +35,7 @@ const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'sidebar.addProject': 'Dodaj projekt',
     'sidebar.remote': 'Remote',
     'sidebar.addServer': 'Dodaj serwer',
+    'sidebar.socketTunnel': 'Socket / Tunel PC',
     'sidebar.signOut': 'Wyloguj',
   },
   en: {
@@ -50,6 +52,7 @@ const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'sidebar.addProject': 'Add Project',
     'sidebar.remote': 'Remote',
     'sidebar.addServer': 'Add Server',
+    'sidebar.socketTunnel': 'Socket / PC Tunnel',
     'sidebar.signOut': 'Sign Out',
   },
   hi: {
@@ -66,6 +69,7 @@ const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'sidebar.addProject': 'प्रोजेक्ट जोड़ें',
     'sidebar.remote': 'रिमोट',
     'sidebar.addServer': 'सर्वर जोड़ें',
+    'sidebar.socketTunnel': 'सॉकेट / पीसी टनल',
     'sidebar.signOut': 'साइन आउट',
   },
 };
@@ -174,6 +178,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// oxlint-disable-next-line react/only-export-components
 export function usePreferences(): PreferencesContextValue {
   const ctx = useContext(PreferencesContext);
   if (!ctx) {

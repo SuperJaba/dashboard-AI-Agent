@@ -42,7 +42,7 @@ export function useDashboardState() {
       return nextVal;
     });
   };
-  const [useBrowserTerminal, setUseBrowserTerminal] = useState(false);
+  const [useBrowserTerminal, setUseBrowserTerminal] = useState(true);
   const [terminalConfig, setTerminalConfig] = useState<any>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [deploying, setDeploying] = useState<string | null>(null);
@@ -92,14 +92,18 @@ export function useDashboardState() {
           setUseBrowserTerminal(localPref === 'true');
         } else if (data.useBrowserTerminal !== undefined) {
           setUseBrowserTerminal(data.useBrowserTerminal === 'true');
+        } else {
+          setUseBrowserTerminal(true);
         }
       })
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
+  const [prevActiveProjectId, setPrevActiveProjectId] = useState(activeProjectId);
+  if (activeProjectId !== prevActiveProjectId) {
+    setPrevActiveProjectId(activeProjectId);
     setSelectedTaskIds([]);
-  }, [activeProjectId]);
+  }
 
   const activeProject = typeof activeProjectId === 'number' ? projects.find(p => p.id === activeProjectId) || null : null;
   const activeServer = typeof activeProjectId === 'string' && activeProjectId.startsWith('server-') 
@@ -474,13 +478,21 @@ export function useDashboardState() {
 
   const handleFolderPicked = async (folderPath: string, folderName: string) => {
     try {
-      const finalName = folderPath.split('/').pop() || folderPath.split('\\').pop() || folderName;
-      const newProject = await apiClient.post<any>('/api/projects', { name: finalName, desc: 'Local workspace', path: folderPath });
+      const finalName = folderName || folderPath.split(/[/\\]/).filter(Boolean).pop() || 'New Project';
+      const rawProject = await apiClient.post<any>('/api/projects', { name: finalName, desc: 'Local workspace', path: folderPath });
+      const safeProject = ProjectSchema.parse(rawProject);
 
-      setProjects(prev => [...prev, newProject]);
-      setActiveProjectId(newProject.id);
+      setProjects(prev => [...prev.filter(p => p.id !== safeProject.id), safeProject]);
+      setActiveProjectId(safeProject.id);
       setActiveView('dashboard');
       setShowTasks(false);
+
+      apiClient.get<unknown>('/api/projects')
+        .then(rawData => {
+          const data = z.array(ProjectSchema).parse(rawData);
+          if (data.length) setProjects(data);
+        })
+        .catch(() => {});
     } catch (err: any) {
       console.error('Failed to add project:', err);
       alert('Nie udało się dodać projektu: ' + (err.message || 'Wystąpił błąd serwera.'));
@@ -494,7 +506,7 @@ export function useDashboardState() {
     if (!files || files.length === 0) return;
 
     const relativePath = (files[0] as any).webkitRelativePath || files[0].name;
-    const folderName = relativePath.split('/')[0] || 'New Project';
+    const folderName = relativePath.split(/[/\\]/)[0] || 'New Project';
 
     const manualPath = prompt(
       'Wybrano folder: ' + folderName + '\nPotwierdź lub uzupełnij pełną ścieżkę do folderu projektu (np. F:\\AI-Agents\\' + folderName + '):',
@@ -504,13 +516,21 @@ export function useDashboardState() {
     const folderPath = manualPath.trim();
 
     try {
-      const finalName = folderPath.split('/').pop() || folderPath.split('\\').pop() || folderName;
-      const newProject = await apiClient.post<any>('/api/projects', { name: finalName, desc: 'Local workspace', path: folderPath });
+      const finalName = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderName || 'New Project';
+      const rawProject = await apiClient.post<any>('/api/projects', { name: finalName, desc: 'Local workspace', path: folderPath });
+      const safeProject = ProjectSchema.parse(rawProject);
 
-      setProjects(prev => [...prev, newProject]);
-      setActiveProjectId(newProject.id);
+      setProjects(prev => [...prev.filter(p => p.id !== safeProject.id), safeProject]);
+      setActiveProjectId(safeProject.id);
       setActiveView('dashboard');
       setShowTasks(false);
+
+      apiClient.get<unknown>('/api/projects')
+        .then(rawData => {
+          const data = z.array(ProjectSchema).parse(rawData);
+          if (data.length) setProjects(data);
+        })
+        .catch(() => {});
     } catch (err: any) {
       console.error('Failed to add project:', err);
       alert('Nie udało się dodać projektu: ' + (err.message || 'Wystąpił błąd serwera.'));
@@ -519,20 +539,23 @@ export function useDashboardState() {
 
   const handleCloneProject = async (repoUrl: string, targetDir: string, projectName?: string) => {
     try {
-      const name = projectName || targetDir.split('/').pop() || targetDir.split('\\').pop() || 'Cloned Repo';
+      const name = projectName || targetDir.split(/[/\\]/).filter(Boolean).pop() || 'Cloned Repo';
       const data = await apiClient.post<any>('/api/git/clone', {
         repoUrl,
         targetDir,
         name
       });
-      if (data.project) {
-        setProjects(prev => [...prev, data.project]);
-        setActiveProjectId(data.project.id);
-      } else {
-        const newProj = await apiClient.post<any>('/api/projects', { name, desc: `Cloned from ${repoUrl}`, path: data.directory || targetDir });
-        setProjects(prev => [...prev, newProj]);
-        setActiveProjectId(newProj.id);
-      }
+      const projectPayload = data.project || await apiClient.post<any>('/api/projects', { name, desc: `Cloned from ${repoUrl}`, path: data.directory || targetDir });
+      const safeProject = ProjectSchema.parse(projectPayload);
+      setProjects(prev => [...prev.filter(p => p.id !== safeProject.id), safeProject]);
+      setActiveProjectId(safeProject.id);
+
+      apiClient.get<unknown>('/api/projects')
+        .then(rawData => {
+          const data = z.array(ProjectSchema).parse(rawData);
+          if (data.length) setProjects(data);
+        })
+        .catch(() => {});
       return data;
     } catch (err: any) {
       console.error('Failed to clone project:', err);

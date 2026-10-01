@@ -1,5 +1,6 @@
 import express from 'express';
 import fs from 'fs';
+import path from 'path';
 import { execSync } from 'child_process';
 import * as agentsRepo from './agentsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
@@ -26,14 +27,30 @@ const KNOWN_AGENTS = [
  * Uses `where` on Windows and `which` everywhere else (avoids relying on a
  * Unix-only tool that silently fails as ENOENT on Windows).
  */
-function findInPath(cmd) {
+export function findInPath(cmd) {
   try {
-    const command = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+    const command = process.platform === 'win32' ? `where.exe ${cmd}` : `which ${cmd}`;
     const stdout = execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (!stdout) {return null;}
-    // `where` can list multiple matches, one per line; use the first.
-    return stdout.split(/\r?\n/)[0].trim();
-  } catch (e) {
+    const lines = stdout.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) {return null;}
+
+    if (process.platform === 'win32') {
+      const cwdLower = process.cwd().toLowerCase();
+      // 1. Prefer .exe, .cmd, .bat outside current working directory
+      const preferred = lines.find(l => {
+        const lower = l.toLowerCase();
+        return (lower.endsWith('.exe') || lower.endsWith('.cmd') || lower.endsWith('.bat')) && !lower.startsWith(cwdLower);
+      }) || lines.find(l => {
+        const lower = l.toLowerCase();
+        return lower.endsWith('.exe') || lower.endsWith('.cmd') || lower.endsWith('.bat');
+      }) || lines[0];
+
+      return preferred;
+    }
+
+    return lines[0];
+  } catch {
     return null;
   }
 }
@@ -76,7 +93,7 @@ agentsRouter.post('/scan', async (req, res) => {
           await agentsRepo.updateAgentPathAndConfig(agent.name, resolvedPath, configUri);
         }
         found.push(agent.name);
-      } else if (existing && existing.installed) {
+      } else if (existing && existing.installed && process.env.NODE_ENV !== 'production') {
         // Previously discovered but no longer resolvable (uninstalled, PATH
         // changed, etc.) — mark as not installed so nothing tries to spawn it.
         await agentsRepo.setAgentInstalled(existing.id, false);
@@ -85,10 +102,12 @@ agentsRouter.post('/scan', async (req, res) => {
 
     // Also flag any other stored agent whose path no longer exists on disk
     // (e.g. stale/manually-entered entries), so the background worker skips them.
-    const allAgents = await agentsRepo.getAgents();
-    for (const agent of allAgents) {
-      if (agent.installed && agent.path && !fs.existsSync(agent.path) && !found.includes(agent.name)) {
-        await agentsRepo.setAgentInstalled(agent.id, false);
+    if (process.env.NODE_ENV !== 'production') {
+      const allAgents = await agentsRepo.getAgents();
+      for (const agent of allAgents) {
+        if (agent.installed && agent.path && path.isAbsolute(agent.path) && !fs.existsSync(agent.path) && !found.includes(agent.name)) {
+          await agentsRepo.setAgentInstalled(agent.id, false);
+        }
       }
     }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import app from './server.js';
 
@@ -198,6 +198,35 @@ describe('Backend API Tests', () => {
         .send({});
       expect(res.statusCode).toBe(400);
       expect(res.body.error).toBe('Repository URL is required');
+    });
+  });
+
+  describe('Socket Info API Endpoints', () => {
+    it('GET /api/socket-info should return serverUrl, token, and ready commands', async () => {
+      const res = await request(app)
+        .get('/api/socket-info')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveProperty('serverUrl');
+      expect(res.body).toHaveProperty('token');
+      expect(res.body.token).toBe(testToken);
+      expect(res.body).toHaveProperty('commands');
+      expect(res.body.commands).toHaveProperty('npm');
+      expect(res.body.commands.npm).toContain(testToken);
+      expect(res.body.commands).toHaveProperty('node');
+    });
+
+    it('POST /api/socket/token should generate a long-lived worker token', async () => {
+      const res = await request(app)
+        .post('/api/socket/token')
+        .set('Authorization', `Bearer ${testToken}`)
+        .send({});
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body).toHaveProperty('token');
+      expect(res.body.expiresIn).toBe('30d');
+      const decoded = jwt.verify(res.body.token, JWT_SECRET);
+      expect(decoded.isWorker).toBe(true);
     });
   });
 });

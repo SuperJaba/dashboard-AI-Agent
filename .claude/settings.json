@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "codegraph prompt-hook"
+            "command": "command -v codegraph >/dev/null 2>&1 && codegraph prompt-hook || true"
           }
         ]
       }
