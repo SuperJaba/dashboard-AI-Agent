@@ -518,7 +518,13 @@ projectsRouter.post('/deploy', async (req, res) => {
 
     let command = '';
     let args = [];
-    const env = { ...process.env };
+    // Only pass safe agent environment variables to terminal / worker session.
+    // Do NOT leak host system variables like HOME, USER, LOGNAME, PWD, DB passwords, etc.
+    const env = {
+      ...(process.env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } : {}),
+      ...(process.env.OPENAI_API_KEY ? { OPENAI_API_KEY: process.env.OPENAI_API_KEY } : {}),
+      ...(process.env.GEMINI_API_KEY ? { GEMINI_API_KEY: process.env.GEMINI_API_KEY } : {})
+    };
 
     const wslHostIp = getWslHostIp();
     const formatBaseUrl = (url) => {

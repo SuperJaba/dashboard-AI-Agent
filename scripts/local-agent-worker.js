@@ -136,6 +136,17 @@ socket.on('worker_spawn_pty', ({ sessionId, command, args, cwd, env, scriptConte
         process.env.PATH || ''
       ].join(':');
 
+    // Sanitize remote env: protect local host environment from being corrupted by remote server env
+    const sanitizedRemoteEnv = { ...(env || {}) };
+    delete sanitizedRemoteEnv.HOME;
+    delete sanitizedRemoteEnv.USER;
+    delete sanitizedRemoteEnv.LOGNAME;
+    delete sanitizedRemoteEnv.USERPROFILE;
+    delete sanitizedRemoteEnv.HOMEDRIVE;
+    delete sanitizedRemoteEnv.HOMEPATH;
+    delete sanitizedRemoteEnv.SHELL;
+    delete sanitizedRemoteEnv.PATH;
+
     const ptyProcess = pty.spawn(shellCmd, finalArgs, {
       name: 'xterm-256color',
       cols: 100,
@@ -143,7 +154,9 @@ socket.on('worker_spawn_pty', ({ sessionId, command, args, cwd, env, scriptConte
       cwd: targetCwd,
       env: {
         ...process.env,
-        ...env,
+        ...sanitizedRemoteEnv,
+        HOME: userHome,
+        USER: process.env.USER || (os.userInfo && os.userInfo().username) || 'user',
         PATH: extendedPath,
         COLUMNS: '100',
         LINES: '30',

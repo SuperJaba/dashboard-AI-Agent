@@ -231,6 +231,12 @@ io.on('connection', (socket) => {
         ].join(';')
         : process.env.PATH;
 
+      const sanitizedEnv = { ...(env || {}) };
+      delete sanitizedEnv.HOME;
+      delete sanitizedEnv.USER;
+      delete sanitizedEnv.LOGNAME;
+      delete sanitizedEnv.USERPROFILE;
+
       ptyProcess = pty.spawn(shellCmd, args || [], {
         name: 'xterm-256color',
         cols: 100,
@@ -238,7 +244,7 @@ io.on('connection', (socket) => {
         cwd: targetCwd,
         env: { 
           ...process.env, 
-          ...env, 
+          ...sanitizedEnv, 
           PATH: extendedPath,
           COLUMNS: '100',
           LINES: '30',
