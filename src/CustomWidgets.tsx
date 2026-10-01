@@ -42,13 +42,14 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
       { name: 'Disk Space (Root)', command: "df -h / | awk 'NR==2 {print $3 \" / \" $2 \" (\" $5 \")\"}'", type: 'string', color: '#3b82f6' },
       { name: 'System Uptime', command: "uptime -p || uptime", type: 'string', color: '#f59e0b' },
       { name: 'Local Docker Containers', command: "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'", type: 'text', color: '#8b5cf6' },
-      { name: 'Network Usage', command: "[ \"$(uname)\" = \"FreeBSD\" ] && netstat -ib | awk '$1 ~ /^[a-z]/ && $3 ~ /<Link#[0-9]+>/ && $8 > 0 {printf \"RX: %.2f GB | TX: %.2f GB\", $8/1073741824, $11/1073741824; exit}' || awk 'NR>2 && $1 !~ /lo/ {rx+=$2; tx+=$10} END {printf \"RX: %.2f GB | TX: %.2f GB\", rx/1073741824, tx/1073741824}' /proc/net/dev", type: 'text', color: '#6366f1' }
+      { name: 'Network Usage', command: "[ \"$(uname)\" = \"FreeBSD\" ] && netstat -ib | awk '$1 ~ /^[a-z]/ && $3 ~ /<Link#[0-9]+>/ && $8 > 0 {printf \"RX: %.2f GB | TX: %.2f GB\", $8/1073741824, $11/1073741824; exit}' || awk 'NR>2 && $1 !~ /lo/ {rx+=$2; tx+=$10} END {printf \"RX: %.2f GB | TX: %.2f GB\", rx/1073741824, tx/1073741824}' /proc/net/dev", type: 'network-chart', color: '#6366f1' }
     ];
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [results, setResults] = useState<{ [key: number]: any }>({});
   const [loading, setLoading] = useState<{ [key: number]: boolean }>({});
   const [hoveredWidgetId, setHoveredWidgetId] = useState<number | null>(null);
+  const [networkHistory, setNetworkHistory] = useState<{ [key: number]: { rx: number[]; tx: number[] } }>({});
 
   const [newName, setNewName] = useState('');
   const [newCommand, setNewCommand] = useState('');
@@ -65,11 +66,31 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
     }
   }, []);
 
-  const runWidget = useCallback(async (id: number) => {
+  const runWidget = useCallback(async (id: number, widgetType?: string) => {
     setLoading(prev => ({ ...prev, [id]: true }));
     try {
       const data = await apiClient.get<any>(`/api/widgets/${id}/run`);
-      setResults(prev => ({ ...prev, [id]: data.result }));
+      const result: string = data.result ?? '';
+      setResults(prev => ({ ...prev, [id]: result }));
+      // Parse RX/TX values for network-chart widgets
+      if (widgetType === 'network-chart') {
+        const rxMatch = result.match(/RX:\s*([\d.]+)/i);
+        const txMatch = result.match(/TX:\s*([\d.]+)/i);
+        if (rxMatch && txMatch) {
+          const rx = parseFloat(rxMatch[1]);
+          const tx = parseFloat(txMatch[1]);
+          setNetworkHistory(prev => {
+            const prev_ = prev[id] ?? { rx: [], tx: [] };
+            return {
+              ...prev,
+              [id]: {
+                rx: [...prev_.rx.slice(-19), rx],
+                tx: [...prev_.tx.slice(-19), tx],
+              },
+            };
+          });
+        }
+      }
     } catch {
       setResults(prev => ({ ...prev, [id]: 'Error' }));
     } finally {
@@ -84,10 +105,10 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
   useEffect(() => {
     if (widgets.length === 0) return;
     
-    widgets.forEach(w => runWidget(w.id));
+    widgets.forEach(w => runWidget(w.id, w.type));
     
     const interval = setInterval(() => {
-      widgets.forEach(w => runWidget(w.id));
+      widgets.forEach(w => runWidget(w.id, w.type));
     }, 15000); // 15 seconds
 
     return () => clearInterval(interval);
@@ -458,11 +479,58 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                             width: `${Math.min(Math.max(parseInt(results[w.id]) || 0, 0), 100)}%`, 
                             height: '100%', 
                             background: widgetColor,
-                            transition: 'width 0.5s ease-out'
+                        transition: 'width 0.5s ease-out'
                           }} />
                         </div>
                       </div>
-                    ) : null}
+                    ) : w.type === 'network-chart' ? (() => {
+                      const hist = networkHistory[w.id];
+                      const rxData = hist?.rx ?? [];
+                      const txData = hist?.tx ?? [];
+                      const W = 260, H = 72;
+                      const all = [...rxData, ...txData];
+                      const minV = all.length ? Math.min(...all) : 0;
+                      const maxV = all.length ? Math.max(...all) : 1;
+                      const range = maxV - minV || 1;
+                      const toPoints = (arr: number[]) =>
+                        arr.map((v, i) => {
+                          const x = (i / (Math.max(arr.length - 1, 1))) * W;
+                          const y = H - ((v - minV) / range) * (H - 8) - 4;
+                          return `${x.toFixed(1)},${y.toFixed(1)}`;
+                        }).join(' ');
+                      const lastRx = rxData.at(-1);
+                      const lastTx = txData.at(-1);
+                      return (
+                        <div style={{ width: '100%' }}>
+                          {/* Legend */}
+                          <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.35rem', fontSize: '0.72rem' }}>
+                            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <span style={{ width: 20, height: 2, background: '#10b981', display: 'inline-block', borderRadius: 1 }} />
+                              RX {lastRx !== undefined ? `${lastRx.toFixed(2)} GB` : '--'}
+                            </span>
+                            <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <span style={{ width: 20, height: 2, background: '#ef4444', display: 'inline-block', borderRadius: 1 }} />
+                              TX {lastTx !== undefined ? `${lastTx.toFixed(2)} GB` : '--'}
+                            </span>
+                          </div>
+                          {/* SVG chart */}
+                          <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', borderRadius: 6, background: 'rgba(0,0,0,0.2)' }}>
+                            {rxData.length < 2 && txData.length < 2 ? (
+                              <text x={W / 2} y={H / 2} textAnchor="middle" fill="#6b7280" fontSize={11}>Zbieranie danych…</text>
+                            ) : (
+                              <>
+                                {rxData.length >= 2 && (
+                                  <polyline points={toPoints(rxData)} fill="none" stroke="#10b981" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+                                )}
+                                {txData.length >= 2 && (
+                                  <polyline points={toPoints(txData)} fill="none" stroke="#ef4444" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+                                )}
+                              </>
+                            )}
+                          </svg>
+                        </div>
+                      );
+                    })() : null}
                   </div>
                 </div>
 
@@ -674,6 +742,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                     <option value="number" style={{ background: 'var(--bg-color)' }}>Counter (Number)</option>
                     <option value="text" style={{ background: 'var(--bg-color)' }}>Raw Text</option>
                     <option value="bar-chart" style={{ background: 'var(--bg-color)' }}>Progress Bar (0-100)</option>
+                    <option value="network-chart" style={{ background: 'var(--bg-color)' }}>Network Chart (RX/TX)</option>
                   </select>
                 </div>
                 

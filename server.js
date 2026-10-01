@@ -18,6 +18,8 @@ import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
 import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+import { logger, requestLogger } from './src/backend/utils/logger.js';
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 
@@ -305,13 +307,32 @@ io.on('connection', (socket) => {
 
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
 // Serve static assets from the public directory
 app.use(express.static('public'));
 
-// Health check endpoint
+
+// T7.2 — Legacy health check (kept for backward compat)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
+
+// T7.2 — Liveness probe: process is responsive
+app.get('/health/live', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+// T7.2 — Readiness probe: DB connectivity check
+app.get('/health/ready', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Readiness probe: DB not reachable');
+    res.status(503).json({ status: 'unavailable', db: 'disconnected', timestamp: new Date().toISOString() });
+  }
+});
+
 
 // Prometheus metrics endpoint
 app.get('/metrics', async (req, res) => {
@@ -535,17 +556,17 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       try {
         startBackgroundWorker();
       } catch (e) {
-        console.warn('Failed to start background worker:', e.message);
+        logger.warn({ err: e.message }, 'Failed to start background worker');
       }
     });
   } else {
     httpServer.listen(port, () => {
-      console.log(`Backend API running on http://localhost:${port}`);
-      console.log(`Prometheus metrics available at http://localhost:${port}/metrics`);
+      logger.info(`Backend API running on http://localhost:${port}`);
+      logger.info(`Prometheus metrics available at http://localhost:${port}/metrics`);
       try {
         startBackgroundWorker();
       } catch (e) {
-        console.warn('Failed to start background worker:', e.message);
+        logger.warn({ err: e.message }, 'Failed to start background worker');
       }
     });
   }

@@ -128,6 +128,29 @@ flowchart TD
 
 ---
 
+### Feature 5: Model Routing — Inteligentny Dobór Modelu LLM (TODO)
+**Goal:** Automatyczne kierowanie zapytań agentów do właściwego modelu LLM na podstawie złożoności zadania — lekkie i średnie taski lokalnie przez LM Studio (zero kosztu, niska latencja), złożone taski do AGY.
+
+**Routing tiers:**
+
+| Poziom złożoności | Provider | Model |
+| :--- | :--- | :--- |
+| `low` | LM Studio (`10.10.10.30:1234`) | `openai/gpt-oss-20b` → fallback: `granite-4.0-micro` |
+| `medium` | LM Studio (`10.10.10.30:1234`) | `openai/gpt-oss-20b` → fallback: `granite-4.0-micro` |
+| `high` | AGY (chmura) | Gemini Pro / domyślny model AGY |
+
+| Task ID | Task Description | Scope / Target Files | Acceptance Criteria |
+| :--- | :--- | :--- | :--- |
+| **T5.1** | **Complexity Scorer** | `src/backend/llm/complexityScorer.js` | Heurystyczna ocena złożoności zapytania (długość, słowa kluczowe, historia kontekstu, typ taska). Zwraca `low` / `medium` / `high`. |
+| **T5.2** | **Model Router** | `src/backend/llm/modelRouter.js` | `low`/`medium` → LM Studio OpenAI-compat endpoint (`localhost:1234`) z `qwen3.8-whittle-moe-27b-a17.8b` lub `openai/gpt-oss-20b`; `high` → AGY. Konfigurowalny przez env vars (`LLM_LOCAL_URL`, `LLM_LOCAL_MODEL`, `LLM_FALLBACK_MODEL`). |
+| **T5.3** | **Provider Adapter Interface** | `src/backend/llm/providers/` | Ujednolicony interfejs `{ complete(prompt, opts) }` dla: LM Studio (OpenAI-compat REST), AGY SDK. |
+| **T5.4** | **Routing Dashboard Widget** | `src/components/ModelRoutingWidget.tsx` | Widget pokazujący live statystyki: podział tasków local vs AGY, średnią latencję i ewentualny koszt per provider. |
+| **T5.5** | **Fallback & Circuit Breaker** | `src/backend/llm/modelRouter.js` | Automatyczny fallback do drugiego lokalnego modelu (np. `openai/gpt-oss-20b`) gdy pierwszy nie odpowiada; escalacja do AGY po 3 błędach. |
+
+> **Rationale:** LM Studio z `qwen3.8-whittle-moe-27b-a17.8b` (MoE 27B/17.8B aktywnych) pokrywa ~80% tasków lokalnie — zero kosztu API, latencja <2s na GPU. `openai/gpt-oss-20b` jako alternatywa/fallback lokalny. AGY tylko dla wysokiej złożoności (deep refactor, architektura, duże konteksty).
+
+---
+
 ## 4. Definition of Done (DoD) & Verification Standards
 
 For any task in this roadmap to be considered complete:

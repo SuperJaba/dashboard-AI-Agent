@@ -1,44 +1,15 @@
-# Połączenie SSH ze Zdalnym Serwerem (CT8)
+# SSH to CT8
 
-Procedura zestawiania zautomatyzowanego połączenia SSH bez interaktywnych promptów (tryb `BatchMode`).
-
-## 1. Parametry Połączenia
-- **Host**: `s1.ct8.pl`
-- **Port**: `22`
-- **Użytkownik**: `jagger2`
-- **Klucz prywatny**: `~/.ssh/id_ed25519_antigravity`
-- **Klucz publiczny**: `~/.ssh/id_ed25519_antigravity.pub`
-
-## 2. Jednorazowa Konfiguracja Klucza
-Wgranie klucza publicznego na serwer z maszyny lokalnej:
+BatchMode agent command (copy-paste ready):
 ```bash
-ssh-copy-id -f -i ~/.ssh/id_ed25519_antigravity.pub -p 22 jagger2@s1.ct8.pl
+ssh -i ~/.ssh/id_ed25519_antigravity \
+    -o BatchMode=yes \
+    -o StrictHostKeyChecking=accept-new \
+    -o ConnectTimeout=10 \
+    -p 22 jagger2@s1.ct8.pl "COMMAND"
 ```
 
-## 3. Polecenia SSH
+Key: `~/.ssh/id_ed25519_antigravity`
+Host: `jagger2@s1.ct8.pl:22`
 
-### Zautomatyzowane Wykonywanie (Batch Mode dla Agentów/CI)
-```bash
-ssh -i ~/.ssh/id_ed25519_antigravity -o StrictHostKeyChecking=accept-new -o BatchMode=yes -p 22 jagger2@s1.ct8.pl "polecenie"
-```
-
-### Połączenie Interaktywne
-```bash
-ssh -i ~/.ssh/id_ed25519_antigravity -p 22 jagger2@s1.ct8.pl
-```
-
-## 4. Alias w `~/.ssh/config` (opcjonalnie)
-```sshconfig
-Host ct8-jagger2
-    HostName s1.ct8.pl
-    Port 22
-    User jagger2
-    IdentityFile ~/.ssh/id_ed25519_antigravity
-    IdentitiesOnly yes
-    BatchMode yes
-    StrictHostKeyChecking accept-new
-```
-Użycie:
-```bash
-ssh ct8-jagger2 'uname -a'
-```
+> Human setup (one-time key upload, interactive session, `~/.ssh/config` alias): see [agent-ssh-con-human.md](agent-ssh-con-human.md)
