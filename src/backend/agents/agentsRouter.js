@@ -29,7 +29,7 @@ const KNOWN_AGENTS = [
  */
 export function findInPath(cmd) {
   try {
-    const command = process.platform === 'win32' ? `where.exe ${cmd}` : `which ${cmd}`;
+    const command = process.platform === 'win32' ? `where.exe ${cmd}` : `which -a ${cmd} 2>/dev/null || which ${cmd}`;
     const stdout = execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (!stdout) {return null;}
     const lines = stdout.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -49,7 +49,26 @@ export function findInPath(cmd) {
       return preferred;
     }
 
-    return lines[0];
+    // On Linux / WSL: prefer native Linux binaries over Windows /mnt/ paths
+    const native = lines.find(l => !l.startsWith('/mnt/'));
+    if (native) {
+      return native;
+    }
+
+    // If only /mnt/ paths exist, verify it is executable in Linux and not a Windows node wrapper
+    for (const p of lines) {
+      if (p.includes('/bin/node_modules/node/bin/node') || p.includes('.nvm/versions/node/')) {
+        continue;
+      }
+      try {
+        fs.accessSync(p, fs.constants.X_OK);
+        return p;
+      } catch {
+        // ignore
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }

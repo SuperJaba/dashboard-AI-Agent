@@ -21,11 +21,6 @@ if (pool && typeof pool.on === 'function') {
   pool.on('error', (err) => {
     console.warn('PostgreSQL Pool background connection warning:', err.message);
   });
-  pool.on('connect', (client) => {
-    client.query(`SET search_path TO ${schema}, public;`).catch((err) => {
-      console.warn('PostgreSQL search_path warning:', err.message);
-    });
-  });
 }
 
 // Fallback in-memory store when PostgreSQL is disconnected or unavailable

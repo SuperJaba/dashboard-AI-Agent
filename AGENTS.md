@@ -27,6 +27,7 @@ Consult these references on demand when handling specific subsystem tasks:
 - **C4 Architecture & Service Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md)
 - **System Tools & MCP Catalog**: [`docs/MCP-SYS-TOOLS.md`](docs/MCP-SYS-TOOLS.md)
 - **Widget Creation & Registration**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md)
+- **Feature Roadmap & Task Backlog**: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - **Automated SSH & Remote Execution**: [`agent-ssh-con.md`](agent-ssh-con.md)
 
 ## Code & Naming Conventions

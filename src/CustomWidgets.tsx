@@ -42,7 +42,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
       { name: 'Disk Space (Root)', command: "df -h / | awk 'NR==2 {print $3 \" / \" $2 \" (\" $5 \")\"}'", type: 'string', color: '#3b82f6' },
       { name: 'System Uptime', command: "uptime -p || uptime", type: 'string', color: '#f59e0b' },
       { name: 'Local Docker Containers', command: "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'", type: 'text', color: '#8b5cf6' },
-      { name: 'Network Usage', command: "ifconfig | grep -E 'bytes|RX|TX' | head -n 4", type: 'text', color: '#6366f1' }
+      { name: 'Network Usage', command: "[ \"$(uname)\" = \"FreeBSD\" ] && netstat -ib | awk '$1 ~ /^[a-z]/ && $3 ~ /<Link#[0-9]+>/ && $8 > 0 {printf \"RX: %.2f GB | TX: %.2f GB\", $8/1073741824, $11/1073741824; exit}' || awk 'NR>2 && $1 !~ /lo/ {rx+=$2; tx+=$10} END {printf \"RX: %.2f GB | TX: %.2f GB\", rx/1073741824, tx/1073741824}' /proc/net/dev", type: 'text', color: '#6366f1' }
     ];
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [showModal, setShowModal] = useState(false);

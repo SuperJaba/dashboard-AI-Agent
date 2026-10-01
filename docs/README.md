@@ -11,6 +11,7 @@ Technical documentation, architecture specifications, and guides for the Dashboa
 | [API Documentation](API_DOCUMENTATION.md) | Guide to backend REST endpoints, Git operations, and Socket.io terminal events. | Quick reference for API routes and payloads. |
 | [System Tools MCP Servers](MCP-SYS-TOOLS.md) | Catalog and configuration for system and infrastructure MCP servers and on-demand dispatchers. | DevOps, system monitoring, and remote CT8 management. |
 | [Widget Tutorial](TUTORIAL_ADD_WIDGET.md) | Step-by-step tutorial on creating, wiring, and registering custom dashboard widgets. | Frontend developers adding new dashboard components. |
+| [Feature Roadmap](ROADMAP.md) | Implementation roadmap and task breakdown for Features 1, 2, 3, 4, 7, 8, and CI/CD. | Planning, feature tracking, and implementation tasks. |
 
 ## Root Documentation References
 

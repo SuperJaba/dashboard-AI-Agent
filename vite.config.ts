@@ -9,8 +9,14 @@ export default defineConfig({
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,
         configure: (proxy) => {
-          proxy.on('error', (err: any) => {
-            if (err?.code === 'ECONNRESET' || err?.code === 'ECONNREFUSED') return;
+          proxy.on('error', (err: any, _req: any, res: any) => {
+            if (err?.code === 'ECONNRESET' || err?.code === 'ECONNREFUSED') {
+              if (res && !res.headersSent && typeof res.writeHead === 'function') {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Backend API starting up, please retry', code: err.code }));
+              }
+              return;
+            }
             console.error('Vite API Proxy Error:', err?.message);
           });
         }
@@ -20,8 +26,14 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
         configure: (proxy) => {
-          proxy.on('error', (err: any) => {
-            if (err?.code === 'ECONNRESET' || err?.code === 'ECONNREFUSED') return;
+          proxy.on('error', (err: any, _req: any, res: any) => {
+            if (err?.code === 'ECONNRESET' || err?.code === 'ECONNREFUSED') {
+              if (res && !res.headersSent && typeof res.writeHead === 'function') {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end();
+              }
+              return;
+            }
             console.error('Vite Socket Proxy Error:', err?.message);
           });
         }
