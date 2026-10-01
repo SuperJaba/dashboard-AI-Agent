@@ -88,3 +88,14 @@ To enable these servers in Antigravity or compatible agent runtimes, add them to
   }
 }
 ```
+
+---
+
+## 6. Token-Efficient On-Demand Pattern (sys-admin skill)
+
+Static MCP servers inject full JSON Schemas for each tool into every turn's system prompt (consuming 2,000–4,000 tokens continuously). To preserve context limits, this repository provides **on-demand dispatchers** governed by the `sys-admin` skill:
+
+- **Local Diagnostics**: `node scripts/sys-info.js [--compact | --cpu | --mem | --disk | --proc]` (<50ms, 0 npm dependencies, ~100 tokens).
+- **Remote Administration**: `node scripts/ssh-ct8.js [status | restart-dash | list-apps | logs | "<cmd>"]` (Non-blocking SSH batch mode to CT8).
+- **Skill Pointer**: [.agents/skills/sys-admin/SKILL.md](../.agents/skills/sys-admin/SKILL.md) costs only ~15 tokens in context and is loaded on demand.
+- **Verification**: Run `npm run test:sys` (`node --test scripts/test-sys-admin.js`).

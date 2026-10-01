@@ -12,6 +12,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:sys": "node --test scripts/test-sys-admin.js",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "autotest": "bash scripts/autotest_ai.sh",
