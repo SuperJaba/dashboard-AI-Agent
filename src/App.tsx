@@ -17,6 +17,7 @@ import CustomWidgets from './CustomWidgets';
 
 import { AgentsView } from './AgentsView';
 import { FolderPickerDialog } from './FolderPickerDialog';
+import { WebhookSettingsModal } from './components/WebhookSettingsModal';
 
 import { useDashboardState } from './hooks/useDashboardState';
 import { DashboardTiles } from './TilesView';
@@ -463,6 +464,10 @@ function App() {
                 <option value="hi">हिन्दी (Hindi)</option>
               </select>
             </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+            <WebhookSettingsModal token={token} />
           </div>
         </div>
       )}

@@ -59,6 +59,7 @@ import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
 import { userSettingsRouter } from './src/backend/settings/userSettingsRouter.js';
+import { webhooksRouter } from './src/backend/webhooks/webhooksRouter.js';
 
 import { fileURLToPath } from 'url';
 
@@ -442,6 +443,7 @@ app.use('/api/widgets', widgetsRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api', llmServersRouter);
 app.use('/api/user-settings', userSettingsRouter);
+app.use('/api/webhooks', webhooksRouter);
 
 // Serve built frontend static assets if available (dist or public)
 const staticDist = path.join(__dirname, 'dist');
