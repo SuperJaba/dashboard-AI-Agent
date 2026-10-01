@@ -42,7 +42,7 @@ export function useDashboardState() {
       return nextVal;
     });
   };
-  const [useBrowserTerminal, setUseBrowserTerminal] = useState(false);
+  const [useBrowserTerminal, setUseBrowserTerminal] = useState(true);
   const [terminalConfig, setTerminalConfig] = useState<any>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [deploying, setDeploying] = useState<string | null>(null);
@@ -92,6 +92,8 @@ export function useDashboardState() {
           setUseBrowserTerminal(localPref === 'true');
         } else if (data.useBrowserTerminal !== undefined) {
           setUseBrowserTerminal(data.useBrowserTerminal === 'true');
+        } else {
+          setUseBrowserTerminal(true);
         }
       })
       .catch(console.error);

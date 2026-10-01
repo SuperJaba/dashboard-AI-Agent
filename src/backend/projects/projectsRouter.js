@@ -5,12 +5,29 @@ import os from 'os';
 import { spawn, exec, execFile, execSync } from 'child_process';
 import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
+import * as agentsRepo from '../agents/agentsRepository.js';
 import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
 import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects, findMarkdownFiles, extractChecklistItems } from './tasksSyncService.js';
 import { detectTechnology } from './techDetector.js';
 
 export const projectsRouter = express.Router();
+
+export function getWslHostIp() {
+  if (process.platform !== 'linux') return null;
+  try {
+    const isWsl = fs.existsSync('/proc/version') && fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
+    if (!isWsl) return null;
+    const route = execSync("ip route show default | awk '{print $3}'", { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (route && /^\d+\.\d+\.\d+\.\d+$/.test(route)) return route;
+  } catch {}
+  try {
+    const resolv = fs.readFileSync('/etc/resolv.conf', 'utf8');
+    const m = resolv.match(/nameserver\s+(\d+\.\d+\.\d+\.\d+)/);
+    if (m) return m[1];
+  } catch {}
+  return null;
+}
 
 export function getAvailableDrives() {
   if (process.platform !== 'win32') {
@@ -503,9 +520,15 @@ projectsRouter.post('/deploy', async (req, res) => {
     let args = [];
     const env = { ...process.env };
 
+    const wslHostIp = getWslHostIp();
     const formatBaseUrl = (url) => {
       if (!url) return '';
-      let cleaned = String(url).trim().replace('127.0.0.1', 'localhost');
+      let cleaned = String(url).trim();
+      if (wslHostIp && (cleaned.includes('localhost') || cleaned.includes('127.0.0.1'))) {
+        cleaned = cleaned.replace('localhost', wslHostIp).replace('127.0.0.1', wslHostIp);
+      } else {
+        cleaned = cleaned.replace('127.0.0.1', 'localhost');
+      }
       if (!/^https?:\/\//i.test(cleaned)) {
         cleaned = `http://${cleaned}`;
       }
@@ -526,7 +549,66 @@ projectsRouter.post('/deploy', async (req, res) => {
       return trimmed !== '' && trimmed !== 'Brak' && !trimmed.startsWith('http://') && !trimmed.startsWith('https://');
     };
 
-    const isClaude = agent === 'claude code' || agent === 'claude';
+    // Look up agent record from DB if present
+    let targetAgent = null;
+    try {
+      const allAgents = await agentsRepo.getAgents();
+      targetAgent = allAgents.find(a => 
+        (a.name && a.name.toLowerCase() === String(agent || '').toLowerCase()) || 
+        String(a.id) === String(agent)
+      );
+    } catch (e) {
+      console.warn('Failed to query agents repository in deploy handler:', e.message);
+    }
+
+    const agentRaw = String(agent || '').toLowerCase();
+    const agentName = String(targetAgent?.name || '').toLowerCase();
+    const agentPath = targetAgent?.path || '';
+    const agentPathLower = agentPath.toLowerCase();
+
+    const isClaude = agentRaw === 'claude' || 
+                     agentRaw === 'claude code' || 
+                     agentRaw.includes('claude') || 
+                     agentName.includes('claude') || 
+                     agentPathLower.endsWith('/claude') || 
+                     agentPathLower.endsWith('\\claude.cmd') || 
+                     agentPathLower.endsWith('\\claude.exe') ||
+                     agentPathLower.endsWith('claude');
+
+    const isAntigravity = agentRaw === 'antigravity' || 
+                          agentRaw === 'agy' || 
+                          agentName.includes('antigravity') || 
+                          agentPathLower.endsWith('/agy') || 
+                          agentPathLower.endsWith('\\agy.cmd') || 
+                          agentPathLower.endsWith('agy');
+
+    const isCodex = agentRaw === 'codex' || 
+                    agentName.includes('codex') || 
+                    agentPathLower.includes('codex');
+
+    const isGemini = agentRaw.includes('gemini') || 
+                     agentName.includes('gemini') || 
+                     agentPathLower.includes('gemini');
+
+    const isAider = agentRaw.includes('aider') || 
+                    agentName.includes('aider') || 
+                    agentPathLower.includes('aider');
+
+    const isOpenCode = agentRaw.includes('opencode') || 
+                       agentName.includes('opencode') || 
+                       agentPathLower.includes('opencode');
+
+    let binExec = agentPath || '';
+    if (!binExec) {
+      if (isClaude) binExec = 'claude';
+      else if (isAntigravity) binExec = 'agy';
+      else if (isCodex) binExec = 'codex';
+      else if (isGemini) binExec = 'gemini';
+      else if (isAider) binExec = 'aider';
+      else if (isOpenCode) binExec = 'opencode';
+      else binExec = agent;
+    }
+
     const hasRealAnthropicKey = isRealApiKey(apiKey) || isRealApiKey(process.env.ANTHROPIC_API_KEY);
     const validAnthropicKey = isRealApiKey(apiKey) ? apiKey : (isRealApiKey(process.env.ANTHROPIC_API_KEY) ? process.env.ANTHROPIC_API_KEY : '');
     const isClaudeModel = typeof llmModel === 'string' && llmModel.toLowerCase().includes('claude');
@@ -538,6 +620,7 @@ projectsRouter.post('/deploy', async (req, res) => {
         env.ANTHROPIC_BASE_URL = anthropicBaseUrl;
         env.ANTHROPIC_AUTH_TOKEN = anthropicToken;
         env.ANTHROPIC_API_KEY = anthropicToken;
+        env.CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT = '1';
         if (llmModel) {
           env.ANTHROPIC_MODEL = llmModel;
         }
@@ -570,25 +653,23 @@ projectsRouter.post('/deploy', async (req, res) => {
     // Dynamic agent execution
     let agentCmd = '';
     
-    // Map full names from frontend to CLI commands
-    let agentBaseCmd = agent;
-    if (agent === 'codex') {
+    // Map full names from frontend or DB to CLI commands
+    let agentBaseCmd = `"${binExec}"`;
+    if (isCodex) {
       const isLocalOss = Boolean(
-        (llmUrl && (llmUrl.includes('1234') || llmUrl.includes('11434') || llmUrl.includes('localhost') || llmUrl.includes('127.0.0.1'))) ||
+        (llmUrl && (llmUrl.includes('1234') || llmUrl.includes('11434') || llmUrl.includes('localhost') || llmUrl.includes('127.0.0.1') || (wslHostIp && llmUrl.includes(wslHostIp)))) ||
         (llmName && /lm\s*studio|ollama|local/i.test(llmName))
       );
       if (llmModel) {
-        agentBaseCmd = isLocalOss ? `codex --oss -m "${llmModel}"` : `codex -m "${llmModel}"`;
+        agentBaseCmd = isLocalOss ? `"${binExec}" --oss -m "${llmModel}"` : `"${binExec}" -m "${llmModel}"`;
       } else {
-        agentBaseCmd = 'codex';
+        agentBaseCmd = `"${binExec}"`;
       }
-    } else if (agent === 'antigravity') {
-      agentBaseCmd = 'agy';
     } else if (isClaude) {
       if (llmModel) {
-        agentBaseCmd = `claude --model "${llmModel}"`;
+        agentBaseCmd = `"${binExec}" --model "${llmModel}"`;
       } else {
-        agentBaseCmd = 'claude';
+        agentBaseCmd = `"${binExec}"`;
       }
     }
     
@@ -598,12 +679,12 @@ projectsRouter.post('/deploy', async (req, res) => {
       const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
       const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt 
       || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
-      agentCmd = agentBaseCmd === 'agy' ? `agy -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
+      agentCmd = isAntigravity ? `${agentBaseCmd} -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
     } else if (tasks && tasks.length > 0) {
       const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
       const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
       const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-      agentCmd = agentBaseCmd === 'agy' ? `agy -i "${escapedPrompt}"` : `${agentBaseCmd} "${escapedPrompt}"`;
+      agentCmd = isAntigravity ? `${agentBaseCmd} -i "${escapedPrompt}"` : `${agentBaseCmd} "${escapedPrompt}"`;
     } else {
       agentCmd = agentBaseCmd;
     }
@@ -613,7 +694,7 @@ projectsRouter.post('/deploy', async (req, res) => {
     ];
       
     // Configure environment variables depending on the agent
-    if (agent !== 'codex') {
+    if (!isCodex) {
       if (isClaude) {
         if (llmUrl) {
           const anthropicBaseUrl = formatAnthropicBaseUrl(llmUrl);
@@ -621,6 +702,7 @@ projectsRouter.post('/deploy', async (req, res) => {
           exportEnvLines.push(`export ANTHROPIC_BASE_URL="${anthropicBaseUrl}"`);
           exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${anthropicToken}"`);
           exportEnvLines.push(`export ANTHROPIC_API_KEY="${anthropicToken}"`);
+          exportEnvLines.push('export CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1');
           if (llmModel) {
             exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
           }
@@ -661,7 +743,7 @@ export COLUMNS=100
 export LINES=30
 export TERM=xterm-256color
 ${exportEnvLines.join('\n')}
-echo -e "\\033[1;34m🚀 Initializing AI Agent (${agent})...\\033[0m"
+echo -e "\\033[1;34m🚀 Initializing AI Agent (${targetAgent?.name || agent})...\\033[0m"
 echo -ne "\\033[1;36m📡 Preparing environment: \\033[0m"
 for i in {1..10}; do
     echo -ne "█"
