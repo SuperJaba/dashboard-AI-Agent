@@ -300,6 +300,31 @@
       "keyFiles": []
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "server.js",
+      "accessCount": 3,
+      "lastAccessed": 1790886181222,
+      "type": "directory"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 1,
+      "lastAccessed": 1790886206644,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\picho\\.claude",
+      "accessCount": 1,
+      "lastAccessed": 1790888548675,
+      "type": "directory"
+    },
+    {
+      "path": "C:\\Users\\picho\\.claude\\plugins\\cache\\omc\\oh-my-claudecode\\4.13.7",
+      "accessCount": 1,
+      "lastAccessed": 1790888860826,
+      "type": "directory"
+    }
+  ],
   "userDirectives": []
 }

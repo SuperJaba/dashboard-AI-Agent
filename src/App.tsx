@@ -1,12 +1,13 @@
-import { startTransition, useState } from 'react';
+import { startTransition, useState, useEffect } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
-  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
+import { LocalWorkerModal } from './LocalWorkerModal';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { LlmServerManager } from './LlmServerManager';
 
@@ -82,8 +83,25 @@ function App() {
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
   const [showSettings, setShowSettings] = useState(false);
+  const [showWorkerModal, setShowWorkerModal] = useState(false);
+  const [workersCount, setWorkersCount] = useState(0);
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchWorkers = () => {
+      const activeToken = token || localStorage.getItem('dashboard_token');
+      fetch('/api/agents/workers', {
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
+      })
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setWorkersCount(Array.isArray(data) ? data.length : 0))
+        .catch(() => setWorkersCount(0));
+    };
+    fetchWorkers();
+    const interval = setInterval(fetchWorkers, 4000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   // Dropdown-based agent selection for the "Local workspace" project view,
   // replacing what used to be a growing row of "Deploy <Agent>" buttons.
@@ -126,6 +144,28 @@ function App() {
           >
             <Bot size={18} aria-hidden="true" />
             <span>Agenci AI</span>
+          </button>
+          <button 
+            type="button"
+            className="project-item"
+            onClick={() => setShowWorkerModal(true)}
+            title="Komenda połączenia i aktualny token do Socket.IO"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Laptop size={18} aria-hidden="true" color={workersCount > 0 ? '#10b981' : '#38bdf8'} />
+              <span>{t('sidebar.socketTunnel')}</span>
+            </div>
+            <span style={{
+              fontSize: '0.7rem',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              background: workersCount > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(148, 163, 184, 0.15)',
+              color: workersCount > 0 ? '#34d399' : '#94a3b8',
+              fontWeight: 600
+            }}>
+              {workersCount > 0 ? '● Online' : 'Offline'}
+            </span>
           </button>
         </nav>
 
@@ -314,6 +354,30 @@ function App() {
           </button>
           <button 
             type="button"
+            onClick={() => setShowWorkerModal(true)}
+            title="Pobierz komendę i token Socket.IO dla Local Workera"
+            style={{ 
+              display: 'flex', 
+              gap: '0.5rem', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              background: workersCount > 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.1)', 
+              border: `1px solid ${workersCount > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(56, 189, 248, 0.25)'}`, 
+              padding: '0.5rem', 
+              borderRadius: '8px', 
+              color: workersCount > 0 ? '#34d399' : '#38bdf8', 
+              cursor: 'pointer', 
+              marginTop: '0.5rem', 
+              fontSize: '0.8rem', 
+              fontWeight: 'bold', 
+              transition: '0.3s' 
+            }}
+          >
+            <Laptop size={16} aria-hidden="true" />
+            <span>{workersCount > 0 ? `Socket: Połączono (${workersCount})` : 'Socket / Tunel PC'}</span>
+          </button>
+          <button 
+            type="button"
             onClick={() => setShowSettings(true)}
             aria-label={t('settings.title')}
             title={t('settings.title')}
@@ -401,6 +465,12 @@ function App() {
           </div>
         </div>
       )}
+
+      <LocalWorkerModal 
+        isOpen={showWorkerModal} 
+        onClose={() => setShowWorkerModal(false)} 
+        token={token} 
+      />
 
       {/* Main Area */}
       <main id="main-content" tabIndex={-1} className="dashboard-container">

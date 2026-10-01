@@ -1,10 +1,14 @@
 import { safeQuery } from '../src/backend/db.js';
 
 async function runMigrations() {
-  console.log('🔄 Running database migrations...');
+  const schema = process.env.DB_SCHEMA || 'dashboard';
+  console.log(`🔄 Running database migrations in schema '${schema}'...`);
   try {
+    await safeQuery(`CREATE SCHEMA IF NOT EXISTS ${schema};`);
+    await safeQuery(`SET search_path TO ${schema}, public;`);
+
     // Drop tables if they exist (to fix corruption)
-    console.log('📊 Dropping existing tables to ensure clean state...');
+    console.log(`📊 Dropping existing tables in schema '${schema}' to ensure clean state...`);
     await safeQuery(`
       DROP TABLE IF EXISTS settings CASCADE;
       DROP TABLE IF EXISTS projects CASCADE;

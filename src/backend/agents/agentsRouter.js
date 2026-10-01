@@ -1,5 +1,6 @@
 import express from 'express';
 import fs from 'fs';
+import path from 'path';
 import { execSync } from 'child_process';
 import * as agentsRepo from './agentsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
@@ -92,7 +93,7 @@ agentsRouter.post('/scan', async (req, res) => {
           await agentsRepo.updateAgentPathAndConfig(agent.name, resolvedPath, configUri);
         }
         found.push(agent.name);
-      } else if (existing && existing.installed) {
+      } else if (existing && existing.installed && process.env.NODE_ENV !== 'production') {
         // Previously discovered but no longer resolvable (uninstalled, PATH
         // changed, etc.) — mark as not installed so nothing tries to spawn it.
         await agentsRepo.setAgentInstalled(existing.id, false);
@@ -101,10 +102,12 @@ agentsRouter.post('/scan', async (req, res) => {
 
     // Also flag any other stored agent whose path no longer exists on disk
     // (e.g. stale/manually-entered entries), so the background worker skips them.
-    const allAgents = await agentsRepo.getAgents();
-    for (const agent of allAgents) {
-      if (agent.installed && agent.path && !fs.existsSync(agent.path) && !found.includes(agent.name)) {
-        await agentsRepo.setAgentInstalled(agent.id, false);
+    if (process.env.NODE_ENV !== 'production') {
+      const allAgents = await agentsRepo.getAgents();
+      for (const agent of allAgents) {
+        if (agent.installed && agent.path && path.isAbsolute(agent.path) && !fs.existsSync(agent.path) && !found.includes(agent.name)) {
+          await agentsRepo.setAgentInstalled(agent.id, false);
+        }
       }
     }
 

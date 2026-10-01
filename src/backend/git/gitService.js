@@ -6,7 +6,7 @@ import { promisify } from 'util';
 const execAsync = typeof exec === 'function' ? promisify(exec) : async () => ({ stdout: '' });
 
 export function resolveDirectory(dir) {
-  if (!dir) return dir;
+  if (!dir || typeof dir !== 'string') return '';
   if (dir.startsWith('~/')) {
     const home = process.env.HOME || process.env.USERPROFILE || '';
     return path.join(home, dir.slice(2));
@@ -15,8 +15,14 @@ export function resolveDirectory(dir) {
 }
 
 export function isGitRepo(directory) {
-  const resolved = resolveDirectory(directory);
-  return fs.existsSync(path.join(resolved, '.git'));
+  if (!directory || typeof directory !== 'string') return false;
+  try {
+    const resolved = resolveDirectory(directory);
+    if (!resolved) return false;
+    return fs.existsSync(path.join(resolved, '.git'));
+  } catch {
+    return false;
+  }
 }
 
 export function getStatus(directory) {

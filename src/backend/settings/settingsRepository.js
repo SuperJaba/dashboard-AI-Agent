@@ -11,6 +11,8 @@ export async function getSettings() {
       } catch  {
         settings[row.key] = row.value;
       }
+    } else if (row.key === 'useBrowserTerminal') {
+      settings[row.key] = row.value === 'true' || row.value === true;
     } else {
       settings[row.key] = row.value;
     }

@@ -599,7 +599,7 @@ projectsRouter.post('/deploy', async (req, res) => {
                        agentPathLower.includes('opencode');
 
     let binExec = agentPath || '';
-    if (!binExec) {
+    if (!binExec || binExec.includes('/home/seba') || (path.isAbsolute(binExec) && !fs.existsSync(binExec))) {
       if (isClaude) binExec = 'claude';
       else if (isAntigravity) binExec = 'agy';
       else if (isCodex) binExec = 'codex';
@@ -652,6 +652,7 @@ projectsRouter.post('/deploy', async (req, res) => {
 
     // Dynamic agent execution
     let agentCmd = '';
+    let promptBlock = '';
     
     // Map full names from frontend or DB to CLI commands
     let agentBaseCmd = `"${binExec}"`;
@@ -679,12 +680,13 @@ projectsRouter.post('/deploy', async (req, res) => {
       const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
       const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt 
       || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
-      agentCmd = isAntigravity ? `${agentBaseCmd} -i "${promptText}"` : `${agentBaseCmd} "${promptText}"`;
+      promptBlock = `AGENT_PROMPT=$(cat << 'EOF_AGENT_PROMPT'\n${promptText}\nEOF_AGENT_PROMPT\n)\n`;
+      agentCmd = isAntigravity ? `${agentBaseCmd} -i "$AGENT_PROMPT"` : `${agentBaseCmd} "$AGENT_PROMPT"`;
     } else if (tasks && tasks.length > 0) {
       const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
       const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
-      const escapedPrompt = promptText.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-      agentCmd = isAntigravity ? `${agentBaseCmd} -i "${escapedPrompt}"` : `${agentBaseCmd} "${escapedPrompt}"`;
+      promptBlock = `AGENT_PROMPT=$(cat << 'EOF_AGENT_PROMPT'\n${promptText}\nEOF_AGENT_PROMPT\n)\n`;
+      agentCmd = isAntigravity ? `${agentBaseCmd} -i "$AGENT_PROMPT"` : `${agentBaseCmd} "$AGENT_PROMPT"`;
     } else {
       agentCmd = agentBaseCmd;
     }
@@ -700,17 +702,54 @@ projectsRouter.post('/deploy', async (req, res) => {
           const anthropicBaseUrl = formatAnthropicBaseUrl(llmUrl);
           const anthropicToken = validAnthropicKey || apiKey || 'lmstudio';
           exportEnvLines.push(`export ANTHROPIC_BASE_URL="${anthropicBaseUrl}"`);
-          exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${anthropicToken}"`);
           exportEnvLines.push(`export ANTHROPIC_API_KEY="${anthropicToken}"`);
           exportEnvLines.push('export CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1');
           if (llmModel) {
             exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
           }
+
+          // Auto-configure ~/.claude.json to avoid interactive onboarding and API key approval prompts
+          try {
+            const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+            if (homeDir) {
+              const claudeJsonPath = path.join(homeDir, '.claude.json');
+              let claudeConfig = {};
+              if (fs.existsSync(claudeJsonPath)) {
+                try {
+                  claudeConfig = JSON.parse(fs.readFileSync(claudeJsonPath, 'utf8'));
+                } catch {}
+              }
+              let modified = false;
+              if (!claudeConfig.hasCompletedOnboarding) {
+                claudeConfig.hasCompletedOnboarding = true;
+                modified = true;
+              }
+              if (!claudeConfig.theme) {
+                claudeConfig.theme = 'dark';
+                modified = true;
+              }
+              const keySuffix = anthropicToken.trim().slice(-20);
+              if (!claudeConfig.customApiKeyResponses) {
+                claudeConfig.customApiKeyResponses = { approved: [], rejected: [] };
+              }
+              if (!Array.isArray(claudeConfig.customApiKeyResponses.approved)) {
+                claudeConfig.customApiKeyResponses.approved = [];
+              }
+              if (keySuffix && !claudeConfig.customApiKeyResponses.approved.includes(keySuffix)) {
+                claudeConfig.customApiKeyResponses.approved.push(keySuffix);
+                modified = true;
+              }
+              if (modified) {
+                fs.writeFileSync(claudeJsonPath, JSON.stringify(claudeConfig, null, 2));
+              }
+            }
+          } catch (cfgErr) {
+            console.warn('Could not auto-configure ~/.claude.json:', cfgErr.message);
+          }
         } else {
           // Claude Code uses its own native OAuth login (~/.claude.json) unless a real Anthropic key is provided
           if (hasRealAnthropicKey && validAnthropicKey) {
             exportEnvLines.push(`export ANTHROPIC_API_KEY="${validAnthropicKey}"`);
-            exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${validAnthropicKey}"`);
           }
           if (isClaudeModel && llmModel) {
             exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
@@ -737,7 +776,7 @@ projectsRouter.post('/deploy', async (req, res) => {
     }
 
     const scriptContent = `#!/bin/bash
-cd "${targetDir}"
+cd "${targetDir}" 2>/dev/null || true
 stty cols 100 rows 30 2>/dev/null || true
 export COLUMNS=100
 export LINES=30
@@ -752,7 +791,7 @@ done
 echo -e " \\033[1;32m[DONE]\\033[0m"
 
 echo -e "\\033[1;33m🔑 Authenticating Provider (${llmName || 'Custom Provider'}): ${llmModel || 'default model'}... \\033[1;32m[SUCCESS]\\033[0m"
-echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
+${promptBlock}echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
 exec bash
 `;
@@ -771,7 +810,8 @@ exec bash
         command: 'bash', 
         args: [scriptPath], 
         cwd: targetDir, 
-        env 
+        env,
+        scriptContent
       });
     }
 
@@ -828,28 +868,34 @@ projectsRouter.get('/analytics', async (req, res) => {
 // Git status router helpers
 projectsRouter.post('/git/status', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
+    if (!directory || !gitService.isGitRepo(directory)) {
+      return res.json({ isGitRepo: false, error: 'Not a git repository', branch: '', changes: [], commits: [] });
+    }
     const result = gitService.getStatus(directory);
     res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.json({ isGitRepo: false, error: 'Not a git repository', branch: '', changes: [], commits: [] });
   }
 });
 
 projectsRouter.post('/git/github', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
+    if (!directory || !gitService.isGitRepo(directory)) {
+      return res.json({ prs: [], latestRun: null });
+    }
     const result = await gitService.getGithubPRsAndRuns(directory);
     res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.json({ prs: [], latestRun: null });
   }
 });
 
 
 projectsRouter.post('/git/cancel-ci', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
     const result = gitService.cancelCIJobs(directory);
     res.json(result);
   } catch (e) {
@@ -859,7 +905,7 @@ projectsRouter.post('/git/cancel-ci', async (req, res) => {
 
 projectsRouter.post('/git/deploy', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
     const result = gitService.autoDeploy(directory);
     res.json(result);
   } catch (e) {
@@ -870,11 +916,14 @@ projectsRouter.post('/git/deploy', async (req, res) => {
 // Git Branches
 projectsRouter.post('/git/branches', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
+    if (!directory || !gitService.isGitRepo(directory)) {
+      return res.json({ current: '', local: [], remote: [] });
+    }
     const result = gitService.getBranches(directory);
     res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.json({ current: '', local: [], remote: [] });
   }
 });
 

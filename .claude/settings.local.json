@@ -11,5 +11,5 @@
   "disabledMcpjsonServers": [
     "MCP_DOCKER"
   ],
-  "prefersReducedMotion": false
+  "prefersReducedMotion": true
 }

@@ -14,6 +14,7 @@ vi.mock('@xterm/xterm', () => {
       onData = vi.fn();
       dispose = vi.fn();
       focus = vi.fn();
+      attachCustomKeyEventHandler = vi.fn();
     }
   };
 });
@@ -26,6 +27,26 @@ vi.mock('@xterm/addon-fit', () => {
     }
   };
 });
+
+// Mock socket.io-client
+vi.mock('socket.io-client', () => {
+  return {
+    io: vi.fn(() => ({
+      on: vi.fn(),
+      emit: vi.fn(),
+      disconnect: vi.fn(),
+      close: vi.fn()
+    }))
+  };
+});
+
+// Mock fetch for active workers
+global.fetch = vi.fn().mockImplementation(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve([])
+  })
+);
 
 describe('TerminalView', () => {
   it('renders terminal title correctly', () => {

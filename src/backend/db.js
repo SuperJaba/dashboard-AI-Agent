@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 const { Pool } = pkg;
 
+const schema = process.env.DB_SCHEMA || 'dashboard';
+
 export const pool = new Pool({
   user: process.env.DB_USER || process.env.PGUSER || 'SebaP',
   host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
@@ -11,12 +13,18 @@ export const pool = new Pool({
   password: process.env.DB_PASSWORD || process.env.PGPASSWORD,
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
   connectionTimeoutMillis: 10000,
+  options: `-c search_path=${schema},public`,
 });
 
 // Suppress unhandled connection error events from pg pool
 if (pool && typeof pool.on === 'function') {
   pool.on('error', (err) => {
     console.warn('PostgreSQL Pool background connection warning:', err.message);
+  });
+  pool.on('connect', (client) => {
+    client.query(`SET search_path TO ${schema}, public;`).catch((err) => {
+      console.warn('PostgreSQL search_path warning:', err.message);
+    });
   });
 }
 

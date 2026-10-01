@@ -38,3 +38,6 @@ coverage/
 
 # PostgreSQL local data
 postgres-data/
+
+*.env
+.omc/
