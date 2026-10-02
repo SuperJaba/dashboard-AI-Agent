@@ -66,7 +66,31 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@xterm')) {
+              return 'vendor-xterm';
+            }
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('framer-motion')) {
+              return 'vendor-framer-motion';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-lucide';
+            }
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-i18next') || id.includes('i18next')) {
+              return 'vendor-react';
+            }
+            return 'vendor-common';
+          }
+        }
+      }
+    }
   }
 })
 
