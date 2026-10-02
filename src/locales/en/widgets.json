@@ -1,0 +1,19 @@
+{
+  "widget.kpiDashboard": "KPI Dashboard",
+  "widget.customWidgets": "Custom Widgets",
+  "widget.serverStats": "Server Stats",
+  "widget.repoStatus": "Repo Status",
+  "widget.analytics": "Analytics",
+  "widget.type.number": "Counter (Number)",
+  "widget.type.text": "Raw Text",
+  "widget.type.barChart": "Progress Bar (0-100)",
+  "widget.type.networkChart": "Network Chart (RX/TX)",
+  "widget.add": "Add widget",
+  "widget.name": "Name",
+  "widget.command": "Shell command",
+  "widget.color": "Color theme",
+  "widget.type": "Type",
+  "widget.server": "Server",
+  "widget.delete": "Delete widget",
+  "widget.agentInstructions": "Agent instructions (optional)"
+}

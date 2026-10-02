@@ -3,7 +3,7 @@ import {
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
-  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff
 } from 'lucide-react';
 import './index.css';
 import { TerminalView } from './TerminalView';
@@ -18,6 +18,9 @@ import CustomWidgets from './CustomWidgets';
 import { AgentsView } from './AgentsView';
 import { FolderPickerDialog } from './FolderPickerDialog';
 import { WebhookSettingsModal } from './components/WebhookSettingsModal';
+import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
+import { ModelRoutingWidget } from './components/ModelRoutingWidget';
+import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 
 import { useDashboardState } from './hooks/useDashboardState';
 import { DashboardTiles } from './TilesView';
@@ -89,6 +92,7 @@ function App() {
   const [workersCount, setWorkersCount] = useState(0);
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const { connected: isSseConnected } = useLiveTelemetry();
 
   useEffect(() => {
     const fetchWorkers = () => {
@@ -1083,7 +1087,9 @@ function App() {
           </>
         ) : (
           <div>
-            <div style={{ padding: '1.25rem 1.25rem 0 1.25rem' }}>
+            <div style={{ padding: '1.25rem 1.25rem 0 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <KpiDashboardPanel />
+              <ModelRoutingWidget />
               <AnalyticsPanel projects={projects} />
             </div>
             <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
@@ -1309,6 +1315,35 @@ function App() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Offline banner (T2.3) */}
+      {!isSseConnected && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(234, 179, 8, 0.15)',
+            borderTop: '1px solid rgba(234, 179, 8, 0.3)',
+            color: '#ca8a04',
+            padding: '0.4rem 1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            fontSize: '0.8rem',
+            fontWeight: 500,
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <WifiOff size={14} aria-hidden="true" />
+          <span>Brak połączenia z serwerem — ponawiam...</span>
         </div>
       )}
 
