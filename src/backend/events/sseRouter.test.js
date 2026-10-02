@@ -5,7 +5,7 @@ import http from 'http';
 
 // ---------- mocks ----------
 
-vi.mock('../../../../server.js', () => ({
+vi.mock('../../../server.js', () => ({
   activeWorkers: new Map([
     ['sock1', { id: 'sock1', name: 'Test Worker', hostname: 'host1', platform: 'linux', connectedAt: '2026-01-01T00:00:00Z' }],
   ]),
@@ -32,7 +32,7 @@ describe('sseRouter', () => {
       const app = express();
       // We need a fresh import after resetModules
       import('./sseRouter.js').then(({ sseRouter: router }) => {
-        app.get('/api/events', (req, res) => router.handle(req, res));
+        app.use('/api/events', router);
         server = createServer(app);
         server.listen(0, '127.0.0.1', resolve);
       });
@@ -40,7 +40,16 @@ describe('sseRouter', () => {
   });
 
   afterEach(() => {
-    return new Promise(resolve => server.close(resolve));
+    return new Promise(resolve => {
+      if (server) {
+        if (typeof server.closeAllConnections === 'function') {
+          server.closeAllConnections();
+        }
+        server.close(resolve);
+      } else {
+        resolve();
+      }
+    });
   });
 
   it('responds with Content-Type text/event-stream', () => {

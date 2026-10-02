@@ -45,8 +45,13 @@ export default defineConfig({
   },
   test: {
     pool: 'threads',
-    maxWorkers: 4,
+    fileParallelism: false,
     environment: 'jsdom',
+    environmentMatchGlobs: [
+      ['src/backend/**', 'node'],
+      ['server.test.js', 'node'],
+      ['src/local-agent-worker.test.js', 'node'],
+    ],
     globals: true,
     setupFiles: './src/setupTests.ts',
     // exclude noise & generated placeholders

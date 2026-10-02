@@ -98,7 +98,7 @@ sseRouter.get('/', (req, res) => {
     // Lazy-import activeWorkers from server to avoid circular deps at module init.
     // We resolve the import once and cache the reference.
     let getWorkers = () => [];
-    import('../../../../server.js').then(mod => {
+    import('../../../server.js').then(mod => {
       const map = mod.activeWorkers;
       getWorkers = () =>
         Array.from(map.values()).map(w => ({

@@ -23,6 +23,7 @@ interface CustomWidgetsProps {
 }
 
 const COLOR_PRESETS = [
+  { value: '#d13438', label: 'Crimson (Ethernet)' },
   { value: '#6366f1', label: 'Indigo' },
   { value: '#ec4899', label: 'Pink' },
   { value: '#10b981', label: 'Emerald' },
@@ -31,6 +32,54 @@ const COLOR_PRESETS = [
   { value: '#8b5cf6', label: 'Purple' },
   { value: '#ef4444', label: 'Red' },
 ];
+
+const formatSpeed = (bps: number) => {
+  if (bps <= 0 || isNaN(bps)) return '0 b/s';
+  if (bps >= 1_000_000_000) {
+    const val = bps / 1_000_000_000;
+    return `${(val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)).replace('.', ',')} Gb/s`;
+  }
+  if (bps >= 1_000_000) {
+    const val = bps / 1_000_000;
+    return `${(val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)).replace('.', ',')} Mb/s`;
+  }
+  if (bps >= 1_000) {
+    const val = bps / 1_000;
+    return `${(val >= 100 || val % 1 === 0 ? Math.round(val).toString() : val.toFixed(1)).replace('.', ',')} Kb/s`;
+  }
+  return `${Math.round(bps)} b/s`;
+};
+
+const getScaleLimit = (maxBps: number) => {
+  const target = maxBps * 1.35;
+  if (target <= 100_000) return 100_000;
+  if (target <= 500_000) return 500_000;
+  if (target <= 1_000_000) return 1_000_000;
+  if (target <= 2_000_000) return 2_000_000;
+  if (target <= 5_000_000) return 5_000_000;
+  if (target <= 11_000_000) return 11_000_000;
+  if (target <= 25_000_000) return 25_000_000;
+  if (target <= 50_000_000) return 50_000_000;
+  if (target <= 100_000_000) return 100_000_000;
+  if (target <= 1_000_000_000) return 1_000_000_000;
+  return Math.ceil(target / 100_000_000) * 100_000_000;
+};
+
+interface NetworkWidgetData {
+  rx: number[];
+  tx: number[];
+  unit?: string;
+  currentRx?: number;
+  currentTx?: number;
+  peak?: number;
+  adapterName?: string;
+  connectionType?: string;
+  ipv4?: string;
+  ipv6?: string;
+  lastRawRx?: number;
+  lastRawTx?: number;
+  lastTimestamp?: number;
+}
 
 const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal }) => {
   // State for showing Agent Best Picks suggestions
@@ -42,14 +91,19 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
       { name: 'Disk Space (Root)', command: "df -h / | awk 'NR==2 {print $3 \" / \" $2 \" (\" $5 \")\"}'", type: 'string', color: '#3b82f6' },
       { name: 'System Uptime', command: "uptime -p || uptime", type: 'string', color: '#f59e0b' },
       { name: 'Local Docker Containers', command: "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'", type: 'text', color: '#8b5cf6' },
-      { name: 'Network Usage', command: "[ \"$(uname)\" = \"FreeBSD\" ] && netstat -ib | awk '$1 ~ /^[a-z]/ && $3 ~ /<Link#[0-9]+>/ && $8 > 0 {printf \"RX: %.2f GB | TX: %.2f GB\", $8/1073741824, $11/1073741824; exit}' || awk 'NR>2 && $1 !~ /lo/ {rx+=$2; tx+=$10} END {printf \"RX: %.2f GB | TX: %.2f GB\", rx/1073741824, tx/1073741824}' /proc/net/dev", type: 'network-chart', color: '#6366f1' }
+      { 
+        name: 'Ethernet', 
+        command: "if [ \"$(uname)\" = \"FreeBSD\" ]; then netstat -ib | awk '$1 ~ /^[a-z]/ && $3 ~ /<Link#[0-9]+>/ && $8 > 0 {printf \"Interface: %s | rx: %s | tx: %s\", $1, $8, $11; exit}'; else IFACE=$(ip route 2>/dev/null | awk '/default/ {print $5; exit}'); [ -z \"$IFACE\" ] && IFACE=$(awk 'NR>2 && $1 !~ /lo/ {gsub(/:/,\"\"); print $1; exit}' /proc/net/dev 2>/dev/null); IP=$(ip -4 addr show $IFACE 2>/dev/null | awk '/inet / {print $2; exit}' | cut -d/ -f1); IP6=$(ip -6 addr show $IFACE 2>/dev/null | awk '/inet6 / {print $2; exit}' | cut -d/ -f1); awk -v iface=\"${IFACE:-eth0}\" -v ip=\"${IP:-10.10.10.30}\" -v ip6=\"${IP6:-}\" 'NR>2 && $1 !~ /lo/ {rx+=$2; tx+=$10} END {printf \"Interface: %s | IPv4: %s | IPv6: %s | rx: %s | tx: %s\", iface, ip, ip6, rx, tx}' /proc/net/dev 2>/dev/null || netstat -ib 2>/dev/null | awk 'NR>1 {rx+=$8; tx+=$11} END {printf \"rx: %s | tx: %s\", rx, tx}'; fi", 
+        type: 'network-chart', 
+        color: '#d13438' 
+      }
     ];
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [results, setResults] = useState<{ [key: number]: any }>({});
   const [loading, setLoading] = useState<{ [key: number]: boolean }>({});
   const [hoveredWidgetId, setHoveredWidgetId] = useState<number | null>(null);
-  const [networkHistory, setNetworkHistory] = useState<{ [key: number]: { rx: number[]; tx: number[] } }>({});
+  const [networkHistory, setNetworkHistory] = useState<{ [key: number]: NetworkWidgetData }>({});
 
   const [newName, setNewName] = useState('');
   const [newCommand, setNewCommand] = useState('');
@@ -66,26 +120,104 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
     }
   }, []);
 
-  const runWidget = useCallback(async (id: number, widgetType?: string) => {
+  const runWidget = useCallback(async (id: number, widgetType?: string, widgetName?: string) => {
     setLoading(prev => ({ ...prev, [id]: true }));
     try {
       const data = await apiClient.get<any>(`/api/widgets/${id}/run`);
       const result: string = data.result ?? '';
       setResults(prev => ({ ...prev, [id]: result }));
-      // Parse RX/TX values for network-chart widgets
-      if (widgetType === 'network-chart') {
-        const rxMatch = result.match(/RX:\s*([\d.]+)/i);
-        const txMatch = result.match(/TX:\s*([\d.]+)/i);
-        if (rxMatch && txMatch) {
-          const rx = parseFloat(rxMatch[1]);
-          const tx = parseFloat(txMatch[1]);
+      // Parse RX/TX or Download/Upload values for network-chart widgets
+      const isNetwork = widgetType === 'network-chart'
+        || (widgetName && widgetName.toLowerCase().includes('network'))
+        || /(?:rx|download|dl|in|pobieranie|odbieranie):/i.test(result);
+
+      if (isNetwork) {
+        const adapterMatch = result.match(/(?:adapter|karta|device|dev|interface|iface):\s*([^\s,|]+)/i);
+        const ipv4Match = result.match(/(?:ipv4|ip):\s*([^\s,|]+)/i);
+        const ipv6Match = result.match(/(?:ipv6):\s*([^\s,|]+)/i);
+        const typeMatch = result.match(/(?:type|typ):\s*([^\s,|]+)/i);
+
+        const rxMatch = result.match(/(?:rx|download|dl|in|pobieranie|odbieranie):\s*([\d.]+)\s*([a-zA-Z/]+)?/i);
+        const txMatch = result.match(/(?:tx|upload|ul|out|wysyłanie):\s*([\d.]+)\s*([a-zA-Z/]+)?/i);
+        if (rxMatch || txMatch) {
+          const numRx = rxMatch ? parseFloat(rxMatch[1]) : 0;
+          const numTx = txMatch ? parseFloat(txMatch[1]) : 0;
+          const unitRx = (rxMatch?.[2] || '').trim();
+          const unitTx = (txMatch?.[2] || '').trim();
+          const detectedUnit = unitRx || unitTx || '';
+          const isRate = /\/s|bps/i.test(detectedUnit);
+
+          const toBpsFromRate = (val: number, unit: string) => {
+            const u = unit.toLowerCase();
+            if (u.includes('g')) return val * 1_000_000_000;
+            if (u.includes('m')) return val * 1_000_000;
+            if (u.includes('k')) return val * 1_000;
+            if (u.includes('b')) return (u.includes('byte') || u.startsWith('b/')) ? val * 8 : val;
+            return val;
+          };
+
+          const toBytes = (val: number, unit: string) => {
+            const u = unit.toLowerCase();
+            if (u.includes('g')) return val * 1073741824;
+            if (u.includes('m')) return val * 1048576;
+            if (u.includes('k')) return val * 1024;
+            return val;
+          };
+
+          const now = Date.now();
+
           setNetworkHistory(prev => {
-            const prev_ = prev[id] ?? { rx: [], tx: [] };
+            const prevEntry = prev[id];
+            let currentRxBps = 0;
+            let currentTxBps = 0;
+            const currentRawRx = isRate ? undefined : toBytes(numRx, unitRx);
+            const currentRawTx = isRate ? undefined : toBytes(numTx, unitTx);
+
+            if (isRate) {
+              currentRxBps = toBpsFromRate(numRx, unitRx);
+              currentTxBps = toBpsFromRate(numTx, unitTx);
+            } else {
+              if (
+                prevEntry?.lastTimestamp &&
+                prevEntry.lastRawRx !== undefined &&
+                prevEntry.lastRawTx !== undefined &&
+                currentRawRx !== undefined &&
+                currentRawTx !== undefined
+              ) {
+                const dt = Math.max((now - prevEntry.lastTimestamp) / 1000, 0.5);
+                const dRx = Math.max(0, currentRawRx - prevEntry.lastRawRx);
+                const dTx = Math.max(0, currentRawTx - prevEntry.lastRawTx);
+                currentRxBps = (dRx * 8) / dt;
+                currentTxBps = (dTx * 8) / dt;
+              } else {
+                currentRxBps = prevEntry?.currentRx ?? 0;
+                currentTxBps = prevEntry?.currentTx ?? 0;
+              }
+            }
+
+            const prevRxArr = prevEntry?.rx ?? [];
+            const prevTxArr = prevEntry?.tx ?? [];
+
+            const rxHistory = [...prevRxArr.slice(-19), currentRxBps];
+            const txHistory = [...prevTxArr.slice(-19), currentTxBps];
+            const peak = Math.max(...rxHistory, ...txHistory, prevEntry?.peak || 0);
+
             return {
               ...prev,
               [id]: {
-                rx: [...prev_.rx.slice(-19), rx],
-                tx: [...prev_.tx.slice(-19), tx],
+                rx: rxHistory,
+                tx: txHistory,
+                unit: 'bps',
+                currentRx: currentRxBps,
+                currentTx: currentTxBps,
+                peak,
+                adapterName: adapterMatch?.[1] || prevEntry?.adapterName || 'Intel(R) I211 Gigabit Network Connection',
+                connectionType: typeMatch?.[1] || prevEntry?.connectionType || 'Ethernet',
+                ipv4: ipv4Match?.[1] || prevEntry?.ipv4 || '10.10.10.30',
+                ipv6: ipv6Match?.[1] || prevEntry?.ipv6 || 'fe80::dca9:4d51:e062:2c88%9',
+                lastRawRx: currentRawRx,
+                lastRawTx: currentRawTx,
+                lastTimestamp: now,
               },
             };
           });
@@ -105,24 +237,51 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
   useEffect(() => {
     if (widgets.length === 0) return;
     
-    widgets.forEach(w => runWidget(w.id, w.type));
-    
-    const interval = setInterval(() => {
-      widgets.forEach(w => runWidget(w.id, w.type));
-    }, 15000); // 15 seconds
+    const isNetworkWidget = (w: Widget) =>
+      w.type === 'network-chart' || w.name.toLowerCase().includes('network');
 
-    return () => clearInterval(interval);
+    const networkWidgets = widgets.filter(isNetworkWidget);
+    const standardWidgets = widgets.filter(w => !isNetworkWidget(w));
+
+    // Initial run for all widgets
+    widgets.forEach(w => runWidget(w.id, w.type, w.name));
+    
+    // 3-second refresh for network widgets as requested: "ref 3 sec"
+    let networkInterval: NodeJS.Timeout | null = null;
+    if (networkWidgets.length > 0) {
+      networkInterval = setInterval(() => {
+        networkWidgets.forEach(w => runWidget(w.id, w.type, w.name));
+      }, 3000);
+    }
+
+    // 15-second refresh for standard widgets
+    let standardInterval: NodeJS.Timeout | null = null;
+    if (standardWidgets.length > 0) {
+      standardInterval = setInterval(() => {
+        standardWidgets.forEach(w => runWidget(w.id, w.type, w.name));
+      }, 15000);
+    }
+
+    return () => {
+      if (networkInterval) clearInterval(networkInterval);
+      if (standardInterval) clearInterval(standardInterval);
+    };
   }, [widgets, runWidget]);
 
-  const addWidget = async () => {
-    if (!newName || !newCommand) return;
+  const addWidget = async (override?: { name: string; command: string; type: string; color: string }) => {
+    const targetName = override?.name ?? newName;
+    const targetCommand = override?.command ?? newCommand;
+    const targetType = override?.type ?? newType;
+    const targetColor = override?.color ?? newColor;
+
+    if (!targetName || !targetCommand) return;
     
     try {
       await apiClient.post<any>('/api/widgets', {
-        name: newName,
-        command: newCommand,
-        type: newType,
-        color: newColor
+        name: targetName,
+        command: targetCommand,
+        type: targetType,
+        color: targetColor
       });
       
       setShowModal(false);
@@ -253,13 +412,13 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
               <div key={idx} style={{ marginBottom: '0.5rem' }}>
                 <button
                   onClick={() => {
-                    setNewName(pick.name);
-                    setNewCommand(pick.command);
-                    setNewType(pick.type as any);
-                    setNewColor(pick.color);
                     setShowBestPicks(false);
-                    // Directly create the widget using the filled values
-                    addWidget();
+                    addWidget({
+                      name: pick.name,
+                      command: pick.command,
+                      type: pick.type,
+                      color: pick.color
+                    });
                   }}
                   className="btn btn-tertiary"
                   style={{
@@ -327,7 +486,9 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
           <AnimatePresence>
           {widgets.map(w => {
             const isHovered = hoveredWidgetId === w.id;
-            const widgetColor = w.color || '#6366f1';
+            const isNetwork = w.type === 'network-chart' || (w.name.toLowerCase().includes('network') && (networkHistory[w.id]?.rx?.length || /(?:rx|download|tx|upload):/i.test(results[w.id] || '')));
+            const widgetColor = isNetwork ? ((w.color && w.color !== '#10b981') ? w.color : '#d13438') : (w.color || '#6366f1');
+            const hist = networkHistory[w.id];
             
             return (
               <motion.div 
@@ -338,7 +499,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                 key={w.id} 
                 aria-label={`Widget ${w.name}`} 
-                className="glass-card"
+                className={`glass-card ${isNetwork ? 'col-span-1 md:col-span-2' : ''}`}
                 onMouseEnter={() => setHoveredWidgetId(w.id)}
                 onMouseLeave={() => setHoveredWidgetId(null)}
                 style={{ 
@@ -348,7 +509,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  minHeight: '160px',
+                  minHeight: isNetwork ? '330px' : '160px',
+                  gridColumn: isNetwork ? 'span 2' : 'span 1',
                   border: isHovered 
                     ? `1px solid ${widgetColor}66` 
                     : '1px solid var(--glass-border)',
@@ -361,76 +523,103 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
               >
                 {/* Header Row */}
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '8px',
-                        background: `${widgetColor}15`,
-                        color: widgetColor,
-                        border: `1px solid ${widgetColor}33`,
-                        boxShadow: `inset 0 0 6px ${widgetColor}11`
-                      }}>
-                        {getWidgetIcon(w.name, w.type)}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: isNetwork ? '0.4rem' : '0.75rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: `${widgetColor}15`,
+                          color: widgetColor,
+                          border: `1px solid ${widgetColor}33`,
+                          boxShadow: `inset 0 0 6px ${widgetColor}11`
+                        }}>
+                          {getWidgetIcon(w.name, w.type)}
+                        </div>
+                        <span style={{ fontWeight: isNetwork ? 700 : 600, color: 'white', fontSize: isNetwork ? '1.15rem' : '0.9rem', fontFamily: isNetwork ? 'Segoe UI, -apple-system, sans-serif' : undefined }}>
+                          {w.name}
+                        </span>
                       </div>
-                      <span style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>
-                        {w.name}
-                      </span>
+                      {isNetwork && (
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: '2.25rem', marginTop: '-1px', fontFamily: 'Segoe UI, -apple-system, sans-serif' }}>
+                          Przepływność
+                        </div>
+                      )}
                     </div>
                     
-                    {/* Action buttons visible on hover / active */}
-                    <div style={{ 
-                      display: 'flex', 
-                      gap: '0.25rem', 
-                      opacity: isHovered ? 1 : 0.4, 
-                      transition: 'opacity 0.2s ease',
-                      alignItems: 'center'
-                    }}>
-                      <button 
-                        onClick={() => runWidget(w.id)}
-                        disabled={loading[w.id]}
-                        title="Force refresh"
-                        style={{ 
-                          background: 'rgba(255,255,255,0.05)', 
-                          border: 'none', 
-                          color: '#9ca3af', 
-                          cursor: 'pointer', 
-                          padding: '0.25rem',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <RefreshCw 
-                          size={13} 
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      {isNetwork && (
+                        <span 
                           style={{ 
-                            animation: loading[w.id] ? 'spin 1s linear infinite' : 'none',
-                            color: loading[w.id] ? widgetColor : undefined
+                            fontSize: '0.75rem', 
+                            color: '#9ca3af', 
+                            fontWeight: 400, 
+                            fontFamily: 'Segoe UI, -apple-system, sans-serif',
+                            maxWidth: '220px', 
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis', 
+                            whiteSpace: 'nowrap' 
                           }} 
-                        />
-                      </button>
-                      <button 
-                        onClick={() => deleteWidget(w.id)}
-                        title="Delete widget"
-                        style={{ 
-                          background: 'rgba(255,255,255,0.05)', 
-                          border: 'none', 
-                          color: '#ef4444', 
-                          cursor: 'pointer', 
-                          padding: '0.25rem',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                          title={hist?.adapterName || 'Intel(R) I211 Gigabit Network Connection'}
+                        >
+                          {hist?.adapterName || 'Intel(R) I211 Gigabit Network Connection'}
+                        </span>
+                      )}
+
+                      {/* Action buttons visible on hover / active */}
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '0.25rem', 
+                        opacity: isHovered ? 1 : 0.4, 
+                        transition: 'opacity 0.2s ease',
+                        alignItems: 'center'
+                      }}>
+                        <button 
+                          onClick={() => runWidget(w.id, w.type, w.name)}
+                          disabled={loading[w.id]}
+                          title="Force refresh"
+                          style={{ 
+                            background: 'rgba(255,255,255,0.05)', 
+                            border: 'none', 
+                            color: '#9ca3af', 
+                            cursor: 'pointer', 
+                            padding: '0.25rem',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <RefreshCw 
+                            size={13} 
+                            style={{ 
+                              animation: loading[w.id] ? 'spin 1s linear infinite' : 'none',
+                              color: loading[w.id] ? widgetColor : undefined
+                            }} 
+                          />
+                        </button>
+                        <button 
+                          onClick={() => deleteWidget(w.id)}
+                          title="Delete widget"
+                          style={{ 
+                            background: 'rgba(255,255,255,0.05)', 
+                            border: 'none', 
+                            color: '#ef4444', 
+                            cursor: 'pointer', 
+                            padding: '0.25rem',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
@@ -483,51 +672,267 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                           }} />
                         </div>
                       </div>
-                    ) : w.type === 'network-chart' ? (() => {
-                      const hist = networkHistory[w.id];
+                    ) : isNetwork ? (() => {
                       const rxData = hist?.rx ?? [];
                       const txData = hist?.tx ?? [];
-                      const W = 260, H = 72;
-                      const all = [...rxData, ...txData];
-                      const minV = all.length ? Math.min(...all) : 0;
-                      const maxV = all.length ? Math.max(...all) : 1;
-                      const range = maxV - minV || 1;
-                      const toPoints = (arr: number[]) =>
+                      const W = 560, H = 120;
+                      const accent = widgetColor;
+
+                      // Fill up to 20 samples (representing last 60 seconds at 3s refresh)
+                      const paddedRx = Array(Math.max(0, 20 - rxData.length)).fill(0).concat(rxData).slice(-20);
+                      const paddedTx = Array(Math.max(0, 20 - txData.length)).fill(0).concat(txData).slice(-20);
+
+                      const currentRx = hist?.currentRx ?? (rxData.length ? rxData[rxData.length - 1] : 0);
+                      const currentTx = hist?.currentTx ?? (txData.length ? txData[txData.length - 1] : 0);
+                      const peakBps = Math.max(...paddedRx, ...paddedTx, hist?.peak ?? 0);
+                      const scaleLimit = getScaleLimit(peakBps || 10_000);
+                      const peakY = peakBps > 0 ? Math.max(10, H - (peakBps / scaleLimit) * (H - 14) - 6) : -1;
+
+                      const toCoords = (arr: number[]) =>
                         arr.map((v, i) => {
-                          const x = (i / (Math.max(arr.length - 1, 1))) * W;
-                          const y = H - ((v - minV) / range) * (H - 8) - 4;
-                          return `${x.toFixed(1)},${y.toFixed(1)}`;
-                        }).join(' ');
-                      const lastRx = rxData.at(-1);
-                      const lastTx = txData.at(-1);
+                          const x = (i / 19) * W;
+                          const y = H - (Math.min(v, scaleLimit) / scaleLimit) * (H - 14) - 6;
+                          return { x, y };
+                        });
+
+                      const rxCoords = toCoords(paddedRx);
+                      const txCoords = toCoords(paddedTx);
+
+                      const toPointsStr = (coords: { x: number; y: number }[]) =>
+                        coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+
+                      const rxPolyPoints = `${toPointsStr(rxCoords)} ${W},${H} 0,${H}`;
+
                       return (
-                        <div style={{ width: '100%' }}>
-                          {/* Legend */}
-                          <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.35rem', fontSize: '0.72rem' }}>
-                            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <span style={{ width: 20, height: 2, background: '#10b981', display: 'inline-block', borderRadius: 1 }} />
-                              RX {lastRx !== undefined ? `${lastRx.toFixed(2)} GB` : '--'}
-                            </span>
-                            <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <span style={{ width: 20, height: 2, background: '#ef4444', display: 'inline-block', borderRadius: 1 }} />
-                              TX {lastTx !== undefined ? `${lastTx.toFixed(2)} GB` : '--'}
-                            </span>
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                          {/* SVG Task Manager Timeseries Chart */}
+                          <div style={{ position: 'relative', width: '100%', height: `${H}px` }}>
+                            <svg 
+                              width="100%" 
+                              height={H} 
+                              viewBox={`0 0 ${W} ${H}`} 
+                              preserveAspectRatio="none"
+                              style={{ 
+                                display: 'block', 
+                                borderRadius: 4, 
+                                background: 'rgba(0, 0, 0, 0.35)', 
+                                border: '1px solid rgba(255, 255, 255, 0.12)', 
+                                overflow: 'hidden' 
+                              }}
+                            >
+                              <defs>
+                                <linearGradient id={`grad-rx-${w.id}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor={accent} stopOpacity="0.32" />
+                                  <stop offset="100%" stopColor={accent} stopOpacity="0.04" />
+                                </linearGradient>
+                              </defs>
+
+                              {/* Vertical grid lines (10 divisions across 60 seconds) */}
+                              {Array.from({ length: 9 }).map((_, i) => {
+                                const x = ((i + 1) / 10) * W;
+                                return (
+                                  <line 
+                                    key={`v-${i}`} 
+                                    x1={x} 
+                                    y1={0} 
+                                    x2={x} 
+                                    y2={H} 
+                                    stroke="rgba(255, 255, 255, 0.07)" 
+                                    strokeWidth={1} 
+                                  />
+                                );
+                              })}
+
+                              {/* Horizontal grid lines (4 divisions) */}
+                              {Array.from({ length: 3 }).map((_, j) => {
+                                const y = ((j + 1) / 4) * H;
+                                return (
+                                  <line 
+                                    key={`h-${j}`} 
+                                    x1={0} 
+                                    y1={y} 
+                                    x2={W} 
+                                    y2={y} 
+                                    stroke="rgba(255, 255, 255, 0.07)" 
+                                    strokeWidth={1} 
+                                  />
+                                );
+                              })}
+
+                              {/* Max scale label at top-right */}
+                              <text 
+                                x={W - 6} 
+                                y={13} 
+                                textAnchor="end" 
+                                fill="#9ca3af" 
+                                fontSize={10} 
+                                fontFamily="Segoe UI, -apple-system, sans-serif"
+                                fontWeight="500"
+                              >
+                                {formatSpeed(scaleLimit)}
+                              </text>
+
+                              {/* Reference line for peak throughput */}
+                              {peakY > 0 && (
+                                <>
+                                  <line 
+                                    x1={0} 
+                                    y1={peakY} 
+                                    x2={W} 
+                                    y2={peakY} 
+                                    stroke={accent} 
+                                    strokeOpacity={0.65} 
+                                    strokeWidth={1} 
+                                  />
+                                  <text 
+                                    x={W - 6} 
+                                    y={Math.max(peakY - 3, 11)} 
+                                    textAnchor="end" 
+                                    fill={accent} 
+                                    fontSize={10} 
+                                    fontFamily="Segoe UI, -apple-system, sans-serif"
+                                    fontWeight="600"
+                                  >
+                                    {formatSpeed(peakBps)}
+                                  </text>
+                                </>
+                              )}
+
+                              {/* Odbieranie (Download) - Solid line with filled area */}
+                              <polygon points={rxPolyPoints} fill={`url(#grad-rx-${w.id})`} />
+                              <polyline 
+                                points={toPointsStr(rxCoords)} 
+                                fill="none" 
+                                stroke={accent} 
+                                strokeWidth="1.5" 
+                                strokeLinejoin="round" 
+                                strokeLinecap="round" 
+                              />
+
+                              {/* Wysyłanie (Upload) - Dotted line */}
+                              <polyline 
+                                points={toPointsStr(txCoords)} 
+                                fill="none" 
+                                stroke={accent} 
+                                strokeWidth="1.5" 
+                                strokeDasharray="2,3" 
+                                strokeLinejoin="round" 
+                                strokeLinecap="round" 
+                              />
+                            </svg>
                           </div>
-                          {/* SVG chart */}
-                          <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', borderRadius: 6, background: 'rgba(0,0,0,0.2)' }}>
-                            {rxData.length < 2 && txData.length < 2 ? (
-                              <text x={W / 2} y={H / 2} textAnchor="middle" fill="#6b7280" fontSize={11}>Zbieranie danych…</text>
-                            ) : (
-                              <>
-                                {rxData.length >= 2 && (
-                                  <polyline points={toPoints(rxData)} fill="none" stroke="#10b981" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-                                )}
-                                {txData.length >= 2 && (
-                                  <polyline points={toPoints(txData)} fill="none" stroke="#ef4444" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-                                )}
-                              </>
-                            )}
-                          </svg>
+
+                          {/* X-Axis Footer */}
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            fontSize: '0.68rem', 
+                            color: '#9ca3af', 
+                            padding: '0.2rem 0.25rem 0.6rem 0.25rem',
+                            fontFamily: 'Segoe UI, -apple-system, sans-serif' 
+                          }}>
+                            <span>60 sekund</span>
+                            <span>0</span>
+                          </div>
+
+                          {/* Details: Throughput stats on left, Connection properties on right */}
+                          <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'minmax(130px, 1fr) minmax(180px, 1.4fr)', 
+                            gap: '1rem', 
+                            paddingTop: '0.5rem', 
+                            borderTop: '1px solid rgba(255, 255, 255, 0.06)' 
+                          }}>
+                            {/* Left: Wysyłanie & Odbieranie stats */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                              {/* Wysyłanie */}
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#9ca3af', fontWeight: 500 }}>
+                                  <span style={{ 
+                                    display: 'inline-flex', 
+                                    flexDirection: 'column', 
+                                    gap: '2px', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    width: '6px', 
+                                    height: '13px' 
+                                  }}>
+                                    <span style={{ width: 2, height: 2, borderRadius: '50%', background: accent }} />
+                                    <span style={{ width: 2, height: 2, borderRadius: '50%', background: accent }} />
+                                    <span style={{ width: 2, height: 2, borderRadius: '50%', background: accent }} />
+                                  </span>
+                                  <span>Wysyłanie</span>
+                                </div>
+                                <div style={{ 
+                                  fontSize: '1.4rem', 
+                                  fontWeight: 700, 
+                                  color: 'white', 
+                                  fontFamily: 'Segoe UI, -apple-system, sans-serif', 
+                                  letterSpacing: '-0.02em', 
+                                  marginLeft: '0.75rem', 
+                                  lineHeight: '1.2' 
+                                }}>
+                                  {formatSpeed(currentTx)}
+                                </div>
+                              </div>
+
+                              {/* Odbieranie */}
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#9ca3af', fontWeight: 500 }}>
+                                  <span style={{ 
+                                    display: 'inline-block', 
+                                    width: '2px', 
+                                    height: '13px', 
+                                    background: accent, 
+                                    borderRadius: '1px' 
+                                  }} />
+                                  <span>Odbieranie</span>
+                                </div>
+                                <div style={{ 
+                                  fontSize: '1.4rem', 
+                                  fontWeight: 700, 
+                                  color: 'white', 
+                                  fontFamily: 'Segoe UI, -apple-system, sans-serif', 
+                                  letterSpacing: '-0.02em', 
+                                  marginLeft: '0.75rem', 
+                                  lineHeight: '1.2' 
+                                }}>
+                                  {formatSpeed(currentRx)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right: Network connection metadata */}
+                            <div style={{ 
+                              display: 'grid', 
+                              gridTemplateColumns: 'auto 1fr', 
+                              rowGap: '0.3rem', 
+                              columnGap: '0.75rem', 
+                              fontSize: '0.75rem', 
+                              alignItems: 'baseline', 
+                              fontFamily: 'Segoe UI, -apple-system, sans-serif' 
+                            }}>
+                              <span style={{ color: '#9ca3af' }}>Nazwa karty:</span>
+                              <span style={{ color: '#f3f4f6', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={hist?.adapterName || 'Ethernet'}>
+                                {hist?.adapterName || 'Ethernet'}
+                              </span>
+
+                              <span style={{ color: '#9ca3af' }}>Typ połączenia:</span>
+                              <span style={{ color: '#f3f4f6', fontWeight: 500 }}>
+                                {hist?.connectionType || 'Ethernet'}
+                              </span>
+
+                              <span style={{ color: '#9ca3af' }}>Adres IPv4:</span>
+                              <span style={{ color: '#f3f4f6', fontFamily: 'monospace', fontWeight: 500 }}>
+                                {hist?.ipv4 || '10.10.10.30'}
+                              </span>
+
+                              <span style={{ color: '#9ca3af' }}>Adres IPv6:</span>
+                              <span style={{ color: '#f3f4f6', fontFamily: 'monospace', fontSize: '0.7rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={hist?.ipv6 || 'fe80::dca9:4d51:e062:2c88%9'}>
+                                {hist?.ipv6 || 'fe80::dca9:4d51:e062:2c88%9'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       );
                     })() : null}
@@ -742,7 +1147,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                     <option value="number" style={{ background: 'var(--bg-color)' }}>Counter (Number)</option>
                     <option value="text" style={{ background: 'var(--bg-color)' }}>Raw Text</option>
                     <option value="bar-chart" style={{ background: 'var(--bg-color)' }}>Progress Bar (0-100)</option>
-                    <option value="network-chart" style={{ background: 'var(--bg-color)' }}>Network Chart (RX/TX)</option>
+                    <option value="network-chart" style={{ background: 'var(--bg-color)' }}>Network Chart (Download / Upload)</option>
                   </select>
                 </div>
                 

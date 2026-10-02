@@ -309,9 +309,15 @@
     },
     {
       "path": "package.json",
-      "accessCount": 1,
-      "lastAccessed": 1790886206644,
+      "accessCount": 2,
+      "lastAccessed": 1790901325013,
       "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1790901736078,
+      "type": "directory"
     },
     {
       "path": "C:\\Users\\picho\\.claude",
@@ -324,6 +330,12 @@
       "accessCount": 1,
       "lastAccessed": 1790888860826,
       "type": "directory"
+    },
+    {
+      "path": "src\\backend\\events\\sseRouter.js",
+      "accessCount": 1,
+      "lastAccessed": 1790901342897,
+      "type": "file"
     }
   ],
   "userDirectives": []

@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { safeQuery } from '../db.js';
 import { validate } from '../schemas/validate.js';
 import { loginSchema, setupSchema, refreshSchema } from '../schemas/authSchemas.js';
+import { authMiddleware } from './authMiddleware.js';
 
 export const authRouter = express.Router();
 
@@ -109,6 +110,11 @@ authRouter.get('/check-setup', async (req, res) => {
   } catch {
     res.json({ needsSetup: true });
   }
+});
+
+// GET /api/auth/me
+authRouter.get('/me', authMiddleware, (req, res) => {
+  res.json({ authenticated: true, user: req.user });
 });
 
 // POST /api/auth/refresh

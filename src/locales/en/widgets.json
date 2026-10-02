@@ -7,7 +7,7 @@
   "widget.type.number": "Counter (Number)",
   "widget.type.text": "Raw Text",
   "widget.type.barChart": "Progress Bar (0-100)",
-  "widget.type.networkChart": "Network Chart (RX/TX)",
+  "widget.type.networkChart": "Network Chart (Download/Upload)",
   "widget.add": "Add widget",
   "widget.name": "Name",
   "widget.command": "Shell command",

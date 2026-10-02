@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LocalWorkerModal } from './LocalWorkerModal';
 
@@ -35,7 +35,9 @@ describe('LocalWorkerModal', () => {
   });
 
   it('renders title, current socket token and connection commands when open', async () => {
-    render(<LocalWorkerModal isOpen={true} onClose={() => {}} token="custom-token-xyz" />);
+    await act(async () => {
+      render(<LocalWorkerModal isOpen={true} onClose={() => {}} token="custom-token-xyz" />);
+    });
 
     expect(screen.getByText(/Połączenie Socket & Local Worker/i)).toBeInTheDocument();
     expect(screen.getByText(/Aktualny Token do Socketu/i)).toBeInTheDocument();
@@ -48,7 +50,9 @@ describe('LocalWorkerModal', () => {
 
     // Switch command tab to Node
     const nodeTab = screen.getByRole('button', { name: /Node Skrypt/i });
-    fireEvent.click(nodeTab);
+    await act(async () => {
+      fireEvent.click(nodeTab);
+    });
     expect(screen.getByText(/node scripts\/local-agent-worker\.js/i)).toBeInTheDocument();
   });
 
@@ -59,14 +63,20 @@ describe('LocalWorkerModal', () => {
       clipboard: { writeText: writeTextMock }
     });
 
-    render(<LocalWorkerModal isOpen={true} onClose={() => {}} token="copyable-token-abc" />);
+    await act(async () => {
+      render(<LocalWorkerModal isOpen={true} onClose={() => {}} token="copyable-token-abc" />);
+    });
 
     const copyTokenBtn = screen.getByRole('button', { name: /Kopiuj token/i });
-    fireEvent.click(copyTokenBtn);
+    await act(async () => {
+      fireEvent.click(copyTokenBtn);
+    });
     expect(writeTextMock).toHaveBeenCalledWith('copyable-token-abc');
 
     const copyCmdBtn = screen.getByRole('button', { name: /Kopiuj wybraną komendę do schowka/i });
-    fireEvent.click(copyCmdBtn);
+    await act(async () => {
+      fireEvent.click(copyCmdBtn);
+    });
     expect(writeTextMock).toHaveBeenCalled();
   });
 });

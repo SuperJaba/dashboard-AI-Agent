@@ -7,7 +7,7 @@
   "widget.type.number": "Licznik (Wartość)",
   "widget.type.text": "Surowy tekst",
   "widget.type.barChart": "Pasek postępu (0-100)",
-  "widget.type.networkChart": "Wykres sieci (RX/TX)",
+  "widget.type.networkChart": "Wykres sieci (Download/Upload)",
   "widget.add": "Dodaj widget",
   "widget.name": "Nazwa",
   "widget.command": "Polecenie shell",

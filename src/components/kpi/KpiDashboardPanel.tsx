@@ -75,7 +75,7 @@ export function KpiDashboardPanel() {
     );
   }
 
-  if (error || !data) {
+  if (error || !data || !data.today || !data.sevenDays || !data.tokenBurn) {
     return (
       <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', color: 'var(--danger, #ef4444)' }}>
         <AlertTriangle size={20} />
