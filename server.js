@@ -59,6 +59,13 @@ import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
 import { userSettingsRouter } from './src/backend/settings/userSettingsRouter.js';
+import { webhooksRouter } from './src/backend/webhooks/webhooksRouter.js';
+import { alertsRouter } from './src/backend/alerts/alertsRouter.js';
+import { startAlertWatcher } from './src/backend/alerts/alertWatcher.js';
+import { sseRouter } from './src/backend/events/sseRouter.js';
+import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
+import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
+import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 
 import { fileURLToPath } from 'url';
 
@@ -306,6 +313,12 @@ io.on('connection', (socket) => {
   });
 });
 
+// T2.2 — Dedicated Socket.IO Namespaces
+const ptyNsp = io.of('/pty');
+const dashNsp = io.of('/dashboard');
+registerPtyNamespace(ptyNsp, activeWorkers);
+registerDashboardNamespace(dashNsp, activeWorkers);
+
 
 app.use(cors());
 app.use(express.json());
@@ -442,6 +455,16 @@ app.use('/api/widgets', widgetsRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api', llmServersRouter);
 app.use('/api/user-settings', userSettingsRouter);
+app.use('/api/webhooks', webhooksRouter);
+app.use('/api/alerts', authMiddleware, alertsRouter);
+app.use('/api/events', authMiddleware, sseRouter);
+app.use('/api/analytics', authMiddleware, kpiRouter);
+
+// T7.4 — Start alert watcher (skipped in test env)
+if (process.env.NODE_ENV !== 'test') {
+  startAlertWatcher();
+}
+
 
 // Serve built frontend static assets if available (dist or public)
 const staticDist = path.join(__dirname, 'dist');

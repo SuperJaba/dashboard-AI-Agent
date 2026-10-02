@@ -165,6 +165,10 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const setLanguage = (next: Language) => {
     setLanguageState(next);
     saveRemoteSettings(theme, next);
+    // Also sync i18next runtime
+    import('../i18n').then(({ i18n }) => {
+      i18n.changeLanguage(next).catch(() => {});
+    });
   };
   const t = (key: TranslationKey) => TRANSLATIONS[language][key] ?? key;
 
