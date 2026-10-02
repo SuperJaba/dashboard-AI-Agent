@@ -85,11 +85,11 @@ describe('Accessibility (WCAG 2.1 AA) Auditing Suite', () => {
         fireEvent.click(addProjectButton);
       });
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = await screen.findByRole('dialog');
       expect(dialog).toBeInTheDocument();
       expect(dialog).toHaveAttribute('aria-modal', 'true');
       expect(dialog).toHaveAttribute('aria-labelledby', 'folder-picker-title');
-      expect(screen.getByText('Wybierz folder projektu')).toBeInTheDocument();
+      expect(await screen.findByText('Wybierz folder projektu')).toBeInTheDocument();
     });
   });
 
