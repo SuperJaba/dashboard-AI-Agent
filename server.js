@@ -22,7 +22,7 @@ import { logger, requestLogger } from './src/backend/utils/logger.js';
 import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
 
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
+import { JWT_SECRET } from './src/backend/auth/jwtSecret.js';
 
 import net from 'net';
 import { settingsRouter } from './src/backend/settings/settingsRouter.js';
