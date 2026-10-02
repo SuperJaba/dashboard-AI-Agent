@@ -50,13 +50,21 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
 
   useEffect(() => {
     // Fetch active workers list
+    let isMounted = true;
     const token = localStorage.getItem('dashboard_token');
     fetch('/api/agents/workers', {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
     })
       .then(res => res.ok ? res.json() : [])
-      .then(data => setWorkers(Array.isArray(data) ? data : []))
-      .catch(() => setWorkers([]));
+      .then(data => {
+        if (isMounted) setWorkers(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (isMounted) setWorkers([]);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {

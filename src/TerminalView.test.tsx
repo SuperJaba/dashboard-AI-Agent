@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act } from 'react';
 import { TerminalView } from './TerminalView';
@@ -54,6 +54,8 @@ describe('TerminalView', () => {
       render(<TerminalView config={config} onClose={() => {}} />);
     });
     
-    expect(screen.getByText('Live Agent Terminal')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Live Agent Terminal')).toBeInTheDocument();
+    });
   });
 });
