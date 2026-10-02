@@ -66,6 +66,8 @@ import { sseRouter } from './src/backend/events/sseRouter.js';
 import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
 import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
+export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
+import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 
 import { fileURLToPath } from 'url';
 
@@ -122,27 +124,8 @@ function findShellExecutable(requestedCmd) {
 export const activeWorkers = new Map();
 
 // Socket.io authentication middleware
-io.use((socket, next) => {
-  try {
-    let token = socket.handshake.auth?.token;
-    if (!token && socket.handshake.headers && socket.handshake.headers.authorization) {
-      const parts = socket.handshake.headers.authorization.split(' ');
-      token = parts.length === 2 ? parts[1] : parts[0];
-    }
-    if (!token) {
-      return next(new Error('Unauthorized'));
-    }
-    if (token === JWT_SECRET || token === 'fallback-super-secret-key-123') {
-      return next();
-    }
-    // Verify JWT
-    jwt.verify(token, JWT_SECRET);
-    next();
-  } catch (err) {
-    console.error('Socket auth error:', err.message || err);
-    next(err);
-  }
-});
+const socketAuthMiddleware = createSocketAuthMiddleware(JWT_SECRET);
+io.use(socketAuthMiddleware);
 
 io.on('connection', (socket) => {
   const isWorker = socket.handshake.auth?.isWorker;
@@ -314,8 +297,12 @@ io.on('connection', (socket) => {
 });
 
 // T2.2 — Dedicated Socket.IO Namespaces
-const ptyNsp = io.of('/pty');
-const dashNsp = io.of('/dashboard');
+export const ptyNsp = io.of('/pty');
+export const dashNsp = io.of('/dashboard');
+
+ptyNsp.use(socketAuthMiddleware);
+dashNsp.use(socketAuthMiddleware);
+
 registerPtyNamespace(ptyNsp, activeWorkers);
 registerDashboardNamespace(dashNsp, activeWorkers);
 

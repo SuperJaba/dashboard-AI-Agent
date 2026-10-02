@@ -209,7 +209,45 @@ export async function safeQuery(text, params = []) {
 
   // Custom widgets
   if (sql.includes('FROM custom_widgets')) {
+    if (sql.includes('WHERE id =')) {
+      const widget = inMemoryStore.custom_widgets.find(w => w.id == params[0]);
+      return { rows: widget ? [widget] : [] };
+    }
     return { rows: inMemoryStore.custom_widgets };
+  }
+
+  if (sql.includes('INSERT INTO custom_widgets')) {
+    const [name, command, type, color, server_id] = params;
+    const newWidget = {
+      id: inMemoryStore.custom_widgets.length ? Math.max(...inMemoryStore.custom_widgets.map(w => w.id)) + 1 : 1,
+      name,
+      command,
+      type: type || 'number',
+      color: color || '#c084fc',
+      server_id: server_id || null
+    };
+    inMemoryStore.custom_widgets.push(newWidget);
+    return { rows: [newWidget] };
+  }
+
+  if (sql.includes('UPDATE custom_widgets')) {
+    const [name, command, type, color, server_id, id] = params;
+    const widget = inMemoryStore.custom_widgets.find(w => w.id == id);
+    if (widget) {
+      if (name !== undefined && name !== null) widget.name = name;
+      if (command !== undefined && command !== null) widget.command = command;
+      if (type !== undefined && type !== null) widget.type = type;
+      if (color !== undefined && color !== null) widget.color = color;
+      widget.server_id = server_id || null;
+      return { rows: [widget] };
+    }
+    return { rows: [] };
+  }
+
+  if (sql.includes('DELETE FROM custom_widgets')) {
+    const [id] = params;
+    inMemoryStore.custom_widgets = inMemoryStore.custom_widgets.filter(w => w.id != id);
+    return { rows: [] };
   }
 
   // User settings (theme/language per user)

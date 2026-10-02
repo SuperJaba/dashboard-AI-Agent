@@ -55,7 +55,7 @@ flowchart TD
 | **T8.1** | **JWT Secret & Token Lifecycle Hardening** | [`src/backend/auth/`](file:///mnt/f/AI-Agents/dashboard/src/backend/auth/), [`server.js`](file:///mnt/f/AI-Agents/dashboard/server.js) | Reject weak or missing `JWT_SECRET` in production (`NODE_ENV === 'production'`). Add token expiration validation (`exp`) and standard refresh mechanism. |
 | **T8.2** | **Route-Level Rate Limiting** | [`src/backend/auth/authRouter.js`](file:///mnt/f/AI-Agents/dashboard/src/backend/auth/authRouter.js), [`server.js`](file:///mnt/f/AI-Agents/dashboard/server.js) | Enforce rate limiting on `/api/auth/login` and sensitive mutation endpoints using lightweight in-memory sliding window (e.g. `express-rate-limit`). |
 | **T8.3** | **Zod Request Validation Schemas** | `src/backend/schemas/`, domain routers | Validate incoming request bodies (`login`, `servers`, `projects`, `widgets`) with strict Zod schemas; return uniform 400 JSON errors. |
-| **T8.4** | **OAuth2 / External SSO Readiness** | `src/backend/auth/oauthProvider.js` | Configurable GitHub/GitLab OAuth2 callback routes for zero-friction developer login. |
+| **T8.4** | **OAuth2 / External SSO Readiness** | `src/backend/auth/oauthProvider.js` | Pominięto (brak zewnętrznego identity providera w docelowym środowisku). |
 
 ---
 
@@ -77,7 +77,7 @@ flowchart TD
 | Task ID | Task Description | Scope / Target Files | Acceptance Criteria |
 | :--- | :--- | :--- | :--- |
 | **T2.1** | **Server-Sent Events (SSE) Telemetry Bus** | `src/backend/events/sseRouter.js` | Lightweight, one-way HTTP `/api/events` stream for live system metrics, agent execution states, and task completions. |
-| **T2.2** | **Socket.IO Namespace Isolation** | [`server.js`](file:///mnt/f/AI-Agents/dashboard/server.js), `src/backend/socket/` | Separate high-volume PTY terminal stream (`/pty`) from dashboard notifications and agent events (`/dashboard`). |
+| **T2.2** | **Socket.IO Namespace Isolation** | [`server.js`](file:///mnt/f/AI-Agents/dashboard/server.js), [`src/backend/socket/`](file:///mnt/f/AI-Agents/dashboard/src/backend/socket/) | **Zrealizowane**: odseparowano `/pty` od `/dashboard`, autoryzacja tokenem, cross-namespace worker bridge, hook `useDashboardSocket`. |
 | **T2.3** | **Frontend Reconnection & Offline Banner** | `src/hooks/useLiveTelemetry.ts`, [`src/App.tsx`](file:///mnt/f/AI-Agents/dashboard/src/App.tsx) | React hook with exponential backoff reconnection, heartbeat checks, and subtle non-intrusive offline indicator. |
 
 ---
@@ -143,7 +143,7 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | **T5.1** | **Complexity Scorer** | `src/backend/llm/complexityScorer.js` | Heurystyczna ocena złożoności zapytania (długość, słowa kluczowe, historia kontekstu, typ taska). Zwraca `low` / `medium` / `high`. |
 | **T5.2** | **Model Router** | `src/backend/llm/modelRouter.js` | `low`/`medium` → LM Studio OpenAI-compat endpoint (`localhost:1234`) z `qwen3.8-whittle-moe-27b-a17.8b` lub `openai/gpt-oss-20b`; `high` → AGY. Konfigurowalny przez env vars (`LLM_LOCAL_URL`, `LLM_LOCAL_MODEL`, `LLM_FALLBACK_MODEL`). |
-| **T5.3** | **Provider Adapter Interface** | `src/backend/llm/providers/` | Ujednolicony interfejs `{ complete(prompt, opts) }` dla: LM Studio (OpenAI-compat REST), AGY SDK. |
+| **T5.3** | **Provider Adapter Interface** | [`src/backend/llm/providers/`](file:///mnt/f/AI-Agents/dashboard/src/backend/llm/providers/) | **Zrealizowane**: ujednolicony interfejs `BaseProvider`, `LmStudioProvider` (OpenAI-compat REST), `AgyProvider` (AGY Cloud) oraz integracja z `executeRoutedPrompt`. |
 | **T5.4** | **Routing Dashboard Widget** | `src/components/ModelRoutingWidget.tsx` | Widget pokazujący live statystyki: podział tasków local vs AGY, średnią latencję i ewentualny koszt per provider. |
 | **T5.5** | **Fallback & Circuit Breaker** | `src/backend/llm/modelRouter.js` | Automatyczny fallback do drugiego lokalnego modelu (np. `openai/gpt-oss-20b`) gdy pierwszy nie odpowiada; escalacja do AGY po 3 błędach. |
 

@@ -110,14 +110,22 @@ async function buildKpiData() {
         ),
       ]);
 
+    const todayTokens = parseInt(tokenTodayRes?.rows?.[0]?.tokens ?? '0', 10);
+    const weekTokens = parseInt(tokenWeekRes?.rows?.[0]?.tokens ?? '0', 10);
+
+    // If store has no agent tasks data yet, provide mockData for dashboard demonstration
+    if (today.tasks === 0 && todayTokens === 0) {
+      return mockData();
+    }
+
     return {
       today,
       sevenDays,
       thirtyDays,
       topErrors: errorsRes?.rows ?? [],
       tokenBurn: {
-        today: parseInt(tokenTodayRes?.rows?.[0]?.tokens ?? '0', 10),
-        week: parseInt(tokenWeekRes?.rows?.[0]?.tokens ?? '0', 10),
+        today: todayTokens,
+        week: weekTokens,
       },
     };
   } catch {

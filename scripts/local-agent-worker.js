@@ -52,7 +52,12 @@ function findShellExecutable(requestedCmd) {
   return requestedCmd || 'bash';
 }
 
-const socket = io(SERVER_URL, {
+const DASHBOARD_NAMESPACE = process.env.DASHBOARD_NAMESPACE || '/dashboard';
+const targetSocketUrl = SERVER_URL.endsWith('/')
+  ? `${SERVER_URL.slice(0, -1)}${DASHBOARD_NAMESPACE}`
+  : `${SERVER_URL}${DASHBOARD_NAMESPACE}`;
+
+const socket = io(targetSocketUrl, {
   auth: {
     token: AUTH_TOKEN,
     isWorker: true,

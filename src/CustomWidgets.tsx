@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from './shared/api-client';
 import { 
   Plus, X, Activity, Terminal, RefreshCw, BarChart2, 
-  Trash2, Cpu, Database, HardDrive, Globe, AlertTriangle
+  Trash2, Cpu, Database, HardDrive, Globe, AlertTriangle, Edit2
 } from 'lucide-react';
 
 
@@ -100,6 +100,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
     ];
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingWidget, setEditingWidget] = useState<Widget | null>(null);
   const [results, setResults] = useState<{ [key: number]: any }>({});
   const [loading, setLoading] = useState<{ [key: number]: boolean }>({});
   const [hoveredWidgetId, setHoveredWidgetId] = useState<number | null>(null);
@@ -110,6 +111,26 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
   const [newType, setNewType] = useState('number');
   const [newColor, setNewColor] = useState('#6366f1');
   const [agentInstructions, setAgentInstructions] = useState('');
+
+  const openCreateModal = () => {
+    setEditingWidget(null);
+    setNewName('');
+    setNewCommand('');
+    setNewType('number');
+    setNewColor('#6366f1');
+    setAgentInstructions('');
+    setShowModal(true);
+  };
+
+  const openEditModal = (widget: Widget) => {
+    setEditingWidget(widget);
+    setNewName(widget.name);
+    setNewCommand(widget.command);
+    setNewType(widget.type);
+    setNewColor(widget.color || '#6366f1');
+    setAgentInstructions('');
+    setShowModal(true);
+  };
 
   const fetchWidgets = useCallback(async () => {
     try {
@@ -277,21 +298,32 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
     if (!targetName || !targetCommand) return;
     
     try {
-      await apiClient.post<any>('/api/widgets', {
-        name: targetName,
-        command: targetCommand,
-        type: targetType,
-        color: targetColor
-      });
+      if (editingWidget) {
+        await apiClient.put<any>(`/api/widgets/${editingWidget.id}`, {
+          name: targetName,
+          command: targetCommand,
+          type: targetType,
+          color: targetColor,
+          server_id: editingWidget.server_id
+        });
+      } else {
+        await apiClient.post<any>('/api/widgets', {
+          name: targetName,
+          command: targetCommand,
+          type: targetType,
+          color: targetColor
+        });
+      }
       
       setShowModal(false);
+      setEditingWidget(null);
       setNewName('');
       setNewCommand('');
       setNewType('number');
       setNewColor('#6366f1');
       fetchWidgets();
 
-      if (agentInstructions && server && onLaunchTerminal) {
+      if (!editingWidget && agentInstructions && server && onLaunchTerminal) {
         try {
           const deployData = await apiClient.post<any>('/api/deploy', {
             agent: 'agy',
@@ -314,8 +346,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
       }
       setAgentInstructions('');
     } catch (e) {
-      console.error('Failed to add widget', e);
-      alert('Failed to create widget. Please check the console for more details.');
+      console.error(editingWidget ? 'Failed to update widget' : 'Failed to add widget', e);
+      alert(editingWidget ? 'Nie udało się zaktualizować widgetu.' : 'Failed to create widget. Please check the console for more details.');
     }
   };
 
@@ -362,7 +394,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
-          onClick={() => setShowModal(true)}
+          onClick={openCreateModal}
           className="btn btn-primary"
           style={{ 
             padding: '0.5rem 1.25rem', 
@@ -461,7 +493,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
             </div>
           </div>
           <button 
-            onClick={() => setShowModal(true)}
+            onClick={openCreateModal}
             className="btn btn-secondary"
             style={{ 
               background: 'rgba(255,255,255,0.05)', 
@@ -601,6 +633,24 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                               color: loading[w.id] ? widgetColor : undefined
                             }} 
                           />
+                        </button>
+                        <button 
+                          onClick={() => openEditModal(w)}
+                          title="Edytuj widget"
+                          aria-label="Edytuj widget"
+                          style={{ 
+                            background: 'rgba(255,255,255,0.05)', 
+                            border: 'none', 
+                            color: '#9ca3af', 
+                            cursor: 'pointer', 
+                            padding: '0.25rem',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Edit2 size={13} />
                         </button>
                         <button 
                           onClick={() => deleteWidget(w.id)}
@@ -1014,7 +1064,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
             border: '1px solid rgba(255,255,255,0.08)'
           }}>
             <button 
-              onClick={() => setShowModal(false)}
+              onClick={() => { setShowModal(false); setEditingWidget(null); }}
               aria-label="Close modal"
               style={{ 
                 position: 'absolute', 
@@ -1040,7 +1090,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
             
             <h3 style={{ margin: '0 0 1.5rem 0', color: 'white', display: 'flex', alignItems: 'center', gap: '0.65rem', fontSize: '1.25rem', fontWeight: 700 }}>
               <BarChart2 size={22} style={{ color: 'var(--primary)' }} />
-              Add Custom Widget
+              {editingWidget ? 'Edytuj widget' : 'Dodaj widget'}
             </h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1198,7 +1248,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 type="button"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={addWidget}
+                onClick={() => addWidget()}
                 className="btn btn-primary"
                 style={{ 
                   marginTop: '0.75rem', 
@@ -1209,7 +1259,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                   fontWeight: 600
                 }}
               >
-                Create Widget
+                {editingWidget ? 'Zapisz zmiany' : 'Utwórz widget'}
               </motion.button>
             </div>
           </motion.div>

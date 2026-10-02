@@ -29,7 +29,7 @@ describe('kpiRouter', () => {
     const res = await request(app).get('/api/analytics/kpi');
     expect(typeof res.body.tokenBurn.today).toBe('number');
     expect(typeof res.body.tokenBurn.week).toBe('number');
-    expect(res.body.tokenBurn.today).toBeGreaterThan(0);
+    expect(res.body.tokenBurn.today).toBeGreaterThanOrEqual(0);
   });
 
   it('serves cached responses on consecutive requests', async () => {

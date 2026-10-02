@@ -85,9 +85,9 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     termInstance.current = term;
     fitAddonInstance.current = fitAddon;
 
-    // Connect to WebSocket with token authentication and fallback transports
+    // Connect to WebSocket /pty namespace with token authentication and fallback transports
     const token = localStorage.getItem('dashboard_token');
-    const socket = io({
+    const socket = io('/pty', {
       auth: { token },
       transports: ['polling', 'websocket']
     });
