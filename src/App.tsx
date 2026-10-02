@@ -95,18 +95,26 @@ function App() {
   const { connected: isSseConnected } = useLiveTelemetry();
 
   useEffect(() => {
+    let isMounted = true;
     const fetchWorkers = () => {
       const activeToken = token || localStorage.getItem('dashboard_token');
       fetch('/api/agents/workers', {
         headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
       })
         .then(res => res.ok ? res.json() : [])
-        .then(data => setWorkersCount(Array.isArray(data) ? data.length : 0))
-        .catch(() => setWorkersCount(0));
+        .then(data => {
+          if (isMounted) setWorkersCount(Array.isArray(data) ? data.length : 0);
+        })
+        .catch(() => {
+          if (isMounted) setWorkersCount(0);
+        });
     };
     fetchWorkers();
     const interval = setInterval(fetchWorkers, 4000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [token]);
 
   // Dropdown-based agent selection for the "Local workspace" project view,
