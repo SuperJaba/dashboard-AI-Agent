@@ -208,6 +208,12 @@ export async function safeQuery(text, params = []) {
   }
 
   // Custom widgets
+  if (sql.includes('DELETE FROM custom_widgets')) {
+    const id = String(params[0]);
+    inMemoryStore.custom_widgets = inMemoryStore.custom_widgets.filter(w => String(w.id) !== id);
+    return { rows: [] };
+  }
+
   if (sql.includes('FROM custom_widgets')) {
     if (sql.includes('WHERE id')) {
       const id = String(params[0]);
@@ -247,12 +253,6 @@ export async function safeQuery(text, params = []) {
       if (server_id !== undefined) widget.server_id = server_id || null;
       return { rows: [{ ...widget }] };
     }
-    return { rows: [] };
-  }
-
-  if (sql.includes('DELETE FROM custom_widgets')) {
-    const id = String(params[0]);
-    inMemoryStore.custom_widgets = inMemoryStore.custom_widgets.filter(w => String(w.id) !== id);
     return { rows: [] };
   }
 
