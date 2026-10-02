@@ -15,3 +15,7 @@ The repository uses a single unified monorepo approach for both the frontend (Re
 ## Performance Considerations
 - **Build Optimization**: Configured in `vite.config.ts`. Source maps are disabled for production builds, and chunk sizes are monitored with a limit of 1000 kB.
 - **Code Organization**: Unused states and variables have been pruned during linting. Strict TypeScript checks are applied for robust type safety on API responses and mocked data.
+
+## Context Pointers
+- **Visual System Diagrams (C4)**: See [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md)
+- **API Specification & Routes**: See [`docs/openapi.yaml`](docs/openapi.yaml) or [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md)

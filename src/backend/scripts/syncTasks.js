@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { syncProjectTasks, syncAllProjects } from '../projects/tasksSyncService.js';
-import { pool } from '../db.js';
+
 
 async function main() {
   const args = process.argv.slice(2);

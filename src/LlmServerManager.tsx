@@ -189,7 +189,7 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
             setNotification(`Zaimportowano ${result.count || serversList.length} serwerów LLM`);
             await fetchServers();
           }
-        } catch (err) {
+        } catch {
           alert('Niepoprawny plik JSON z konfiguracją serwerów LLM.');
         }
       };

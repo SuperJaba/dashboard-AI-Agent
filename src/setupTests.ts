@@ -1,4 +1,6 @@
-import '@testing-library/jest-dom';
+if (typeof window !== 'undefined') {
+  await import('@testing-library/jest-dom');
+}
 
 const mockStorage = (() => {
   let store: Record<string, string> = {};
@@ -14,7 +16,7 @@ const mockStorage = (() => {
 
 try {
   delete (globalThis as any).localStorage;
-} catch (_) {}
+} catch  {}
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: mockStorage,
@@ -26,7 +28,7 @@ Object.defineProperty(globalThis, 'localStorage', {
 if (typeof window !== 'undefined') {
   try {
     delete (window as any).localStorage;
-  } catch (_) {}
+  } catch  {}
   Object.defineProperty(window, 'localStorage', {
     value: mockStorage,
     writable: true,
@@ -34,7 +36,20 @@ if (typeof window !== 'undefined') {
     enumerable: true
   });
   window.HTMLCanvasElement.prototype.getContext = () => null as any;
+
+  if (!window.localStorage) {
+    const store: Record<string, string> = {};
+    const storageMock = {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, value: string) => { store[key] = String(value); },
+      removeItem: (key: string) => { delete store[key]; },
+      clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+      key: (i: number) => Object.keys(store)[i] ?? null,
+      get length() { return Object.keys(store).length; }
+    };
+    Object.defineProperty(window, 'localStorage', {
+      value: storageMock,
+      writable: true
+    });
+  }
 }
-
-
-

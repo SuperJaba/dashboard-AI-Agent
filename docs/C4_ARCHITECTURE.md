@@ -59,10 +59,14 @@ C4Component
         Component(auth, "Auth Router", "Express Router", "Handles JWT authentication and middleware.")
         Component(projects, "Projects Router", "Express Router", "Manages project CRUD, Git ops, and task analysis.")
         Component(agents, "Agents Router", "Express Router", "Manages AI CLI agents and terminal deployments.")
+        Component(servers, "Servers Router", "Express Router", "Manages remote SSH servers & system stats.")
+        Component(llm, "LLM Router", "Express Router", "Manages LLM providers and model configurations.")
         Component(db_module, "Database Module", "pg Pool", "Handles PostgreSQL connections and queries.")
     }
 
     Rel(projects, db_module, "Uses")
     Rel(agents, db_module, "Uses")
     Rel(auth, db_module, "Uses")
+    Rel(servers, db_module, "Uses")
+    Rel(llm, db_module, "Uses")
 ```

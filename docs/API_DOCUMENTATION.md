@@ -1,442 +1,89 @@
 # Dashboard API Documentation
 
-This document provides comprehensive API documentation for the Dashboard backend system. All endpoints follow RESTful conventions and return JSON responses.
-
----
-
-## Base URL
-
-```
-http://localhost:3001/api
-```
-
----
-
-## Authentication
-
-All protected endpoints require valid JWT authentication via the `Authorization` header:
-
-```bash
-Authorization: Bearer <your_jwt_token>
-```
-
-### Auth Endpoints
-
-#### 1. Login
-**Endpoint**: `POST /api/auth/login`
-
-**Request Body**:
-```json
-{
-  "email": "user@example.com",
-  "password": "secure_password"
-}
-```
-
-**Response (200)**:
-```json
-{
-  "data": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "name": "User Name"
-  },
-  "token": "jwt_token_string"
-}
-```
-
-#### 2. Logout
-**Endpoint**: `POST /api/auth/logout`
-
-**Response (204)**: No content
-
-#### 3. Get Current User
-**Endpoint**: `GET /api/auth/me`
-
-**Response (200)**:
-```json
-{
-  "data": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "name": "User Name"
-  }
-}
-```
-
----
-
-## Server Management
-
-Manage LLM server configurations, API keys, and model settings.
-
-### List All Servers
-**Endpoint**: `GET /api/servers`
-
-**Response (200)**:
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "name": "My LLM Server",
-      "apiKey": "sk-...",
-      "model": "gpt-4-turbo",
-      "status": "active"
-    }
-  ]
-}
-```
-
-### Create New Server
-**Endpoint**: `POST /api/servers`
-
-**Request Body**:
-```json
-{
-  "name": "My LLM Server",
-  "apiKey": "sk-...",
-  "model": "gpt-4-turbo"
-}
-```
-
-**Response (201)**: Created server object
-
-### Get Single Server
-**Endpoint**: `GET /api/servers/:id`
-
-**Response (200)**: Server details
-
-### Update Server
-**Endpoint**: `PUT /api/servers/:id`
-
-**Request Body**: Partial update fields
-
-**Response (200)**: Updated server object
-
-### Delete Server
-**Endpoint**: `DELETE /api/servers/:id`
-
-**Response (204)**: No content
-
----
-
-## Project Management
-
-Manage projects with Git integration, branch tracking, and task management.
-
-### List All Projects
-**Endpoint**: `GET /api/projects`
-
-**Query Parameters**:
-- `projectId` - Filter by project ID
-- `status` - Filter by status (active, archived)
-
-**Response (200)**:
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "name": "My Project",
-      "branch": "main",
-      "taskId": "task-uuid",
-      "status": "active"
-    }
-  ]
-}
-```
-
-### Create New Project
-**Endpoint**: `POST /api/projects`
-
-**Request Body**:
-```json
-{
-  "name": "My Project",
-  "branch": "main",
-  "taskId": "task-uuid"
-}
-```
-
-**Response (201)**: Created project object
-
-### Get Single Project
-**Endpoint**: `GET /api/projects/:id`
-
-**Response (200)**: Full project details including Git repository info
-
-### Update Project
-**Endpoint**: `PUT /api/projects/:id`
-
-**Request Body**: Partial update fields
-
-**Response (200)**: Updated project object
-
-### Delete Project
-**Endpoint**: `DELETE /api/projects/:id`
-
-**Response (204)**: No content
-
----
-
-## AI Agents Management
-
-Deploy and manage autonomous AI agents with terminal capabilities.
-
-### List All Agents
-**Endpoint**: `GET /api/agents`
-
-**Query Parameters**:
-- `status` - Filter by status (deployed, stopped)
-- `agentName` - Filter by agent name
-
-**Response (200)**:
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Code Review Agent",
-      "status": "deployed",
-      "serverId": "server-uuid"
-    }
-  ]
-}
-```
-
-### Create New Agent
-**Endpoint**: `POST /api/agents`
-
-**Request Body**:
-```json
-{
-  "name": "Code Review Agent",
-  "description": "Automated code review",
-  "serverId": "server-uuid"
-}
-```
-
-**Response (201)**: Created agent object
-
-### Get Single Agent
-**Endpoint**: `GET /api/agents/:id`
-
-**Response (200)**: Full agent details including deployment status
-
-### Update Agent
-**Endpoint**: `PUT /api/agents/:id`
-
-**Request Body**: Partial update fields
-
-**Response (200)**: Updated agent object
-
-### Delete Agent
-**Endpoint**: `DELETE /api/agents/:id`
-
-**Response (204)**: No content
-
----
-
-## Custom Widgets
-
-Configure custom widgets to monitor arbitrary commands and metrics.
-
-### List All Widgets
-**Endpoint**: `GET /api/widgets`
-
-**Query Parameters**:
-- `name` - Filter by widget name
-- `type` - Filter by type (number, text, chart)
-- `serverId` - Filter by server
-
-**Response (200)**:
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Active Containers",
-      "command": "docker ps -q | wc -l",
-      "type": "number",
-      "color": "#3b82f6",
-      "serverId": "server-uuid"
-    }
-  ]
-}
-```
-
-### Create New Widget
-**Endpoint**: `POST /api/widgets`
-
-**Request Body**:
-```json
-{
-  "name": "Active Containers",
-  "command": "docker ps -q | wc -l",
-  "type": "number",
-  "color": "#3b82f6",
-  "serverId": "server-uuid"
-}
-```
-
-**Response (201)**: Created widget object
-
-### Get Single Widget
-**Endpoint**: `GET /api/widgets/:id`
-
-**Response (200)**: Full widget details
-
-### Update Widget
-**Endpoint**: `PUT /api/widgets/:id`
-
-**Request Body**: Partial update fields
-
-**Response (200)**: Updated widget object
-
-### Delete Widget
-**Endpoint**: `DELETE /api/widgets/:id`
-
-**Response (204)**: No content
-
----
-
-## Settings Management
-
-Manage global dashboard settings and user preferences.
-
-### List All Settings
-**Endpoint**: `GET /api/settings`
-
-**Response (200)**:
-```json
-{
-  "data": {
-    "theme": "dark",
-    "language": "en",
-    "notifications": true,
-    "autoRefresh": 30
-  }
-}
-```
-
-### Update Settings
-**Endpoint**: `PUT /api/settings`
-
-**Request Body**:
-```json
-{
-  "theme": "light",
-  "language": "pl"
-}
-```
-
-**Response (200)**: Updated settings object
-
----
-
-## Error Responses
-
-All endpoints may return error responses in the following format:
-
-### Generic Error (4xx/5xx)
-```json
-{
-  "error": {
-    "message": "Error description",
-    "code": "ERROR_CODE",
-    "status": 400
-  }
-}
-```
-
-### Common Error Codes
-- `INVALID_CREDENTIALS` - Invalid email or password
-- `UNAUTHORIZED` - Missing or invalid JWT token
-- `NOT_FOUND` - Resource not found
-- `VALIDATION_ERROR` - Request body validation failed
-- `INTERNAL_SERVER_ERROR` - Unexpected server error
-
----
-
-## Rate Limiting
-
-API requests are rate-limited to prevent abuse:
-
-- **Standard limit**: 100 requests per minute per IP
-- **Exceeding limit**: Returns HTTP 429 with `Retry-After` header
-
----
-
-## CORS Configuration
-
-CORS is enabled for development environments. Production CORS configuration should be customized based on your deployment requirements.
-
-**Allowed Origins (Development)**:
-- `http://localhost:5173`
-- `http://localhost:3000`
-
-**Allowed Methods**:
-- `GET`, `POST`, `PUT`, `DELETE`, `PATCH`
-
-**Allowed Headers**:
-- `Content-Type`, `Authorization`, `X-Requested-With`
-
----
-
-## Response Formats
-
-All successful responses use the following format:
-
-```json
-{
-  "data": {},
-  "meta": {
-    "timestamp": "2026-08-12T10:30:00Z"
-  }
-}
-```
-
-Empty responses (e.g., after logout) return HTTP 204 No Content.
-
----
-
-## Testing APIs
-
-### Using cURL
-```bash
-# Login
-curl -X POST http://localhost:3001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"secure"}'
-
-# Get current user (requires auth)
-curl -X GET http://localhost:3001/api/auth/me \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# List servers
-curl -X GET http://localhost:3001/api/servers \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-### Using JavaScript Fetch
-```javascript
-// Login
-const loginResponse = await fetch('http://localhost:3001/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password })
-});
-
-// Get current user
-const userResponse = await fetch('http://localhost:3001/api/auth/me', {
-  headers: { 
-    'Authorization': `Bearer ${token}`
-  }
-});
-```
-
----
-
-**Last Updated**: 2026-08-12  
-**API Version**: 1.0.0
+RESTful JSON API served at `http://localhost:3001/api`. Protected endpoints require an `Authorization: Bearer <token>` header.
+
+## Authentication (`/api/auth`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/auth/login` | Authenticate with `{ email, password }`. Returns `{ token, user }`. |
+| `POST` | `/api/auth/register` | Register new user `{ email, password, name }`. Returns `{ token, user }`. |
+| `GET` | `/api/auth/me` | Fetch authenticated user session profile. |
+| `POST` | `/api/auth/logout` | Invalidate current session (returns 204). |
+
+## Remote Servers (`/api/servers`)
+Manage SSH server targets for remote command execution and monitoring.
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/servers` | List all configured remote servers. |
+| `POST` | `/api/servers` | Add server `{ name, host, port, username, authType, password, privateKey }`. |
+| `GET` | `/api/servers/:id` | Get details for a specific server. |
+| `PUT` | `/api/servers/:id` | Update server credentials or connection details. |
+| `DELETE` | `/api/servers/:id` | Remove a server configuration. |
+| `GET` | `/api/servers/:id/stats` | Fetch real-time CPU, RAM, and Disk metrics via SSH. |
+
+## LLM Providers (`/api/llmServers`)
+Configure LLM backend providers (OpenAI, Anthropic, Ollama, LM Studio, etc.).
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/llmServers` | List all LLM server configurations. |
+| `POST` | `/api/llmServers` | Add provider `{ name, provider, baseUrl, apiKey, model, isDefault }`. |
+| `PUT` | `/api/llmServers/:id` | Update provider configuration or API key. |
+| `DELETE` | `/api/llmServers/:id` | Delete provider configuration. |
+
+## Projects & Tasks (`/api/projects`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/projects` | List all workspace projects with task metrics. |
+| `POST` | `/api/projects` | Register new workspace directory `{ name, path, description }`. |
+| `GET` | `/api/projects/:id` | Get project metadata, branch, and parsed tasks. |
+| `PUT` | `/api/projects/:id` | Update project parameters. |
+| `DELETE` | `/api/projects/:id` | Unregister project from dashboard. |
+| `POST` | `/api/projects/:id/analyze` | Re-scan project markdown files for tasks and update metrics. |
+
+## Git Operations (`/api/git`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/git/status` | Get status (`?path=<projectPath>`) of modified/staged files. |
+| `GET` | `/api/git/branches` | List local and remote branches. |
+| `POST` | `/api/git/checkout` | Switch branch `{ path, branch }`. |
+| `POST` | `/api/git/branch` | Create new branch `{ path, branch }`. |
+| `GET` | `/api/git/diff` | Get unified diff for unstaged or staged changes. |
+| `POST` | `/api/git/stage` | Stage files `{ path, files }` or stage all. |
+| `POST` | `/api/git/commit` | Create commit `{ path, message }`. |
+| `POST` | `/api/git/push` | Push commits to upstream `{ path, remote, branch }`. |
+| `POST` | `/api/git/pull` | Pull changes from upstream `{ path, remote, branch }`. |
+
+## AI Agents (`/api/agents`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/agents` | List configured CLI agents (Antigravity, Claude Code, Aider, etc.). |
+| `POST` | `/api/agents` | Register new agent configuration `{ name, command, args, env }`. |
+| `PUT` | `/api/agents/:id` | Update agent configuration. |
+| `DELETE` | `/api/agents/:id` | Remove agent configuration. |
+| `GET` | `/api/agents/workers` | List connected local agent workers. |
+
+## Custom Widgets (`/api/widgets`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/widgets` | List custom executor widgets. |
+| `POST` | `/api/widgets` | Create widget `{ name, command, type: 'number'|'text'|'bar-chart'|'network-chart', color, serverId }`. |
+| `PUT` | `/api/widgets/:id` | Update widget configuration. |
+| `DELETE` | `/api/widgets/:id` | Delete widget. |
+| `POST` / `GET` | `/api/widgets/:id/run` | Execute widget command immediately and return output. |
+
+## Settings (`/api/settings`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/settings` | Get dashboard settings (LLM overrides, polling intervals). |
+| `PUT` | `/api/settings` | Save settings `{ defaultModel, maxTokens, temperature, ... }`. |
+
+## Real-Time Terminal (Socket.io)
+Connect via WebSocket with JWT authentication:
+- **Client Emits**:
+  - `spawn_terminal`: `{ command, args, cwd, target: 'auto'|'worker'|'remote', serverId }`
+  - `terminal_input`: `{ data }`
+  - `terminal_resize`: `{ cols, rows }`
+- **Server Emits**:
+  - `terminal_data`: String chunks from stdout/stderr.
+  - `terminal_exit`: Process exit event `{ code, signal }`.
+  - `terminal_error`: Error payload `{ error }`.

@@ -1,0 +1,19 @@
+{
+  "widget.kpiDashboard": "Panel KPI",
+  "widget.customWidgets": "Widgety niestandardowe",
+  "widget.serverStats": "Statystyki serwera",
+  "widget.repoStatus": "Status repozytorium",
+  "widget.analytics": "Analityka",
+  "widget.type.number": "Licznik (Wartość)",
+  "widget.type.text": "Surowy tekst",
+  "widget.type.barChart": "Pasek postępu (0-100)",
+  "widget.type.networkChart": "Wykres sieci (Download/Upload)",
+  "widget.add": "Dodaj widget",
+  "widget.name": "Nazwa",
+  "widget.command": "Polecenie shell",
+  "widget.color": "Kolor motywu",
+  "widget.type": "Typ",
+  "widget.server": "Serwer",
+  "widget.delete": "Usuń widget",
+  "widget.agentInstructions": "Instrukcje dla agenta (opcjonalne)"
+}

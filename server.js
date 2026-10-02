@@ -1,7 +1,12 @@
+/* global PhusionPassenger */
+if (typeof PhusionPassenger !== 'undefined') {
+  PhusionPassenger.configure({ autoInstall: false });
+}
+
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import client from 'prom-client';
+
 import fetch from 'node-fetch';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -13,21 +18,56 @@ import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
 import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+import { logger, requestLogger } from './src/backend/utils/logger.js';
+import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
 
+import net from 'net';
 import { settingsRouter } from './src/backend/settings/settingsRouter.js';
-import { projectsRouter } from './src/backend/projects/projectsRouter.js';
+import { getWslHostIp, projectsRouter } from './src/backend/projects/projectsRouter.js';
 import { serversRouter } from './src/backend/servers/serversRouter.js';
+
+// Setup transparent local LM Studio proxy for WSL localhost:1234 -> host:1234
+function startLlmBridge() {
+  if (process.platform !== 'linux') return;
+  const wslIp = getWslHostIp();
+  if (!wslIp) return;
+
+  const bridge = net.createServer((clientSocket) => {
+    const targetSocket = net.connect(1234, wslIp);
+    clientSocket.pipe(targetSocket);
+    targetSocket.pipe(clientSocket);
+    targetSocket.on('error', () => clientSocket.destroy());
+    clientSocket.on('error', () => targetSocket.destroy());
+  });
+
+  bridge.on('error', () => {
+    // Port 1234 may already be bound or in use, which is expected
+  });
+
+  bridge.listen(1234, '127.0.0.1', () => {
+    console.log(`📡 Localhost LM Studio bridge active: 127.0.0.1:1234 -> ${wslIp}:1234`);
+  });
+}
+startLlmBridge();
 
 // Import background worker and start it.
 import { startBackgroundWorker } from './src/backend/agents/backgroundWorker.js';
-startBackgroundWorker();
-
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
 import { userSettingsRouter } from './src/backend/settings/userSettingsRouter.js';
+import { webhooksRouter } from './src/backend/webhooks/webhooksRouter.js';
+import { alertsRouter } from './src/backend/alerts/alertsRouter.js';
+import { startAlertWatcher } from './src/backend/alerts/alertWatcher.js';
+import { sseRouter } from './src/backend/events/sseRouter.js';
+import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
+import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
+import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
+export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
+import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 
 import { fileURLToPath } from 'url';
 
@@ -44,9 +84,8 @@ const app = express();
 
 const port = process.env.PORT || 3001;
 
-// Initialize Prometheus client
-const register = new client.Registry();
-client.collectDefaultMetrics({ register });
+// Prometheus registry and metrics defined in src/backend/metrics.js
+
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -85,27 +124,8 @@ function findShellExecutable(requestedCmd) {
 export const activeWorkers = new Map();
 
 // Socket.io authentication middleware
-io.use((socket, next) => {
-  try {
-    let token = socket.handshake.auth?.token;
-    if (!token && socket.handshake.headers && socket.handshake.headers.authorization) {
-      const parts = socket.handshake.headers.authorization.split(' ');
-      token = parts.length === 2 ? parts[1] : parts[0];
-    }
-    if (!token) {
-      return next(new Error('Unauthorized'));
-    }
-    if (token === JWT_SECRET || token === 'fallback-super-secret-key-123') {
-      return next();
-    }
-    // Verify JWT
-    jwt.verify(token, JWT_SECRET);
-    next();
-  } catch (err) {
-    console.error('Socket auth error:', err.message || err);
-    next(err);
-  }
-});
+const socketAuthMiddleware = createSocketAuthMiddleware(JWT_SECRET);
+io.use(socketAuthMiddleware);
 
 io.on('connection', (socket) => {
   const isWorker = socket.handshake.auth?.isWorker;
@@ -120,7 +140,8 @@ io.on('connection', (socket) => {
       socket
     };
     activeWorkers.set(socket.id, workerInfo);
-    console.log(`🤖 Registered Local Agent Worker: ${workerInfo.name} (${socket.id})`);
+    activeAgentWorkers.set(activeWorkers.size);
+    logger.info({ workerId: socket.id, name: workerInfo.name }, '🤖 Registered Local Agent Worker');
 
     socket.on('register_worker', (data) => {
       if (activeWorkers.has(socket.id)) {
@@ -152,7 +173,8 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
       activeWorkers.delete(socket.id);
-      console.log(`🤖 Unregistered Local Agent Worker (${socket.id})`);
+      activeAgentWorkers.set(activeWorkers.size);
+      logger.info({ workerId: socket.id }, '🤖 Unregistered Local Agent Worker');
     });
 
     return;
@@ -162,7 +184,7 @@ io.on('connection', (socket) => {
   let ptyProcess = null;
   let activeWorkerSocket = null;
 
-  socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId }) => {
+  socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent }) => {
     let workerToUse = null;
     if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
       workerToUse = activeWorkers.get(targetWorkerId);
@@ -178,7 +200,8 @@ io.on('connection', (socket) => {
         command,
         args,
         cwd,
-        env
+        env,
+        scriptContent
       });
       return;
     }
@@ -200,6 +223,12 @@ io.on('connection', (socket) => {
         ].join(';')
         : process.env.PATH;
 
+      const sanitizedEnv = { ...(env || {}) };
+      delete sanitizedEnv.HOME;
+      delete sanitizedEnv.USER;
+      delete sanitizedEnv.LOGNAME;
+      delete sanitizedEnv.USERPROFILE;
+
       ptyProcess = pty.spawn(shellCmd, args || [], {
         name: 'xterm-256color',
         cols: 100,
@@ -207,7 +236,7 @@ io.on('connection', (socket) => {
         cwd: targetCwd,
         env: { 
           ...process.env, 
-          ...env, 
+          ...sanitizedEnv, 
           PATH: extendedPath,
           COLUMNS: '100',
           LINES: '30',
@@ -230,12 +259,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('terminal_input', (data) => {
+    // Normalize Kitty keyboard protocol Enter sequences (\x1b[13;...u or [13;...u) to \r
+    const cleanData = typeof data === 'string'
+      ? data.replace(new RegExp(String.fromCharCode(27) + '\\[13;[0-9;]+u', 'g'), '\r').replace(/\[13;[0-9;]+u/g, '\r')
+      : data;
     if (activeWorkerSocket) {
-      activeWorkerSocket.emit('worker_terminal_input', { sessionId: socket.id, data });
+      activeWorkerSocket.emit('worker_terminal_input', { sessionId: socket.id, data: cleanData });
     } else if (ptyProcess) {
       try {
-        ptyProcess.write(data);
-      } catch (e) {}
+        ptyProcess.write(cleanData);
+      } catch  {}
     }
   });
 
@@ -245,7 +278,7 @@ io.on('connection', (socket) => {
     } else if (ptyProcess) {
       try {
         ptyProcess.resize(cols, rows);
-      } catch (e) {}
+      } catch  {}
     }
   });
 
@@ -257,17 +290,52 @@ io.on('connection', (socket) => {
     if (ptyProcess) {
       try {
         ptyProcess.kill();
-      } catch (e) {}
+      } catch  {}
       ptyProcess = null;
     }
   });
 });
 
+// T2.2 — Dedicated Socket.IO Namespaces
+export const ptyNsp = io.of('/pty');
+export const dashNsp = io.of('/dashboard');
+
+ptyNsp.use(socketAuthMiddleware);
+dashNsp.use(socketAuthMiddleware);
+
+registerPtyNamespace(ptyNsp, activeWorkers);
+registerDashboardNamespace(dashNsp, activeWorkers);
+
 
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
+app.use(metricsMiddleware);
 // Serve static assets from the public directory
 app.use(express.static('public'));
+
+
+// T7.2 — Legacy health check (kept for backward compat)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+// T7.2 — Liveness probe: process is responsive
+app.get('/health/live', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+// T7.2 — Readiness probe: DB connectivity check
+app.get('/health/ready', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Readiness probe: DB not reachable');
+    res.status(503).json({ status: 'unavailable', db: 'disconnected', timestamp: new Date().toISOString() });
+  }
+});
+
 
 // Prometheus metrics endpoint
 app.get('/metrics', async (req, res) => {
@@ -312,6 +380,59 @@ app.get('/api/agents/workers', (req, res) => {
   res.json(workers);
 });
 
+app.get('/api/socket-info', (req, res) => {
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${port}`;
+  const serverUrl = `${protocol}://${host}`;
+
+  let token = '';
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query.token) {
+    token = req.query.token;
+  }
+
+  if (!token) {
+    token = jwt.sign(
+      { id: req.user?.id || 1, username: req.user?.username || 'worker-client', isWorker: true },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+  }
+
+  const workers = Array.from(activeWorkers.values()).map(w => ({
+    id: w.id,
+    name: w.name,
+    hostname: w.hostname,
+    platform: w.platform,
+    connectedAt: w.connectedAt
+  }));
+
+  res.json({
+    serverUrl,
+    token,
+    workers,
+    workersCount: workers.length,
+    commands: {
+      npm: `DASHBOARD_SERVER_URL="${serverUrl}" DASHBOARD_TOKEN="${token}" npm run agent:worker`,
+      node: `node scripts/local-agent-worker.js ${serverUrl} "${token}" "Moj-PC"`,
+      bash: `export DASHBOARD_SERVER_URL="${serverUrl}"\nexport DASHBOARD_TOKEN="${token}"\nnpm run agent:worker`,
+      powershell: `$env:DASHBOARD_SERVER_URL="${serverUrl}"\n$env:DASHBOARD_TOKEN="${token}"\nnpm run agent:worker`
+    }
+  });
+});
+
+app.post('/api/socket/token', (req, res) => {
+  const user = req.user || { id: 1, username: 'worker-client' };
+  const workerToken = jwt.sign(
+    { id: user.id || 1, username: user.username || 'worker-client', isWorker: true },
+    JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+  res.json({ success: true, token: workerToken, expiresIn: '30d' });
+});
+
 
 // --- Modular Endpoints ---
 app.use('/api/settings', settingsRouter);
@@ -321,6 +442,16 @@ app.use('/api/widgets', widgetsRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api', llmServersRouter);
 app.use('/api/user-settings', userSettingsRouter);
+app.use('/api/webhooks', webhooksRouter);
+app.use('/api/alerts', authMiddleware, alertsRouter);
+app.use('/api/events', authMiddleware, sseRouter);
+app.use('/api/analytics', authMiddleware, kpiRouter);
+
+// T7.4 — Start alert watcher (skipped in test env)
+if (process.env.NODE_ENV !== 'test') {
+  startAlertWatcher();
+}
+
 
 // Serve built frontend static assets if available (dist or public)
 const staticDist = path.join(__dirname, 'dist');
@@ -340,6 +471,9 @@ if (staticPath) {
 // Init DB
 async function initDB() {
   try {
+    const schema = process.env.DB_SCHEMA || 'dashboard';
+    await pool.query(`CREATE SCHEMA IF NOT EXISTS ${schema};`);
+    await pool.query(`SET search_path TO ${schema}, public;`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
@@ -401,22 +535,55 @@ async function initDB() {
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS user_settings (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        theme VARCHAR(20) DEFAULT 'dark',
+        language VARCHAR(10) DEFAULT 'pl',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS agents (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        description TEXT,
+        server_id INTEGER REFERENCES servers(id),
+        status VARCHAR(50) DEFAULT 'stopped',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
       INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;
       INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1') ON CONFLICT (key) DO NOTHING;
       INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0') ON CONFLICT (key) DO NOTHING;
     `);
-    console.log('Database initialized');
+    console.log(`Database initialized in schema '${schema}'`);
   } catch (err) {
     console.error('Failed to initialize database:', err.message);
   }
 }
 initDB();
 
+const isPassenger = typeof PhusionPassenger !== 'undefined' || !!process.env.PASSENGER_APP_ENV;
+
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
-  httpServer.listen(port, () => {
-    console.log(`Backend API running on http://localhost:${port}`);
-    console.log(`Prometheus metrics available at http://localhost:${port}/metrics`);
-  });
+  if (isPassenger) {
+    httpServer.listen('passenger', () => {
+      console.log('Backend API and Socket.IO running under Phusion Passenger');
+      try {
+        startBackgroundWorker();
+      } catch (e) {
+        logger.warn({ err: e.message }, 'Failed to start background worker');
+      }
+    });
+  } else {
+    httpServer.listen(port, () => {
+      logger.info(`Backend API running on http://localhost:${port}`);
+      logger.info(`Prometheus metrics available at http://localhost:${port}/metrics`);
+      try {
+        startBackgroundWorker();
+      } catch (e) {
+        logger.warn({ err: e.message }, 'Failed to start background worker');
+      }
+    });
+  }
 }
 
+export { app, httpServer };
 export default app;

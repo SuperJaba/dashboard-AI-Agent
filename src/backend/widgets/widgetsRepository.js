@@ -23,3 +23,19 @@ export async function getWidgetById(id) {
   if (rows.length === 0) {return null;}
   return rows[0];
 }
+
+export async function updateWidget(id, { name, command, type, color, server_id }) {
+  const { rows } = await pool.query(
+    `UPDATE custom_widgets 
+     SET name = COALESCE($1, name),
+         command = COALESCE($2, command),
+         type = COALESCE($3, type),
+         color = COALESCE($4, color),
+         server_id = $5
+     WHERE id = $6 
+     RETURNING *`,
+    [name, command, type, color, server_id || null, id]
+  );
+  if (rows.length === 0) {return null;}
+  return rows[0];
+}

@@ -35,3 +35,9 @@ entities.json
 artifacts/*.zip
 codex-hud
 coverage/
+
+# PostgreSQL local data
+postgres-data/
+
+*.env
+.omc/

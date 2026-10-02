@@ -4,7 +4,8 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { io, Socket } from 'socket.io-client';
-import { X, Minus, Maximize2 } from 'lucide-react';
+import { X, Minus, Maximize2, Laptop } from 'lucide-react';
+import { LocalWorkerModal } from './LocalWorkerModal';
 
 interface TerminalViewProps {
   config: {
@@ -14,6 +15,7 @@ interface TerminalViewProps {
     env: any;
     executionTarget?: 'remote' | 'worker' | 'auto';
     targetWorkerId?: string;
+    scriptContent?: string;
   } | null;
   onClose: () => void;
 }
@@ -40,6 +42,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [execTarget, setExecTarget] = useState<'remote' | 'worker' | 'auto'>(config?.executionTarget || 'auto');
   const [workers, setWorkers] = useState<any[]>([]);
+  const [showWorkerModal, setShowWorkerModal] = useState(false);
 
   const dragStartPos = useRef({ x: 0, y: 0 });
   const initialPos = useRef({ x: 0, y: 0 });
@@ -82,9 +85,9 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     termInstance.current = term;
     fitAddonInstance.current = fitAddon;
 
-    // Connect to WebSocket with token authentication and fallback transports
+    // Connect to WebSocket /pty namespace with token authentication and fallback transports
     const token = localStorage.getItem('dashboard_token');
-    const socket = io({
+    const socket = io('/pty', {
       auth: { token },
       transports: ['polling', 'websocket']
     });
@@ -101,7 +104,8 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
         cwd: config.cwd,
         env: config.env,
         executionTarget: execTarget,
-        targetWorkerId: config.targetWorkerId
+        targetWorkerId: config.targetWorkerId,
+        scriptContent: config.scriptContent
       });
       
       // Resize to current xterm size
@@ -120,8 +124,25 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
       term.write(`\r\n\x1b[31m[Error: ${msg}]\x1b[0m\r\n`);
     });
 
+    // Intercept Enter key combinations (Ctrl+Enter, Meta+Enter, Shift+Enter) to emit \r directly
+    term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+      if (event.type === 'keydown' && event.key === 'Enter') {
+        if (event.ctrlKey || event.metaKey || event.shiftKey) {
+          socket.emit('terminal_input', '\r');
+          return false;
+        }
+      }
+      return true;
+    });
+
     // Handle user input
     term.onData(data => {
+      // Normalize any Kitty keyboard protocol Enter sequences (\x1b[13;...u or [13;...u) to \r
+      if (data.includes('[13;') && data.includes('u')) {
+        const normalized = data.replace(new RegExp(String.fromCharCode(27) + '\\[13;[0-9;]+u', 'g'), '\r').replace(/\[13;[0-9;]+u/g, '\r');
+        socket.emit('terminal_input', normalized);
+        return;
+      }
       socket.emit('terminal_input', data);
     });
 
@@ -275,6 +296,26 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
               <option value="remote">🌐 Remote Server</option>
             </select>
           </div>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setShowWorkerModal(true); }}
+            title="Pobierz komendę i token Socket.IO dla Local Workera"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              background: 'rgba(56, 189, 248, 0.15)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              borderRadius: '4px',
+              padding: '2px 6px',
+              color: '#38bdf8',
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            <Laptop size={12} />
+            <span>Tunel PC</span>
+          </button>
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -317,6 +358,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
           </svg>
         </div>
       )}
+      <LocalWorkerModal isOpen={showWorkerModal} onClose={() => setShowWorkerModal(false)} />
     </div>,
     document.body
   );

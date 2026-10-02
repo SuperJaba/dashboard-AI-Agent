@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act } from 'react';
 import { TerminalView } from './TerminalView';
 
 // Mock xterm
@@ -14,6 +15,7 @@ vi.mock('@xterm/xterm', () => {
       onData = vi.fn();
       dispose = vi.fn();
       focus = vi.fn();
+      attachCustomKeyEventHandler = vi.fn();
     }
   };
 });
@@ -27,10 +29,30 @@ vi.mock('@xterm/addon-fit', () => {
   };
 });
 
+// Mock socket.io-client so no real WebSocket connection is attempted
+vi.mock('socket.io-client', () => {
+  const socket = {
+    on: vi.fn(),
+    emit: vi.fn(),
+    disconnect: vi.fn(),
+  };
+  return { io: vi.fn(() => socket) };
+});
+
 describe('TerminalView', () => {
-  it('renders terminal title correctly', () => {
+  beforeEach(() => {
+    // Mock fetch so the workers useEffect doesn't trigger an unwrapped state update
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: false, json: () => Promise.resolve([]) } as Response)
+    );
+  });
+
+  it('renders terminal title correctly', async () => {
     const config = { command: 'bash', args: [], cwd: '/', env: {} };
-    render(<TerminalView config={config} onClose={() => {}} />);
+
+    await act(async () => {
+      render(<TerminalView config={config} onClose={() => {}} />);
+    });
     
     expect(screen.getByText('Live Agent Terminal')).toBeInTheDocument();
   });

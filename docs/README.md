@@ -1,34 +1,23 @@
-# Dashboard – Project Overview
+# Documentation Index
 
-## Quick‑start
+Technical documentation, architecture specifications, and guides for the Dashboard project.
 
-The Dashboard is a single‑page application built with React, Vite and TypeScript that visualises real‑time metrics from our services.
+## Documents
 
-- **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS v4
-- **Backend API:** Node.js Express 5 + Socket.io exposing REST endpoints under `/api/*` and real-time terminal streams
-- **Auth:** JWT-based authentication middleware in `src/backend/auth/`
-- **Database:** PostgreSQL with automatic in-memory fallback
+| Document | Purpose | Audience / Use Case |
+| :--- | :--- | :--- |
+| [C4 Architecture](C4_ARCHITECTURE.md) | C4 Context and Container diagrams showing system boundaries, dependencies, and protocols. | Agents & developers needing service boundary context. |
+| [Architecture Documentation](ARCHITECTURE_DOCUMENTATION.md) | Deep dive into full-stack architecture, component breakdown, data flows, and security model. | In-depth architectural review. |
+| [API Documentation](API_DOCUMENTATION.md) | Guide to backend REST endpoints, Git operations, and Socket.io terminal events. | Quick reference for API routes and payloads. |
+| [System Tools MCP Servers](MCP-SYS-TOOLS.md) | Catalog and configuration for system and infrastructure MCP servers and on-demand dispatchers. | DevOps, system monitoring, and remote CT8 management. |
+| [Widget Tutorial](TUTORIAL_ADD_WIDGET.md) | Step-by-step tutorial on creating, wiring, and registering custom dashboard widgets. | Frontend developers adding new dashboard components. |
+| [Feature Roadmap](ROADMAP.md) | Implementation roadmap and task breakdown for Features 1, 2, 3, 4, 7, 8, and CI/CD. | Planning, feature tracking, and implementation tasks. |
 
----
+## Root Documentation References
 
-## Authentication Flow
-
-The project uses a JWT-based flow. The following endpoints are used for user management:
-
-| Endpoint | Method | Description |
-|--------|-------|-------------|
-| `POST /api/auth/login` | **Login** <br>Payload: `{ email, password }`<br>Returns access token.<br>`Authorization: Bearer <token>` is required on subsequent requests. |
-| `POST /api/auth/register` | **Register** <br>Payload: `{ email, password, name }`<br>Registers a new user and returns JWT token. |
-| `GET  /api/auth/me` | **Current User** <br>Requires the bearer token in the header.<br>Responds with user session data. |
-
-*Routes are protected by Express JWT auth middleware (`src/backend/auth/authMiddleware.js`).*
-
----
-
-## Contributing
-
-- Code style is enforced via ESLint + Prettier.
-- All changes must pass `npm test` and include tests where appropriate.
-- PRs should target the **main** branch; merge after a successful CI run.
-
----
+- [AGENTS.md](../AGENTS.md) – Contributor commands, linting rules, and agent instructions.
+- [CLAUDE.md](../CLAUDE.md) – Agent architecture guidance and core patterns.
+- [Developer Onboarding](../DEVELOPER_ONBOARDING.md) – Setup, local development commands, and environment configuration.
+- [Design Decisions & Tradeoffs](../DESIGN.md) – Architectural design records, state management, and fallback strategies.
+- [Agent SSH Automation](../agent-ssh-con.md) – SSH execution protocol and remote terminal connection rules.
+- [Security Policy](../SECURITY.md) – Security policy and credential storage.
