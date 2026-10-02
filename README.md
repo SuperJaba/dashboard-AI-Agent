@@ -33,7 +33,8 @@ cp .env.example .env
 Configure `.env`:
 ```env
 DATABASE_URL=postgres://username:password@localhost:5432/dashboard
-JWT_SECRET=your_super_secret_jwt_token_key
+# Minimum 32 characters in production; fallback keys are strictly rejected on startup in production (NODE_ENV=production)
+JWT_SECRET=your_super_secret_jwt_token_key_min_32_chars
 ENCRYPTION_KEY=32_character_long_secret_key_here
 ```
 

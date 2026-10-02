@@ -257,6 +257,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
 
   useEffect(() => {
     if (widgets.length === 0) return;
+    let isCancelled = false;
     
     const isNetworkWidget = (w: Widget) =>
       w.type === 'network-chart' || w.name.toLowerCase().includes('network');
@@ -265,13 +266,17 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
     const standardWidgets = widgets.filter(w => !isNetworkWidget(w));
 
     // Initial run for all widgets
-    widgets.forEach(w => runWidget(w.id, w.type, w.name));
+    widgets.forEach(w => {
+      if (!isCancelled) runWidget(w.id, w.type, w.name);
+    });
     
     // 3-second refresh for network widgets as requested: "ref 3 sec"
     let networkInterval: NodeJS.Timeout | null = null;
     if (networkWidgets.length > 0) {
       networkInterval = setInterval(() => {
-        networkWidgets.forEach(w => runWidget(w.id, w.type, w.name));
+        if (!isCancelled) {
+          networkWidgets.forEach(w => runWidget(w.id, w.type, w.name));
+        }
       }, 3000);
     }
 
@@ -279,11 +284,14 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
     let standardInterval: NodeJS.Timeout | null = null;
     if (standardWidgets.length > 0) {
       standardInterval = setInterval(() => {
-        standardWidgets.forEach(w => runWidget(w.id, w.type, w.name));
+        if (!isCancelled) {
+          standardWidgets.forEach(w => runWidget(w.id, w.type, w.name));
+        }
       }, 15000);
     }
 
     return () => {
+      isCancelled = true;
       if (networkInterval) clearInterval(networkInterval);
       if (standardInterval) clearInterval(standardInterval);
     };

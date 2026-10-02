@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Bot, Search, Check, RefreshCw, Sparkles, 
   Sliders, Settings, Info, Gauge, Zap, Trash2, X, Laptop, Key
@@ -54,15 +54,23 @@ export function AgentsView() {
   const [newAgent, setNewAgent] = useState({ name: '', description: '', path: '', config_uri: '', llm_model: 'gpt-4o', temperature: 0.7, max_tokens: 4096 });
   
   useEffect(() => {
+    let isMounted = true;
     const fetchWorkers = () => {
       apiFetch('/api/agents/workers')
         .then(res => res.ok ? res.json() : [])
-        .then(data => setWorkersCount(Array.isArray(data) ? data.length : 0))
-        .catch(() => setWorkersCount(0));
+        .then(data => {
+          if (isMounted) setWorkersCount(Array.isArray(data) ? data.length : 0);
+        })
+        .catch(() => {
+          if (isMounted) setWorkersCount(0);
+        });
     };
     fetchWorkers();
     const interval = setInterval(fetchWorkers, 4000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -72,7 +80,7 @@ export function AgentsView() {
     }
   }, [notification]);
 
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     try {
       const res = await apiFetch('/api/agents');
       const data = await res.json();
@@ -83,11 +91,11 @@ export function AgentsView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAgents();
-  }, []);
+  }, [fetchAgents]);
 
   const handleScan = async () => {
     setScanning(true);

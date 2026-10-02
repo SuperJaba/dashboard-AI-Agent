@@ -1,4 +1,4 @@
-import { startTransition, useState, useEffect } from 'react';
+import { startTransition, useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
@@ -6,23 +6,27 @@ import {
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff
 } from 'lucide-react';
 import './index.css';
-import { TerminalView } from './TerminalView';
 import { LocalWorkerModal } from './LocalWorkerModal';
 import { AnalyticsPanel } from './AnalyticsPanel';
-import { LlmServerManager } from './LlmServerManager';
-
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
-import CustomWidgets from './CustomWidgets';
-
-import { AgentsView } from './AgentsView';
-import { FolderPickerDialog } from './FolderPickerDialog';
 import { WebhookSettingsModal } from './components/WebhookSettingsModal';
 import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
-
 import { useDashboardState } from './hooks/useDashboardState';
+
+const TerminalView = lazy(() => import('./TerminalView').then(m => ({ default: m.TerminalView })));
+const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ default: m.LlmServerManager })));
+const CustomWidgets = lazy(() => import('./CustomWidgets'));
+const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
+const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
+
+const ViewFallback = () => (
+  <div style={{ padding: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+    Ładowanie...
+  </div>
+);
 import { DashboardTiles } from './TilesView';
 import { usePreferences, type Language } from './preferences/PreferencesContext';
 
@@ -95,18 +99,26 @@ function App() {
   const { connected: isSseConnected } = useLiveTelemetry();
 
   useEffect(() => {
+    let isMounted = true;
     const fetchWorkers = () => {
       const activeToken = token || localStorage.getItem('dashboard_token');
       fetch('/api/agents/workers', {
         headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
       })
         .then(res => res.ok ? res.json() : [])
-        .then(data => setWorkersCount(Array.isArray(data) ? data.length : 0))
-        .catch(() => setWorkersCount(0));
+        .then(data => {
+          if (isMounted) setWorkersCount(Array.isArray(data) ? data.length : 0);
+        })
+        .catch(() => {
+          if (isMounted) setWorkersCount(0);
+        });
     };
     fetchWorkers();
     const interval = setInterval(fetchWorkers, 4000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [token]);
 
   // Dropdown-based agent selection for the "Local workspace" project view,
@@ -485,10 +497,14 @@ function App() {
       {/* Main Area */}
       <main id="main-content" tabIndex={-1} className="dashboard-container">
         {activeView === 'agents' ? (
-          <AgentsView />
+          <Suspense fallback={<ViewFallback />}>
+            <AgentsView />
+          </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
-            <LlmServerManager />
+            <Suspense fallback={<ViewFallback />}>
+              <LlmServerManager />
+            </Suspense>
             {activeServer ? (
               <>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
@@ -503,11 +519,13 @@ function App() {
             
             <ServerStats serverId={activeServer.id} />
             
-            <CustomWidgets 
-              token={token!} 
-              server={activeServer}
-              onLaunchTerminal={setTerminalConfig} 
-            />
+            <Suspense fallback={<ViewFallback />}>
+              <CustomWidgets 
+                token={token!} 
+                server={activeServer}
+                onLaunchTerminal={setTerminalConfig} 
+              />
+            </Suspense>
             
             <div style={{ marginBottom: '2rem' }}>
               <div className="glass-card animate-in delay-2" style={{ maxWidth: '100%' }}>
@@ -584,10 +602,12 @@ function App() {
             </div>
             {terminalConfig && (
               <div style={{ marginBottom: '2rem' }}>
-                <TerminalView
-                  config={terminalConfig}
-                  onClose={() => setTerminalConfig(null)}
-                />
+                <Suspense fallback={<ViewFallback />}>
+                  <TerminalView
+                    config={terminalConfig}
+                    onClose={() => setTerminalConfig(null)}
+                  />
+                </Suspense>
               </div>
             )}
               </>
@@ -654,10 +674,12 @@ function App() {
 
             {terminalConfig && (
               <div style={{ marginBottom: '2rem' }}>
-                <TerminalView
-                  config={terminalConfig}
-                  onClose={() => setTerminalConfig(null)}
-                />
+                <Suspense fallback={<ViewFallback />}>
+                  <TerminalView
+                    config={terminalConfig}
+                    onClose={() => setTerminalConfig(null)}
+                  />
+                </Suspense>
               </div>
             )}
 
@@ -1210,11 +1232,13 @@ function App() {
       )}
 
       {showFolderPicker && (
-        <FolderPickerDialog
-          isOpen={showFolderPicker}
-          onClose={() => setShowFolderPicker(false)}
-          onSelectFolder={handleFolderPicked}
-        />
+        <Suspense fallback={<ViewFallback />}>
+          <FolderPickerDialog
+            isOpen={showFolderPicker}
+            onClose={() => setShowFolderPicker(false)}
+            onSelectFolder={handleFolderPicked}
+          />
+        </Suspense>
       )}
 
       {/* Clone Git Repository Modal */}

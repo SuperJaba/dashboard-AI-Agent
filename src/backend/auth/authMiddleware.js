@@ -1,9 +1,5 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
+import { JWT_SECRET } from './jwtSecret.js';
 
 export const authMiddleware = (req, res, next) => {
   // Allow OPTIONS requests for CORS

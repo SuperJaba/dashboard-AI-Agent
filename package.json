@@ -22,7 +22,7 @@
     "ci-tdd": "bash scripts/ci_tdd_bot.sh",
     "agent:worker": "node scripts/local-agent-worker.js",
     "sync-tasks": "node src/backend/scripts/syncTasks.js",
-    "test:e2e": "set NODE_ENV=test&& node tests/full_test_suite.js",
+    "test:e2e": "cross-env NODE_ENV=test node tests/full_test_suite.js",
     "deploy:ct8": "bash scripts/deploy-ct8-optimized.sh"
   },
   "dependencies": {
@@ -69,6 +69,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.10",
     "autoprefixer": "^10.5.2",
+    "cross-env": "^10.1.0",
     "jsdom": "^29.1.1",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.26",
@@ -77,6 +78,9 @@
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true,

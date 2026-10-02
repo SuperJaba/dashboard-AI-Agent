@@ -6,16 +6,9 @@ import { safeQuery } from '../db.js';
 import { validate } from '../schemas/validate.js';
 import { loginSchema, setupSchema, refreshSchema } from '../schemas/authSchemas.js';
 import { authMiddleware } from './authMiddleware.js';
+import { JWT_SECRET } from './jwtSecret.js';
 
 export const authRouter = express.Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key-123';
-
-// T8.1 — warn in production when using fallback secret
-if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'fallback-super-secret-key-123') {
-  console.error('[AUTH] KRYTYCZNE: JWT_SECRET nie jest ustawiony! Ustaw zmienną środowiskową JWT_SECRET.');
-  process.exit(1);
-}
 
 // T8.2 — rate limiting on login endpoint (15 prób / 15 min per IP)
 const loginLimiter = rateLimit({
