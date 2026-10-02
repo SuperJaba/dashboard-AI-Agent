@@ -24,7 +24,7 @@ if (pool && typeof pool.on === 'function') {
 }
 
 // Fallback in-memory store when PostgreSQL is disconnected or unavailable
-const inMemoryStore = {
+export const inMemoryStore = {
   users: [],
   settings: {
     llmName: 'AtomicChat',
@@ -209,44 +209,50 @@ export async function safeQuery(text, params = []) {
 
   // Custom widgets
   if (sql.includes('FROM custom_widgets')) {
-    if (sql.includes('WHERE id =')) {
-      const widget = inMemoryStore.custom_widgets.find(w => w.id == params[0]);
+    if (sql.includes('WHERE id')) {
+      const id = String(params[0]);
+      const widget = inMemoryStore.custom_widgets.find(w => String(w.id) === id);
       return { rows: widget ? [widget] : [] };
     }
-    return { rows: inMemoryStore.custom_widgets };
+    return { rows: [...inMemoryStore.custom_widgets] };
   }
 
   if (sql.includes('INSERT INTO custom_widgets')) {
     const [name, command, type, color, server_id] = params;
+    const nextId = inMemoryStore.custom_widgets.length > 0
+      ? Math.max(...inMemoryStore.custom_widgets.map(w => Number(w.id) || 0)) + 1
+      : 1;
     const newWidget = {
-      id: inMemoryStore.custom_widgets.length ? Math.max(...inMemoryStore.custom_widgets.map(w => w.id)) + 1 : 1,
+      id: nextId,
       name,
       command,
       type: type || 'number',
       color: color || '#c084fc',
-      server_id: server_id || null
+      server_id: server_id || null,
+      created_at: new Date().toISOString(),
     };
     inMemoryStore.custom_widgets.push(newWidget);
     return { rows: [newWidget] };
   }
 
   if (sql.includes('UPDATE custom_widgets')) {
-    const [name, command, type, color, server_id, id] = params;
-    const widget = inMemoryStore.custom_widgets.find(w => w.id == id);
+    const id = String(params[params.length - 1]);
+    const [name, command, type, color, server_id] = params;
+    const widget = inMemoryStore.custom_widgets.find(w => String(w.id) === id);
     if (widget) {
       if (name !== undefined && name !== null) widget.name = name;
       if (command !== undefined && command !== null) widget.command = command;
       if (type !== undefined && type !== null) widget.type = type;
       if (color !== undefined && color !== null) widget.color = color;
-      widget.server_id = server_id || null;
-      return { rows: [widget] };
+      if (server_id !== undefined) widget.server_id = server_id || null;
+      return { rows: [{ ...widget }] };
     }
     return { rows: [] };
   }
 
   if (sql.includes('DELETE FROM custom_widgets')) {
-    const [id] = params;
-    inMemoryStore.custom_widgets = inMemoryStore.custom_widgets.filter(w => w.id != id);
+    const id = String(params[0]);
+    inMemoryStore.custom_widgets = inMemoryStore.custom_widgets.filter(w => String(w.id) !== id);
     return { rows: [] };
   }
 

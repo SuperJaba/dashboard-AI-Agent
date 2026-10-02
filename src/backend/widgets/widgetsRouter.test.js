@@ -1,12 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { widgetsRouter } from './widgetsRouter.js';
+import { inMemoryStore } from '../db.js';
 
 describe('widgetsRouter', () => {
   const app = express();
   app.use(express.json());
   app.use('/api/widgets', widgetsRouter);
+
+  beforeEach(() => {
+    inMemoryStore.custom_widgets = [];
+  });
 
   it('GET /api/widgets returns widgets array', async () => {
     const res = await request(app).get('/api/widgets');
