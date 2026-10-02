@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Download, Upload, Check, Trash2, Edit3, X, Cpu, Globe, Key, Layers } from 'lucide-react';
 import { apiFetch } from './shared/api-client';
 
@@ -31,7 +31,7 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
     provider: 'LM Studio'
   });
 
-  const fetchServers = async () => {
+  const fetchServers = useCallback(async () => {
     try {
       const res = await apiFetch('/api/llm-servers');
       if (res.ok) {
@@ -41,11 +41,11 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
     } catch (e) {
       console.error('Failed to fetch LLM servers:', e);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchServers();
-  }, []);
+  }, [fetchServers]);
 
   useEffect(() => {
     if (notification) {

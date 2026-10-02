@@ -55,8 +55,11 @@ export function useDashboardState() {
   const projectFolderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     apiClient.get<unknown>('/api/projects')
       .then(rawData => {
+        if (!isMounted) return;
         const data = z.array(ProjectSchema).parse(rawData);
         if (data.length) {
           setProjects(data);
@@ -67,6 +70,7 @@ export function useDashboardState() {
 
     apiClient.get<unknown>('/api/servers')
       .then(rawData => {
+        if (!isMounted) return;
         const data = z.array(ServerSchema).parse(rawData);
         if (data.length) setServers(data);
       })
@@ -74,12 +78,14 @@ export function useDashboardState() {
 
     apiClient.get<any[]>('/api/agents')
       .then(data => {
+        if (!isMounted) return;
         if (Array.isArray(data)) setAgents(data);
       })
       .catch(console.error);
 
     apiClient.get<unknown>('/api/settings')
       .then(rawData => {
+        if (!isMounted) return;
         const data = SettingsSchema.parse(rawData);
         if (data.llmUrl) setCustomLlmUrl(data.llmUrl);
         if (data.apiKey) setCustomApiKey(data.apiKey);
@@ -97,6 +103,10 @@ export function useDashboardState() {
         }
       })
       .catch(console.error);
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const [prevActiveProjectId, setPrevActiveProjectId] = useState(activeProjectId);
