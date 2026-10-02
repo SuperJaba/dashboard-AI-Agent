@@ -66,10 +66,10 @@ Configure LLM backend providers (OpenAI, Anthropic, Ollama, LM Studio, etc.).
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/widgets` | List custom executor widgets. |
-| `POST` | `/api/widgets` | Create widget `{ name, command, type: 'number'|'text'|'chart', color, serverId }`. |
+| `POST` | `/api/widgets` | Create widget `{ name, command, type: 'number'|'text'|'bar-chart'|'network-chart', color, serverId }`. |
 | `PUT` | `/api/widgets/:id` | Update widget configuration. |
 | `DELETE` | `/api/widgets/:id` | Delete widget. |
-| `POST` | `/api/widgets/:id/run` | Execute widget command immediately and return output. |
+| `POST` / `GET` | `/api/widgets/:id/run` | Execute widget command immediately and return output. |
 
 ## Settings (`/api/settings`)
 | Method | Endpoint | Description |
