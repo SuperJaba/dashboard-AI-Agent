@@ -78,6 +78,9 @@
     "vite": "^8.2.2",
     "vitest": "^4.1.10"
   },
+  "overrides": {
+    "qs": "^6.16.0"
+  },
   "allowScripts": {
     "bcrypt@6.0.0": true,
     "node-pty@1.1.0": true
