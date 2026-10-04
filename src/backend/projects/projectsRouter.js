@@ -498,7 +498,7 @@ projectsRouter.post('/analyze', async (req, res) => {
 
 // Deploy project using agents
 projectsRouter.post('/deploy', async (req, res) => {
-  const { agent, directory, tasks, useBrowserTerminal, remoteServer, remotePrompt } = req.body;
+  const { agent, directory, tasks, useBrowserTerminal, remoteServer, remotePrompt, dangerouslySkipPermissions } = req.body;
   let targetDir = directory || process.cwd();
   
   if (targetDir.startsWith('~/')) {
@@ -680,6 +680,10 @@ projectsRouter.post('/deploy', async (req, res) => {
       }
     }
     
+    if (dangerouslySkipPermissions) {
+      agentBaseCmd += ' --dangerously-skip-permissions';
+    }
+
     const scriptPath = path.join(targetDir, '.start_agent.sh');
     
     if (remoteServer) {

@@ -19,4 +19,5 @@
 - [x] Izolacja przestrzeni Socket.IO (/pty i /dashboard)
 - [x] Inteligentny dobór modelu LLM (Model Routing: LM Studio / AGY)
 - [x] Internacjonalizacja i18n (język polski jako domyślny, obsługa angielskiego)
-- [ ] Synchronizacja zadań i auto-detekcja w projektach zdalnych
+- [x] Synchronizacja zadań i auto-detekcja w projektach zdalnych
+- [x] Flaga YOLO dla pomijania uprawnień przy uruchamianiu terminala

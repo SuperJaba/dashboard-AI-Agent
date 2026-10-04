@@ -43,6 +43,7 @@ export function useDashboardState() {
     });
   };
   const [useBrowserTerminal, setUseBrowserTerminal] = useState(true);
+  const [dangerouslySkipPermissions, setDangerouslySkipPermissions] = useState(false);
   const [terminalConfig, setTerminalConfig] = useState<any>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [deploying, setDeploying] = useState<string | null>(null);
@@ -101,6 +102,11 @@ export function useDashboardState() {
         } else {
           setUseBrowserTerminal(true);
         }
+        
+        const localSkipPref = localStorage.getItem('dangerouslySkipPermissions');
+        if (localSkipPref !== null) {
+          setDangerouslySkipPermissions(localSkipPref === 'true');
+        }
       })
       .catch(console.error);
 
@@ -142,6 +148,11 @@ export function useDashboardState() {
     apiClient.post('/api/settings', { useBrowserTerminal: checked }).catch(console.error);
   };
 
+  const handleSkipPermissionsToggle = (checked: boolean) => {
+    setDangerouslySkipPermissions(checked);
+    localStorage.setItem('dangerouslySkipPermissions', checked.toString());
+  };
+
   const deployAgent = async (agent: string) => {
     if (!activeProject) return;
     setDeploying(agent);
@@ -159,7 +170,8 @@ export function useDashboardState() {
         llmUrl: customLlmUrl, 
         apiKey: customApiKey,
         tasks: tasksToDeploy,
-        useBrowserTerminal
+        useBrowserTerminal,
+        dangerouslySkipPermissions
       });
       if (data.browserTerminal) {
         setTerminalConfig({
@@ -602,6 +614,7 @@ export function useDashboardState() {
     showTasks, setShowTasks,
     hideCompleted, setHideCompleted,
     useBrowserTerminal, setUseBrowserTerminal,
+    dangerouslySkipPermissions, handleSkipPermissionsToggle,
     terminalConfig, setTerminalConfig,
     selectedTaskIds, setSelectedTaskIds,
     deploying, setDeploying,

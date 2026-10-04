@@ -52,6 +52,7 @@ function App() {
     showTasks, setShowTasks,
     hideCompleted, setHideCompleted,
     useBrowserTerminal,
+    dangerouslySkipPermissions, handleSkipPermissionsToggle,
     terminalConfig, setTerminalConfig,
     selectedTaskIds, setSelectedTaskIds,
     deploying,
@@ -667,6 +668,15 @@ function App() {
                       style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
                     />
                     Use Browser Terminal
+                  </label>
+                  <label title="--dangerously-skip-permissions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--danger, #ef4444)', cursor: 'pointer', paddingRight: '0.25rem' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={dangerouslySkipPermissions}
+                      onChange={(e) => handleSkipPermissionsToggle(e.target.checked)}
+                      style={{ accentColor: 'var(--danger, #ef4444)', width: '16px', height: '16px' }}
+                    />
+                    YOLO
                   </label>
                 </div>
               </div>
