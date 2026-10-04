@@ -55,6 +55,7 @@ startLlmBridge();
 
 // Import background worker and start it.
 import { startBackgroundWorker } from './src/backend/agents/backgroundWorker.js';
+import { startRemoteSyncCron } from './src/backend/scripts/remoteSyncCron.js';
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';

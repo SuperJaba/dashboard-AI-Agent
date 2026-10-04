@@ -1,57 +1,50 @@
 # Repository Guidelines
 
-## Project Structure
-- `src/` – Application source code (React frontend and Express backend domain modules).
-- `tests/` – Unit and integration tests (mirroring `src/`, ending with `.test.ts` / `.spec.ts`).
-- `assets/` – Static images, styles, and fixtures.
+This document provides a quick reference for contributors working on this project.
+It covers the folder layout, build and test commands, coding style rules, and how to submit changes.
 
+## Project Structure & Module Organization
+- **src/** – Main source code (JavaScript/TypeScript).
+- **tests/** – Unit and integration tests. Test files mirror the structure of `src` and end with `.test.js` or `.spec.ts`.
+- **assets/** – Static assets such as images, stylesheets, and JSON fixtures.
+  
 ## Key Environment Gotchas
 - **UI Language:** Labels and messages in UI components are in Polish.
 - **Database Fallback:** `src/backend/db.js` automatically falls back to an in-memory store if PostgreSQL is unavailable.
 - **Port Mapping:** Development uses Vite on port 5173 (proxies API requests) and Express API on port 3001.
 - **Styling:** Uses Tailwind CSS v4 via `@tailwindcss/postcss` (no `tailwind.config.js`).
 
-## Commands
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Launch Vite (5173) + Express (3001) concurrently. |
-| `npm run build` | Build production client bundle via Vite into `dist/`. |
-| `npm test` | Run Vitest test suite. On WSL (`/mnt/`), append `--no-file-parallelism` to avoid thread timeouts. |
-| `npm run test:sys` | Run native node system diagnostics test suite. |
-| `npm run test:e2e` | Run Playwright end-to-end tests. |
-| `npm run lint` | Run ESLint and Oxlint checks (0 errors/warnings required). |
-
 ## Context Pointers (Disclosed Reference)
 Consult these references on demand when handling specific subsystem tasks:
-- **API Spec & Route Definitions**: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md)
+- **API Spec & Route Definitions**: [`docs/openapi.yaml`](docs/openapi.yaml) or [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md)
 - **C4 Architecture & Service Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md)
-- **System Tools & MCP Catalog**: [`docs/MCP-SYS-TOOLS.md`](docs/MCP-SYS-TOOLS.md)
 - **Widget Creation & Registration**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md)
-- **Feature Roadmap & Task Backlog**: [`docs/ROADMAP.md`](docs/ROADMAP.md)
-- **Automated SSH & Remote Execution**: [`agent-ssh-con.md`](agent-ssh-con.md)
+- **Automated SSH & Remote Execution**: [`docs/agent-ssh-con.md`](docs/agent-ssh-con.md)
 
-## Code & Naming Conventions
-- 2 spaces indentation.
-- camelCase for variables, functions, and properties.
-- PascalCase for React components and TypeScript types.
-- kebab-case for file names (e.g. `user-profile.ts`).
-- Named exports preferred over default exports.
 
-## Agent Guidelines
-1. **Preserve existing tests**: Update existing tests only when intentionally altering tested behavior.
-2. **Module placement**: Place new business logic under `src/backend/<domain>/` or `src/components/`, adding test stubs alongside or in `tests/`.
-3. **Pre-commit verification**: Verify changes with `npm test` and `npm run lint` before completing tasks.
-4. **Conventional Commits**: Format commit messages as `<type>[optional scope]: <subject>` (e.g., `feat(auth): add JWT support`).
+## Coding & Architectural Conventions
+- Indent with **2 spaces** (no tabs).
+- Use **camelCase** for variables, functions, and props; name files in **kebab-case** (e.g. `user-profile.ts`).
+- Prefer **named exports** over default exports.
+- **Backend Architecture:** Follow the domain repository pattern in `src/backend/{domain}/` using the `safeQuery()` wrapper.
+- **Central State:** State is centralized in `src/hooks/useDashboardState.ts`.
 
-## MemPalace Protocol
-- **Search before answering:** Call `mempalace_search` (or `mempalace_kg_query` for relational/temporal facts) for past decisions, bug fixes, or architecture discussions before guessing.
-- **Verbatim retrieval:** Quote verbatim drawer content retrieved from the memory palace.
-- **Record continuity:** Log significant architectural milestones or fixes with `mempalace_diary_write` or `mempalace_add_drawer`.
+## Testing & Verification
+- Unit & component tests: Vitest (`npm test`).
+- End-to-end tests: Playwright (`npm run test:e2e`).
+- Preserve existing test suites; author new test stubs alongside new or modified modules in `src/` or `tests/`.
+- Ensure all tests and linter (`npm run lint`) pass cleanly before concluding tasks.
+
+## Commit Guidelines
+- Follow Conventional Commits: `<type>[optional scope]: <subject>` (e.g., `feat(auth): add JWT support`).
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph
-In repositories indexed by CodeGraph (a `.codegraph/` directory exists at root), consult it before grep/find:
-- **MCP tool**: `codegraph_explore` answers symbol queries, verbatim source, and call paths in one call.
-- **Shell**: `codegraph explore "<symbol names or question>"`.
-Skip CodeGraph if `.codegraph/` is absent.
+
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
 <!-- CODEGRAPH_END -->

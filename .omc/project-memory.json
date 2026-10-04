@@ -308,16 +308,16 @@
       "type": "directory"
     },
     {
-      "path": "",
-      "accessCount": 3,
-      "lastAccessed": 1790906874274,
-      "type": "directory"
+      "path": "package.json",
+      "accessCount": 2,
+      "lastAccessed": 1790901325013,
+      "type": "file"
     },
     {
-      "path": "package.json",
-      "accessCount": 3,
-      "lastAccessed": 1790907172208,
-      "type": "file"
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1790901736078,
+      "type": "directory"
     },
     {
       "path": "C:\\Users\\picho\\.claude",
@@ -336,18 +336,6 @@
       "accessCount": 1,
       "lastAccessed": 1790901342897,
       "type": "file"
-    },
-    {
-      "path": "README.md",
-      "accessCount": 1,
-      "lastAccessed": 1790906883389,
-      "type": "file"
-    },
-    {
-      "path": "package-lock.json",
-      "accessCount": 1,
-      "lastAccessed": 1790907073808,
-      "type": "directory"
     }
   ],
   "userDirectives": []

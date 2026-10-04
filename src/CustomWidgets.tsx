@@ -87,18 +87,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
 
     const bestPicks = [
       { name: 'Jagger2 CPU', command: "ssh -i ~/.ssh/id_ed25519_antigravity jagger2@s1.ct8.pl mpstat 1 1 | awk '{print $3}'", type: 'number', color: '#ef4444' },
-      { 
-        name: 'Jagger2 Memory Free %', 
-        command: "ssh -i ~/.ssh/id_ed25519_antigravity jagger2@s1.ct8.pl \"node -e \\\"const os=require('os');console.log(((os.freemem()/os.totalmem())*100).toFixed(2))\\\" 2>/dev/null || sysctl -n vm.stats.vm.v_free_count vm.stats.vm.v_page_count | awk 'NR==1{f=\\$1} NR==2{if (\\$1>0) printf \\\"%.2f\\\", (f/\\$1)*100}'\"", 
-        type: 'bar-chart', 
-        color: '#10b981' 
-      },
-      { 
-        name: 'Memory Free %', 
-        command: "node -e \"const os=require('os');console.log(((os.freemem()/os.totalmem())*100).toFixed(2))\" 2>/dev/null || ( [ -f /proc/meminfo ] && awk '/MemAvailable:/ {a=$2} /MemTotal:/ {t=$2} END {if (t>0) printf \"%.2f\", (a/t)*100}' /proc/meminfo 2>/dev/null ) || ( [ \"$(uname)\" = \"FreeBSD\" ] && sysctl -n vm.stats.vm.v_free_count vm.stats.vm.v_page_count 2>/dev/null | awk 'NR==1{f=$1} NR==2{if ($1>0) printf \"%.2f\", (f/$1)*100}' ) || ( free 2>/dev/null | awk '/(Mem|Pami):/ {if ($2>0) printf \"%.2f\", (1-$3/$2)*100}' )", 
-        type: 'bar-chart', 
-        color: '#10b981' 
-      },
+      { name: 'Memory Free %', command: "free | awk '/Mem:/ {printf \"%.2f\", $3/$2 * 100}' || vmstat | tail -n 1 | awk '{print $5}'", type: 'number', color: '#10b981' },
       { name: 'Disk Space (Root)', command: "df -h / | awk 'NR==2 {print $3 \" / \" $2 \" (\" $5 \")\"}'", type: 'string', color: '#3b82f6' },
       { name: 'System Uptime', command: "uptime -p || uptime", type: 'string', color: '#f59e0b' },
       { name: 'Local Docker Containers', command: "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'", type: 'text', color: '#8b5cf6' },
@@ -145,19 +134,17 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
 
   const fetchWidgets = useCallback(async () => {
     try {
-      const url = server?.id ? `/api/widgets?serverId=${server.id}` : '/api/widgets';
-      const data = await apiClient.get<Widget[]>(url);
+      const data = await apiClient.get<Widget[]>('/api/widgets');
       setWidgets(data);
     } catch (e) {
       console.error('Failed to fetch widgets', e);
     }
-  }, [server?.id]);
+  }, []);
 
   const runWidget = useCallback(async (id: number, widgetType?: string, widgetName?: string) => {
     setLoading(prev => ({ ...prev, [id]: true }));
     try {
-      const url = server?.id ? `/api/widgets/${id}/run?serverId=${server.id}` : `/api/widgets/${id}/run`;
-      const data = await apiClient.get<any>(url);
+      const data = await apiClient.get<any>(`/api/widgets/${id}/run`);
       const result: string = data.result ?? '';
       setResults(prev => ({ ...prev, [id]: result }));
       // Parse RX/TX or Download/Upload values for network-chart widgets
@@ -325,15 +312,14 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
           command: targetCommand,
           type: targetType,
           color: targetColor,
-          server_id: editingWidget.server_id ?? (server ? server.id : null)
+          server_id: editingWidget.server_id
         });
       } else {
         await apiClient.post<any>('/api/widgets', {
           name: targetName,
           command: targetCommand,
           type: targetType,
-          color: targetColor,
-          server_id: server ? server.id : null
+          color: targetColor
         });
       }
       

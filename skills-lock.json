@@ -13,101 +13,11 @@
       "skillPath": "skills/discovery/find-skills/SKILL.md",
       "computedHash": "a17f22b8c3d9e4f50123456789abcdef0123456789abcdef0123456789abcdef"
     },
-    "n8n-agents": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-agents/SKILL.md",
-      "computedHash": "1826feb28c196a6fb94bf87929f10e05d77cf1c6c2fe02ba36c6573a556b1fa6"
-    },
-    "n8n-binary-and-data": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-binary-and-data/SKILL.md",
-      "computedHash": "6dbe7d0fcce1a5b7814fe77581bf9d70269c19cfe8d530ad785f20bab0fbcba1"
-    },
-    "n8n-code-javascript": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-code-javascript/SKILL.md",
-      "computedHash": "6e658c978df3ac1aba5462c91fd189bbb721ac7c11129650b7f314b758d8aa1a"
-    },
-    "n8n-code-python": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-code-python/SKILL.md",
-      "computedHash": "cf3f01ee22140bc3aa2a7acd519d127dc75461134a943567879500a8dd9fce5f"
-    },
-    "n8n-code-tool": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-code-tool/SKILL.md",
-      "computedHash": "268228e920b4179caa5b9eecbce539efbb63386bac68ff8f167ee60eb16c3cf3"
-    },
-    "n8n-error-handling": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-error-handling/SKILL.md",
-      "computedHash": "917792c6a0f4ae2e840720998604c637b782fe610ef258194b53483a055421a6"
-    },
-    "n8n-expression-syntax": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-expression-syntax/SKILL.md",
-      "computedHash": "3c721e9b4f91285443166214579718f0757fb6e2f19c1d69c96897b543db1032"
-    },
-    "n8n-mcp-tools-expert": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-mcp-tools-expert/SKILL.md",
-      "computedHash": "cbadca3d9260a22c26bc8013f6c4b6bfb999139f27e1fa31aae6ec87dd43ef8c"
-    },
-    "n8n-multi-instance": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-multi-instance/SKILL.md",
-      "computedHash": "964f6f0befd0bd7760d3ad1ec41bf12b897079a55129dd2690b3741a7d989a60"
-    },
-    "n8n-node-configuration": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-node-configuration/SKILL.md",
-      "computedHash": "095124f1ca42aaf07fe899ca2fa6054f81bd17c6887a875ccd1927804ce62387"
-    },
-    "n8n-self-hosting": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-self-hosting/SKILL.md",
-      "computedHash": "c93215f445b70b0306b365b3268fa52cb37236d5edda666e56a43b2327cff294"
-    },
-    "n8n-subworkflows": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-subworkflows/SKILL.md",
-      "computedHash": "05ffefa9e10efee8dab8c6f2a378c118189a696821077ff2081b64d45a385283"
-    },
-    "n8n-validation-expert": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-validation-expert/SKILL.md",
-      "computedHash": "4a87739599393bb0b34affe3ca03cf71f30389748a00b3c654770e4d635927c9"
-    },
-    "n8n-workflow-patterns": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/n8n-workflow-patterns/SKILL.md",
-      "computedHash": "5567746f9012cc3cb40bc6b352388d1c694f89b6cb554fd035adc7ee46bed850"
-    },
     "ponytail": {
       "source": "dietrichgebert/ponytail",
       "sourceType": "github",
       "skillPath": "skills/ponytail/SKILL.md",
       "computedHash": "9e8d05cbbaf6dc38f0cffc924c09b3cbe76d94ba4ba0d09bde803da2f8c6b5a0"
-    },
-    "using-n8n-mcp-skills": {
-      "source": "czlonkowski/n8n-skills",
-      "sourceType": "github",
-      "skillPath": "skills/using-n8n-mcp-skills/SKILL.md",
-      "computedHash": "12e137532c3bb4335e105c6a4ff0a714bb016d0156ccbe0689712204f875ae82"
     },
     "writing-for-agents": {
       "source": "mattpocock/skills",

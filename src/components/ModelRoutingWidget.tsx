@@ -28,7 +28,7 @@ export function ModelRoutingWidget() {
   const localRatio = total > 0 ? Math.round((stats.localTasks / total) * 100) : 0;
 
   return (
-    <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', minWidth: 0 }}>
+    <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Zap size={18} color="var(--primary, #38bdf8)" />

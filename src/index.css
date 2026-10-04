@@ -213,7 +213,10 @@ button.project-item {
 /* Glassmorphism cards */
 .glass-card {
   background: var(--bg-surface);
+  /* Ensure card stays above modal backdrop during animation */
   position: relative;
+  margin: 0 auto; /* center horizontally */
+  max-width: 480px; /* constrain width for better centering */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
