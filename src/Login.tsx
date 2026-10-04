@@ -15,12 +15,34 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     let active = true;
     let retryTimeout: any;
 
+    // Listen for global 401 unauthorized events to immediately reset auth state
+    const handleUnauthorized = () => {
+      localStorage.removeItem('dashboard_token');
+      setIsAuthenticated(false);
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+
+    const initialToken = localStorage.getItem('dashboard_token');
+    if (initialToken) {
+      fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${initialToken}` }
+      })
+        .then(res => {
+          if (!active) return;
+          if (!res.ok) {
+            handleUnauthorized();
+          }
+        })
+        .catch(() => {});
+    }
+
     const checkSetup = () => {
       fetch('/api/auth/check-setup')
         .then(res => res.json())
         .then(data => {
           if (!active) return;
           if (data.needsSetup) {
+            handleUnauthorized();
             setNeedsSetup(true);
           }
           setLoading(false);
@@ -37,6 +59,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
       if (retryTimeout) clearTimeout(retryTimeout);
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
     };
   }, []);
 

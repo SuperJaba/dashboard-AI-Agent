@@ -46,7 +46,7 @@ async function request<T>(method: HttpMethod, path: string, body?: unknown, opti
   let data: any;
   try {
     data = await response.json();
-  } catch (err) {
+  } catch  {
     if (!response.ok) {
       throw new ApiError('Invalid response format', response.status, 'INVALID_RESPONSE');
     }
@@ -54,6 +54,10 @@ async function request<T>(method: HttpMethod, path: string, body?: unknown, opti
   }
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('dashboard_token');
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
     throw ApiError.fromEnvelope(data, response.status);
   }
 

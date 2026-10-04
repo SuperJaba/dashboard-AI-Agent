@@ -6,7 +6,7 @@ import { promisify } from 'util';
 const execAsync = typeof exec === 'function' ? promisify(exec) : async () => ({ stdout: '' });
 
 export function resolveDirectory(dir) {
-  if (!dir) return dir;
+  if (!dir || typeof dir !== 'string') return '';
   if (dir.startsWith('~/')) {
     const home = process.env.HOME || process.env.USERPROFILE || '';
     return path.join(home, dir.slice(2));
@@ -15,8 +15,14 @@ export function resolveDirectory(dir) {
 }
 
 export function isGitRepo(directory) {
-  const resolved = resolveDirectory(directory);
-  return fs.existsSync(path.join(resolved, '.git'));
+  if (!directory || typeof directory !== 'string') return false;
+  try {
+    const resolved = resolveDirectory(directory);
+    if (!resolved) return false;
+    return fs.existsSync(path.join(resolved, '.git'));
+  } catch {
+    return false;
+  }
 }
 
 export function getStatus(directory) {
@@ -32,12 +38,12 @@ export function getStatus(directory) {
 
   try {
     branch = execSync('git branch --show-current', execOpts).toString().trim();
-  } catch (e) {}
+  } catch  {}
 
   try {
     const statusOut = execSync('git status -s', execOpts).toString().trim();
     changes = statusOut ? statusOut.split(/\r?\n/) : [];
-  } catch (e) {}
+  } catch  {}
 
   try {
     const logOut = execSync('git log -n 10 --pretty=format:"%h|%s|%ar|%an"', execOpts).toString().trim();
@@ -45,7 +51,7 @@ export function getStatus(directory) {
       const parts = line.split('|');
       return { hash: parts[0], msg: parts[1], time: parts[2], author: parts[3] };
     }) : [];
-  } catch (e) {}
+  } catch  {}
 
   return { branch, changes, commits };
 }
@@ -63,7 +69,7 @@ export function getBranches(directory) {
 
   try {
     current = execSync('git branch --show-current', execOpts).toString().trim();
-  } catch (e) {}
+  } catch  {}
 
   try {
     const branchOut = execSync('git branch -a --format="%(refname:short)|%(HEAD)"', execOpts).toString().trim();
@@ -84,7 +90,7 @@ export function getBranches(directory) {
         local.push(ref);
       }
     }
-  } catch (e) {
+  } catch  {
     // Fallback simple list
     try {
       const simpleOut = execSync('git branch', execOpts).toString().trim();
@@ -92,7 +98,7 @@ export function getBranches(directory) {
         const clean = b.replace('*', '').trim();
         if (clean) local.push(clean);
       });
-    } catch (err) {}
+    } catch  {}
   }
 
   return { current, local, remote };
@@ -158,7 +164,7 @@ export function getDiff(directory, staged = false, file = null) {
 
   try {
     stat = execSync(`git diff --stat${stagedFlag}${fileArg}`, execOpts).toString();
-  } catch (e) {
+  } catch  {
     stat = '';
   }
 
@@ -190,7 +196,7 @@ export function unstageFiles(directory, files = ['.']) {
   const fileArgs = fileList.map(f => `"${f}"`).join(' ');
   try {
     execSync(`git restore --staged ${fileArgs}`, execOpts);
-  } catch (e) {
+  } catch  {
     execSync(`git reset HEAD -- ${fileArgs}`, execOpts);
   }
 
@@ -237,7 +243,7 @@ export function pushChanges(directory, remote = 'origin', branch = '', force = f
   if (!currentBranch) {
     try {
       currentBranch = execSync('git branch --show-current', execOpts).toString().trim();
-    } catch (e) {}
+    } catch  {}
   }
 
   const forceFlag = force ? ' --force-with-lease' : '';
@@ -296,7 +302,7 @@ export async function getGithubPRsAndRuns(directory) {
       { cwd: resolved, timeout: GH_TIMEOUT_MS }
     );
     prs = JSON.parse(prsOut || '[]');
-  } catch (e) {
+  } catch  {
     // gh CLI might not be authenticated or timed out
   }
   
@@ -308,7 +314,7 @@ export async function getGithubPRsAndRuns(directory) {
     );
     const runs = JSON.parse(runsOut || '[]');
     latestRun = runs.length > 0 ? runs[0] : null;
-  } catch (e) {
+  } catch  {
     // gh CLI might not be authenticated or timed out
   }
   
@@ -325,7 +331,7 @@ export function cancelCIJobs(directory) {
   try {
     const runsOut = execSync('gh run list --status in_progress --json databaseId -q ".[].databaseId"', { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
     runIds = runsOut.trim().split('\n').filter(Boolean);
-  } catch (e) {
+  } catch  {
     // gh CLI might not be authenticated or fail
   }
   
@@ -336,7 +342,7 @@ export function cancelCIJobs(directory) {
   for (const id of runIds) {
     try {
       execSync(`gh run cancel ${id}`, { cwd: resolved });
-    } catch (e) {
+    } catch  {
       // Ignore single cancellation error
     }
   }

@@ -1,23 +1,32 @@
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
-  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff
 } from 'lucide-react';
 import './index.css';
-import { TerminalView } from './TerminalView';
+import { LocalWorkerModal } from './LocalWorkerModal';
 import { AnalyticsPanel } from './AnalyticsPanel';
-import { LlmServerManager } from './LlmServerManager';
-
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
-import CustomWidgets from './CustomWidgets';
-
-import { AgentsView } from './AgentsView';
-import { FolderPickerDialog } from './FolderPickerDialog';
-
+import { WebhookSettingsModal } from './components/WebhookSettingsModal';
+import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
+import { ModelRoutingWidget } from './components/ModelRoutingWidget';
+import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';
+
+const TerminalView = lazy(() => import('./TerminalView').then(m => ({ default: m.TerminalView })));
+const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ default: m.LlmServerManager })));
+const CustomWidgets = lazy(() => import('./CustomWidgets'));
+const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
+const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
+
+const ViewFallback = () => (
+  <div style={{ padding: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+    Ładowanie...
+  </div>
+);
 import { DashboardTiles } from './TilesView';
 import { usePreferences, type Language } from './preferences/PreferencesContext';
 
@@ -83,18 +92,42 @@ function App() {
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
   const [showSettings, setShowSettings] = useState(false);
+  const [showWorkerModal, setShowWorkerModal] = useState(false);
+  const [workersCount, setWorkersCount] = useState(0);
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const { connected: isSseConnected } = useLiveTelemetry();
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchWorkers = () => {
+      const activeToken = token || localStorage.getItem('dashboard_token');
+      fetch('/api/agents/workers', {
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
+      })
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          if (isMounted) setWorkersCount(Array.isArray(data) ? data.length : 0);
+        })
+        .catch(() => {
+          if (isMounted) setWorkersCount(0);
+        });
+    };
+    fetchWorkers();
+    const interval = setInterval(fetchWorkers, 4000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [token]);
 
   // Dropdown-based agent selection for the "Local workspace" project view,
   // replacing what used to be a growing row of "Deploy <Agent>" buttons.
   const [selectedAgentName, setSelectedAgentName] = useState('');
-  useEffect(() => {
-    const installed = agents.filter((a: any) => a.installed);
-    if (installed.length > 0 && !installed.some((a: any) => a.name.toLowerCase() === selectedAgentName)) {
-      setSelectedAgentName(installed[0].name.toLowerCase());
-    }
-  }, [agents]);
+  const installedAgents = agents.filter((a: any) => a.installed);
+  const activeAgentName = selectedAgentName && installedAgents.some((a: any) => a.name.toLowerCase() === selectedAgentName)
+    ? selectedAgentName
+    : (installedAgents[0]?.name.toLowerCase() || '');
 
   const allProjectTasks = activeProject?.tasks || [];
   const activeTasks = allProjectTasks.filter((t: any) => t.status !== 'archived');
@@ -111,9 +144,12 @@ function App() {
         <nav aria-label="Main Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
           <button 
             type="button"
-            className={`project-item ${activeView === 'dashboard' ? 'active' : ''}`}
-            onClick={() => startTransition(() => setActiveView('dashboard'))}
-            aria-current={activeView === 'dashboard' ? 'page' : undefined}
+            className={`project-item ${activeView === 'dashboard' && activeProjectId === null ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('dashboard');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'dashboard' && activeProjectId === null ? 'page' : undefined}
           >
             <LayoutDashboard size={18} aria-hidden="true" />
             <span>Dashboard</span>
@@ -126,6 +162,28 @@ function App() {
           >
             <Bot size={18} aria-hidden="true" />
             <span>Agenci AI</span>
+          </button>
+          <button 
+            type="button"
+            className="project-item"
+            onClick={() => setShowWorkerModal(true)}
+            title="Komenda połączenia i aktualny token do Socket.IO"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Laptop size={18} aria-hidden="true" color={workersCount > 0 ? '#10b981' : '#38bdf8'} />
+              <span>{t('sidebar.socketTunnel')}</span>
+            </div>
+            <span style={{
+              fontSize: '0.7rem',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              background: workersCount > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(148, 163, 184, 0.15)',
+              color: workersCount > 0 ? '#34d399' : '#94a3b8',
+              fontWeight: 600
+            }}>
+              {workersCount > 0 ? '● Online' : 'Offline'}
+            </span>
           </button>
         </nav>
 
@@ -159,18 +217,18 @@ function App() {
                   style={{ flex: 1, textAlign: 'left' }}
                 >
                   <Folder size={18} aria-hidden="true" />
-                  <span>{proj.name.split(/[/\\]/).pop()}</span>
+                  <span>{proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}</span>
                 </button>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Czy na pewno chcesz usunąć projekt "${proj.name.split(/[/\\]/).pop()}"?`)) {
+                    if (confirm(`Czy na pewno chcesz usunąć projekt "${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}"?`)) {
                       handleAddProject(proj.id, 'delete');
                     }
                   }}
                   style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
-                  aria-label={`Usuń projekt ${proj.name.split(/[/\\]/).pop()}`}
+                  aria-label={`Usuń projekt ${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}`}
                   title="Usuń projekt"
                 >
                   <Trash2 size={16} aria-hidden="true" />
@@ -314,6 +372,30 @@ function App() {
           </button>
           <button 
             type="button"
+            onClick={() => setShowWorkerModal(true)}
+            title="Pobierz komendę i token Socket.IO dla Local Workera"
+            style={{ 
+              display: 'flex', 
+              gap: '0.5rem', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              background: workersCount > 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.1)', 
+              border: `1px solid ${workersCount > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(56, 189, 248, 0.25)'}`, 
+              padding: '0.5rem', 
+              borderRadius: '8px', 
+              color: workersCount > 0 ? '#34d399' : '#38bdf8', 
+              cursor: 'pointer', 
+              marginTop: '0.5rem', 
+              fontSize: '0.8rem', 
+              fontWeight: 'bold', 
+              transition: '0.3s' 
+            }}
+          >
+            <Laptop size={16} aria-hidden="true" />
+            <span>{workersCount > 0 ? `Socket: Połączono (${workersCount})` : 'Socket / Tunel PC'}</span>
+          </button>
+          <button 
+            type="button"
             onClick={() => setShowSettings(true)}
             aria-label={t('settings.title')}
             title={t('settings.title')}
@@ -398,17 +480,31 @@ function App() {
                 <option value="hi">हिन्दी (Hindi)</option>
               </select>
             </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+            <WebhookSettingsModal token={token} />
           </div>
         </div>
       )}
 
+      <LocalWorkerModal 
+        isOpen={showWorkerModal} 
+        onClose={() => setShowWorkerModal(false)} 
+        token={token} 
+      />
+
       {/* Main Area */}
       <main id="main-content" tabIndex={-1} className="dashboard-container">
         {activeView === 'agents' ? (
-          <AgentsView />
+          <Suspense fallback={<ViewFallback />}>
+            <AgentsView />
+          </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
-            <LlmServerManager />
+            <Suspense fallback={<ViewFallback />}>
+              <LlmServerManager />
+            </Suspense>
             {activeServer ? (
               <>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
@@ -423,11 +519,13 @@ function App() {
             
             <ServerStats serverId={activeServer.id} />
             
-            <CustomWidgets 
-              token={token!} 
-              server={activeServer}
-              onLaunchTerminal={setTerminalConfig} 
-            />
+            <Suspense fallback={<ViewFallback />}>
+              <CustomWidgets 
+                token={token!} 
+                server={activeServer}
+                onLaunchTerminal={setTerminalConfig} 
+              />
+            </Suspense>
             
             <div style={{ marginBottom: '2rem' }}>
               <div className="glass-card animate-in delay-2" style={{ maxWidth: '100%' }}>
@@ -504,10 +602,12 @@ function App() {
             </div>
             {terminalConfig && (
               <div style={{ marginBottom: '2rem' }}>
-                <TerminalView
-                  config={terminalConfig}
-                  onClose={() => setTerminalConfig(null)}
-                />
+                <Suspense fallback={<ViewFallback />}>
+                  <TerminalView
+                    config={terminalConfig}
+                    onClose={() => setTerminalConfig(null)}
+                  />
+                </Suspense>
               </div>
             )}
               </>
@@ -515,7 +615,7 @@ function App() {
           <>
             <header className="header animate-in delay-1" style={{ alignItems: 'flex-start' }}>
               <div>
-                <h1>{activeProject.name}</h1>
+                <h1>{activeProject.name.split(/[/\\]/).filter(Boolean).pop() || activeProject.name}</h1>
                 <p style={{ color: 'var(--text-muted)' }}>{activeProject.desc}</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem' }}>
@@ -527,7 +627,7 @@ function App() {
                       <label htmlFor="local-agent-select" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Agent:</label>
                       <select
                         id="local-agent-select"
-                        value={selectedAgentName}
+                        value={activeAgentName}
                         onChange={(e) => setSelectedAgentName(e.target.value)}
                         style={{
                           background: 'rgba(255,255,255,0.05)',
@@ -547,15 +647,15 @@ function App() {
                       <button
                         type="button"
                         className="btn btn-primary"
-                        onClick={() => selectedAgentName && deployAgent(selectedAgentName)}
-                        disabled={deploying !== null || !selectedAgentName}
+                        onClick={() => activeAgentName && deployAgent(activeAgentName)}
+                        disabled={deploying !== null || !activeAgentName}
                         style={{
-                          opacity: (deploying === selectedAgentName || !selectedAgentName) ? 0.7 : 1,
-                          background: selectedAgentName === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
+                          opacity: (deploying === activeAgentName || !activeAgentName) ? 0.7 : 1,
+                          background: activeAgentName === 'agy' ? 'linear-gradient(135deg, #10B981, #059669)' : undefined
                         }}
                       >
                         <Rocket size={20} aria-hidden="true" />
-                        {deploying === selectedAgentName ? 'Deploying...' : 'Deploy'}
+                        {deploying === activeAgentName ? 'Deploying...' : 'Deploy'}
                       </button>
                     </>
                   )}
@@ -574,15 +674,17 @@ function App() {
 
             {terminalConfig && (
               <div style={{ marginBottom: '2rem' }}>
-                <TerminalView
-                  config={terminalConfig}
-                  onClose={() => setTerminalConfig(null)}
-                />
+                <Suspense fallback={<ViewFallback />}>
+                  <TerminalView
+                    config={terminalConfig}
+                    onClose={() => setTerminalConfig(null)}
+                  />
+                </Suspense>
               </div>
             )}
 
             <div>
-              <AnalyticsPanel />
+              <AnalyticsPanel projects={projects} />
               <div className="grid-top" style={{ marginBottom: '2rem' }}>
                 <div className="glass-card animate-in delay-2">
                   <span className="info-label">Implementation Status</span>
@@ -1006,7 +1108,14 @@ function App() {
             </div>
           </>
         ) : (
-          <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
+          <div>
+            <div style={{ padding: '1.25rem 1.25rem 0 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <KpiDashboardPanel />
+              <ModelRoutingWidget />
+              <AnalyticsPanel projects={projects} />
+            </div>
+            <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
+          </div>
         )}
           </div>
         )}
@@ -1123,11 +1232,13 @@ function App() {
       )}
 
       {showFolderPicker && (
-        <FolderPickerDialog
-          isOpen={showFolderPicker}
-          onClose={() => setShowFolderPicker(false)}
-          onSelectFolder={handleFolderPicked}
-        />
+        <Suspense fallback={<ViewFallback />}>
+          <FolderPickerDialog
+            isOpen={showFolderPicker}
+            onClose={() => setShowFolderPicker(false)}
+            onSelectFolder={handleFolderPicked}
+          />
+        </Suspense>
       )}
 
       {/* Clone Git Repository Modal */}
@@ -1228,6 +1339,35 @@ function App() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Offline banner (T2.3) */}
+      {!isSseConnected && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(234, 179, 8, 0.15)',
+            borderTop: '1px solid rgba(234, 179, 8, 0.3)',
+            color: '#ca8a04',
+            padding: '0.4rem 1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            fontSize: '0.8rem',
+            fontWeight: 500,
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <WifiOff size={14} aria-hidden="true" />
+          <span>Brak połączenia z serwerem — ponawiam...</span>
         </div>
       )}
 

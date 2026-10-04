@@ -11,7 +11,7 @@ widgetsRouter.get('/', async (req, res) => {
   try {
     const widgets = await widgetsRepo.getWidgets();
     res.json(widgets);
-  } catch (error) {
+  } catch  {
     res.status(500).json({ error: 'Failed to fetch widgets' });
   }
 });
@@ -46,6 +46,20 @@ widgetsRouter.post('/', async (req, res) => {
   }
 });
 
+widgetsRouter.put('/:id', async (req, res) => {
+  try {
+    const { name, command, type, color, server_id } = req.body;
+    const updated = await widgetsRepo.updateWidget(req.params.id, { name, command, type, color, server_id });
+    if (!updated) {
+      return res.status(404).json({ error: 'Widget not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error('Failed to update widget', error);
+    res.status(500).json({ error: 'Failed to update widget' });
+  }
+});
+
 widgetsRouter.delete('/:id', async (req, res) => {
   try {
     await widgetsRepo.deleteWidget(req.params.id);
@@ -76,7 +90,7 @@ widgetsRouter.get('/:id/run', async (req, res) => {
       }
     }
 
-    exec(widget.command, (error, stdout, stderr) => {
+    exec(widget.command, (error, stdout) => {
       if (error) {
         console.error('Widget execution error:', error);
         return res.json({ result: stdout ? stdout.trim() : 'Error' });

@@ -43,7 +43,7 @@ export function findMarkdownFiles(dir, maxDepth = 2, currentDepth = 0) {
         mdFiles.push(fullPath);
       }
     }
-  } catch (err) {
+  } catch  {
     // Ignore permission or file read errors
   }
 
@@ -80,7 +80,7 @@ export function extractChecklistItems(filePath, baseDir) {
         }
       }
     }
-  } catch (err) {
+  } catch  {
     // Ignore read errors
   }
   return items;
@@ -143,7 +143,7 @@ export function updateTaskInWorkspaceFile(projectPath, taskTitle, newStatus, pre
         const relPath = path.relative(projectPath, filePath).replace(/\\/g, '/');
         return { updated: true, file: relPath, fullPath: filePath };
       }
-    } catch (err) {
+    } catch  {
       // Continue searching next files
     }
   }
@@ -192,6 +192,18 @@ export async function syncProjectTasks(projectId, options = {}) {
     }
 
     const commits = getRecentGitCommitMessages(projectPath, 40);
+
+    if (currentTasks.length === 0 && allWorkspaceItems.length > 0) {
+      let idCounter = 1;
+      for (const item of allWorkspaceItems) {
+        currentTasks.push({
+          id: idCounter++,
+          title: item.title,
+          meta: item.file,
+          status: item.isCompleted ? 'completed' : 'pending'
+        });
+      }
+    }
 
     for (let i = 0; i < currentTasks.length; i++) {
       const task = currentTasks[i];

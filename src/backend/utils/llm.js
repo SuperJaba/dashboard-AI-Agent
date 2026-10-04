@@ -26,7 +26,7 @@ export async function getBestAvailableModel(llmUrl, apiKey) {
         return data.data[0].id;
       }
     }
-  } catch (e) {
+  } catch  {
     // Fallback and try Ollama tags endpoint directly
     try {
       if (llmUrl.includes('11434') || llmUrl.includes('ollama')) {
@@ -38,7 +38,7 @@ export async function getBestAvailableModel(llmUrl, apiKey) {
           }
         }
       }
-    } catch (ollamaErr) {
+    } catch  {
       // Ignore and proceed to fallback
     }
   }

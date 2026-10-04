@@ -20,7 +20,7 @@ beforeAll(async () => {
     await page.evaluate((t) => {
       localStorage.setItem('dashboard_token', t);
     }, token);
-  } catch (e) {
+  } catch  {
     console.warn('Frontend might not be running on port 5173.');
   }
 });
@@ -36,7 +36,7 @@ test('Dashboard loads correctly', async () => {
   // Make sure the frontend is running on 5173
   try {
     await page.goto('http://localhost:5173', { waitUntil: 'networkidle0', timeout: 5000 });
-  } catch (e) {
+  } catch  {
     console.warn('Frontend might not be running on port 5173. Test might fail.');
   }
   
@@ -69,7 +69,7 @@ test('Project UI components exist when a project is selected', async () => {
     expect(checkbox).toBeDefined();
     
     // Check if task list opens
-    const checkAllButton = await page.evaluate(() => {
+    const _checkAllButton = await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll('button'));
       return btns.find(b => b.textContent?.includes('Check All'));
     });
@@ -86,7 +86,7 @@ test('Local AI Agents view loads and displays elements correctly', async () => {
   try {
     await page.goto('http://localhost:5173', { waitUntil: 'networkidle0', timeout: 5000 });
     await page.waitForSelector('.project-item', { timeout: 5000 });
-  } catch (e) {
+  } catch  {
     console.warn('Frontend might not be running on port 5173. Test might fail.');
   }
 

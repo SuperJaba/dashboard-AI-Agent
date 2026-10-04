@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act } from 'react';
 import { TerminalView } from './TerminalView';
@@ -15,6 +15,7 @@ vi.mock('@xterm/xterm', () => {
       onData = vi.fn();
       dispose = vi.fn();
       focus = vi.fn();
+      attachCustomKeyEventHandler = vi.fn();
     }
   };
 });
@@ -53,6 +54,8 @@ describe('TerminalView', () => {
       render(<TerminalView config={config} onClose={() => {}} />);
     });
     
-    expect(screen.getByText('Live Agent Terminal')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Live Agent Terminal')).toBeInTheDocument();
+    });
   });
 });

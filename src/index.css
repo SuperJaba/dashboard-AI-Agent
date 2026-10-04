@@ -185,12 +185,15 @@ button.project-item {
 
 .dashboard-container {
   flex: 1;
-  max-width: 1280px;
+  max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Header styling */
@@ -458,11 +461,23 @@ button.project-item {
   border-color: rgba(192, 132, 252, 0.3);
 }
 
+.agents-view-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  align-items: stretch;
 }
 
 .agent-card {
@@ -470,19 +485,43 @@ button.project-item {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .agent-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .agent-title-block {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.agent-title-block > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-title-block h3 {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .agent-icon-wrapper {
@@ -491,6 +530,7 @@ button.project-item {
   border: 1px solid rgba(79, 70, 229, 0.2);
   color: var(--primary);
   border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .agent-badge {
@@ -502,6 +542,7 @@ button.project-item {
   letter-spacing: 0.05em;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .agent-badge-active {
@@ -517,14 +558,20 @@ button.project-item {
 }
 
 .agent-path-box {
-  margin-top: 1rem;
-  background: rgba(0, 0, 0, 0.2);
+  margin-top: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--glass-border);
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.85rem;
   border-radius: 10px;
   font-family: monospace;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.4;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .agent-params-panel {
@@ -535,6 +582,8 @@ button.project-item {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .agent-params-title {
@@ -550,14 +599,16 @@ button.project-item {
 
 .agent-params-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .agent-param-item {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
 }
 
 .agent-param-label {
@@ -570,6 +621,11 @@ button.project-item {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-main);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Modal and Toast styling */

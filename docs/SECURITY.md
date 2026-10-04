@@ -1,21 +1,12 @@
 # Security Policy
 
-## Supported Versions
+## Reporting Security Vulnerabilities
+If you discover a potential security vulnerability within this project, please report it responsibly:
+- Open a private security advisory or contact project maintainers directly.
+- Include reproduction steps, affected components, and potential impact.
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
-
-## Reporting a Vulnerability
-
-Use this section to tell people how to report a vulnerability.
-
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+## Security Practices
+- **Authentication**: JWT-based session tokens with bcrypt-hashed passwords.
+- **Sensitive Credentials**: Passwords and private keys stored in the database are encrypted using AES-256 via `src/backend/utils/crypto.js` with `ENCRYPTION_KEY`.
+- **Environment Isolation**: Secrets (`JWT_SECRET`, `ENCRYPTION_KEY`, `DATABASE_URL`) are read strictly from environment variables and must never be committed to git.
+- **Terminal Execution**: PTY sessions run inside child processes (`node-pty`) authenticated via JWT.

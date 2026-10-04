@@ -1,5 +1,5 @@
 import { pool } from '../db.js';
-import { encrypt, decrypt } from '../utils/crypto.js';
+import { encrypt } from '../utils/crypto.js';
 
 export async function getServers() {
   const { rows } = await pool.query('SELECT * FROM servers ORDER BY id ');

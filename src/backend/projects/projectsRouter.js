@@ -5,11 +5,29 @@ import os from 'os';
 import { spawn, exec, execFile, execSync } from 'child_process';
 import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
+import * as agentsRepo from '../agents/agentsRepository.js';
 import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
-import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects } from './tasksSyncService.js';
+import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects, findMarkdownFiles, extractChecklistItems } from './tasksSyncService.js';
+import { detectTechnology } from './techDetector.js';
 
 export const projectsRouter = express.Router();
+
+export function getWslHostIp() {
+  if (process.platform !== 'linux') return null;
+  try {
+    const isWsl = fs.existsSync('/proc/version') && fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
+    if (!isWsl) return null;
+    const route = execSync("ip route show default | awk '{print $3}'", { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (route && /^\d+\.\d+\.\d+\.\d+$/.test(route)) return route;
+  } catch {}
+  try {
+    const resolv = fs.readFileSync('/etc/resolv.conf', 'utf8');
+    const m = resolv.match(/nameserver\s+(\d+\.\d+\.\d+\.\d+)/);
+    if (m) return m[1];
+  } catch {}
+  return null;
+}
 
 export function getAvailableDrives() {
   if (process.platform !== 'win32') {
@@ -23,7 +41,7 @@ export function getAvailableDrives() {
       if (fs.existsSync(drivePath)) {
         drives.push(drivePath);
       }
-    } catch (e) {
+    } catch  {
       // Ignore drives that are not accessible
     }
   }
@@ -92,7 +110,7 @@ projectsRouter.get('/fs/directories', (req, res) => {
             path: path.join(targetPath, entry.name)
           });
         }
-      } catch (e) {
+      } catch {
         // Skip inaccessible directories
       }
     }
@@ -122,8 +140,39 @@ projectsRouter.get('/projects', async (req, res) => {
 
 // Save Project
 projectsRouter.post('/projects', async (req, res) => {
-  const { name, desc, path: p, branch, tech, complete, tasks } = req.body;
+  let { name, desc, path: p, branch, tech, complete, tasks } = req.body;
   try {
+    if ((!tech || tech === 'Unknown') && p) {
+      const detected = detectTechnology(p);
+      if (detected && detected !== 'Unknown') {
+        tech = detected;
+      }
+    }
+
+    if ((!tasks || tasks.length === 0) && p && fs.existsSync(p)) {
+      try {
+        const mdFiles = findMarkdownFiles(p, 2);
+        const allWorkspaceItems = [];
+        for (const f of mdFiles) {
+          allWorkspaceItems.push(...extractChecklistItems(f, p));
+        }
+        if (allWorkspaceItems.length > 0) {
+          let idCounter = 1;
+          tasks = allWorkspaceItems.map(item => ({
+            id: idCounter++,
+            title: item.title,
+            meta: item.file,
+            status: item.isCompleted ? 'completed' : 'pending'
+          }));
+          const active = tasks.filter(t => t.status !== 'archived');
+          const completedCount = active.filter(t => t.status === 'completed').length;
+          complete = active.length > 0 ? Math.round((completedCount / active.length) * 100) : 0;
+        }
+      } catch {
+        // Fallback to empty tasks
+      }
+    }
+
     const row = await projectsRepo.createProject({
       name,
       desc,
@@ -316,29 +365,10 @@ projectsRouter.post('/analyze', async (req, res) => {
     return res.status(400).json({ error: `Invalid directory: ${directory}` });
   }
 
-  let techStack = 'Unknown';
+  let techStack = detectTechnology(directory);
   const tasks = [];
   
   try {
-    const files = fs.readdirSync(directory);
-    
-    if (files.includes('package.json')) {
-      const pkg = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
-      if (pkg.dependencies?.next) {techStack = 'Next.js (Node.js)';}
-      else if (pkg.dependencies?.react || pkg.devDependencies?.vite) {techStack = 'React / Vite';}
-      else if (pkg.dependencies?.express) {techStack = 'Node.js Express';}
-      else {techStack = 'Node.js / JS';}
-    } else if (files.includes('pom.xml')) {
-      techStack = 'Java Maven';
-    } else if (files.includes('build.gradle')) {
-      techStack = 'Java Gradle';
-    } else if (files.includes('requirements.txt') || files.includes('pyproject.toml')) {
-      techStack = 'Python';
-    } else if (files.includes('Cargo.toml')) {
-      techStack = 'Rust';
-    } else if (files.includes('go.mod')) {
-      techStack = 'Go';
-    }
 
     let idCounter = 1;
 
@@ -384,7 +414,7 @@ projectsRouter.post('/analyze', async (req, res) => {
           }
         }
       });
-    } catch(e) {}
+    } catch {}
 
     // 3. Fallback to Package.json scripts only if no real tasks found
     if (tasks.length === 0 && fs.existsSync(path.join(directory, 'package.json'))) {
@@ -456,7 +486,7 @@ projectsRouter.post('/analyze', async (req, res) => {
     try {
       const gitStatus = gitService.getStatus(directory);
       branch = gitStatus.branch;
-    } catch (e) {
+    } catch {
       // Ignore if not a git repo
     }
 
@@ -488,68 +518,181 @@ projectsRouter.post('/deploy', async (req, res) => {
 
     let command = '';
     let args = [];
-    const env = { ...process.env };
+    // Only pass safe agent environment variables to terminal / worker session.
+    // Do NOT leak host system variables like HOME, USER, LOGNAME, PWD, DB passwords, etc.
+    const env = {
+      ...(process.env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } : {}),
+      ...(process.env.OPENAI_API_KEY ? { OPENAI_API_KEY: process.env.OPENAI_API_KEY } : {}),
+      ...(process.env.GEMINI_API_KEY ? { GEMINI_API_KEY: process.env.GEMINI_API_KEY } : {})
+    };
 
-    if (llmUrl) {
-      env.ANTHROPIC_BASE_URL = llmUrl;
-      env.OPENAI_BASE_URL = llmUrl;
+    const wslHostIp = getWslHostIp();
+    const formatBaseUrl = (url) => {
+      if (!url) return '';
+      let cleaned = String(url).trim();
+      if (wslHostIp && (cleaned.includes('localhost') || cleaned.includes('127.0.0.1'))) {
+        cleaned = cleaned.replace('localhost', wslHostIp).replace('127.0.0.1', wslHostIp);
+      } else {
+        cleaned = cleaned.replace('127.0.0.1', 'localhost');
+      }
+      if (!/^https?:\/\//i.test(cleaned)) {
+        cleaned = `http://${cleaned}`;
+      }
+      return cleaned;
+    };
+
+    const formatAnthropicBaseUrl = (url) => {
+      if (!url) return '';
+      const cleaned = formatBaseUrl(url);
+      // Claude Code / Anthropic SDK automatically appends /v1/messages,
+      // so strip trailing /v1 or /v1/ to prevent /v1/v1/messages which causes API Error (HTTP 200)
+      return cleaned.replace(/\/v1\/?$/, '');
+    };
+
+    const isRealApiKey = (key) => {
+      if (!key || typeof key !== 'string') return false;
+      const trimmed = key.trim();
+      return trimmed !== '' && trimmed !== 'Brak' && !trimmed.startsWith('http://') && !trimmed.startsWith('https://');
+    };
+
+    // Look up agent record from DB if present
+    let targetAgent = null;
+    try {
+      const allAgents = await agentsRepo.getAgents();
+      targetAgent = allAgents.find(a => 
+        (a.name && a.name.toLowerCase() === String(agent || '').toLowerCase()) || 
+        String(a.id) === String(agent)
+      );
+    } catch (e) {
+      console.warn('Failed to query agents repository in deploy handler:', e.message);
     }
-    
-    const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || (llmUrl ? 'http://localhost:1234/' : '');
 
-    if (effectiveApiKey) {
-      env.ANTHROPIC_API_KEY = effectiveApiKey;
-      env.OPENAI_API_KEY = effectiveApiKey;
-      env.ANTHROPIC_AUTH_TOKEN = effectiveApiKey;
+    const agentRaw = String(agent || '').toLowerCase();
+    const agentName = String(targetAgent?.name || '').toLowerCase();
+    const agentPath = targetAgent?.path || '';
+    const agentPathLower = agentPath.toLowerCase();
+
+    const isClaude = agentRaw === 'claude' || 
+                     agentRaw === 'claude code' || 
+                     agentRaw.includes('claude') || 
+                     agentName.includes('claude') || 
+                     agentPathLower.endsWith('/claude') || 
+                     agentPathLower.endsWith('\\claude.cmd') || 
+                     agentPathLower.endsWith('\\claude.exe') ||
+                     agentPathLower.endsWith('claude');
+
+    const isAntigravity = agentRaw === 'antigravity' || 
+                          agentRaw === 'agy' || 
+                          agentName.includes('antigravity') || 
+                          agentPathLower.endsWith('/agy') || 
+                          agentPathLower.endsWith('\\agy.cmd') || 
+                          agentPathLower.endsWith('agy');
+
+    const isCodex = agentRaw === 'codex' || 
+                    agentName.includes('codex') || 
+                    agentPathLower.includes('codex');
+
+    const isGemini = agentRaw.includes('gemini') || 
+                     agentName.includes('gemini') || 
+                     agentPathLower.includes('gemini');
+
+    const isAider = agentRaw.includes('aider') || 
+                    agentName.includes('aider') || 
+                    agentPathLower.includes('aider');
+
+    const isOpenCode = agentRaw.includes('opencode') || 
+                       agentName.includes('opencode') || 
+                       agentPathLower.includes('opencode');
+
+    let binExec = agentPath || '';
+    if (!binExec || binExec.includes('/home/seba') || (path.isAbsolute(binExec) && !fs.existsSync(binExec))) {
+      if (isClaude) binExec = 'claude';
+      else if (isAntigravity) binExec = 'agy';
+      else if (isCodex) binExec = 'codex';
+      else if (isGemini) binExec = 'gemini';
+      else if (isAider) binExec = 'aider';
+      else if (isOpenCode) binExec = 'opencode';
+      else binExec = agent;
     }
 
-    if (llmModel) {
-      env.ANTHROPIC_MODEL = llmModel;
-      env.LLM_MODEL = llmModel;
-      env.OPENAI_MODEL = llmModel;
+    const hasRealAnthropicKey = isRealApiKey(apiKey) || isRealApiKey(process.env.ANTHROPIC_API_KEY);
+    const validAnthropicKey = isRealApiKey(apiKey) ? apiKey : (isRealApiKey(process.env.ANTHROPIC_API_KEY) ? process.env.ANTHROPIC_API_KEY : '');
+    const isClaudeModel = typeof llmModel === 'string' && llmModel.toLowerCase().includes('claude');
+
+    if (isClaude) {
+      if (llmUrl) {
+        const anthropicBaseUrl = formatAnthropicBaseUrl(llmUrl);
+        const anthropicToken = validAnthropicKey || apiKey || 'lmstudio';
+        env.ANTHROPIC_BASE_URL = anthropicBaseUrl;
+        env.ANTHROPIC_AUTH_TOKEN = anthropicToken;
+        env.ANTHROPIC_API_KEY = anthropicToken;
+        env.CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT = '1';
+        if (llmModel) {
+          env.ANTHROPIC_MODEL = llmModel;
+        }
+      } else if (hasRealAnthropicKey && validAnthropicKey) {
+        env.ANTHROPIC_API_KEY = validAnthropicKey;
+        env.ANTHROPIC_AUTH_TOKEN = validAnthropicKey;
+        if (isClaudeModel && llmModel) {
+          env.ANTHROPIC_MODEL = llmModel;
+        }
+      }
+    } else {
+      if (llmUrl) {
+        const formatted = formatBaseUrl(llmUrl);
+        env.ANTHROPIC_BASE_URL = formatted;
+        env.OPENAI_BASE_URL = formatted;
+      }
+      const effectiveApiKey = apiKey || (env.ANTHROPIC_API_KEY || (llmUrl ? 'http://localhost:1234/' : ''));
+      if (effectiveApiKey) {
+        env.ANTHROPIC_API_KEY = effectiveApiKey;
+        env.OPENAI_API_KEY = effectiveApiKey;
+        env.ANTHROPIC_AUTH_TOKEN = effectiveApiKey;
+      }
+      if (llmModel) {
+        env.ANTHROPIC_MODEL = llmModel;
+        env.LLM_MODEL = llmModel;
+        env.OPENAI_MODEL = llmModel;
+      }
     }
 
     // Dynamic agent execution
     let agentCmd = '';
+    let promptBlock = '';
     
-    // Map full names from frontend to CLI commands
-    // Each entry: { cmd, promptFlag } where promptFlag is how this CLI accepts a prompt
-    // non-interactively. '' means the prompt is passed as a positional arg.
-    const agentMap = {
-      'codex':       { cmd: 'codex --oss -m gemma-4-26b-a4b-it', promptFlag: '' },
-      'antigravity': { cmd: 'agy',    promptFlag: '-i' },
-      'claude code': { cmd: 'claude', promptFlag: '-p' },
-      'claude':      { cmd: 'claude', promptFlag: '-p' },
-      'opencode':    { cmd: 'opencode run', promptFlag: '' },
-    };
-    const agentDef = agentMap[agent.toLowerCase()] || { cmd: agent, promptFlag: '' };
-    const agentBaseCmd = agentDef.cmd;
-    const promptFlag   = agentDef.promptFlag;
+    // Map full names from frontend or DB to CLI commands
+    let agentBaseCmd = `"${binExec}"`;
+    if (isCodex) {
+      const isLocalOss = Boolean(
+        (llmUrl && (llmUrl.includes('1234') || llmUrl.includes('11434') || llmUrl.includes('localhost') || llmUrl.includes('127.0.0.1') || (wslHostIp && llmUrl.includes(wslHostIp)))) ||
+        (llmName && /lm\s*studio|ollama|local/i.test(llmName))
+      );
+      if (llmModel) {
+        agentBaseCmd = isLocalOss ? `"${binExec}" --oss -m "${llmModel}"` : `"${binExec}" -m "${llmModel}"`;
+      } else {
+        agentBaseCmd = `"${binExec}"`;
+      }
+    } else if (isClaude) {
+      if (llmModel) {
+        agentBaseCmd = `"${binExec}" --model "${llmModel}"`;
+      } else {
+        agentBaseCmd = `"${binExec}"`;
+      }
+    }
     
     const scriptPath = path.join(targetDir, '.start_agent.sh');
-
-    // Build the prompt text
-    let promptText = '';
+    
     if (remoteServer) {
       const sshCmdStr = `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes ${remoteServer.username}@${remoteServer.host} -p ${remoteServer.port || 22}`;
-      promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt
+      const promptText = `Jesteś DevOps agentem. Połącz się z serwerem przez SSH używając komendy: '${sshCmdStr}'. Następnie wykonaj zadanie: ${remotePrompt 
       || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
+      promptBlock = `AGENT_PROMPT=$(cat << 'EOF_AGENT_PROMPT'\n${promptText}\nEOF_AGENT_PROMPT\n)\n`;
+      agentCmd = isAntigravity ? `${agentBaseCmd} -i "$AGENT_PROMPT"` : `${agentBaseCmd} "$AGENT_PROMPT"`;
     } else if (tasks && tasks.length > 0) {
       const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
-      promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
-    }
-
-    // Build the shell invocation. We write the prompt to a temp file via a
-    // single-quoted heredoc so backticks, $vars, and special chars in task
-    // titles are NEVER interpreted by bash.
-    if (promptText) {
-      agentCmd = `
-_PROMPT_FILE=$(mktemp /tmp/agent_prompt.XXXXXX)
-cat > "$_PROMPT_FILE" << 'AGENT_PROMPT_EOF'
-${promptText}
-AGENT_PROMPT_EOF
-${agentBaseCmd} ${promptFlag ? `${promptFlag} "$(cat "$_PROMPT_FILE")"` : `"$(cat "$_PROMPT_FILE")"`}
-rm -f "$_PROMPT_FILE"`;
+      const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
+      promptBlock = `AGENT_PROMPT=$(cat << 'EOF_AGENT_PROMPT'\n${promptText}\nEOF_AGENT_PROMPT\n)\n`;
+      agentCmd = isAntigravity ? `${agentBaseCmd} -i "$AGENT_PROMPT"` : `${agentBaseCmd} "$AGENT_PROMPT"`;
     } else {
       agentCmd = agentBaseCmd;
     }
@@ -558,34 +701,94 @@ rm -f "$_PROMPT_FILE"`;
       'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL OPENAI_MODEL ANTHROPIC_AUTH_TOKEN'
     ];
       
-    // Do not export global LLM env vars for codex to avoid overriding its CLI flags
-    if (agent !== 'codex') {
-      if (llmUrl) {
-        // Strip any accidental leading 'http://' before we add our own prefix
-        const safeUrl = llmUrl.replace('127.0.0.1', 'localhost').replace(/^https?:\/\//, '');
-        exportEnvLines.push(`export ANTHROPIC_BASE_URL="http://${safeUrl}"`);
-        exportEnvLines.push(`export OPENAI_BASE_URL="http://${safeUrl}"`);
-      }
-      if (effectiveApiKey) {
-        exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
-        exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
-        exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
-      }
-      if (llmModel) {
-        exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
-        exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
-        exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+    // Configure environment variables depending on the agent
+    if (!isCodex) {
+      if (isClaude) {
+        if (llmUrl) {
+          const anthropicBaseUrl = formatAnthropicBaseUrl(llmUrl);
+          const anthropicToken = validAnthropicKey || apiKey || 'lmstudio';
+          exportEnvLines.push(`export ANTHROPIC_BASE_URL="${anthropicBaseUrl}"`);
+          exportEnvLines.push(`export ANTHROPIC_API_KEY="${anthropicToken}"`);
+          exportEnvLines.push('export CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1');
+          if (llmModel) {
+            exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+          }
+
+          // Auto-configure ~/.claude.json to avoid interactive onboarding and API key approval prompts
+          try {
+            const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+            if (homeDir) {
+              const claudeJsonPath = path.join(homeDir, '.claude.json');
+              let claudeConfig = {};
+              if (fs.existsSync(claudeJsonPath)) {
+                try {
+                  claudeConfig = JSON.parse(fs.readFileSync(claudeJsonPath, 'utf8'));
+                } catch {}
+              }
+              let modified = false;
+              if (!claudeConfig.hasCompletedOnboarding) {
+                claudeConfig.hasCompletedOnboarding = true;
+                modified = true;
+              }
+              if (!claudeConfig.theme) {
+                claudeConfig.theme = 'dark';
+                modified = true;
+              }
+              const keySuffix = anthropicToken.trim().slice(-20);
+              if (!claudeConfig.customApiKeyResponses) {
+                claudeConfig.customApiKeyResponses = { approved: [], rejected: [] };
+              }
+              if (!Array.isArray(claudeConfig.customApiKeyResponses.approved)) {
+                claudeConfig.customApiKeyResponses.approved = [];
+              }
+              if (keySuffix && !claudeConfig.customApiKeyResponses.approved.includes(keySuffix)) {
+                claudeConfig.customApiKeyResponses.approved.push(keySuffix);
+                modified = true;
+              }
+              if (modified) {
+                fs.writeFileSync(claudeJsonPath, JSON.stringify(claudeConfig, null, 2));
+              }
+            }
+          } catch (cfgErr) {
+            console.warn('Could not auto-configure ~/.claude.json:', cfgErr.message);
+          }
+        } else {
+          // Claude Code uses its own native OAuth login (~/.claude.json) unless a real Anthropic key is provided
+          if (hasRealAnthropicKey && validAnthropicKey) {
+            exportEnvLines.push(`export ANTHROPIC_API_KEY="${validAnthropicKey}"`);
+          }
+          if (isClaudeModel && llmModel) {
+            exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+          }
+        }
+      } else {
+        if (llmUrl) {
+          const safeUrl = formatBaseUrl(llmUrl);
+          exportEnvLines.push(`export ANTHROPIC_BASE_URL="${safeUrl}"`);
+          exportEnvLines.push(`export OPENAI_BASE_URL="${safeUrl}"`);
+        }
+        const effectiveApiKey = apiKey || (env.ANTHROPIC_API_KEY || (llmUrl ? 'http://localhost:1234/' : ''));
+        if (effectiveApiKey) {
+          exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
+          exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
+          exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${effectiveApiKey}"`);
+        }
+        if (llmModel) {
+          exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+          exportEnvLines.push(`export LLM_MODEL="${llmModel}"`);
+          exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+        }
       }
     }
 
     const scriptContent = `#!/bin/bash
-cd "${targetDir}"
+cd "${targetDir}" 2>/dev/null || true
 stty cols 100 rows 30 2>/dev/null || true
 export COLUMNS=100
 export LINES=30
 export TERM=xterm-256color
 ${exportEnvLines.join('\n')}
-echo -e "\\033[1;34m🚀 Initializing AI Agent (${agent})...\\033[0m"
+echo -e "\\033[1;34m🚀 Initializing AI Agent (${targetAgent?.name || agent})...\\033[0m"
 echo -ne "\\033[1;36m📡 Preparing environment: \\033[0m"
 for i in {1..10}; do
     echo -ne "█"
@@ -594,11 +797,10 @@ done
 echo -e " \\033[1;32m[DONE]\\033[0m"
 
 echo -e "\\033[1;33m🔑 Authenticating Provider (${llmName || 'Custom Provider'}): ${llmModel || 'default model'}... \\033[1;32m[SUCCESS]\\033[0m"
-echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
+${promptBlock}echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
 exec bash
 `;
-
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
@@ -614,7 +816,8 @@ exec bash
         command: 'bash', 
         args: [scriptPath], 
         cwd: targetDir, 
-        env 
+        env,
+        scriptContent
       });
     }
 
@@ -671,28 +874,34 @@ projectsRouter.get('/analytics', async (req, res) => {
 // Git status router helpers
 projectsRouter.post('/git/status', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
+    if (!directory || !gitService.isGitRepo(directory)) {
+      return res.json({ isGitRepo: false, error: 'Not a git repository', branch: '', changes: [], commits: [] });
+    }
     const result = gitService.getStatus(directory);
     res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.json({ isGitRepo: false, error: 'Not a git repository', branch: '', changes: [], commits: [] });
   }
 });
 
 projectsRouter.post('/git/github', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
+    if (!directory || !gitService.isGitRepo(directory)) {
+      return res.json({ prs: [], latestRun: null });
+    }
     const result = await gitService.getGithubPRsAndRuns(directory);
     res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.json({ prs: [], latestRun: null });
   }
 });
 
 
 projectsRouter.post('/git/cancel-ci', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
     const result = gitService.cancelCIJobs(directory);
     res.json(result);
   } catch (e) {
@@ -702,7 +911,7 @@ projectsRouter.post('/git/cancel-ci', async (req, res) => {
 
 projectsRouter.post('/git/deploy', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
     const result = gitService.autoDeploy(directory);
     res.json(result);
   } catch (e) {
@@ -713,11 +922,14 @@ projectsRouter.post('/git/deploy', async (req, res) => {
 // Git Branches
 projectsRouter.post('/git/branches', async (req, res) => {
   try {
-    const { directory } = req.body;
+    const { directory } = req.body || {};
+    if (!directory || !gitService.isGitRepo(directory)) {
+      return res.json({ current: '', local: [], remote: [] });
+    }
     const result = gitService.getBranches(directory);
     res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.json({ current: '', local: [], remote: [] });
   }
 });
 
