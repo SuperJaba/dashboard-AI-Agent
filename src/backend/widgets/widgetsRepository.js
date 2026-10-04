@@ -1,6 +1,13 @@
 import { pool } from '../db.js';
 
-export async function getWidgets() {
+export async function getWidgets(serverId) {
+  if (serverId) {
+    const { rows } = await pool.query(
+      'SELECT * FROM custom_widgets WHERE server_id = $1 OR server_id IS NULL ORDER BY id ASC',
+      [serverId]
+    );
+    return rows;
+  }
   const { rows } = await pool.query('SELECT * FROM custom_widgets ORDER BY id ASC');
   return rows;
 }

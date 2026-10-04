@@ -162,7 +162,8 @@ serversRouter.get('/apps-scan', async (req, res) => {
       if (s) {
         const sshBase = sshCmd(s);
 
-        if (s.use_devil) {
+        const isDevil = s.use_devil || (s.host && s.host.includes('ct8.pl'));
+        if (isDevil) {
           exec(`${sshBase} "devil www list 2>/dev/null"`, (err, out) => {
             const apps = (!err && out)
               ? out.trim().split('\n')
@@ -187,9 +188,12 @@ serversRouter.get('/apps-scan', async (req, res) => {
             const apps = (!err && out)
               ? out.trim().split('\n').filter(Boolean).map(line => {
                 const parts = line.split(/\s+/);
+                const command = parts.slice(10).join(' ');
+                const domainMatch = command.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
                 return {
                   user: parts[0], pid: parts[1], cpu: parts[2], mem: parts[3],
-                  command: parts.slice(10).join(' '),
+                  command,
+                  domain: domainMatch ? domainMatch[1] : (command.split(' ')[0] || ''),
                   source: 'ps'
                 };
               })
@@ -234,7 +238,8 @@ serversRouter.post('/kill-app', async (req, res) => {
     const sshBase = sshCmd(s);
     
     let killCmd = '';
-    if (s.use_devil && source === 'devil') {
+    const isDevil = s.use_devil || (s.host && s.host.includes('ct8.pl'));
+    if (isDevil && (source === 'devil' || domain)) {
       if (!domain) {return res.status(400).json({ error: 'Missing domain' });}
       killCmd = `${sshBase} "devil www restart ${domain}"`;
     } else {
