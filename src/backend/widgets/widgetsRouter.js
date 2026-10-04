@@ -9,7 +9,7 @@ export const widgetsRouter = express.Router();
 // Get Custom Widgets
 widgetsRouter.get('/', async (req, res) => {
   try {
-    const widgets = await widgetsRepo.getWidgets();
+    const widgets = await widgetsRepo.getWidgets(req.query.serverId);
     res.json(widgets);
   } catch  {
     res.status(500).json({ error: 'Failed to fetch widgets' });
@@ -77,12 +77,20 @@ widgetsRouter.get('/:id/run', async (req, res) => {
       return res.status(404).json({ error: 'Widget not found' });
     }
 
-    if (widget.server_id) {
-      const server = await serversRepo.getServerById(widget.server_id);
+    const targetServerId = widget.server_id || req.query.serverId;
+    if (targetServerId) {
+      const server = await serversRepo.getServerById(targetServerId, true);
       if (server) {
         try {
-          const result = await sshCmd(server, widget.command);
-          return res.json({ result: result.trim() });
+          const cmd = sshCmd(server, JSON.stringify(widget.command));
+          exec(cmd, { timeout: 10000 }, (error, stdout, stderr) => {
+            if (error) {
+              console.error('SSH widget execution error:', error, stderr);
+              return res.json({ result: stdout ? stdout.trim() : 'Error' });
+            }
+            res.json({ result: stdout.trim() });
+          });
+          return;
         } catch (sshErr) {
           console.error('SSH widget error:', sshErr);
           return res.json({ result: 'Error' });
@@ -90,9 +98,9 @@ widgetsRouter.get('/:id/run', async (req, res) => {
       }
     }
 
-    exec(widget.command, (error, stdout) => {
+    exec(widget.command, { timeout: 10000 }, (error, stdout, stderr) => {
       if (error) {
-        console.error('Widget execution error:', error);
+        console.error('Widget execution error:', error, stderr);
         return res.json({ result: stdout ? stdout.trim() : 'Error' });
       }
       res.json({ result: stdout.trim() });

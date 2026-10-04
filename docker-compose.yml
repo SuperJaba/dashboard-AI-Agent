@@ -43,21 +43,3 @@ services:
     environment:
       - PLAYWRIGHT_BROWSERS_PATH=0
     restart: "no"
-
-  postgres:
-    image: postgres:18
-    container_name: postgres-dashboard
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      POSTGRES_USER: ${DB_USER:-SebaP}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-110112}
-      POSTGRES_DB: ${DB_NAME:-dashboard}
-    ports:
-      - "${DB_PORT:-5432}:5432"
-    volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      - ./postgres-data:/var/lib/postgresql
-
-

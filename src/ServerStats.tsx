@@ -149,53 +149,111 @@ export function ServerStats({ serverId }: { serverId?: number }) {
             Brak wykrytych aplikacji na tym serwerze.
           </div>
         ) : (
-          <div className="grid-top">
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
+            gap: '1rem',
+            width: '100%'
+          }}>
             {apps.map((app, i) => (
-              <div key={i} className="glass-card" style={{ padding: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white', fontWeight: 500, maxWidth: '70%', overflow: 'hidden' }}>
+              <div 
+                key={i} 
+                className="glass-card" 
+                style={{ 
+                  padding: '1rem',
+                  width: '100%',
+                  maxWidth: '100%',
+                  minWidth: 0,
+                  margin: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  overflow: 'hidden'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem', minWidth: 0, width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white', fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden' }}>
                     {app.source === 'devil' ? (
-                      <span style={{ color: '#34d399', fontFamily: 'monospace', fontSize: '0.875rem' }}>● live</span>
+                      <span style={{ color: '#34d399', fontFamily: 'monospace', fontSize: '0.8rem', flexShrink: 0 }}>● live</span>
                     ) : (
-                      <span style={{ color: '#f472b6', fontFamily: 'monospace', fontSize: '0.875rem' }}>PID: {app.pid}</span>
+                      <span style={{ color: '#f472b6', fontFamily: 'monospace', fontSize: '0.8rem', flexShrink: 0 }}>PID: {app.pid}</span>
                     )}
-                    <span style={{ color: '#d1d5db' }}>|</span>
-                    <span style={{ fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={app.domain || app.command}>
+                    <span style={{ color: '#64748b', flexShrink: 0 }}>|</span>
+                    <span 
+                      style={{ fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} 
+                      title={app.domain || app.command}
+                    >
                       {app.domain || app.command.split(' ')[0]}
                     </span>
                   </div>
-                  <span style={{ background: app.source === 'devil' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(99, 102, 241, 0.2)', color: app.source === 'devil' ? '#6ee7b7' : '#a5b4fc', fontSize: '0.75rem', padding: '0.125rem 0.5rem', borderRadius: '0.25rem', border: `1px solid ${app.source === 'devil' ? 'rgba(52,211,153,0.3)' : 'rgba(99,102,241,0.2)'}` }}>
+                  <span style={{ 
+                    flexShrink: 0,
+                    background: app.source === 'devil' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(99, 102, 241, 0.2)', 
+                    color: app.source === 'devil' ? '#6ee7b7' : '#a5b4fc', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 500,
+                    padding: '0.15rem 0.5rem', 
+                    borderRadius: '0.375rem', 
+                    border: `1px solid ${app.source === 'devil' ? 'rgba(52,211,153,0.3)' : 'rgba(99,102,241,0.2)'}` 
+                  }}>
                     {app.type || 'node'}
                   </span>
                 </div>
 
-                <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.75rem' }} title={app.dir || app.command}>
+                <div 
+                  style={{ 
+                    fontSize: '0.75rem', 
+                    color: '#94a3b8', 
+                    fontFamily: 'monospace', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis', 
+                    whiteSpace: 'nowrap', 
+                    marginBottom: '0.75rem',
+                    minWidth: 0,
+                    width: '100%'
+                  }} 
+                  title={app.dir || app.command}
+                >
                   {app.dir || app.command}
                 </div>
 
                 {app.source === 'devil' ? (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                       <span>user:</span>
-                      <span style={{ color: '#e5e7eb' }}>{app.user}</span>
+                      <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{app.user}</span>
                     </div>
                     <button 
                       onClick={() => handleKillApp(app)}
-                      style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      style={{ 
+                        background: 'rgba(239, 68, 68, 0.12)', 
+                        color: '#f87171', 
+                        border: '1px solid rgba(239, 68, 68, 0.25)', 
+                        padding: '0.25rem 0.6rem', 
+                        borderRadius: '0.375rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 500,
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.3rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="Zrestartuj lub wyłącz aplikację"
                     >
                       <PowerOff size={12} />
-                      Kill
+                      Restart / Kill
                     </button>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
+                  <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.875rem', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ color: '#6b7280', fontSize: '0.75rem', textTransform: 'uppercase' }}>CPU</span>
-                      <span style={{ color: '#e5e7eb' }}>{app.cpu}</span>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>CPU</span>
+                      <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{app.cpu}%</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ color: '#6b7280', fontSize: '0.75rem', textTransform: 'uppercase' }}>RAM</span>
-                      <span style={{ color: '#e5e7eb' }}>{app.mem}</span>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>RAM</span>
+                      <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{app.mem}%</span>
                     </div>
                   </div>
                 )}

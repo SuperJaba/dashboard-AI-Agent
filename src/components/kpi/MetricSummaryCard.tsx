@@ -26,12 +26,12 @@ export function MetricSummaryCard({ title, value, subtitle, trend, icon: Icon }:
   const trendColor = trend ? TREND_COLORS[trend] : undefined;
 
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem', width: '100%', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: 0 }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {title}
         </span>
-        {Icon && <Icon size={18} color="var(--primary)" aria-hidden="true" />}
+        {Icon && <Icon size={18} color="var(--primary, #38bdf8)" aria-hidden="true" style={{ flexShrink: 0 }} />}
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
         <span style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>

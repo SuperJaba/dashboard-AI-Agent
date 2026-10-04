@@ -67,8 +67,16 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
         eventSourceRef.current.close();
       }
 
-      const query = eventsKey ? `?events=${encodeURIComponent(eventsKey)}` : '';
-      const fullUrl = `${url}${query}`;
+      const token = typeof window !== 'undefined'
+        ? (localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '')
+        : '';
+
+      const params = new URLSearchParams();
+      if (eventsKey) params.set('events', eventsKey);
+      if (token) params.set('token', token);
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const fullUrl = `${url}${queryString}`;
 
       try {
         const es = new EventSource(fullUrl);

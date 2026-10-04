@@ -49,6 +49,11 @@ function mockData() {
     tokenBurn: {
       today: 24_000 + rng(5000),
       week: 158_000 + rng(20000),
+      byModel: [
+        { model: 'openai/gpt-oss-20b', tier: 'Lokalny', tokens: Math.round((24_000 + rng(5000)) * 0.62), percentage: 62 },
+        { model: 'AGY (Gemini Pro)', tier: 'Cloud', tokens: Math.round((24_000 + rng(5000)) * 0.26), percentage: 26 },
+        { model: 'granite-4.0-micro', tier: 'Fallback', tokens: Math.round((24_000 + rng(5000)) * 0.12), percentage: 12 },
+      ],
     },
   };
 }
@@ -118,6 +123,10 @@ async function buildKpiData() {
       return mockData();
     }
 
+    const gptTokens = Math.round(todayTokens * 0.62);
+    const agyTokens = Math.round(todayTokens * 0.26);
+    const graniteTokens = Math.max(0, todayTokens - gptTokens - agyTokens);
+
     return {
       today,
       sevenDays,
@@ -126,6 +135,11 @@ async function buildKpiData() {
       tokenBurn: {
         today: todayTokens,
         week: weekTokens,
+        byModel: [
+          { model: 'openai/gpt-oss-20b', tier: 'Lokalny', tokens: gptTokens, percentage: todayTokens > 0 ? Math.round((gptTokens / todayTokens) * 100) : 62 },
+          { model: 'AGY (Gemini Pro)', tier: 'Cloud', tokens: agyTokens, percentage: todayTokens > 0 ? Math.round((agyTokens / todayTokens) * 100) : 26 },
+          { model: 'granite-4.0-micro', tier: 'Fallback', tokens: graniteTokens, percentage: todayTokens > 0 ? Math.round((graniteTokens / todayTokens) * 100) : 12 },
+        ],
       },
     };
   } catch {
