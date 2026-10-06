@@ -15,8 +15,9 @@ export class LmStudioProvider extends BaseProvider {
    */
   constructor(options = {}) {
     super('lm-studio', options);
-    this.baseUrl = (options.baseUrl || process.env.LLM_LOCAL_URL || 'http://10.10.10.30:1234/v1').replace(/\/+$/, '');
-    this.defaultModel = options.defaultModel || process.env.LLM_LOCAL_MODEL || 'openai/gpt-oss-20b';
+    this.baseUrl = (options.baseUrl || process.env.LLM_LOCAL_URL || 'http://10.10.10.30:8888/v1').replace(/\/+$/, '');
+    this.defaultModel = options.defaultModel || process.env.LLM_LOCAL_MODEL || 'unsloth/Qwen3.5-4B-MTP-GGUF';
+    this.apiKey = options.apiKey || process.env.LLM_LOCAL_API_KEY || 'sk-unsloth-2c3bc42606e2f3af20c976a428dd764c';
     this.defaultTimeoutMs = options.defaultTimeoutMs || 30_000;
     this.fetcher = options.fetcher || fetch;
   }
@@ -50,7 +51,7 @@ export class LmStudioProvider extends BaseProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(opts.apiKey ? { Authorization: `Bearer ${opts.apiKey}` } : {}),
+          ...((opts.apiKey || this.apiKey) ? { Authorization: `Bearer ${opts.apiKey || this.apiKey}` } : {}),
         },
         body: JSON.stringify({
           model,

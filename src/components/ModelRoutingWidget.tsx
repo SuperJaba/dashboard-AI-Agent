@@ -38,6 +38,7 @@ export function ModelRoutingWidget() {
     primaryLocalModel: 'openai/gpt-oss-20b',
     fallbackLocalModel: 'granite-4.0-micro',
     cloudModel: 'AGY (Gemini Pro)',
+    localUrl: 'http://10.10.10.30:8888',
     avgLocalLatencyMs: 380,
     avgCloudLatencyMs: 1450,
     recentCalls: [],
@@ -227,7 +228,7 @@ export function ModelRoutingWidget() {
         <ArrowRight size={11} />
         <code>Complexity Scorer</code>
         <ArrowRight size={11} />
-        <code>10.10.10.30:1234 ({stats.localServerName || 'Unsloth'}) / AGY</code>
+        <code>10.10.10.30:8888 ({stats.localServerName || 'Unsloth'}) / AGY</code>
       </div>
     </div>
   );

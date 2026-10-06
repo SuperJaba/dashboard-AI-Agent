@@ -8,11 +8,12 @@ import { scoreComplexity } from './complexityScorer.js';
 import { getProvider } from './providers/index.js';
 import { logger } from '../utils/logger.js';
 
-const LOCAL_URL = process.env.LLM_LOCAL_URL || 'http://10.10.10.30:1234/v1';
+const LOCAL_URL = process.env.LLM_LOCAL_URL || 'http://10.10.10.30:8888/v1';
 const LOCAL_SERVER_NAME = process.env.LLM_LOCAL_NAME || 'Unsloth';
 const LOCAL_PRIMARY = process.env.LLM_LOCAL_MODEL || 'openai/gpt-oss-20b';
 const LOCAL_FALLBACK = process.env.LLM_FALLBACK_MODEL || 'granite-4.0-micro';
 const CLOUD_MODEL = process.env.LLM_CLOUD_MODEL || 'agy-gemini-pro';
+const LOCAL_API_KEY = process.env.LLM_LOCAL_API_KEY || 'sk-unsloth-2c3bc42606e2f3af20c976a428dd764c';
 
 class CircuitBreaker {
   constructor(threshold = 3, resetTimeoutMs = 60_000) {
@@ -217,6 +218,7 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
     const localProvider = getProvider('lm-studio');
     try {
       const result = await localProvider.complete(prompt, {
+        apiKey: opts.apiKey || LOCAL_API_KEY,
         ...opts,
         model: route.model,
       });
@@ -243,6 +245,7 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
       if (route.fallbackModel) {
         try {
           const fallbackResult = await localProvider.complete(prompt, {
+            apiKey: opts.apiKey || LOCAL_API_KEY,
             ...opts,
             model: route.fallbackModel,
           });
