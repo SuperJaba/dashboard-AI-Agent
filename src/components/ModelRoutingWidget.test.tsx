@@ -69,6 +69,6 @@ describe('ModelRoutingWidget', () => {
       );
     });
 
-    expect(await screen.findByText(/Skierowano do: LM Studio/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Skierowano do: Unsloth/i)).toBeInTheDocument();
   });
 });

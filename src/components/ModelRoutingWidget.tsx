@@ -22,6 +22,7 @@ interface ModelRoutingStats {
   primaryLocalModel: string;
   fallbackLocalModel: string;
   cloudModel: string;
+  localServerName?: string;
   localUrl?: string;
   avgLocalLatencyMs: number;
   avgCloudLatencyMs: number;
@@ -33,6 +34,7 @@ export function ModelRoutingWidget() {
     localTasks: 0,
     cloudTasks: 0,
     circuitBreakerState: 'CLOSED',
+    localServerName: 'Unsloth',
     primaryLocalModel: 'openai/gpt-oss-20b',
     fallbackLocalModel: 'granite-4.0-micro',
     cloudModel: 'AGY (Gemini Pro)',
@@ -92,7 +94,8 @@ export function ModelRoutingWidget() {
       });
 
       await fetchStats();
-      setTestResult(`Skierowano do: ${type === 'local' ? 'LM Studio (Lokalny)' : 'AGY Cloud'}`);
+      const localName = stats.localServerName || 'Unsloth';
+      setTestResult(`Skierowano do: ${type === 'local' ? `${localName} (Lokalny)` : 'AGY Cloud'}`);
       setTimeout(() => setTestResult(null), 3000);
     } catch {
       setTestResult('Błąd podczas testu routingu');
@@ -143,7 +146,9 @@ export function ModelRoutingWidget() {
         {/* Local Tier */}
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tier Low / Medium (Local)</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Tier Low / Medium ({stats.localServerName || 'Unsloth'} Local)
+            </span>
             <Cpu size={14} color="#10b981" />
           </div>
           <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981' }}>
@@ -193,7 +198,7 @@ export function ModelRoutingWidget() {
             style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
           >
             <Play size={10} color="#10b981" />
-            <span>Test Local</span>
+            <span>Test Local ({stats.localServerName || 'Unsloth'})</span>
           </button>
           <button
             type="button"
@@ -222,7 +227,7 @@ export function ModelRoutingWidget() {
         <ArrowRight size={11} />
         <code>Complexity Scorer</code>
         <ArrowRight size={11} />
-        <code>10.10.10.30:1234 (LM Studio) / AGY</code>
+        <code>10.10.10.30:1234 ({stats.localServerName || 'Unsloth'}) / AGY</code>
       </div>
     </div>
   );

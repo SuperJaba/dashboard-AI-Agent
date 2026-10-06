@@ -9,6 +9,7 @@ import { getProvider } from './providers/index.js';
 import { logger } from '../utils/logger.js';
 
 const LOCAL_URL = process.env.LLM_LOCAL_URL || 'http://10.10.10.30:1234/v1';
+const LOCAL_SERVER_NAME = process.env.LLM_LOCAL_NAME || 'Unsloth';
 const LOCAL_PRIMARY = process.env.LLM_LOCAL_MODEL || 'openai/gpt-oss-20b';
 const LOCAL_FALLBACK = process.env.LLM_FALLBACK_MODEL || 'granite-4.0-micro';
 const CLOUD_MODEL = process.env.LLM_CLOUD_MODEL || 'agy-gemini-pro';
@@ -124,6 +125,7 @@ export function getRoutingStats() {
     fallbackTasks: routingStats.fallbackTasks,
     circuitBreakerState: localCircuitBreaker.state,
     failureCount: localCircuitBreaker.failureCount,
+    localServerName: LOCAL_SERVER_NAME,
     primaryLocalModel: LOCAL_PRIMARY,
     fallbackLocalModel: LOCAL_FALLBACK,
     cloudModel: CLOUD_MODEL,
