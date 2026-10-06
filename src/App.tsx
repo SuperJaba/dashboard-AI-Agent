@@ -20,6 +20,7 @@ const TerminalView = lazy(() => import('./TerminalView').then(m => ({ default: m
 const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ default: m.LlmServerManager })));
 const CustomWidgets = lazy(() => import('./CustomWidgets'));
 const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
+const OpsRampView = lazy(() => import('./OpsRampView').then(m => ({ default: m.OpsRampView })));
 const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
 
 const ViewFallback = () => (
@@ -179,6 +180,18 @@ function App() {
           >
             <Bot size={18} aria-hidden="true" />
             <span>Agenci AI</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'opsramp' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('opsramp');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'opsramp' ? 'page' : undefined}
+          >
+            <Activity size={18} aria-hidden="true" />
+            <span>OpsRamp AIOps</span>
           </button>
           <button 
             type="button"
@@ -516,6 +529,10 @@ function App() {
         {activeView === 'agents' ? (
           <Suspense fallback={<ViewFallback />}>
             <AgentsView />
+          </Suspense>
+        ) : activeView === 'opsramp' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <OpsRampView />
           </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>

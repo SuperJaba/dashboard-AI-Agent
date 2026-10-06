@@ -65,6 +65,7 @@ import { alertsRouter } from './src/backend/alerts/alertsRouter.js';
 import { startAlertWatcher } from './src/backend/alerts/alertWatcher.js';
 import { sseRouter } from './src/backend/events/sseRouter.js';
 import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
+import { opsrampRouter } from './src/backend/opsramp/opsrampRouter.js';
 import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
@@ -608,6 +609,7 @@ app.use('/api/webhooks', webhooksRouter);
 app.use('/api/alerts', authMiddleware, alertsRouter);
 app.use('/api/events', authMiddleware, sseRouter);
 app.use('/api/analytics', authMiddleware, kpiRouter);
+app.use('/api/opsramp', opsrampRouter);
 
 // T7.4 — Start alert watcher (skipped in test env)
 if (process.env.NODE_ENV !== 'test') {
