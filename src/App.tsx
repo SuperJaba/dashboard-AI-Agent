@@ -551,7 +551,7 @@ function App() {
               </div>
             </header>
             
-            <ServerStats serverId={activeServer.id} />
+            <ServerStats serverId={activeServer.id} serverName={activeServer.name} />
             
             <Suspense fallback={<ViewFallback />}>
               <CustomWidgets 
