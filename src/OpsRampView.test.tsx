@@ -94,6 +94,7 @@ vi.mock('./shared/api-client', () => ({
       if (url === '/api/opsramp/status') return Promise.resolve(mockStatus);
       if (url.startsWith('/api/opsramp/alerts')) return Promise.resolve(mockAlerts);
       if (url.startsWith('/api/opsramp/resources')) return Promise.resolve(mockResources);
+      if (url === '/api/servers') return Promise.resolve([{ id: 'srv-1', name: 'Zdalny Serwer 1', host: '192.168.1.100' }]);
       return Promise.resolve({});
     }),
     post: vi.fn((url: string, _body?: any) => {
@@ -190,5 +191,49 @@ describe('OpsRampView Component', () => {
 
     expect(await screen.findByText(/Grafana Live Telemetry & Metrics/i)).toBeInTheDocument();
     expect(screen.getByTitle('Grafana Dashboard')).toBeInTheDocument();
+  });
+
+  it('allows resolving an active alert', async () => {
+    render(<OpsRampView />);
+
+    expect(await screen.findByText(/OPS-1094/i)).toBeInTheDocument();
+
+    const resolveButtons = screen.getAllByTitle(/Oznacz jako rozwiązany/i);
+    expect(resolveButtons.length).toBeGreaterThan(0);
+
+    fireEvent.click(resolveButtons[0]);
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(expect.stringContaining('/resolve'));
+    });
+  });
+
+  it('allows filtering alerts by severity', async () => {
+    render(<OpsRampView />);
+
+    expect(await screen.findByText(/PostgreSQL Memory Allocation Exceeded 80% Threshold/i)).toBeInTheDocument();
+    expect(screen.getByText(/Llama Inference P99 Latency Degradation/i)).toBeInTheDocument();
+
+    const criticalButton = screen.getByRole('button', { name: /^critical$/i });
+    fireEvent.click(criticalButton);
+
+    expect(screen.getByText(/PostgreSQL Memory Allocation Exceeded 80% Threshold/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Llama Inference P99 Latency Degradation/i)).not.toBeInTheDocument();
+  });
+
+  it('allows configuring Grafana URL and switching to remote server', async () => {
+    render(<OpsRampView />);
+
+    expect(await screen.findByText(/Otwórz Grafanę/i)).toBeInTheDocument();
+
+    const configButton = screen.getByTitle(/Skonfiguruj adres i serwer Grafany/i);
+    fireEvent.click(configButton);
+
+    expect(await screen.findByText(/Konfiguracja połączenia z Grafaną/i)).toBeInTheDocument();
+    const remoteServerBtn = screen.getByRole('button', { name: /Użyj serwera: Zdalny Serwer 1/i });
+    fireEvent.click(remoteServerBtn);
+
+    const grafanaLink = screen.getByTitle(/Otwórz Grafanę/i);
+    expect(grafanaLink).toHaveAttribute('href', 'http://192.168.1.100:3000');
   });
 });

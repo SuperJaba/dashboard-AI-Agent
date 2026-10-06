@@ -74,4 +74,42 @@ describe('OpsRamp API Routes', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.alert.state).toBe('acknowledged');
   });
+
+  it('POST /api/opsramp/alerts/:id/resolve should resolve an alert', async () => {
+    const res = await request(app)
+      .post('/api/opsramp/alerts/OPS-1094/resolve')
+      .set('Authorization', `Bearer ${testToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.alert.state).toBe('resolved');
+  });
+
+  it('GET /api/opsramp/alerts?severity=critical should filter alerts by severity', async () => {
+    const res = await request(app)
+      .get('/api/opsramp/alerts?severity=critical')
+      .set('Authorization', `Bearer ${testToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body.alerts)).toBe(true);
+    expect(res.body.alerts.every((a) => a.severity.toLowerCase() === 'critical')).toBe(true);
+  });
+
+  it('POST /api/opsramp/alerts/UNKNOWN-999/acknowledge should return 404 for unknown alert', async () => {
+    const res = await request(app)
+      .post('/api/opsramp/alerts/UNKNOWN-999/acknowledge')
+      .set('Authorization', `Bearer ${testToken}`);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toContain('not found');
+  });
+
+  it('POST /api/opsramp/alerts/UNKNOWN-999/resolve should return 404 for unknown alert', async () => {
+    const res = await request(app)
+      .post('/api/opsramp/alerts/UNKNOWN-999/resolve')
+      .set('Authorization', `Bearer ${testToken}`);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toContain('not found');
+  });
 });
