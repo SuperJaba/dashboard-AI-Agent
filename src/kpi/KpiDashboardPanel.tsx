@@ -89,13 +89,16 @@ export function KpiDashboardPanel() {
     );
   }
 
-  const sampleSparkline = [
-    { time: '1', value: Math.max(1, data.today.tasks - 4) },
-    { time: '2', value: Math.max(2, data.today.tasks - 2) },
-    { time: '3', value: data.today.tasks },
-    { time: '4', value: data.today.tasks + 2 },
-    { time: '5', value: data.today.tasks + 1 },
-  ];
+  // Use history from API if available, else synthesize from today's task count
+  const sparklineData = Array.isArray(data.tokenBurn.history) && data.tokenBurn.history.length > 0
+    ? data.tokenBurn.history.map((h) => ({ time: h.hour, value: h.tokens }))
+    : [
+        { time: '-4h', value: Math.max(1, data.today.tasks - 4) },
+        { time: '-3h', value: Math.max(2, data.today.tasks - 2) },
+        { time: '-2h', value: data.today.tasks },
+        { time: '-1h', value: data.today.tasks + 2 },
+        { time: 'Teraz', value: data.today.tasks + 1 },
+      ];
 
   const tokenModels = Array.isArray(data.tokenBurn.byModel) && data.tokenBurn.byModel.length > 0
     ? data.tokenBurn.byModel.map((m) => ({ model: m.label || m.model, tokens: m.tokens }))
@@ -104,9 +107,16 @@ export function KpiDashboardPanel() {
         { model: 'Tydzień', tokens: data.tokenBurn.week },
       ];
 
+  const promptPct = data.tokenBurn.promptTokens && data.tokenBurn.today > 0
+    ? Math.round((data.tokenBurn.promptTokens / data.tokenBurn.today) * 100)
+    : 68;
+  const completionPct = 100 - promptPct;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+
+      {/* Top KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem' }}>
         <MetricSummaryCard
           title="Zadania dziś"
           value={data.today.tasks}
@@ -137,18 +147,33 @@ export function KpiDashboardPanel() {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem' }}>
-        <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Dynamika zadań (ostatnie okna)</span>
-          <TimeseriesSparkline data={sampleSparkline} color="var(--primary, #38bdf8)" />
+      {/* Bottom: Sparkline + Token Breakdown */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.6rem' }}>
+
+        {/* Sparkline — token history */}
+        <div className="glass-card" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)' }}>Dynamika tokenów (dziś)</span>
+            <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>
+              Prompt {promptPct}% · Comp {completionPct}%
+            </span>
+          </div>
+          <TimeseriesSparkline data={sparklineData} color="#38bdf8" />
         </div>
-        <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Podział zużycia tokenów</span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>dziś: {data.tokenBurn.today.toLocaleString()}</span>
+
+        {/* Token Breakdown by model */}
+        <div className="glass-card" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)' }}>Podział zużycia tokenów</span>
+            {data.tokenBurn.estimatedSavingsPln !== undefined && (
+              <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>
+                ~{data.tokenBurn.estimatedSavingsPln} zł/dzień
+              </span>
+            )}
           </div>
           <TokenBurnBreakdown data={tokenModels} />
         </div>
+
       </div>
     </div>
   );

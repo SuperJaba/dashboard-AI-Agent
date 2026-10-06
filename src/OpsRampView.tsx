@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from './shared/api-client';
+import { OpsRampCharts } from './components/OpsRampCharts';
 import { 
   Activity, 
   ShieldAlert, 
@@ -80,8 +81,14 @@ export function OpsRampView() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const [remoteServers, setRemoteServers] = useState<any[]>([]);
+  const GRAFANA_BASE = 'http://10.10.10.100:3000';
+  const GRAFANA_DASHBOARDS = [
+    { uid: 'omv-system', title: 'OMV System & Host Metrics', url: '/d/omv-system/omv-system-and-host-metrics' },
+    { uid: 'ai-agents-metrics', title: 'AI Agents & OpsRamp Telemetry', url: '/d/ai-agents-metrics/ai-agents-and-opsramp-telemetry' },
+  ];
+
   const [grafanaUrl, setGrafanaUrl] = useState<string>(() => {
-    return localStorage.getItem('opsramp_grafana_url') || 'http://localhost:3000';
+    return localStorage.getItem('opsramp_grafana_url') || `${GRAFANA_BASE}/d/omv-system/omv-system-and-host-metrics?kiosk`;
   });
   const [showGrafanaEmbed, setShowGrafanaEmbed] = useState<boolean>(() => {
     return localStorage.getItem('opsramp_grafana_embed') === 'true';
@@ -372,15 +379,49 @@ export function OpsRampView() {
             <button
               type="button"
               className="btn-secondary"
-              style={{ fontSize: '0.75rem', padding: '0.45rem 0.75rem' }}
+              style={{ fontSize: '0.75rem', padding: '0.45rem 0.75rem', color: '#fb923c', borderColor: 'rgba(249,115,22,0.4)' }}
               onClick={() => {
-                setGrafanaUrl('http://localhost:3000');
-                localStorage.setItem('opsramp_grafana_url', 'http://localhost:3000');
+                setGrafanaUrl(GRAFANA_BASE);
+                localStorage.setItem('opsramp_grafana_url', GRAFANA_BASE);
                 setIframeKey(k => k + 1);
               }}
             >
-              Reset do localhost:3000
+              Reset do OMV (10.10.10.100)
             </button>
+          </div>
+          {/* Dashboard quick-select */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Szybki wybór:</span>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '0.35rem 0.7rem' }}
+              onClick={() => {
+                const url = GRAFANA_BASE;
+                setGrafanaUrl(url);
+                localStorage.setItem('opsramp_grafana_url', url);
+                setIframeKey(k => k + 1);
+              }}
+            >
+              🏠 Home
+            </button>
+            {GRAFANA_DASHBOARDS.map(d => (
+              <button
+                key={d.uid}
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: '0.75rem', padding: '0.35rem 0.7rem' }}
+                onClick={() => {
+                  const url = GRAFANA_BASE + d.url + '?kiosk';
+                  setGrafanaUrl(url);
+                  localStorage.setItem('opsramp_grafana_url', url);
+                  setIframeKey(k => k + 1);
+                }}
+              >
+                📊 {d.title}
+              </button>
+            ))}
+
           </div>
         </div>
       )}
@@ -488,8 +529,14 @@ export function OpsRampView() {
             Postgres, Llama Proxy, Prometheus, Backend API
           </p>
         </div>
-
       </div>
+
+      {/* Natywne Wykresy Telemetryczne OpsRamp (Charts) */}
+      <OpsRampCharts
+        rawEventsCount={status?.aiops.rawEventsCount}
+        correlatedIncidentsCount={status?.aiops.correlatedIncidentsCount}
+        noiseReductionRate={status?.aiops.noiseReductionRate}
+      />
 
       {/* Grafana Live Telemetry Embed */}
       {showGrafanaEmbed && (
@@ -509,7 +556,29 @@ export function OpsRampView() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+              {GRAFANA_DASHBOARDS.map((d) => (
+                <button
+                  key={d.uid}
+                  type="button"
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '0.3rem 0.55rem',
+                    color: grafanaUrl.includes(d.uid) ? '#38bdf8' : 'var(--text-muted)',
+                    borderColor: grafanaUrl.includes(d.uid) ? 'rgba(56, 189, 248, 0.4)' : undefined,
+                    background: grafanaUrl.includes(d.uid) ? 'rgba(56, 189, 248, 0.1)' : undefined
+                  }}
+                  onClick={() => {
+                    const target = `${GRAFANA_BASE}${d.url}?kiosk`;
+                    setGrafanaUrl(target);
+                    localStorage.setItem('opsramp_grafana_url', target);
+                    setIframeKey(k => k + 1);
+                  }}
+                >
+                  📊 {d.title}
+                </button>
+              ))}
               <button
                 type="button"
                 onClick={() => setIframeKey(k => k + 1)}

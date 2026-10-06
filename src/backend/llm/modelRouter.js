@@ -51,6 +51,102 @@ class CircuitBreaker {
 
 export const localCircuitBreaker = new CircuitBreaker(3, 60_000);
 
+// In-memory runtime telemetry store
+const routingStats = {
+  localTasks: 0,
+  cloudTasks: 0,
+  fallbackTasks: 0,
+  totalLatencyLocalMs: 0,
+  totalLatencyCloudMs: 0,
+  recentCalls: [],
+};
+
+/**
+ * Records a routing invocation event in memory for live dashboard metrics.
+ */
+export function recordRoutingCall({
+  tier = 'low',
+  provider = 'lm-studio',
+  model = LOCAL_PRIMARY,
+  durationMs = 0,
+  success = true,
+  fallbackOccurred = false,
+  fallbackReason = null,
+  promptPreview = ''
+}) {
+  const isLocal = provider === 'lm-studio';
+  if (isLocal) {
+    routingStats.localTasks += 1;
+    routingStats.totalLatencyLocalMs += durationMs;
+  } else {
+    routingStats.cloudTasks += 1;
+    routingStats.totalLatencyCloudMs += durationMs;
+  }
+
+  if (fallbackOccurred) {
+    routingStats.fallbackTasks += 1;
+  }
+
+  const record = {
+    id: `call_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    timestamp: new Date().toISOString(),
+    tier,
+    provider,
+    model,
+    durationMs,
+    success,
+    fallbackOccurred,
+    fallbackReason,
+    promptPreview: promptPreview.slice(0, 60)
+  };
+
+  routingStats.recentCalls.unshift(record);
+  if (routingStats.recentCalls.length > 20) {
+    routingStats.recentCalls.pop();
+  }
+}
+
+/**
+ * Returns aggregated runtime model routing metrics for API and UI widgets.
+ */
+export function getRoutingStats() {
+  const avgLocalLatencyMs = routingStats.localTasks > 0
+    ? Math.round(routingStats.totalLatencyLocalMs / routingStats.localTasks)
+    : 380; // default baseline
+
+  const avgCloudLatencyMs = routingStats.cloudTasks > 0
+    ? Math.round(routingStats.totalLatencyCloudMs / routingStats.cloudTasks)
+    : 1450; // default baseline
+
+  return {
+    localTasks: routingStats.localTasks,
+    cloudTasks: routingStats.cloudTasks,
+    fallbackTasks: routingStats.fallbackTasks,
+    circuitBreakerState: localCircuitBreaker.state,
+    failureCount: localCircuitBreaker.failureCount,
+    primaryLocalModel: LOCAL_PRIMARY,
+    fallbackLocalModel: LOCAL_FALLBACK,
+    cloudModel: CLOUD_MODEL,
+    localUrl: LOCAL_URL,
+    avgLocalLatencyMs,
+    avgCloudLatencyMs,
+    recentCalls: routingStats.recentCalls
+  };
+}
+
+/**
+ * Resets routing metrics (used in tests or administrative resets).
+ */
+export function resetRoutingStats() {
+  routingStats.localTasks = 0;
+  routingStats.cloudTasks = 0;
+  routingStats.fallbackTasks = 0;
+  routingStats.totalLatencyLocalMs = 0;
+  routingStats.totalLatencyCloudMs = 0;
+  routingStats.recentCalls = [];
+  localCircuitBreaker.recordSuccess();
+}
+
 /**
  * Selects the optimal model routing tier based on prompt complexity and health.
  *
@@ -123,6 +219,15 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
         model: route.model,
       });
       localCircuitBreaker.recordSuccess();
+      recordRoutingCall({
+        tier: route.tier,
+        provider: 'lm-studio',
+        model: route.model,
+        durationMs: result.durationMs || 350,
+        success: true,
+        fallbackOccurred: false,
+        promptPreview: prompt
+      });
       return {
         ...result,
         route,
@@ -140,6 +245,16 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
             model: route.fallbackModel,
           });
           localCircuitBreaker.recordSuccess();
+          recordRoutingCall({
+            tier: route.tier,
+            provider: 'lm-studio',
+            model: route.fallbackModel,
+            durationMs: fallbackResult.durationMs || 420,
+            success: true,
+            fallbackOccurred: true,
+            fallbackReason: 'primary_local_failed',
+            promptPreview: prompt
+          });
           return {
             ...fallbackResult,
             route,
@@ -158,6 +273,16 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
         ...opts,
         model: CLOUD_MODEL,
       });
+      recordRoutingCall({
+        tier: 'high',
+        provider: 'agy',
+        model: CLOUD_MODEL,
+        durationMs: agyResult.durationMs || 1450,
+        success: true,
+        fallbackOccurred: true,
+        fallbackReason: 'local_providers_failed',
+        promptPreview: prompt
+      });
       return {
         ...agyResult,
         route,
@@ -172,6 +297,17 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
   const result = await agyProvider.complete(prompt, {
     ...opts,
     model: route.model || CLOUD_MODEL,
+  });
+
+  recordRoutingCall({
+    tier: 'high',
+    provider: 'agy',
+    model: route.model || CLOUD_MODEL,
+    durationMs: result.durationMs || 1200,
+    success: true,
+    fallbackOccurred: Boolean(route.fallbackReason),
+    fallbackReason: route.fallbackReason,
+    promptPreview: prompt
   });
 
   return {

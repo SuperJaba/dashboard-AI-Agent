@@ -1,4 +1,3 @@
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface TokenEntry {
   model: string;
@@ -10,7 +9,7 @@ interface TokenBurnBreakdownProps {
 }
 
 const BAR_COLORS = [
-  'var(--primary, #38bdf8)',
+  '#38bdf8',
   '#10b981',
   '#f59e0b',
   '#ec4899',
@@ -18,25 +17,36 @@ const BAR_COLORS = [
 ];
 
 export function TokenBurnBreakdown({ data }: TokenBurnBreakdownProps) {
+  const total = data.reduce((s, d) => s + d.tokens, 0);
+
   return (
-    <ResponsiveContainer width="100%" height={Math.max(60, data.length * 36)}>
-      <BarChart
-        data={data}
-        layout="vertical"
-        margin={{ top: 4, right: 8, bottom: 4, left: 4 }}
-      >
-        <XAxis type="number" hide />
-        <XAxis dataKey="model" type="category" hide />
-        <Tooltip
-          contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', borderRadius: '6px', fontSize: '0.75rem' }}
-          formatter={(val: number) => [val.toLocaleString(), 'tokens']}
-        />
-        <Bar dataKey="tokens" radius={[0, 4, 4, 0]}>
-          {data.map((_entry, index) => (
-            <Cell key={index} fill={BAR_COLORS[index % BAR_COLORS.length]} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
+      {data.map((entry, index) => {
+        const pct = total > 0 ? Math.round((entry.tokens / total) * 100) : 0;
+        const color = BAR_COLORS[index % BAR_COLORS.length];
+        return (
+          <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {entry.model}
+              </span>
+              <span style={{ fontSize: '0.75rem', color, fontWeight: 700 }}>
+                {pct}% · {entry.tokens.toLocaleString()}
+              </span>
+            </div>
+            <div style={{ height: '6px', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${pct}%`,
+                background: color,
+                borderRadius: '4px',
+                boxShadow: `0 0 6px ${color}66`,
+                transition: 'width 0.5s ease-out'
+              }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
