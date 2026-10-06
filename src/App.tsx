@@ -88,7 +88,11 @@ function App() {
     projectFolderInputRef,
     handleCloneProject,
     setupSshKey,
-    agents
+    agents,
+    setupTunnel,
+    setSetupTunnel,
+    settingUpTunnel,
+    setupTunnelOnServer
   } = useDashboardState();
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
@@ -97,7 +101,19 @@ function App() {
   const [workersCount, setWorkersCount] = useState(0);
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [tunnelFeedback, setTunnelFeedback] = useState<string | null>(null);
   const { connected: isSseConnected } = useLiveTelemetry();
+
+  const handleTriggerTunnel = async (serverId: number) => {
+    setTunnelFeedback('Konfigurowanie i uruchamianie tunelu...');
+    const res = await setupTunnelOnServer(serverId);
+    if (res?.success) {
+      setTunnelFeedback(res.message || 'Tunel został pomyślnie uruchomiony!');
+    } else {
+      setTunnelFeedback(`Błąd tunelu: ${res?.error || 'Nieznany błąd'}`);
+    }
+    setTimeout(() => setTunnelFeedback(null), 6000);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -565,9 +581,46 @@ function App() {
                   >
                     🔥 Deploy Grafana Stack
                   </button>
+                  <button 
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)' }}
+                    onClick={() => handleTriggerTunnel(activeServer.id)}
+                    disabled={settingUpTunnel}
+                    title="Zainstaluj i uruchom tunel Socket.IO workera na tym serwerze przez SSH"
+                  >
+                    <Laptop size={13} />
+                    {settingUpTunnel ? 'Uruchamianie...' : 'Tunel'}
+                  </button>
                 </div>
 
-                <label htmlFor="remote-prompt-input" className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Polecenie dla Agenta</label>
+                {tunnelFeedback && (
+                  <div style={{ 
+                    padding: '0.5rem 0.75rem', 
+                    marginBottom: '1rem', 
+                    borderRadius: '6px', 
+                    fontSize: '0.8rem', 
+                    background: tunnelFeedback.includes('Błąd') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
+                    color: tunnelFeedback.includes('Błąd') ? '#ef4444' : '#10b981', 
+                    border: `1px solid ${tunnelFeedback.includes('Błąd') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}` 
+                  }}>
+                    {tunnelFeedback}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <label htmlFor="remote-prompt-input" className="info-label" style={{ display: 'block', marginBottom: 0 }}>Polecenie dla Agenta</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#93c5fd', cursor: 'pointer', userSelect: 'none' }} title="Automatycznie skonfiguruj i uruchom tunel Socket.IO workera na serwerze przed rozpoczęciem pracy">
+                    <input 
+                      type="checkbox" 
+                      checked={setupTunnel} 
+                      onChange={e => setSetupTunnel(e.target.checked)} 
+                      style={{ cursor: 'pointer', accentColor: 'var(--primary)' }} 
+                    />
+                    <Laptop size={13} color="#38bdf8" />
+                    <span style={{ fontWeight: 600 }}>Tunel</span>
+                  </label>
+                </div>
                 <textarea 
                   id="remote-prompt-input"
                   value={remotePrompt}

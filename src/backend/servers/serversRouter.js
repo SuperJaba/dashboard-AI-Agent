@@ -3,6 +3,9 @@ import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../auth/jwtSecret.js';
+import { resolveDashboardUrl } from '../utils/network.js';
 import * as serversRepo from './serversRepository.js';
 import { sshCmd } from '../utils/ssh.js';
 
@@ -86,6 +89,94 @@ serversRouter.post('/servers/:id/setup-ssh', async (req, res) => {
       success: true,
       publicKey: pubKey,
       copyCommand
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Setup Socket.IO Worker Tunnel on remote server via SSH
+serversRouter.post('/servers/:id/setup-tunnel', async (req, res) => {
+  try {
+    const s = await serversRepo.getServerById(req.params.id, true);
+    if (!s) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+
+    const dashboardUrl = resolveDashboardUrl(req);
+    const workerToken = jwt.sign(
+      { id: req.user?.id || 1, username: req.user?.username || 'worker-client', isWorker: true, serverId: s.id },
+      JWT_SECRET,
+      { expiresIn: '90d' }
+    );
+    const workerName = s.name || s.host || 'Remote-Worker';
+
+    const remoteScript = [
+      'mkdir -p ~/dashboard-worker && cd ~/dashboard-worker',
+      '[ -f package.json ] || npm init -y',
+      'node -e \'const fs=require("fs"); try{ const p=JSON.parse(fs.readFileSync("package.json")); p.type="module"; fs.writeFileSync("package.json",JSON.stringify(p,null,2)); }catch(e){}\'',
+      '([ -d node_modules/socket.io-client ] && [ -d node_modules/node-pty ]) || npm install socket.io-client node-pty',
+      `curl -sSL "${dashboardUrl}/api/worker/script" -o local-agent-worker.js`,
+      'pkill -9 -f "local-agent-worker.js" || true',
+      `nohup node local-agent-worker.js "${dashboardUrl}" "${workerToken}" "${workerName}" remote > worker.log 2>&1 &`
+    ].join(' && ');
+
+    const cmd = sshCmd(s, `"${remoteScript}"`);
+
+    exec(cmd, { timeout: 35000 }, (error, stdout, stderr) => {
+      if (error) {
+        const msg = stderr ? stderr.trim() : error.message;
+        return res.status(500).json({ error: `SSH setup-tunnel failed: ${msg}` });
+      }
+      res.json({
+        success: true,
+        message: `Tunel został pomyślnie uruchomiony na serwerze ${s.name}`,
+        workerName,
+        dashboardUrl
+      });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Kill Socket.IO Worker Tunnel on remote server via SSH
+serversRouter.post('/servers/:id/kill-tunnel', async (req, res) => {
+  try {
+    const s = await serversRepo.getServerById(req.params.id, true);
+    if (!s) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+    const workerName = s.name || s.host || 'Remote-Worker';
+    const remoteScript = 'pkill -9 -f "local-agent-worker.js" || true';
+    const cmd = sshCmd(s, `"${remoteScript}"`);
+
+    exec(cmd, { timeout: 15000 }, () => {
+      // Disconnect any active worker in server.js matching this server
+      import('../../../server.js').then(({ activeWorkers }) => {
+        if (activeWorkers) {
+          for (const [wId, w] of activeWorkers.entries()) {
+            if (
+              Number(w.serverId) === Number(s.id) ||
+              w.name === workerName ||
+              w.serverName === s.name ||
+              w.hostname === s.host ||
+              (w.ip && w.ip === s.host)
+            ) {
+              try {
+                w.socket.emit('worker_terminate', { reason: 'SSH kill on remote server' });
+                w.socket.disconnect(true);
+              } catch {}
+              activeWorkers.delete(wId);
+            }
+          }
+        }
+      }).catch(() => {});
+
+      res.json({
+        success: true,
+        message: `Tunel na serwerze ${s.name} został zatrzymany i ubity (SSH).`
+      });
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -48,8 +48,15 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
       let workerToUse = null;
       if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
         workerToUse = activeWorkers.get(targetWorkerId);
-      } else if (executionTarget === 'worker' || (executionTarget !== 'remote' && activeWorkers.size > 0)) {
+      } else if (executionTarget === 'worker') {
         workerToUse = Array.from(activeWorkers.values())[0];
+      } else if (executionTarget !== 'remote' && activeWorkers.size > 0) {
+        // Auto mode: prefer a local worker if one is connected.
+        // If only remote workers exist (e.g. OMV), do NOT hijack local terminal sessions with remote workers!
+        const localWorker = Array.from(activeWorkers.values()).find(w => w.type === 'local');
+        if (localWorker) {
+          workerToUse = localWorker;
+        }
       }
 
       if (workerToUse) {

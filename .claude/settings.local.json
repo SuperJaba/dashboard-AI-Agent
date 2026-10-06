@@ -96,7 +96,8 @@
       "Bash(codegraph *)",
       "Bash(agy *)",
       "Bash(openclaude *)",
-      "Bash(claude *)"
+      "Bash(claude *)",
+      "WebFetch(domain:docs.litellm.ai)"
     ],
     "deny": [
       "Bash(rm -rf /*)",
@@ -111,7 +112,14 @@
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [],
+  "enabledMcpjsonServers": [
+    "MCP_DOCKER",
+    "codegraph",
+    "filesystem",
+    "database",
+    "context7",
+    "playwright"
+  ],
   "disabledMcpjsonServers": [
     "MCP_DOCKER"
   ],

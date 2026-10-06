@@ -5,15 +5,36 @@ import { LocalWorkerModal } from './LocalWorkerModal';
 describe('LocalWorkerModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string, opts?: any) => {
       if (url.includes('/api/socket-info')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
             serverUrl: 'http://localhost:3001',
             token: 'test-mock-jwt-token-12345',
-            workers: [{ id: 'w1', name: 'Workstation-1', platform: 'linux' }]
+            workers: [
+              { id: 'w1', name: 'Workstation-1', platform: 'linux', type: 'local', hostname: 'my-pc', ip: '127.0.0.1' },
+              { id: 'w2', name: 'omv', platform: 'linux', type: 'remote', serverName: 'OMV', serverId: 1, hostname: 'omv', ip: '10.10.10.100' }
+            ]
           })
+        });
+      }
+      if (url.includes('/api/agents/workers/w1') && opts?.method === 'DELETE') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, message: 'Worker Workstation-1 ubity' })
+        });
+      }
+      if (url.includes('/api/agents/workers') && opts?.method === 'DELETE') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, message: 'Wszystkie sockety ubite' })
+        });
+      }
+      if (url.includes('/api/servers/1/kill-tunnel') && opts?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, message: 'Tunel na serwerze OMV ubity przez SSH' })
         });
       }
       if (url.includes('/api/agents/workers')) {
@@ -56,8 +77,73 @@ describe('LocalWorkerModal', () => {
     expect(screen.getByText(/node scripts\/local-agent-worker\.js/i)).toBeInTheDocument();
   });
 
+  it('renders workers with proper classification badges (Local PC vs Zdalny OMV)', async () => {
+    await act(async () => {
+      render(<LocalWorkerModal isOpen={true} onClose={() => {}} token="custom-token-xyz" />);
+    });
+
+    // Check classification badges
+    expect(screen.getByText(/💻 Lokalny \(PC\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/🌐 Zdalny \(Serwer: OMV\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Workstation-1/i)).toBeInTheDocument();
+    expect(screen.getAllByText('omv').length).toBeGreaterThan(0);
+  });
+
+  it('handles killing a single socket worker', async () => {
+    await act(async () => {
+      render(<LocalWorkerModal isOpen={true} onClose={() => {}} token="custom-token-xyz" />);
+    });
+
+    const killButtons = screen.getAllByRole('button', { name: /Ubij socket/i });
+    expect(killButtons.length).toBe(2);
+
+    await act(async () => {
+      fireEvent.click(killButtons[0]);
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/agents/workers/w1'),
+      expect.objectContaining({ method: 'DELETE' })
+    );
+  });
+
+  it('handles killing all socket workers', async () => {
+    await act(async () => {
+      render(<LocalWorkerModal isOpen={true} onClose={() => {}} token="custom-token-xyz" />);
+    });
+
+    const killAllBtn = screen.getByRole('button', { name: /Ubij wszystkie sockety/i });
+    expect(killAllBtn).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(killAllBtn);
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/agents/workers',
+      expect.objectContaining({ method: 'DELETE' })
+    );
+  });
+
+  it('handles killing remote worker tunnel via SSH', async () => {
+    await act(async () => {
+      render(<LocalWorkerModal isOpen={true} onClose={() => {}} token="custom-token-xyz" />);
+    });
+
+    const sshKillBtn = screen.getByRole('button', { name: /Ubij na serwerze \(SSH\)/i });
+    expect(sshKillBtn).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(sshKillBtn);
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/servers/1/kill-tunnel',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
   it('allows copying token and commands', async () => {
-    // Mock navigator.clipboard
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
       clipboard: { writeText: writeTextMock }

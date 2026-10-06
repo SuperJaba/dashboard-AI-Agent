@@ -7,7 +7,7 @@ import { logger } from '../utils/logger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SYS_INFO_SCRIPT = path.resolve(__dirname, '../../../../scripts/sys-info.js');
+const SYS_INFO_SCRIPT = path.resolve(__dirname, '../../../scripts/sys-info.js');
 const MAX_CONNECTIONS = 50;
 
 let connectionCount = 0;

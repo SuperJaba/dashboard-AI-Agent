@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { syncRemoteProjectTasks } from './remoteSyncService.js';
 
 // Mock dependencies
-vi.mock('../projectsRepository.js', () => {
+vi.mock('./projectsRepository.js', () => {
   return {
     getProjects: vi.fn(),
     updateProject: vi.fn()
@@ -21,8 +21,7 @@ vi.mock('node-fetch', () => {
   };
 });
 
-const { getProjects, updateProject } = await import('../projectsRepository.js');
-const { updateTaskInWorkspaceFile } = await import('./tasksSyncService.js');
+const { getProjects, updateProject } = await import('./projectsRepository.js');
 const fetch = (await import('node-fetch')).default;
 
 describe('syncRemoteProjectTasks', () => {

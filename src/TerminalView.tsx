@@ -299,8 +299,14 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
                 cursor: 'pointer'
               }}
             >
-              <option value="auto">⚡ Auto ({workers.length > 0 ? 'Local Worker' : 'Remote'})</option>
-              <option value="worker" disabled={workers.length === 0}>💻 Local Worker ({workers.length})</option>
+              <option value="auto">
+                ⚡ Auto ({workers.length > 0 ? (workers.some(w => w.type === 'remote') ? 'Socket Worker' : 'Local Worker') : 'Remote'})
+              </option>
+              <option value="worker" disabled={workers.length === 0}>
+                {workers.some(w => w.type === 'remote')
+                  ? `🌐/💻 Worker Socket (${workers.length})`
+                  : `💻 Local Worker (${workers.length})`}
+              </option>
               <option value="remote">🌐 Remote Server</option>
             </select>
           </div>

@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 import * as projectsRepo from './projectsRepository.js';
-import { syncProjectTasks } from './tasksSyncService.js';
+import { updateTaskInWorkspaceFile } from './tasksSyncService.js';
 
 /**
  * Fetch tasks from remote project management API.
@@ -33,7 +33,7 @@ export async function fetchRemoteTasks() {
  * Synchronize remote tasks into the local project's task list.
  * It merges remote tasks with existing ones, adding new ones and updating statuses.
  */
-export async function syncRemoteProjectTasks(projectId, options = {}) {
+export async function syncRemoteProjectTasks(projectId, _options = {}) {
   const projects = await projectsRepo.getProjects();
   const project = projects.find(p => p.id === parseInt(projectId, 10));
   if (!project) {
@@ -47,7 +47,8 @@ export async function syncRemoteProjectTasks(projectId, options = {}) {
   const updatedInWorkspace = [];
 
   // Merge remote into local
-  remoteTasks.forEach(rt => {
+  for (const rt of remoteTasks) {
+    let becameCompleted = false;
     const existing = localTasks.find(t => t.title.toLowerCase() === rt.title.toLowerCase());
     if (!existing) {
       // New task from remote
@@ -58,20 +59,20 @@ export async function syncRemoteProjectTasks(projectId, options = {}) {
         status: rt.status
       });
       updatedInDb.push({ title: rt.title, reason: 'Added from remote' });
+      if (rt.status === 'completed') becameCompleted = true;
     } else if (existing.status !== rt.status) {
       // Status changed remotely
       existing.status = rt.status;
       updatedInDb.push({ title: rt.title, reason: `Remote status ${rt.status}` });
+      if (rt.status === 'completed') becameCompleted = true;
     }
-  });
 
-  // Optionally update workspace markdown if task became completed
-  if (project.path && rt.status === 'completed') {
-    // reuse existing helper to mark completed in workspace
-    const { updateTaskInWorkspaceFile } = await import('./tasksSyncService.js');
-    const res = updateTaskInWorkspaceFile(project.path, rt.title, rt.status);
-    if (res.updated) {
-      updatedInWorkspace.push({ title: rt.title, file: res.file, status: rt.status });
+    // Optionally update workspace markdown if task became completed
+    if (project.path && becameCompleted) {
+      const res = updateTaskInWorkspaceFile(project.path, rt.title, rt.status);
+      if (res && res.updated) {
+        updatedInWorkspace.push({ title: rt.title, file: res.file, status: rt.status });
+      }
     }
   }
 

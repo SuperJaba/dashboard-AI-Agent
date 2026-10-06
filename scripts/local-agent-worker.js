@@ -6,7 +6,7 @@ import path from 'path';
 
 function sanitizeToken(raw) {
   if (!raw) return raw;
-  raw = String(raw).trim().replace(/^['"]|['"]$/g, '');
+  raw = String(raw).trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
   const idx = raw.lastIndexOf('eyJhbGci');
   if (idx > 0) {
     const candidate = raw.slice(idx);
@@ -22,10 +22,11 @@ function sanitizeToken(raw) {
 const SERVER_URL = (process.env.DASHBOARD_SERVER_URL || process.argv[2] || 'http://localhost:3001').trim();
 const AUTH_TOKEN = sanitizeToken(process.env.DASHBOARD_TOKEN || process.argv[3] || 'fallback-super-secret-key-123');
 const WORKER_NAME = process.env.WORKER_NAME || process.argv[4] || os.hostname() || 'Local-Workstation';
+const WORKER_TYPE = (process.env.WORKER_TYPE || process.argv[5] || 'auto').trim();
 
 console.log(`🚀 Starting Local Agent Worker...`);
 console.log(`📡 Connecting to Remote Dashboard at: ${SERVER_URL}`);
-console.log(`🏷️  Worker Name: ${WORKER_NAME}`);
+console.log(`🏷️  Worker Name: ${WORKER_NAME} (${WORKER_TYPE})`);
 
 function findShellExecutable(requestedCmd) {
   if (requestedCmd && requestedCmd !== 'bash' && fs.existsSync(requestedCmd)) {
@@ -62,8 +63,10 @@ const socket = io(targetSocketUrl, {
     token: AUTH_TOKEN,
     isWorker: true,
     workerName: WORKER_NAME,
+    workerType: WORKER_TYPE !== 'auto' ? WORKER_TYPE : undefined,
     hostname: os.hostname(),
-    platform: process.platform
+    platform: process.platform,
+    arch: os.arch()
   },
   transports: ['websocket', 'polling'],
   reconnection: true,
@@ -78,11 +81,26 @@ socket.on('connect', () => {
   socket.emit('register_worker', {
     workerId: socket.id,
     name: WORKER_NAME,
+    type: WORKER_TYPE !== 'auto' ? WORKER_TYPE : undefined,
     hostname: os.hostname(),
     platform: process.platform,
     arch: os.arch(),
     uptime: os.uptime()
   });
+});
+
+socket.on('worker_terminate', ({ reason } = {}) => {
+  console.log(`🛑 Otrzymano polecenie zakończenia pracy z dashboardu: ${reason || 'ubity'}`);
+  for (const ptyProc of activeSessions.values()) {
+    try {
+      ptyProc.kill();
+    } catch {}
+  }
+  activeSessions.clear();
+  try {
+    socket.disconnect();
+  } catch {}
+  process.exit(0);
 });
 
 socket.on('disconnect', (reason) => {

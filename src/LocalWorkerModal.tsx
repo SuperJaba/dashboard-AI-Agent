@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, Copy, Check, Laptop, Terminal, Wifi, WifiOff, 
-  ShieldCheck, Key, Eye, EyeOff, RefreshCw, Server
+  ShieldCheck, Key, Eye, EyeOff, RefreshCw, Server,
+  PowerOff
 } from 'lucide-react';
 
 interface LocalWorkerModalProps {
@@ -18,6 +19,9 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
   const [showToken, setShowToken] = useState(false);
   const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   const [commandTab, setCommandTab] = useState<'npm' | 'node' | 'bash' | 'powershell'>('npm');
+  const [killingWorkerId, setKillingWorkerId] = useState<string | null>(null);
+  const [isKillingAll, setIsKillingAll] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const defaultUrl = typeof window !== 'undefined'
     ? (window.location.port === '5173' ? 'http://localhost:3001' : window.location.origin)
@@ -102,6 +106,76 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
       console.error('Failed to generate dedicated socket token:', err);
     } finally {
       setIsGeneratingToken(false);
+    }
+  };
+
+  const handleKillWorker = async (workerId: string, name: string) => {
+    setKillingWorkerId(workerId);
+    setActionFeedback(null);
+    try {
+      const headers: Record<string, string> = {};
+      const tokenToSend = activeToken || (typeof window !== 'undefined' ? localStorage.getItem('dashboard_token') : '');
+      if (tokenToSend) headers['Authorization'] = `Bearer ${tokenToSend}`;
+
+      const res = await fetch(`/api/agents/workers/${workerId}`, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActionFeedback({ type: 'success', message: data.message || `Ubito socket "${name}"!` });
+        await fetchSocketInfo();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Nie udało się ubić workera.' });
+      }
+    } catch (e: any) {
+      setActionFeedback({ type: 'error', message: `Błąd sieci: ${e.message}` });
+    } finally {
+      setKillingWorkerId(null);
+      setTimeout(() => setActionFeedback(null), 5000);
+    }
+  };
+
+  const handleKillAllWorkers = async () => {
+    setIsKillingAll(true);
+    setActionFeedback(null);
+    try {
+      const headers: Record<string, string> = {};
+      const tokenToSend = activeToken || (typeof window !== 'undefined' ? localStorage.getItem('dashboard_token') : '');
+      if (tokenToSend) headers['Authorization'] = `Bearer ${tokenToSend}`;
+
+      const res = await fetch('/api/agents/workers', { method: 'DELETE', headers });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActionFeedback({ type: 'success', message: data.message || 'Ubito wszystkie aktywne sockety!' });
+        await fetchSocketInfo();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Nie udało się ubić workerów.' });
+      }
+    } catch (e: any) {
+      setActionFeedback({ type: 'error', message: `Błąd sieci: ${e.message}` });
+    } finally {
+      setIsKillingAll(false);
+      setTimeout(() => setActionFeedback(null), 5000);
+    }
+  };
+
+  const handleKillServerTunnel = async (serverId: number, serverName: string) => {
+    setActionFeedback(null);
+    try {
+      const headers: Record<string, string> = {};
+      const tokenToSend = activeToken || (typeof window !== 'undefined' ? localStorage.getItem('dashboard_token') : '');
+      if (tokenToSend) headers['Authorization'] = `Bearer ${tokenToSend}`;
+
+      const res = await fetch(`/api/servers/${serverId}/kill-tunnel`, { method: 'POST', headers });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActionFeedback({ type: 'success', message: data.message || `Ubito proces tunelu na serwerze ${serverName} przez SSH!` });
+        await fetchSocketInfo();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Błąd ubijania tunelu na serwerze.' });
+      }
+    } catch (e: any) {
+      setActionFeedback({ type: 'error', message: `Błąd: ${e.message}` });
+    } finally {
+      setTimeout(() => setActionFeedback(null), 5000);
     }
   };
 
@@ -215,32 +289,179 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           </button>
         </div>
 
-        {/* Worker Status Badge */}
+        {/* Worker Status Badge & List with Kill Options */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: workers.length > 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.08)',
-          border: `1px solid ${workers.length > 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.25)'}`,
-          padding: '0.75rem 1rem',
-          borderRadius: '10px'
+          flexDirection: 'column',
+          gap: '0.75rem',
+          background: workers.length > 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+          border: `1px solid ${workers.length > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.25)'}`,
+          padding: '0.85rem 1rem',
+          borderRadius: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {workers.length > 0 ? (
-              <Wifi size={18} style={{ color: '#10b981' }} />
-            ) : (
-              <WifiOff size={18} style={{ color: '#ef4444' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              {workers.length > 0 ? (
+                <Wifi size={18} style={{ color: '#10b981' }} />
+              ) : (
+                <WifiOff size={18} style={{ color: '#ef4444' }} />
+              )}
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: workers.length > 0 ? '#34d399' : '#f87171' }}>
+                {workers.length > 0
+                  ? `Aktywne połączenia Socket (${workers.length})`
+                  : 'Brak aktywnego połączenia workera do Socket.IO'}
+              </span>
+            </div>
+
+            {workers.length > 1 && (
+              <button
+                type="button"
+                onClick={handleKillAllWorkers}
+                disabled={isKillingAll}
+                title="Rozłącz i ubij wszystkie aktywne połączenia socket.io"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: '6px',
+                  color: '#f87171',
+                  fontSize: '0.72rem',
+                  padding: '3px 8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  fontWeight: 600
+                }}
+              >
+                <PowerOff size={12} className={isKillingAll ? 'animate-spin' : ''} />
+                <span>Ubij wszystkie sockety</span>
+              </button>
             )}
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: workers.length > 0 ? '#34d399' : '#f87171' }}>
-              {workers.length > 0
-                ? `Aktywne połączenie Socket (${workers.length} ${workers.length === 1 ? 'worker połączony' : 'workery połączone'})`
-                : 'Brak aktywnego połączenia workera do Socket.IO'}
-            </span>
           </div>
+
+          {actionFeedback && (
+            <div style={{
+              padding: '0.45rem 0.75rem',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              background: actionFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              color: actionFeedback.type === 'success' ? '#10b981' : '#ef4444',
+              border: `1px solid ${actionFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+            }}>
+              {actionFeedback.message}
+            </div>
+          )}
+
           {workers.length > 0 && (
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: 'var(--mono)' }}>
-              {workers.map(w => `${w.name} [${w.platform}]`).join(', ')}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.2rem' }}>
+              {workers.map((w) => {
+                const isRemote = w.type === 'remote' || w.serverName || (w.ip && w.ip !== '127.0.0.1' && w.ip !== '::1' && w.ip !== 'localhost');
+                const isBeingKilled = killingWorkerId === w.id;
+
+                return (
+                  <div
+                    key={w.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.6rem',
+                      background: 'rgba(15, 23, 42, 0.75)',
+                      border: '1px solid #1e293b',
+                      borderRadius: '8px',
+                      padding: '0.55rem 0.75rem'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div style={{
+                        background: isRemote ? 'rgba(168, 85, 247, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                        border: `1px solid ${isRemote ? 'rgba(168, 85, 247, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
+                        borderRadius: '6px',
+                        padding: '0.35rem',
+                        color: isRemote ? '#c084fc' : '#38bdf8'
+                      }}>
+                        {isRemote ? <Server size={15} /> : <Laptop size={15} />}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc' }}>
+                            {w.name}
+                          </span>
+                          <span style={{
+                            fontSize: '0.68rem',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 700,
+                            background: isRemote ? 'rgba(168, 85, 247, 0.2)' : 'rgba(56, 189, 248, 0.2)',
+                            color: isRemote ? '#c084fc' : '#38bdf8',
+                            border: `1px solid ${isRemote ? 'rgba(168, 85, 247, 0.35)' : 'rgba(56, 189, 248, 0.35)'}`
+                          }}>
+                            {isRemote ? `🌐 Zdalny (Serwer${w.serverName ? `: ${w.serverName}` : ''})` : '💻 Lokalny (PC)'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '1px', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span>Host: <code>{w.hostname}</code></span>
+                          {w.ip && <span>IP: <code>{w.ip}</code></span>}
+                          <span>OS: <code>{w.platform}{w.arch ? `/${w.arch}` : ''}</code></span>
+                          {w.connectedAt && (
+                            <span>Od: {new Date(w.connectedAt).toLocaleTimeString()}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      {(w.serverId || (w.name && w.name.toLowerCase() === 'omv')) && (
+                        <button
+                          type="button"
+                          onClick={() => handleKillServerTunnel(w.serverId || 1, w.serverName || w.name)}
+                          title="Zabij wszystkie procesy workera bezpośrednio na serwerze przez SSH (pkill)"
+                          style={{
+                            background: 'rgba(168, 85, 247, 0.1)',
+                            border: '1px solid rgba(168, 85, 247, 0.3)',
+                            borderRadius: '6px',
+                            color: '#c084fc',
+                            fontSize: '0.72rem',
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          <Terminal size={11} />
+                          <span>Ubij na serwerze (SSH)</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleKillWorker(w.id, w.name)}
+                        disabled={isBeingKilled}
+                        title={`Ubij socket i zakończ proces dla workera ${w.name}`}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          borderRadius: '6px',
+                          color: '#f87171',
+                          fontSize: '0.72rem',
+                          padding: '3px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        <PowerOff size={11} className={isBeingKilled ? 'animate-spin' : ''} />
+                        <span>{isBeingKilled ? 'Ubijanie...' : 'Ubij socket'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 

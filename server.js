@@ -69,6 +69,7 @@ import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
+import { classifyWorkerSocket } from './src/backend/socket/workerClassification.js';
 
 import { fileURLToPath } from 'url';
 
@@ -132,22 +133,36 @@ io.on('connection', (socket) => {
   const isWorker = socket.handshake.auth?.isWorker;
 
   if (isWorker) {
+    const classification = classifyWorkerSocket(socket);
     const workerInfo = {
       id: socket.id,
-      name: socket.handshake.auth?.workerName || 'Local Worker',
+      name: socket.handshake.auth?.workerName || (classification.type === 'remote' ? 'Remote-Worker' : 'Local-Worker'),
+      type: classification.type,
+      ip: classification.ip,
+      serverId: classification.serverId,
+      serverName: classification.serverName,
       hostname: socket.handshake.auth?.hostname || 'unknown',
       platform: socket.handshake.auth?.platform || 'unknown',
+      arch: socket.handshake.auth?.arch || 'unknown',
       connectedAt: new Date().toISOString(),
       socket
     };
     activeWorkers.set(socket.id, workerInfo);
     activeAgentWorkers.set(activeWorkers.size);
-    logger.info({ workerId: socket.id, name: workerInfo.name }, '🤖 Registered Local Agent Worker');
+    logger.info({ workerId: socket.id, name: workerInfo.name, type: workerInfo.type, ip: workerInfo.ip }, '🤖 Registered Agent Worker');
 
     socket.on('register_worker', (data) => {
       if (activeWorkers.has(socket.id)) {
         const existing = activeWorkers.get(socket.id);
         Object.assign(existing, data);
+        if (data.type) existing.type = data.type;
+        if (data.workerType) existing.type = data.workerType;
+        if (data.serverId) existing.serverId = Number(data.serverId);
+        if (data.serverName) existing.serverName = data.serverName;
+        if (data.name?.toLowerCase().includes('omv') || data.hostname?.toLowerCase().includes('omv')) {
+          existing.type = 'remote';
+          if (!existing.serverName) existing.serverName = 'OMV';
+        }
       }
     });
 
@@ -189,8 +204,15 @@ io.on('connection', (socket) => {
     let workerToUse = null;
     if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
       workerToUse = activeWorkers.get(targetWorkerId);
-    } else if (executionTarget === 'worker' || (executionTarget !== 'remote' && activeWorkers.size > 0)) {
+    } else if (executionTarget === 'worker') {
       workerToUse = Array.from(activeWorkers.values())[0];
+    } else if (executionTarget !== 'remote' && activeWorkers.size > 0) {
+      // Auto mode: prefer a local worker if one is connected.
+      // If only remote workers exist (e.g. OMV), do NOT hijack local terminal sessions with remote workers!
+      const localWorker = Array.from(activeWorkers.values()).find(w => w.type === 'local');
+      if (localWorker) {
+        workerToUse = localWorker;
+      }
     }
 
     if (workerToUse) {
@@ -367,6 +389,16 @@ app.get('/v1/metrics', async (req, res) => {
 // --- Auth Routes ---
 app.use('/api/auth', authRouter);
 
+// Public Worker Script Download
+app.get('/api/worker/script', (req, res) => {
+  const scriptPath = path.join(__dirname, 'scripts', 'local-agent-worker.js');
+  if (fs.existsSync(scriptPath)) {
+    res.setHeader('Content-Type', 'text/javascript');
+    return res.sendFile(scriptPath);
+  }
+  res.status(404).json({ error: 'Worker script not found' });
+});
+
 // API Auth Middleware
 app.use('/api', authMiddleware);
 
@@ -374,11 +406,90 @@ app.get('/api/agents/workers', (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
+    type: w.type || (w.ip && w.ip !== '127.0.0.1' && w.ip !== '::1' ? 'remote' : 'local'),
+    ip: w.ip,
+    serverId: w.serverId || null,
+    serverName: w.serverName || null,
     hostname: w.hostname,
     platform: w.platform,
+    arch: w.arch,
     connectedAt: w.connectedAt
   }));
   res.json(workers);
+});
+
+// Terminate / Kill single worker socket
+app.delete('/api/agents/workers/:id', (req, res) => {
+  const workerId = req.params.id;
+  const worker = activeWorkers.get(workerId);
+  if (!worker) {
+    return res.status(404).json({ error: 'Worker o podanym ID nie został znaleziony' });
+  }
+
+  try {
+    if (worker.socket) {
+      worker.socket.emit('worker_terminate', { reason: 'Ubij z poziomu dashboardu' });
+      setTimeout(() => {
+        try { worker.socket.disconnect(true); } catch {}
+      }, 150);
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Błąd podczas wysyłania worker_terminate');
+  }
+
+  activeWorkers.delete(workerId);
+  activeAgentWorkers.set(activeWorkers.size);
+  logger.info({ workerId, name: worker.name }, '🛑 Ubito workera i rozłączono socket');
+
+  res.json({
+    success: true,
+    message: `Worker "${worker.name}" (${worker.type === 'remote' ? 'Zdalny' : 'Lokalny'}) został pomyślnie ubity i rozłączony.`
+  });
+});
+
+app.post('/api/agents/workers/:id/kill', (req, res) => {
+  const workerId = req.params.id;
+  const worker = activeWorkers.get(workerId);
+  if (!worker) {
+    return res.status(404).json({ error: 'Worker o podanym ID nie został znaleziony' });
+  }
+
+  try {
+    if (worker.socket) {
+      worker.socket.emit('worker_terminate', { reason: 'Ubij z poziomu dashboardu' });
+      setTimeout(() => {
+        try { worker.socket.disconnect(true); } catch {}
+      }, 150);
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Błąd podczas wysyłania worker_terminate');
+  }
+
+  activeWorkers.delete(workerId);
+  activeAgentWorkers.set(activeWorkers.size);
+  logger.info({ workerId, name: worker.name }, '🛑 Ubito workera i rozłączono socket');
+
+  res.json({
+    success: true,
+    message: `Worker "${worker.name}" (${worker.type === 'remote' ? 'Zdalny' : 'Lokalny'}) został pomyślnie ubity i rozłączony.`
+  });
+});
+
+// Terminate / Kill all worker sockets
+app.delete('/api/agents/workers', (req, res) => {
+  const count = activeWorkers.size;
+  for (const worker of activeWorkers.values()) {
+    try {
+      if (worker.socket) {
+        worker.socket.emit('worker_terminate', { reason: 'Masowe ubicie workerów z dashboardu' });
+        worker.socket.disconnect(true);
+      }
+    } catch {}
+  }
+  activeWorkers.clear();
+  activeAgentWorkers.set(0);
+  logger.info({ count }, '🛑 Ubito wszystkie aktywne workery');
+  res.json({ success: true, message: `Ubito wszystkie aktywne połączenia (${count}).` });
 });
 
 app.get('/api/socket-info', (req, res) => {
@@ -405,8 +516,13 @@ app.get('/api/socket-info', (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
+    type: w.type || (w.ip && w.ip !== '127.0.0.1' && w.ip !== '::1' ? 'remote' : 'local'),
+    ip: w.ip,
+    serverId: w.serverId || null,
+    serverName: w.serverName || null,
     hostname: w.hostname,
     platform: w.platform,
+    arch: w.arch,
     connectedAt: w.connectedAt
   }));
 
@@ -569,8 +685,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       console.log('Backend API and Socket.IO running under Phusion Passenger');
       try {
         startBackgroundWorker();
+        startRemoteSyncCron();
       } catch (e) {
-        logger.warn({ err: e.message }, 'Failed to start background worker');
+        logger.warn({ err: e.message }, 'Failed to start background worker or remote sync cron');
       }
     });
   } else {
@@ -579,8 +696,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       logger.info(`Prometheus metrics available at http://localhost:${port}/metrics`);
       try {
         startBackgroundWorker();
+        startRemoteSyncCron();
       } catch (e) {
-        logger.warn({ err: e.message }, 'Failed to start background worker');
+        logger.warn({ err: e.message }, 'Failed to start background worker or remote sync cron');
       }
     });
   }

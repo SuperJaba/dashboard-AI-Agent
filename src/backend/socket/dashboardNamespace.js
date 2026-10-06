@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger.js';
 import { activeAgentWorkers } from '../metrics.js';
+import { classifyWorkerSocket } from './workerClassification.js';
 
 /**
  * Registers worker/agent Socket.IO event handlers in the /dashboard namespace.
@@ -36,11 +37,17 @@ export function registerDashboardNamespace(dashNsp, activeWorkers) {
     }
 
     // Worker agent registration
+    const classification = classifyWorkerSocket(socket);
     const workerInfo = {
       id: socket.id,
-      name: socket.handshake.auth?.workerName || 'Local Worker',
+      name: socket.handshake.auth?.workerName || (classification.type === 'remote' ? 'Remote-Worker' : 'Local-Worker'),
+      type: classification.type,
+      ip: classification.ip,
+      serverId: classification.serverId,
+      serverName: classification.serverName,
       hostname: socket.handshake.auth?.hostname || 'unknown',
       platform: socket.handshake.auth?.platform || 'unknown',
+      arch: socket.handshake.auth?.arch || 'unknown',
       connectedAt: new Date().toISOString(),
       socket,
     };
@@ -49,11 +56,21 @@ export function registerDashboardNamespace(dashNsp, activeWorkers) {
     if (activeAgentWorkers && typeof activeAgentWorkers.set === 'function') {
       activeAgentWorkers.set(activeWorkers.size);
     }
-    logger.info({ workerId: socket.id, name: workerInfo.name }, '🤖 Registered Local Agent Worker (/dashboard)');
+    logger.info({ workerId: socket.id, name: workerInfo.name, type: workerInfo.type, ip: workerInfo.ip }, '🤖 Registered Agent Worker (/dashboard)');
 
     socket.on('register_worker', (data) => {
       const existing = activeWorkers.get(socket.id);
-      if (existing) Object.assign(existing, data);
+      if (existing) {
+        Object.assign(existing, data);
+        if (data.type) existing.type = data.type;
+        if (data.workerType) existing.type = data.workerType;
+        if (data.serverId) existing.serverId = Number(data.serverId);
+        if (data.serverName) existing.serverName = data.serverName;
+        if (data.name?.toLowerCase().includes('omv') || data.hostname?.toLowerCase().includes('omv')) {
+          existing.type = 'remote';
+          if (!existing.serverName) existing.serverName = 'OMV';
+        }
+      }
     });
 
     // Forward terminal stream from worker to PTY client

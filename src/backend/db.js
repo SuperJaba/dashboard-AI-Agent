@@ -10,7 +10,7 @@ export const pool = new Pool({
   user: process.env.DB_USER || process.env.PGUSER || 'SebaP',
   host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
   database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboarddb',
-  password: process.env.DB_PASSWORD || process.env.PGPASSWORD,
+  password: process.env.DB_PASSWORD ? String(process.env.DB_PASSWORD) : (process.env.PGPASSWORD ? String(process.env.PGPASSWORD) : undefined),
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
   connectionTimeoutMillis: 10000,
   options: `-c search_path=${schema},public`,
@@ -48,7 +48,16 @@ export async function safeQuery(text, params = []) {
     try {
       return await rawPoolQuery(text, params);
     } catch (err) {
-      if (err.code === 'ECONNREFUSED' || err.code === '57P01' || err.message?.includes('connect ECONNREFUSED')) {
+      if (
+        err.code === 'ECONNREFUSED' || 
+        err.code === '57P01' || 
+        err.code === '28P01' ||
+        err.code === '3D000' ||
+        err.message?.includes('ECONNREFUSED') ||
+        err.message?.includes('SASL:') ||
+        err.message?.includes('password') ||
+        err.message?.includes('authentication')
+      ) {
         console.warn('PostgreSQL connection unavailable, using fallback store:', err.message);
         useInMemoryFallback = true;
       } else {
