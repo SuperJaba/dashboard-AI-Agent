@@ -813,7 +813,7 @@ Przed przystąpieniem do głównego zadania upewnij się, że na zdalnym serwerz
 1. Przejdź do katalogu workera i upewnij się, że zależności są zainstalowane:
    mkdir -p ~/dashboard-worker && cd ~/dashboard-worker
    [ -f package.json ] || npm init -y
-   node -e 'const fs=require("fs"); try{ const p=JSON.parse(fs.readFileSync("package.json")); p.type="module"; fs.writeFileSync("package.json",JSON.stringify(p,null,2)); }catch(e){}'
+   node -e 'const fs=require("fs"); try{ const p=JSON.parse(fs.readFileSync("package.json")); p.type="module"; p.scripts=p.scripts||{}; p.scripts["agent:worker"]="node local-agent-worker.js"; p.scripts["agent.worker"]="node local-agent-worker.js"; p.scripts["worker"]="node local-agent-worker.js"; fs.writeFileSync("package.json",JSON.stringify(p,null,2)); }catch(e){}'
    ([ -d node_modules/socket.io-client ] && [ -d node_modules/node-pty ]) || npm install socket.io-client node-pty
 2. Pobierz aktualny skrypt workera:
    curl -sSL "${dashboardUrl}/api/worker/script" -o local-agent-worker.js

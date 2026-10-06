@@ -18,7 +18,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [isGeneratingToken, setIsGeneratingToken] = useState(false);
-  const [commandTab, setCommandTab] = useState<'npm' | 'node' | 'bash' | 'powershell'>('npm');
+  const [commandTab, setCommandTab] = useState<'curl' | 'npm' | 'node' | 'bash' | 'powershell'>('curl');
   const [killingWorkerId, setKillingWorkerId] = useState<string | null>(null);
   const [isKillingAll, setIsKillingAll] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -202,6 +202,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
   const cleanServerUrl = (serverUrl || defaultUrl).trim().replace(/\/$/, '');
 
   const commands = {
+    curl: `curl -sSL "${cleanServerUrl}/api/worker/run" | bash -s -- "${cleanServerUrl}" "${safeToken}" "${workerName}"`,
     npm: `DASHBOARD_SERVER_URL="${cleanServerUrl}" DASHBOARD_TOKEN="${safeToken}" WORKER_NAME="${workerName}" npm run agent:worker`,
     node: `node scripts/local-agent-worker.js ${cleanServerUrl} "${safeToken}" "${workerName}"`,
     bash: `export DASHBOARD_SERVER_URL="${cleanServerUrl}"\nexport DASHBOARD_TOKEN="${safeToken}"\nexport WORKER_NAME="${workerName}"\nnpm run agent:worker`,
@@ -652,7 +653,8 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           {/* Format Tabs */}
           <div style={{ display: 'flex', gap: '0.3rem', background: '#090d16', padding: '3px', borderRadius: '8px', border: '1px solid #1e293b' }}>
             {[
-              { id: 'npm', label: 'NPM (Zalecane)' },
+              { id: 'curl', label: 'CURL (Dowolny katalog)' },
+              { id: 'npm', label: 'NPM (Katalog repo)' },
               { id: 'node', label: 'Node Skrypt' },
               { id: 'bash', label: 'Bash / Linux' },
               { id: 'powershell', label: 'PowerShell' }
@@ -740,8 +742,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
         }}>
           <ShieldCheck size={18} style={{ color: '#10b981', flexShrink: 0, marginTop: '2px' }} />
           <div>
-            <strong>Instrukcja:</strong> Wklej powyższe polecenie w terminalu na komputerze dewelopera (w katalogu projektu).
-            Gdy worker zestawi połączenie Socket.IO, w dashboardzie pojawi się zielona ikona, a polecenia agentów (Claude Code, Antigravity, skrypty) uruchomią się bezpośrednio na Twoim PC z podglądem na żywo w przeglądarce.
+            <strong>Instrukcja:</strong> Wklej powyższe polecenie w terminalu. Zakładka <strong>CURL (Dowolny katalog)</strong> automatycznie zainicjalizuje środowisko w <code>~/dashboard-worker</code>, zainstaluje zależności i uruchomi tunel bez konieczności znajdowania się w katalogu projektu. Jeśli wolisz komendę <code>npm run agent:worker</code>, upewnij się, że uruchamiasz ją w katalogu repozytorium dashboardu lub w <code>~/dashboard-worker</code>.
           </div>
         </div>
       </div>

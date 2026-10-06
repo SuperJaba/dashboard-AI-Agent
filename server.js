@@ -399,6 +399,50 @@ app.get('/api/worker/script', (req, res) => {
   res.status(404).json({ error: 'Worker script not found' });
 });
 
+// Public Worker Bootstrap / Auto-installer
+app.get(['/api/worker/run', '/api/worker/install'], (req, res) => {
+  const serverUrl = req.query.serverUrl || `${req.protocol}://${req.get('host')}`;
+  res.setHeader('Content-Type', 'text/x-shellscript');
+  res.send(`#!/usr/bin/env bash
+set -e
+SERVER_URL="\${1:-\${DASHBOARD_SERVER_URL:-${serverUrl}}}"
+TOKEN="\${2:-\${DASHBOARD_TOKEN:-}}"
+WORKER_NAME="\${3:-\${WORKER_NAME:-$(hostname)}}"
+WORK_DIR="$HOME/dashboard-worker"
+
+echo "🚀 Inicjalizacja Local Agenta Worker w $WORK_DIR..."
+mkdir -p "$WORK_DIR" && cd "$WORK_DIR"
+
+if [ ! -f package.json ]; then
+  npm init -y >/dev/null 2>&1
+fi
+
+node -e '
+const fs = require("fs");
+try {
+  const p = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  p.type = "module";
+  p.scripts = p.scripts || {};
+  p.scripts["agent:worker"] = "node local-agent-worker.js";
+  p.scripts["agent.worker"] = "node local-agent-worker.js";
+  p.scripts["worker"] = "node local-agent-worker.js";
+  fs.writeFileSync("package.json", JSON.stringify(p, null, 2));
+} catch(e) {}
+'
+
+if [ ! -d "node_modules/socket.io-client" ] || [ ! -d "node_modules/node-pty" ]; then
+  echo "📦 Instalacja zależności workera (socket.io-client, node-pty)..."
+  npm install --no-audit --no-fund socket.io-client node-pty
+fi
+
+echo "📥 Pobieranie najnowszego skryptu workera z $SERVER_URL..."
+curl -sSL "\${SERVER_URL}/api/worker/script" -o local-agent-worker.js
+
+echo "🔌 Uruchamianie workera ($WORKER_NAME)..."
+exec env DASHBOARD_SERVER_URL="$SERVER_URL" DASHBOARD_TOKEN="$TOKEN" WORKER_NAME="$WORKER_NAME" node local-agent-worker.js
+`);
+});
+
 // API Auth Middleware
 app.use('/api', authMiddleware);
 
@@ -532,6 +576,7 @@ app.get('/api/socket-info', (req, res) => {
     workers,
     workersCount: workers.length,
     commands: {
+      curl: `curl -sSL "${serverUrl}/api/worker/run" | bash -s -- "${serverUrl}" "${token}" "Moj-PC"`,
       npm: `DASHBOARD_SERVER_URL="${serverUrl}" DASHBOARD_TOKEN="${token}" npm run agent:worker`,
       node: `node scripts/local-agent-worker.js ${serverUrl} "${token}" "Moj-PC"`,
       bash: `export DASHBOARD_SERVER_URL="${serverUrl}"\nexport DASHBOARD_TOKEN="${token}"\nnpm run agent:worker`,

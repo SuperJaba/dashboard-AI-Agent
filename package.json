@@ -21,6 +21,8 @@
     "autotest": "bash scripts/autotest_ai.sh",
     "ci-tdd": "bash scripts/ci_tdd_bot.sh",
     "agent:worker": "node scripts/local-agent-worker.js",
+    "agent.worker": "node scripts/local-agent-worker.js",
+    "worker": "node scripts/local-agent-worker.js",
     "sync-tasks": "node src/backend/scripts/syncTasks.js",
     "test:e2e": "cross-env NODE_ENV=test node tests/full_test_suite.js",
     "deploy:ct8": "bash scripts/deploy-ct8-optimized.sh",
