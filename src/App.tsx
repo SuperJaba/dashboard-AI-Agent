@@ -11,7 +11,7 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
 import { WebhookSettingsModal } from './components/WebhookSettingsModal';
-import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
+import { KpiDashboardPanel } from "./kpi/KpiDashboardPanel";
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';

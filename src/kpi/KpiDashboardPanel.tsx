@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Activity, CheckCircle, Clock, Zap, AlertTriangle } from 'lucide-react';
 import { MetricSummaryCard } from './MetricSummaryCard';
 import { TimeseriesSparkline } from './TimeseriesSparkline';
-import { TokenBurnBreakdown } from './TokenBurnBreakdown';
+import { TokenBurnBreakdown } from "./TokenBurnBreakdown.tsx";
 
 interface KpiData {
   today: {
@@ -24,6 +24,11 @@ interface KpiData {
   tokenBurn: {
     today: number;
     week: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    estimatedSavingsPln?: number;
+    byModel?: Array<{ model: string; label?: string; tokens: number; percentage?: number; cost?: string; tier?: string }>;
+    history?: Array<{ hour: string; tokens: number }>;
   };
 }
 
@@ -92,10 +97,12 @@ export function KpiDashboardPanel() {
     { time: '5', value: data.today.tasks + 1 },
   ];
 
-  const tokenModels = [
-    { model: 'Dzisiaj', tokens: data.tokenBurn.today },
-    { model: 'Tydzień', tokens: data.tokenBurn.week },
-  ];
+  const tokenModels = Array.isArray(data.tokenBurn.byModel) && data.tokenBurn.byModel.length > 0
+    ? data.tokenBurn.byModel.map((m) => ({ model: m.label || m.model, tokens: m.tokens }))
+    : [
+        { model: 'Dzisiaj', tokens: data.tokenBurn.today },
+        { model: 'Tydzień', tokens: data.tokenBurn.week },
+      ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
@@ -136,7 +143,10 @@ export function KpiDashboardPanel() {
           <TimeseriesSparkline data={sampleSparkline} color="var(--primary, #38bdf8)" />
         </div>
         <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Podział zużycia tokenów</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Podział zużycia tokenów</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>dziś: {data.tokenBurn.today.toLocaleString()}</span>
+          </div>
           <TokenBurnBreakdown data={tokenModels} />
         </div>
       </div>

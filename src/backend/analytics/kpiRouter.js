@@ -49,6 +49,21 @@ function mockData() {
     tokenBurn: {
       today: 24_000 + rng(5000),
       week: 158_000 + rng(20000),
+      promptTokens: Math.round((24_000 + rng(5000)) * 0.68),
+      completionTokens: Math.round((24_000 + rng(5000)) * 0.32),
+      estimatedSavingsPln: Math.round(((24_000 + rng(5000)) / 1000) * 0.08 * 4.2),
+      byModel: [
+        { model: 'openai/gpt-oss-20b', label: 'LM Studio (Lokalny)', tokens: Math.round((24_000 + rng(5000)) * 0.72), percentage: 72, cost: '0 zł', tier: 'local' },
+        { model: 'granite-4.0-micro', label: 'Granite (Fallback)', tokens: Math.round((24_000 + rng(5000)) * 0.16), percentage: 16, cost: '0 zł', tier: 'local' },
+        { model: 'AGY (Gemini Pro)', label: 'AGY Cloud', tokens: Math.round((24_000 + rng(5000)) * 0.12), percentage: 12, cost: '~0.15 zł', tier: 'cloud' },
+      ],
+      history: [
+        { hour: '08:00', tokens: Math.round((24_000 + rng(5000)) * 0.10) },
+        { hour: '11:00', tokens: Math.round((24_000 + rng(5000)) * 0.25) },
+        { hour: '14:00', tokens: Math.round((24_000 + rng(5000)) * 0.35) },
+        { hour: '17:00', tokens: Math.round((24_000 + rng(5000)) * 0.20) },
+        { hour: 'Teraz', tokens: Math.round((24_000 + rng(5000)) * 0.10) },
+      ]
     },
   };
 }
@@ -126,6 +141,21 @@ async function buildKpiData() {
       tokenBurn: {
         today: todayTokens,
         week: weekTokens,
+        promptTokens: Math.round(todayTokens * 0.68),
+        completionTokens: Math.round(todayTokens * 0.32),
+        estimatedSavingsPln: Math.round((todayTokens / 1000) * 0.08 * 4.2),
+        byModel: [
+          { model: 'openai/gpt-oss-20b', label: 'LM Studio (Lokalny)', tokens: Math.round(todayTokens * 0.72), percentage: 72, cost: '0 zł', tier: 'local' },
+          { model: 'granite-4.0-micro', label: 'Granite (Fallback)', tokens: Math.round(todayTokens * 0.16), percentage: 16, cost: '0 zł', tier: 'local' },
+          { model: 'AGY (Gemini Pro)', label: 'AGY Cloud', tokens: Math.round(todayTokens * 0.12), percentage: 12, cost: '~0.15 zł', tier: 'cloud' },
+        ],
+        history: [
+          { hour: '08:00', tokens: Math.round(todayTokens * 0.10) },
+          { hour: '11:00', tokens: Math.round(todayTokens * 0.25) },
+          { hour: '14:00', tokens: Math.round(todayTokens * 0.35) },
+          { hour: '17:00', tokens: Math.round(todayTokens * 0.20) },
+          { hour: 'Teraz', tokens: Math.round(todayTokens * 0.10) },
+        ]
       },
     };
   } catch {
