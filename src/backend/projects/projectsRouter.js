@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { spawn, exec, execFile, execSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import * as agentsRepo from '../agents/agentsRepository.js';
@@ -13,6 +14,9 @@ import { detectTechnology } from './techDetector.js';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../auth/jwtSecret.js';
 import { resolveDashboardUrl } from '../utils/network.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const projectsRouter = express.Router();
 
@@ -368,6 +372,16 @@ projectsRouter.patch('/projects/:id/tasks/:taskId', async (req, res) => {
   }
 });
 
+// Public Sync Tasks Script Download
+projectsRouter.get(['/scripts/syncTasks.js', '/scripts/sync-tasks.js', '/scripts/sync-tasks'], (req, res) => {
+  const scriptPath = path.resolve(__dirname, '../scripts/syncTasks.js');
+  if (fs.existsSync(scriptPath)) {
+    res.setHeader('Content-Type', 'text/javascript');
+    return res.sendFile(scriptPath);
+  }
+  res.status(404).json({ error: 'Sync tasks script not found' });
+});
+
 // Synchronize tasks between workspace files and DB for a specific project
 projectsRouter.post('/projects/:id/sync-tasks', async (req, res) => {
   try {
@@ -378,9 +392,23 @@ projectsRouter.post('/projects/:id/sync-tasks', async (req, res) => {
   }
 });
 
-// Synchronize tasks across all projects
+// Synchronize tasks across all projects or by cwd/path
 projectsRouter.post('/projects/sync-tasks', async (req, res) => {
   try {
+    const { cwd, path: targetPath, projectId } = req.body || {};
+    if (projectId) {
+      const result = await syncProjectTasks(projectId, req.body || {});
+      return res.json([result]);
+    }
+    if (cwd || targetPath) {
+      const searchPath = path.resolve(cwd || targetPath);
+      const projects = await projectsRepo.getProjects();
+      const matched = projects.find(p => p.path && (path.resolve(p.path) === searchPath || searchPath.startsWith(path.resolve(p.path))));
+      if (matched) {
+        const result = await syncProjectTasks(matched.id, req.body || {});
+        return res.json([result]);
+      }
+    }
     const results = await syncAllProjects(req.body || {});
     res.json(results);
   } catch (err) {
@@ -850,6 +878,7 @@ projectsRouter.post('/deploy', async (req, res) => {
       }
     }
 
+    const dashboardUrl = resolveDashboardUrl(req);
     const scriptPath = path.join(targetDir, '.start_agent.sh');
     
     if (remoteServer) {
@@ -858,7 +887,6 @@ projectsRouter.post('/deploy', async (req, res) => {
       || 'Sprawdź stan serwera i zoptymalizuj go.'}. Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (użyliśmy BatchMode=yes).`;
 
       if (setupTunnel) {
-        const dashboardUrl = resolveDashboardUrl(req);
         const workerToken = jwt.sign(
           { id: req.user?.id || 1, username: req.user?.username || 'worker-client', isWorker: true, serverId: remoteServer.id },
           JWT_SECRET,
@@ -883,6 +911,9 @@ Przed przystąpieniem do głównego zadania upewnij się, że na zdalnym serwerz
 [KROK 2 - ZADANIE GŁÓWNE]:
 ${remotePrompt || 'Sprawdź stan serwera i zoptymalizuj go.'}
 
+Po wykonaniu zadania ZAWSZE wykonaj synchronizację zadań:
+  npm run sync-tasks 2>/dev/null || node src/backend/scripts/syncTasks.js 2>/dev/null || (mkdir -p src/backend/scripts && curl -sSL "${dashboardUrl}/api/scripts/syncTasks.js" -o src/backend/scripts/syncTasks.js && node src/backend/scripts/syncTasks.js)
+
 Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używaj poleceń w pełni zautomatyzowanych, bez interaktywnych promptów (BatchMode=yes).`;
       }
 
@@ -890,7 +921,18 @@ Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używa
       agentCmd = isAntigravity ? `${agentBaseCmd} -i "$AGENT_PROMPT"` : `${agentBaseCmd} "$AGENT_PROMPT"`;
     } else if (tasks && tasks.length > 0) {
       const taskListStr = tasks.map((t, idx) => `${idx + 1}. [${t.status === 'completed' ? 'REWORK' : 'TODO'}] ${t.title}`).join('\n');
-      const promptText = `Zrealizuj poniższe zadania dla tego projektu:\n${taskListStr}\n\nPo ich wykonaniu przedstaw podsumowanie zrobionych prac.`;
+      const promptText = `Zrealizuj poniższe zadania dla tego projektu:
+${taskListStr}
+
+WAŻNE: Po zrealizowaniu zadań ZAWSZE wykonaj synchronizację zadań w projekcie:
+  node src/backend/scripts/syncTasks.js
+lub:
+  npm run sync-tasks
+
+Jeżeli plik src/backend/scripts/syncTasks.js nie istnieje w projekcie, pobierz go z hosta i uruchom:
+  mkdir -p src/backend/scripts && curl -sSL "${dashboardUrl}/api/scripts/syncTasks.js" -o src/backend/scripts/syncTasks.js && node src/backend/scripts/syncTasks.js
+
+Po wykonaniu synchronizacji przedstaw podsumowanie zrobionych prac.`;
       promptBlock = `AGENT_PROMPT=$(cat << 'EOF_AGENT_PROMPT'\n${promptText}\nEOF_AGENT_PROMPT\n)\n`;
       agentCmd = isAntigravity ? `${agentBaseCmd} -i "$AGENT_PROMPT"` : `${agentBaseCmd} "$AGENT_PROMPT"`;
     } else {
@@ -898,7 +940,8 @@ Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używa
     }
       
     const exportEnvLines = [
-      'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL OPENAI_MODEL ANTHROPIC_AUTH_TOKEN'
+      'unset ANTHROPIC_BASE_URL OPENAI_BASE_URL ANTHROPIC_API_KEY OPENAI_API_KEY ANTHROPIC_MODEL LLM_MODEL OPENAI_MODEL ANTHROPIC_AUTH_TOKEN',
+      `export DASHBOARD_URL="${dashboardUrl}"`
     ];
       
     // Configure environment variables depending on the agent
@@ -1046,11 +1089,32 @@ echo -e " \\033[1;32m[DONE]\\033[0m"
 echo -e "\\033[1;33m🔑 Authenticating Provider (${llmName || 'Custom Provider'}): ${llmModel || 'default model'}... \\033[1;32m[SUCCESS]\\033[0m"
 ${promptBlock}echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
+
+# Auto-sync tasks after agent completes
+echo -e "\\033[1;34m🔄 Synchronizing tasks (sync-tasks)...\\033[0m"
+if [ -f "src/backend/scripts/syncTasks.js" ]; then
+    node src/backend/scripts/syncTasks.js || npm run sync-tasks 2>/dev/null || true
+elif npm run sync-tasks >/dev/null 2>&1; then
+    npm run sync-tasks || true
+else
+    mkdir -p src/backend/scripts 2>/dev/null || true
+    curl -sSL "${dashboardUrl}/api/scripts/syncTasks.js" -o src/backend/scripts/syncTasks.js 2>/dev/null && node src/backend/scripts/syncTasks.js || true
+fi
+
 exec bash
 `;
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
+    try {
+      const targetScriptDir = path.join(targetDir, 'src', 'backend', 'scripts');
+      const targetSyncScript = path.join(targetScriptDir, 'syncTasks.js');
+      const sourceSyncScript = path.resolve(__dirname, '../scripts/syncTasks.js');
+      if (!fs.existsSync(targetSyncScript) && fs.existsSync(sourceSyncScript)) {
+        fs.mkdirSync(targetScriptDir, { recursive: true });
+        fs.copyFileSync(sourceSyncScript, targetSyncScript);
+      }
+    } catch {}
     fs.writeFileSync(scriptPath, scriptContent);
     fs.chmodSync(scriptPath, '755');
       

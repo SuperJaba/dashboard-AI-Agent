@@ -401,6 +401,16 @@ app.get('/api/worker/script', (req, res) => {
   res.status(404).json({ error: 'Worker script not found' });
 });
 
+// Public Sync Tasks Script Download
+app.get(['/api/scripts/syncTasks.js', '/api/scripts/sync-tasks.js', '/api/scripts/sync-tasks', '/scripts/syncTasks.js'], (req, res) => {
+  const scriptPath = path.join(__dirname, 'src', 'backend', 'scripts', 'syncTasks.js');
+  if (fs.existsSync(scriptPath)) {
+    res.setHeader('Content-Type', 'text/javascript');
+    return res.sendFile(scriptPath);
+  }
+  res.status(404).json({ error: 'Sync tasks script not found' });
+});
+
 // Public Worker Bootstrap / Auto-installer
 app.get(['/api/worker/run', '/api/worker/install'], (req, res) => {
   const serverUrl = req.query.serverUrl || `${req.protocol}://${req.get('host')}`;

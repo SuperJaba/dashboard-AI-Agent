@@ -90,4 +90,37 @@ describe('POST /deploy agent resolution', () => {
     expect(res.body.scriptContent).not.toContain('--oss');
     expect(res.body.scriptContent).not.toContain('CODEX_OSS_BASE_URL');
   });
+
+  it('includes sync-tasks instructions and automated post-run sync in scriptContent when tasks are provided', async () => {
+    const res = await request(app)
+      .post('/deploy')
+      .send({
+        agent: 'Claude Code',
+        tasks: [{ title: 'Write unit tests', status: 'pending' }],
+        useBrowserTerminal: true
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    // Instruction in prompt
+    expect(res.body.scriptContent).toContain('node src/backend/scripts/syncTasks.js');
+    expect(res.body.scriptContent).toContain('/api/scripts/syncTasks.js');
+    // Post-execution fallback in bash script
+    expect(res.body.scriptContent).toContain('Synchronizing tasks (sync-tasks)');
+  });
+
+  it('serves syncTasks.js via public download route', async () => {
+    const res = await request(app).get('/scripts/syncTasks.js');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/javascript');
+    expect(res.text).toContain('Task Synchronization Engine');
+  });
+
+  it('synchronizes tasks via POST /projects/sync-tasks', async () => {
+    const res = await request(app)
+      .post('/projects/sync-tasks')
+      .send({ cwd: process.cwd() });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
 });
