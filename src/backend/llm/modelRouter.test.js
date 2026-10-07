@@ -29,7 +29,7 @@ describe('T5 Model Routing', () => {
     it('routes low and medium tasks to LM Studio local models', () => {
       const lowRoute = selectModelRoute('Wypisz listę plików');
       expect(lowRoute.provider).toBe('lm-studio');
-      expect(lowRoute.model).toBe('openai/gpt-oss-20b');
+      expect(lowRoute.model).toBe('unsloth/Qwen3.5-4B-MTP-GGUF');
       expect(lowRoute.fallbackModel).toBe('granite-4.0-micro');
 
       const medRoute = selectModelRoute('Dodaj komponent walidacji formularza');

@@ -67,16 +67,6 @@ export async function buildKpiData() {
     }
   }
 
-  // W przypadku braku znaczników czasu dla starszych zadań:
-  if (tasksToday === 0 && completedTasks > 0) {
-    tasksToday = 29; // 29 zarchiwizowanych dzisiaj zadań z repozytorium stock-dash
-    tasksTodayCompleted = 29;
-  }
-  if (tasks7Days === 0 && completedTasks > 0) {
-    tasks7Days = completedTasks;
-    tasks7DaysCompleted = completedTasks;
-  }
-
   // 2. Pobierz serwery SSH, agentów CLI i aktywny serwer Unsloth
   let servers = [];
   let cliAgents = [];
@@ -107,11 +97,15 @@ export async function buildKpiData() {
     localTasks: 0,
     cloudTasks: 0,
     circuitBreakerState: 'CLOSED',
-    avgLocalLatencyMs: 380,
-    avgCloudLatencyMs: 1450,
-    primaryLocalModel: 'openai/gpt-oss-20b',
+    avgLocalLatencyMs: 0,
+    avgCloudLatencyMs: 0,
+    primaryLocalModel: 'unsloth/Qwen3.5-4B-MTP-GGUF',
     cloudModel: 'AGY (Gemini Pro)',
     fallbackLocalModel: 'granite-4.0-micro',
+    localTokens: 0,
+    cloudTokens: 0,
+    totalPromptTokens: 0,
+    totalCompletionTokens: 0,
   };
 
   try {
@@ -124,19 +118,16 @@ export async function buildKpiData() {
   const cloudLlmTasks = routing.cloudTasks || 0;
   const totalLlmTasks = localLlmTasks + cloudLlmTasks;
 
-  // Realne tokeny z zadań projektowych i promptów
-  const routingTokens = (localLlmTasks * 630) + (cloudLlmTasks * 1850);
-  const projectTokens = (completedTasks * 140);
-  const todayTokens = projectTokens + routingTokens;
-  const weekTokens = Math.round(todayTokens * 5.8) + (totalTasks * 220);
+  // Realne tokeny z wykonanych wywołań modeli
+  const todayTokens = (routing.localTokens || 0) + (routing.cloudTokens || 0);
+  const weekTokens = todayTokens;
 
   // Proporcje modeli (Unsloth vs AGY Cloud)
-  const localRatio = totalLlmTasks > 0 ? (localLlmTasks / totalLlmTasks) : 0.82;
-  const cloudRatio = 1 - localRatio;
+  const localRatio = totalLlmTasks > 0 ? (localLlmTasks / totalLlmTasks) : 0;
+  const cloudRatio = totalLlmTasks > 0 ? (cloudLlmTasks / totalLlmTasks) : 0;
 
-  const unslothTokens = Math.round(todayTokens * localRatio);
-  const cloudTokens = Math.round(todayTokens * cloudRatio);
-  const fallbackTokens = Math.round(todayTokens * 0.08);
+  const unslothTokens = routing.localTokens || 0;
+  const cloudTokens = routing.cloudTokens || 0;
 
   // Oszczędności w PLN z lokalnej inferencji Unsloth (0.08 USD / 1k tokenów * 4.2 PLN)
   const estimatedSavingsPln = Math.round((unslothTokens / 1000) * 0.08 * 4.2);
@@ -157,30 +148,22 @@ export async function buildKpiData() {
       percentage: Math.round(cloudRatio * 100),
       cost: cloudTokens > 0 ? `~${((cloudTokens / 1000) * 0.03 * 4.2).toFixed(2)} zł` : '0 zł',
       tier: 'cloud'
-    },
-    {
-      model: routing.fallbackLocalModel || 'granite-4.0-micro',
-      label: 'Granite (Fallback)',
-      tokens: fallbackTokens,
-      percentage: 8,
-      cost: '0 zł',
-      tier: 'local'
     }
   ];
 
   const history = [
-    { hour: '08:00', tokens: Math.round(todayTokens * 0.12) },
-    { hour: '11:00', tokens: Math.round(todayTokens * 0.28) },
-    { hour: '14:00', tokens: Math.round(todayTokens * 0.35) },
-    { hour: '17:00', tokens: Math.round(todayTokens * 0.18) },
-    { hour: 'Teraz', tokens: Math.round(todayTokens * 0.07) },
+    { hour: '08:00', tokens: 0 },
+    { hour: '11:00', tokens: 0 },
+    { hour: '14:00', tokens: 0 },
+    { hour: '17:00', tokens: 0 },
+    { hour: 'Teraz', tokens: todayTokens },
   ];
 
-  const todaySuccessRate = tasksToday > 0 ? Math.round((tasksTodayCompleted / tasksToday) * 100) : (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100);
-  const sevenDaysSuccessRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100;
-  const thirtyDaysSuccessRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100;
+  const todaySuccessRate = tasksToday > 0 ? Math.round((tasksTodayCompleted / tasksToday) * 100) : 0;
+  const sevenDaysSuccessRate = tasks7Days > 0 ? Math.round((tasks7DaysCompleted / tasks7Days) * 100) : (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
+  const thirtyDaysSuccessRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  const avgDuration = routing.avgLocalLatencyMs ? Math.round((routing.avgLocalLatencyMs / 1000) * 10) / 10 : 0.4;
+  const avgDuration = routing.avgLocalLatencyMs > 0 ? Math.round((routing.avgLocalLatencyMs / 1000) * 10) / 10 : 0;
 
   const topErrors = [];
   if (routing.circuitBreakerState && routing.circuitBreakerState !== 'CLOSED') {

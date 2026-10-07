@@ -54,7 +54,7 @@ describe('ModelRoutingWidget', () => {
 
     vi.mocked(apiClient.post).mockResolvedValue({
       success: true,
-      route: { tier: 'low', provider: 'lm-studio', model: 'openai/gpt-oss-20b' }
+      result: { durationMs: 280, model: 'unsloth/Qwen3.5-4B-MTP-GGUF', provider: 'lm-studio' }
     });
 
     render(<ModelRoutingWidget />);
@@ -65,10 +65,33 @@ describe('ModelRoutingWidget', () => {
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/llm/route-prompt',
-        expect.objectContaining({ dryRun: true })
+        expect.objectContaining({ dryRun: false })
       );
     });
 
     expect(await screen.findByText(/Skierowano do: Unsloth/i)).toBeInTheDocument();
+  });
+
+  it('renders honest zero state with 0% and brak wywołań when no tasks have been executed', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      localTasks: 0,
+      cloudTasks: 0,
+      circuitBreakerState: 'CLOSED',
+      primaryLocalModel: 'openai/gpt-oss-20b',
+      fallbackLocalModel: 'granite-4.0-micro',
+      cloudModel: 'AGY (Gemini Pro)',
+      avgLocalLatencyMs: 0,
+      avgCloudLatencyMs: 0,
+    });
+
+    render(<ModelRoutingWidget />);
+
+    await waitFor(() => {
+      expect(apiClient.get).toHaveBeenCalledWith('/api/llm/routing-stats');
+    });
+
+    expect(screen.getAllByText(/\(0 zadań\)/i)).toHaveLength(2);
+    expect(screen.getByText(/Śr\. czas: brak wywołań \(0 zł\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Śr\. czas: brak wywołań$/i)).toBeInTheDocument();
   });
 });

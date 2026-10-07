@@ -8,9 +8,9 @@ import { scoreComplexity } from './complexityScorer.js';
 import { getProvider } from './providers/index.js';
 import { logger } from '../utils/logger.js';
 
-const LOCAL_URL = process.env.LLM_LOCAL_URL || 'http://10.10.10.30:8888/v1';
+const LOCAL_URL = process.env.LLM_LOCAL_URL || 'http://127.0.0.1:8888/v1';
 const LOCAL_SERVER_NAME = process.env.LLM_LOCAL_NAME || 'Unsloth';
-const LOCAL_PRIMARY = process.env.LLM_LOCAL_MODEL || 'openai/gpt-oss-20b';
+const LOCAL_PRIMARY = process.env.LLM_LOCAL_MODEL || 'unsloth/Qwen3.5-4B-MTP-GGUF';
 const LOCAL_FALLBACK = process.env.LLM_FALLBACK_MODEL || 'granite-4.0-micro';
 const CLOUD_MODEL = process.env.LLM_CLOUD_MODEL || 'AGY (Gemini Pro)';
 const LOCAL_API_KEY = process.env.LLM_LOCAL_API_KEY || 'sk-unsloth-2c3bc42606e2f3af20c976a428dd764c';
@@ -53,13 +53,17 @@ class CircuitBreaker {
 
 export const localCircuitBreaker = new CircuitBreaker(3, 60_000);
 
-// In-memory runtime telemetry store with realistic baseline
+// In-memory runtime telemetry store — strictly records actual live calls
 const routingStats = {
-  localTasks: 84,
-  cloudTasks: 16,
+  localTasks: 0,
+  cloudTasks: 0,
   fallbackTasks: 0,
-  totalLatencyLocalMs: 31920, // 84 * 380ms
-  totalLatencyCloudMs: 23200, // 16 * 1450ms
+  totalLatencyLocalMs: 0,
+  totalLatencyCloudMs: 0,
+  localTokens: 0,
+  cloudTokens: 0,
+  totalPromptTokens: 0,
+  totalCompletionTokens: 0,
   recentCalls: [],
 };
 
@@ -71,19 +75,29 @@ export function recordRoutingCall({
   provider = 'lm-studio',
   model = LOCAL_PRIMARY,
   durationMs = 0,
+  promptTokens = 0,
+  completionTokens = 0,
+  totalTokens = 0,
   success = true,
   fallbackOccurred = false,
   fallbackReason = null,
   promptPreview = ''
 }) {
   const isLocal = provider === 'lm-studio';
+  const tokens = totalTokens || (promptTokens + completionTokens);
+
   if (isLocal) {
     routingStats.localTasks += 1;
     routingStats.totalLatencyLocalMs += durationMs;
+    routingStats.localTokens += tokens;
   } else {
     routingStats.cloudTasks += 1;
     routingStats.totalLatencyCloudMs += durationMs;
+    routingStats.cloudTokens += tokens;
   }
+
+  routingStats.totalPromptTokens += promptTokens;
+  routingStats.totalCompletionTokens += completionTokens;
 
   if (fallbackOccurred) {
     routingStats.fallbackTasks += 1;
@@ -96,6 +110,9 @@ export function recordRoutingCall({
     provider,
     model,
     durationMs,
+    promptTokens,
+    completionTokens,
+    totalTokens: tokens,
     success,
     fallbackOccurred,
     fallbackReason,
@@ -145,11 +162,11 @@ export async function checkUnslothStatus() {
 export function getRoutingStats() {
   const avgLocalLatencyMs = routingStats.localTasks > 0
     ? Math.round(routingStats.totalLatencyLocalMs / routingStats.localTasks)
-    : 380; // default baseline
+    : 0;
 
   const avgCloudLatencyMs = routingStats.cloudTasks > 0
     ? Math.round(routingStats.totalLatencyCloudMs / routingStats.cloudTasks)
-    : 1450; // default baseline
+    : 0;
 
   return {
     localTasks: routingStats.localTasks,
@@ -158,12 +175,16 @@ export function getRoutingStats() {
     circuitBreakerState: localCircuitBreaker.state,
     failureCount: localCircuitBreaker.failureCount,
     localServerName: LOCAL_SERVER_NAME,
-    primaryLocalModel: LOCAL_PRIMARY,
+    primaryLocalModel: unslothCache.model || LOCAL_PRIMARY,
     fallbackLocalModel: LOCAL_FALLBACK,
     cloudModel: CLOUD_MODEL,
     localUrl: LOCAL_URL,
     avgLocalLatencyMs,
     avgCloudLatencyMs,
+    localTokens: routingStats.localTokens,
+    cloudTokens: routingStats.cloudTokens,
+    totalPromptTokens: routingStats.totalPromptTokens,
+    totalCompletionTokens: routingStats.totalCompletionTokens,
     unslothLive: unslothCache,
     recentCalls: routingStats.recentCalls
   };
@@ -178,6 +199,10 @@ export function resetRoutingStats() {
   routingStats.fallbackTasks = 0;
   routingStats.totalLatencyLocalMs = 0;
   routingStats.totalLatencyCloudMs = 0;
+  routingStats.localTokens = 0;
+  routingStats.cloudTokens = 0;
+  routingStats.totalPromptTokens = 0;
+  routingStats.totalCompletionTokens = 0;
   routingStats.recentCalls = [];
   localCircuitBreaker.recordSuccess();
 }
@@ -259,7 +284,10 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
         tier: route.tier,
         provider: 'lm-studio',
         model: route.model,
-        durationMs: result.durationMs || 350,
+        durationMs: Math.round(result.durationMs || 0),
+        promptTokens: result.usage?.promptTokens || 0,
+        completionTokens: result.usage?.completionTokens || 0,
+        totalTokens: result.usage?.totalTokens || 0,
         success: true,
         fallbackOccurred: false,
         promptPreview: prompt
@@ -286,7 +314,10 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
             tier: route.tier,
             provider: 'lm-studio',
             model: route.fallbackModel,
-            durationMs: fallbackResult.durationMs || 420,
+            durationMs: Math.round(fallbackResult.durationMs || 0),
+            promptTokens: fallbackResult.usage?.promptTokens || 0,
+            completionTokens: fallbackResult.usage?.completionTokens || 0,
+            totalTokens: fallbackResult.usage?.totalTokens || 0,
             success: true,
             fallbackOccurred: true,
             fallbackReason: 'primary_local_failed',
@@ -314,7 +345,10 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
         tier: 'high',
         provider: 'agy',
         model: CLOUD_MODEL,
-        durationMs: agyResult.durationMs || 1450,
+        durationMs: Math.round(agyResult.durationMs || 0),
+        promptTokens: agyResult.usage?.promptTokens || 0,
+        completionTokens: agyResult.usage?.completionTokens || 0,
+        totalTokens: agyResult.usage?.totalTokens || 0,
         success: true,
         fallbackOccurred: true,
         fallbackReason: 'local_providers_failed',
@@ -340,7 +374,10 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
     tier: 'high',
     provider: 'agy',
     model: route.model || CLOUD_MODEL,
-    durationMs: result.durationMs || 1200,
+    durationMs: Math.round(result.durationMs || 0),
+    promptTokens: result.usage?.promptTokens || 0,
+    completionTokens: result.usage?.completionTokens || 0,
+    totalTokens: result.usage?.totalTokens || 0,
     success: true,
     fallbackOccurred: Boolean(route.fallbackReason),
     fallbackReason: route.fallbackReason,

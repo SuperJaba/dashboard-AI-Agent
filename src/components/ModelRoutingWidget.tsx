@@ -31,16 +31,16 @@ interface ModelRoutingStats {
 
 export function ModelRoutingWidget() {
   const [stats, setStats] = useState<ModelRoutingStats>({
-    localTasks: 84,
-    cloudTasks: 16,
+    localTasks: 0,
+    cloudTasks: 0,
     circuitBreakerState: 'CLOSED',
     localServerName: 'Unsloth',
-    primaryLocalModel: 'openai/gpt-oss-20b',
+    primaryLocalModel: 'unsloth/Qwen3.5-4B-MTP-GGUF',
     fallbackLocalModel: 'granite-4.0-micro',
     cloudModel: 'AGY (Gemini Pro)',
-    localUrl: 'http://10.10.10.30:8888',
-    avgLocalLatencyMs: 380,
-    avgCloudLatencyMs: 1450,
+    localUrl: 'http://127.0.0.1:8888',
+    avgLocalLatencyMs: 0,
+    avgCloudLatencyMs: 0,
     recentCalls: [],
   });
   const [loading, setLoading] = useState(false);
@@ -76,27 +76,23 @@ export function ModelRoutingWidget() {
         : 'Zaprojektuj rozproszoną architekturę mikroserwisów i usuń deadlock transakcji bazodanowych';
 
       const res = await apiClient.post<{
-        dryRun?: boolean;
-        route?: { tier: string; provider: string; model: string };
+        success?: boolean;
+        result?: { durationMs: number; model: string; provider: string };
         stats?: ModelRoutingStats;
       }>('/api/llm/route-prompt', {
         prompt,
-        dryRun: true
+        dryRun: false
       });
 
-      // Zarejestruj wywołanie na żywo
-      await apiClient.post('/api/llm/record-call', {
-        tier: res.route?.tier || (type === 'local' ? 'low' : 'high'),
-        provider: res.route?.provider || (type === 'local' ? 'lm-studio' : 'agy'),
-        model: res.route?.model || (type === 'local' ? stats.primaryLocalModel : stats.cloudModel),
-        durationMs: type === 'local' ? Math.floor(280 + Math.random() * 120) : Math.floor(1200 + Math.random() * 400),
-        promptPreview: prompt,
-        success: true
-      });
+      if (res.stats) {
+        setStats(res.stats);
+      } else {
+        await fetchStats();
+      }
 
-      await fetchStats();
+      const durationStr = res.result?.durationMs ? ` (~${res.result.durationMs}ms)` : '';
       const localName = stats.localServerName || 'Unsloth';
-      setTestResult(`Skierowano do: ${type === 'local' ? `${localName} (Lokalny)` : 'AGY Cloud'}`);
+      setTestResult(`Skierowano do: ${type === 'local' ? `${localName} (Lokalny)` : 'AGY Cloud'}${durationStr}`);
       setTimeout(() => setTestResult(null), 3000);
     } catch {
       setTestResult('Błąd podczas testu routingu');
@@ -106,7 +102,8 @@ export function ModelRoutingWidget() {
   };
 
   const total = stats.localTasks + stats.cloudTasks;
-  const localRatio = total > 0 ? Math.round((stats.localTasks / total) * 100) : (stats.localTasks === 0 && stats.cloudTasks === 0 ? 0 : 0);
+  const localRatio = total > 0 ? Math.round((stats.localTasks / total) * 100) : 0;
+  const cloudRatio = total > 0 ? 100 - localRatio : 0;
 
   const isClosed = stats.circuitBreakerState === 'CLOSED';
 
@@ -175,7 +172,7 @@ export function ModelRoutingWidget() {
             Fallback: <code>{stats.fallbackLocalModel}</code>
           </span>
           <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>
-            Śr. czas: ~{stats.avgLocalLatencyMs}ms (0 zł)
+            {stats.avgLocalLatencyMs > 0 ? `Śr. czas: ~${stats.avgLocalLatencyMs}ms (0 zł)` : 'Śr. czas: brak wywołań (0 zł)'}
           </span>
         </div>
 
@@ -186,7 +183,7 @@ export function ModelRoutingWidget() {
             <Cloud size={14} color="#818cf8" />
           </div>
           <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#818cf8' }}>
-            {total > 0 ? 100 - localRatio : 0}% <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--text-muted)' }}>({stats.cloudTasks} zadań)</span>
+            {cloudRatio}% <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--text-muted)' }}>({stats.cloudTasks} zadań)</span>
           </span>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
             Model: <code style={{ color: '#818cf8' }}>{stats.cloudModel}</code>
@@ -195,7 +192,7 @@ export function ModelRoutingWidget() {
             Złożone: Refactoring, Architektura
           </span>
           <span style={{ fontSize: '0.7rem', color: '#818cf8', fontWeight: 600 }}>
-            Śr. czas: ~{stats.avgCloudLatencyMs}ms
+            {stats.avgCloudLatencyMs > 0 ? `Śr. czas: ~${stats.avgCloudLatencyMs}ms` : 'Śr. czas: brak wywołań'}
           </span>
         </div>
       </div>
