@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, Download, Upload, Check, Trash2, Edit3, X, Cpu, Globe, Key, Layers } from 'lucide-react';
+import { Plus, Download, Upload, Check, Trash2, Edit3, X, Cpu, Globe, Key, Layers, RefreshCw } from 'lucide-react';
 import { apiFetch } from './shared/api-client';
 
 export interface LlmServer {
@@ -21,6 +21,10 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
   const [showModal, setShowModal] = useState(false);
   const [editingServer, setEditingServer] = useState<LlmServer | null>(null);
   const [notification, setNotification] = useState('');
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [fetchModelsError, setFetchModelsError] = useState<string | null>(null);
+  const [useCustomModel, setUseCustomModel] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -72,14 +76,52 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
     }
   };
 
+  const handleFetchModels = useCallback(async (targetUrl = formData.url, apiKey = formData.api_key) => {
+    if (!targetUrl || targetUrl.trim().length < 5) return;
+    setFetchingModels(true);
+    setFetchModelsError(null);
+    try {
+      const res = await apiFetch('/api/llm-servers/fetch-models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl.trim(), apiKey: apiKey.trim() })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.models) && data.models.length > 0) {
+          setDiscoveredModels(data.models);
+          setFormData(prev => ({
+            ...prev,
+            model: prev.model && data.models.includes(prev.model)
+              ? prev.model
+              : (data.loadedModel || data.models[0])
+          }));
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setFetchModelsError(errData.error || 'Nie udało się pobrać modeli z serwera');
+      }
+    } catch {
+      setFetchModelsError('Błąd połączenia z serwerem');
+    } finally {
+      setFetchingModels(false);
+    }
+  }, [formData.url, formData.api_key]);
+
   const handleOpenNewModal = () => {
     setEditingServer(null);
+    setDiscoveredModels([]);
+    setFetchModelsError(null);
+    setUseCustomModel(false);
     setFormData({ name: '', url: '', api_key: '', model: '', provider: 'LM Studio' });
     setShowModal(true);
   };
 
   const handleOpenEditModal = (server: LlmServer) => {
     setEditingServer(server);
+    setDiscoveredModels([]);
+    setFetchModelsError(null);
+    setUseCustomModel(false);
     setFormData({
       name: server.name || '',
       url: server.url || '',
@@ -88,6 +130,9 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
       provider: server.provider || 'Custom'
     });
     setShowModal(true);
+    if (server.url) {
+      handleFetchModels(server.url, server.api_key || '');
+    }
   };
 
   const handleSaveServer = async (e: React.FormEvent) => {
@@ -357,25 +402,78 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 </select>
               </div>
               <div>
-                <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>URL API (Base URL)</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <label className="info-label" style={{ fontSize: '0.75rem', margin: 0 }}>URL API (Base URL)</label>
+                  <button
+                    type="button"
+                    disabled={fetchingModels || !formData.url}
+                    onClick={() => handleFetchModels(formData.url, formData.api_key)}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary, #38bdf8)', fontSize: '0.72rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: 0 }}
+                  >
+                    <RefreshCw size={11} className={fetchingModels ? 'animate-spin' : ''} />
+                    <span>{fetchingModels ? 'Pobieranie...' : 'Pobierz modele'}</span>
+                  </button>
+                </div>
                 <input
                   type="text"
                   required
-                  placeholder="http://127.0.0.1:1337/v1 lub https://integrate.api.nvidia.com/v1"
+                  placeholder="http://10.10.10.30:8888 lub http://localhost:8888"
                   value={formData.url}
                   onChange={e => setFormData({ ...formData, url: e.target.value })}
+                  onBlur={() => {
+                    if (formData.url && !discoveredModels.length) {
+                      handleFetchModels(formData.url, formData.api_key);
+                    }
+                  }}
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
                 />
+                {fetchModelsError && (
+                  <span style={{ fontSize: '0.7rem', color: '#f87171', display: 'block', marginTop: '0.25rem' }}>
+                    {fetchModelsError}
+                  </span>
+                )}
               </div>
+
               <div>
-                <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Model LLM</label>
-                <input
-                  type="text"
-                  placeholder="np. google/gemma-4-e4b lub meta/llama-3.3-70b-instruct"
-                  value={formData.model}
-                  onChange={e => setFormData({ ...formData, model: e.target.value })}
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <label className="info-label" style={{ fontSize: '0.75rem', margin: 0 }}>Model LLM</label>
+                  {discoveredModels.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setUseCustomModel(!useCustomModel)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
+                    >
+                      {useCustomModel ? 'Wybierz z listy' : 'Wpisz własny'}
+                    </button>
+                  )}
+                </div>
+
+                {discoveredModels.length > 0 && !useCustomModel ? (
+                  <select
+                    value={formData.model}
+                    onChange={e => setFormData({ ...formData, model: e.target.value })}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--primary, #38bdf8)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
+                  >
+                    {discoveredModels.map(m => (
+                      <option key={m} value={m} style={{ background: '#1e1e2e', color: 'white' }}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="np. unsloth/Qwen3.5-4B-MTP-GGUF lub gpt-oss-20b"
+                    value={formData.model}
+                    onChange={e => setFormData({ ...formData, model: e.target.value })}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
+                  />
+                )}
+                {discoveredModels.length > 0 && (
+                  <span style={{ fontSize: '0.7rem', color: '#10b981', display: 'block', marginTop: '0.25rem' }}>
+                    ✓ Wykryto {discoveredModels.length} modeli na serwerze
+                  </span>
+                )}
               </div>
               <div>
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Klucz API (API Key / Token)</label>

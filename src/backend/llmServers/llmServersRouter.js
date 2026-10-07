@@ -82,3 +82,70 @@ llmServersRouter.post('/llm-servers/import', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Discover available models from LLM server URL
+llmServersRouter.post('/llm-servers/fetch-models', async (req, res) => {
+  const { url, apiKey } = req.body || {};
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'Pole "url" jest wymagane' });
+  }
+
+  try {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const candidateUrls = [
+      cleanUrl.endsWith('/v1') ? `${cleanUrl}/models` : `${cleanUrl}/v1/models`,
+      `${cleanUrl}/models`,
+      `${cleanUrl}/api/tags`
+    ];
+
+    let foundModels = [];
+    let loadedModel = null;
+    let lastError = null;
+
+    for (const testUrl of candidateUrls) {
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (apiKey) {
+          headers['Authorization'] = `Bearer ${apiKey}`;
+        }
+        const resp = await fetch(testUrl, {
+          method: 'GET',
+          headers,
+          signal: AbortSignal.timeout(4000)
+        });
+
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json.data)) {
+            foundModels = json.data.map(m => typeof m === 'string' ? m : m.id).filter(Boolean);
+            const loaded = json.data.find(m => m.loaded);
+            if (loaded) loadedModel = loaded.id;
+            break;
+          }
+          if (Array.isArray(json.models)) {
+            foundModels = json.models.map(m => m.name || m.model).filter(Boolean);
+            break;
+          }
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
+    }
+
+    if (foundModels.length > 0) {
+      return res.json({
+        success: true,
+        count: foundModels.length,
+        models: foundModels,
+        loadedModel: loadedModel || foundModels[0]
+      });
+    }
+
+    return res.status(404).json({
+      error: lastError || 'Nie udało się pobrać modeli z podanego adresu URL'
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+

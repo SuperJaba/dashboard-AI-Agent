@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev:frontend": "vite",
-    "dev:backend": "node server.js",
-    "dev": "concurrently -k -n \"backend,frontend\" -c \"blue,green\" \"node server.js\" \"vite\"",
+    "dev:backend": "node --watch server.js",
+    "dev": "concurrently -k -n \"backend,frontend\" -c \"blue,green\" \"node --watch server.js\" \"vite\"",
     "db:migrate": "node scripts/migrate.js",
     "build": "vite build",
     "lint": "oxlint",

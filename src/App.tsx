@@ -11,6 +11,7 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
 import { WebhookSettingsModal } from './components/WebhookSettingsModal';
+import { ModelRoutingSettings } from './components/ModelRoutingSettings';
 import { KpiDashboardPanel } from "./kpi/KpiDashboardPanel";
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
@@ -461,7 +462,7 @@ function App() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '320px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '460px', maxWidth: '92vw', maxHeight: '88vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{t('settings.title')}</h2>
@@ -510,6 +511,11 @@ function App() {
                 <option value="hi">हिन्दी (Hindi)</option>
               </select>
             </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+            {/* Konfiguracja routingu modeli */}
+            <ModelRoutingSettings />
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
 

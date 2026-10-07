@@ -2,6 +2,8 @@
 interface TokenEntry {
   model: string;
   tokens: number;
+  cost?: string;
+  tier?: string;
 }
 
 interface TokenBurnBreakdownProps {
@@ -27,9 +29,23 @@ export function TokenBurnBreakdown({ data }: TokenBurnBreakdownProps) {
         return (
           <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {entry.model}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', maxWidth: '60%' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {entry.model}
+                </span>
+                {entry.cost && (
+                  <span style={{
+                    fontSize: '0.65rem',
+                    padding: '0.05rem 0.35rem',
+                    borderRadius: '4px',
+                    background: entry.cost === '0 zł' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(129, 140, 248, 0.15)',
+                    color: entry.cost === '0 zł' ? '#10b981' : '#818cf8',
+                    fontWeight: 600
+                  }}>
+                    {entry.cost}
+                  </span>
+                )}
+              </div>
               <span style={{ fontSize: '0.75rem', color, fontWeight: 700 }}>
                 {pct}% · {entry.tokens.toLocaleString()}
               </span>
