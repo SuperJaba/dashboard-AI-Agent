@@ -674,19 +674,33 @@ projectsRouter.post('/deploy', async (req, res) => {
       console.warn('Failed to query agents repository in deploy handler:', e.message);
     }
 
-    const agentRaw = String(agent || '').toLowerCase();
-    const agentName = String(targetAgent?.name || '').toLowerCase();
+    const agentRaw = String(agent || '').toLowerCase().trim();
+    const agentName = String(targetAgent?.name || '').toLowerCase().trim();
     const agentPath = targetAgent?.path || '';
     const agentPathLower = agentPath.toLowerCase();
 
-    const isClaude = agentRaw === 'claude' || 
+    const isOpenClaude = agentRaw === 'openclaude' || 
+                         agentRaw.includes('openclaude') || 
+                         agentName.includes('openclaude') || 
+                         agentPathLower.endsWith('/openclaude') || 
+                         agentPathLower.endsWith('\\openclaude.cmd') || 
+                         agentPathLower.endsWith('\\openclaude.exe') ||
+                         agentPathLower.endsWith('openclaude');
+
+    const isClaude = !isOpenClaude && (
+                     agentRaw === 'claude' || 
                      agentRaw === 'claude code' || 
-                     agentRaw.includes('claude') || 
-                     agentName.includes('claude') || 
+                     agentRaw === 'claudecode' ||
+                     agentName === 'claude' || 
+                     agentName === 'claude code' || 
+                     agentName === 'claudecode' || 
                      agentPathLower.endsWith('/claude') || 
                      agentPathLower.endsWith('\\claude.cmd') || 
                      agentPathLower.endsWith('\\claude.exe') ||
-                     agentPathLower.endsWith('claude');
+                     agentPathLower.endsWith('claude') ||
+                     (agentRaw.includes('claude') && !agentRaw.includes('openclaude')) ||
+                     (agentName.includes('claude') && !agentName.includes('openclaude'))
+    );
 
     const isAntigravity = agentRaw === 'antigravity' || 
                           agentRaw === 'agy' || 
@@ -712,8 +726,11 @@ projectsRouter.post('/deploy', async (req, res) => {
                        agentPathLower.includes('opencode');
 
     let binExec = agentPath || '';
-    if (!binExec || binExec.includes('/home/seba') || (path.isAbsolute(binExec) && !fs.existsSync(binExec))) {
-      if (isClaude) binExec = 'claude';
+    if (path.isAbsolute(binExec) && fs.existsSync(binExec)) {
+      // Valid absolute executable exists on system — use it directly
+    } else if (!binExec || (path.isAbsolute(binExec) && !fs.existsSync(binExec))) {
+      if (isOpenClaude) binExec = 'openclaude';
+      else if (isClaude) binExec = 'claude';
       else if (isAntigravity) binExec = 'agy';
       else if (isCodex) binExec = 'codex';
       else if (isGemini) binExec = 'gemini';
@@ -726,7 +743,24 @@ projectsRouter.post('/deploy', async (req, res) => {
     const validAnthropicKey = isRealApiKey(apiKey) ? apiKey : (isRealApiKey(process.env.ANTHROPIC_API_KEY) ? process.env.ANTHROPIC_API_KEY : '');
     const isClaudeModel = typeof llmModel === 'string' && llmModel.toLowerCase().includes('claude');
 
-    if (isClaude) {
+    if (isOpenClaude) {
+      if (llmUrl) {
+        const anthropicBaseUrl = formatAnthropicBaseUrl(llmUrl);
+        const anthropicToken = validAnthropicKey || apiKey || 'lmstudio';
+        env.ANTHROPIC_BASE_URL = anthropicBaseUrl;
+        env.ANTHROPIC_AUTH_TOKEN = anthropicToken;
+        env.ANTHROPIC_API_KEY = anthropicToken;
+        if (llmModel) {
+          env.ANTHROPIC_MODEL = llmModel;
+        }
+      } else if (hasRealAnthropicKey && validAnthropicKey) {
+        env.ANTHROPIC_API_KEY = validAnthropicKey;
+        env.ANTHROPIC_AUTH_TOKEN = validAnthropicKey;
+        if (isClaudeModel && llmModel) {
+          env.ANTHROPIC_MODEL = llmModel;
+        }
+      }
+    } else if (isClaude) {
       if (llmUrl) {
         const anthropicBaseUrl = formatAnthropicBaseUrl(llmUrl);
         const anthropicToken = validAnthropicKey || apiKey || 'lmstudio';
@@ -750,7 +784,7 @@ projectsRouter.post('/deploy', async (req, res) => {
         env.ANTHROPIC_BASE_URL = formatted;
         env.OPENAI_BASE_URL = formatted;
       }
-      const effectiveApiKey = apiKey || (env.ANTHROPIC_API_KEY || (llmUrl ? 'http://localhost:1234/' : ''));
+      const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || '';
       if (effectiveApiKey) {
         env.ANTHROPIC_API_KEY = effectiveApiKey;
         env.OPENAI_API_KEY = effectiveApiKey;
@@ -770,12 +804,33 @@ projectsRouter.post('/deploy', async (req, res) => {
     // Map full names from frontend or DB to CLI commands
     let agentBaseCmd = `"${binExec}"`;
     if (isCodex) {
-      const isLocalOss = Boolean(
-        (llmUrl && (llmUrl.includes('1234') || llmUrl.includes('11434') || llmUrl.includes('localhost') || llmUrl.includes('127.0.0.1') || (wslHostIp && llmUrl.includes(wslHostIp)))) ||
-        (llmName && /lm\s*studio|ollama|local/i.test(llmName))
+      const isCloudUrl = Boolean(llmUrl && (llmUrl.includes('api.openai.com') || llmUrl.includes('api.anthropic.com')));
+      const isLocalOss = !isCloudUrl && Boolean(
+        (llmUrl && (
+          llmUrl.includes('1234') || 
+          llmUrl.includes('8888') || 
+          llmUrl.includes('11434') || 
+          llmUrl.includes('localhost') || 
+          llmUrl.includes('127.0.0.1') || 
+          llmUrl.includes('10.10.10.') || 
+          (wslHostIp && llmUrl.includes(wslHostIp))
+        )) ||
+        (llmName && /lm\s*studio|ollama|unsloth|local/i.test(llmName)) ||
+        (llmModel && /unsloth|qwen|granite|llama|mistral|gguf/i.test(llmModel))
       );
+      if (isLocalOss) {
+        const localProvider = (llmName && /ollama/i.test(llmName)) ? 'ollama' : 'lmstudio';
+        agentBaseCmd = llmModel 
+          ? `"${binExec}" --oss --local-provider ${localProvider} -m "${llmModel}"` 
+          : `"${binExec}" --oss --local-provider ${localProvider}`;
+      } else if (llmModel) {
+        agentBaseCmd = `"${binExec}" -m "${llmModel}"`;
+      } else {
+        agentBaseCmd = `"${binExec}"`;
+      }
+    } else if (isOpenClaude) {
       if (llmModel) {
-        agentBaseCmd = isLocalOss ? `"${binExec}" --oss -m "${llmModel}"` : `"${binExec}" -m "${llmModel}"`;
+        agentBaseCmd = `"${binExec}" --model "${llmModel}"`;
       } else {
         agentBaseCmd = `"${binExec}"`;
       }
@@ -788,7 +843,11 @@ projectsRouter.post('/deploy', async (req, res) => {
     }
     
     if (dangerouslySkipPermissions) {
-      agentBaseCmd += ' --dangerously-skip-permissions';
+      if (isCodex) {
+        agentBaseCmd += ' --dangerously-bypass-approvals-and-sandbox';
+      } else {
+        agentBaseCmd += ' --dangerously-skip-permissions';
+      }
     }
 
     const scriptPath = path.join(targetDir, '.start_agent.sh');
@@ -843,8 +902,56 @@ Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używa
     ];
       
     // Configure environment variables depending on the agent
-    if (!isCodex) {
-      if (isClaude) {
+    if (isCodex) {
+      const isCloudUrl = Boolean(llmUrl && (llmUrl.includes('api.openai.com') || llmUrl.includes('api.anthropic.com')));
+      const isLocalOss = !isCloudUrl && Boolean(
+        (llmUrl && (
+          llmUrl.includes('1234') || 
+          llmUrl.includes('8888') || 
+          llmUrl.includes('11434') || 
+          llmUrl.includes('localhost') || 
+          llmUrl.includes('127.0.0.1') || 
+          llmUrl.includes('10.10.10.') || 
+          (wslHostIp && llmUrl.includes(wslHostIp))
+        )) ||
+        (llmName && /lm\s*studio|ollama|unsloth|local/i.test(llmName)) ||
+        (llmModel && /unsloth|qwen|granite|llama|mistral|gguf/i.test(llmModel))
+      );
+      if (isLocalOss) {
+        const formatted = llmUrl ? formatBaseUrl(llmUrl) : 'http://localhost:8888/v1';
+        exportEnvLines.push(`export CODEX_OSS_BASE_URL="${formatted}"`);
+        exportEnvLines.push(`export OPENAI_BASE_URL="${formatted}"`);
+        env.CODEX_OSS_BASE_URL = formatted;
+        env.OPENAI_BASE_URL = formatted;
+      }
+      if (apiKey) {
+        exportEnvLines.push(`export OPENAI_API_KEY="${apiKey}"`);
+        env.OPENAI_API_KEY = apiKey;
+      }
+      if (llmModel) {
+        exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
+        env.OPENAI_MODEL = llmModel;
+      }
+    } else if (isOpenClaude) {
+        if (llmUrl) {
+          const anthropicBaseUrl = formatAnthropicBaseUrl(llmUrl);
+          const anthropicToken = validAnthropicKey || apiKey || 'lmstudio';
+          exportEnvLines.push(`export ANTHROPIC_BASE_URL="${anthropicBaseUrl}"`);
+          exportEnvLines.push(`export ANTHROPIC_API_KEY="${anthropicToken}"`);
+          exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${anthropicToken}"`);
+          if (llmModel) {
+            exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+          }
+        } else {
+          if (hasRealAnthropicKey && validAnthropicKey) {
+            exportEnvLines.push(`export ANTHROPIC_API_KEY="${validAnthropicKey}"`);
+            exportEnvLines.push(`export ANTHROPIC_AUTH_TOKEN="${validAnthropicKey}"`);
+          }
+          if (isClaudeModel && llmModel) {
+            exportEnvLines.push(`export ANTHROPIC_MODEL="${llmModel}"`);
+          }
+        }
+      } else if (isClaude) {
         if (llmUrl) {
           const anthropicBaseUrl = formatAnthropicBaseUrl(llmUrl);
           const anthropicToken = validAnthropicKey || apiKey || 'lmstudio';
@@ -908,7 +1015,7 @@ Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używa
           exportEnvLines.push(`export ANTHROPIC_BASE_URL="${safeUrl}"`);
           exportEnvLines.push(`export OPENAI_BASE_URL="${safeUrl}"`);
         }
-        const effectiveApiKey = apiKey || (env.ANTHROPIC_API_KEY || (llmUrl ? 'http://localhost:1234/' : ''));
+        const effectiveApiKey = apiKey || env.ANTHROPIC_API_KEY || '';
         if (effectiveApiKey) {
           exportEnvLines.push(`export ANTHROPIC_API_KEY="${effectiveApiKey}"`);
           exportEnvLines.push(`export OPENAI_API_KEY="${effectiveApiKey}"`);
@@ -920,7 +1027,6 @@ Wszystkie operacje wykonuj w ramach sesji SSH na zdalnym serwerze. UWAGA: używa
           exportEnvLines.push(`export OPENAI_MODEL="${llmModel}"`);
         }
       }
-    }
 
     const scriptContent = `#!/bin/bash
 cd "${targetDir}" 2>/dev/null || true

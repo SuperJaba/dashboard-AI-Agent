@@ -25,6 +25,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const termInstance = useRef<Terminal | null>(null);
   const fitAddonInstance = useRef<FitAddon | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const hasSpawnedRef = useRef(false);
 
   const [isMinimized, setIsMinimized] = useState(false);
   // Default to a size that comfortably fits smaller/laptop-class screens
@@ -97,7 +98,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     const token = localStorage.getItem('dashboard_token');
     const socket = io('/pty', {
       auth: { token },
-      transports: ['polling', 'websocket']
+      transports: ['websocket', 'polling']
     });
     socketRef.current = socket;
 
@@ -105,16 +106,19 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
       term.write('\x1b[32m[Connected to Backend]\x1b[0m\r\n');
       term.focus();
       
-      // Spawn pty on backend or local worker
-      socket.emit('spawn_terminal', {
-        command: config.command,
-        args: config.args,
-        cwd: config.cwd,
-        env: config.env,
-        executionTarget: execTarget,
-        targetWorkerId: config.targetWorkerId,
-        scriptContent: config.scriptContent
-      });
+      // Spawn pty on backend or local worker (guarded against duplicate emits on reconnect)
+      if (!hasSpawnedRef.current) {
+        hasSpawnedRef.current = true;
+        socket.emit('spawn_terminal', {
+          command: config.command,
+          args: config.args,
+          cwd: config.cwd,
+          env: config.env,
+          executionTarget: execTarget,
+          targetWorkerId: config.targetWorkerId,
+          scriptContent: config.scriptContent
+        });
+      }
       
       // Resize to current xterm size
       socket.emit('terminal_resize', { cols: term.cols, rows: term.rows });
@@ -164,6 +168,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      hasSpawnedRef.current = false;
       socket.disconnect();
       term.dispose();
     };

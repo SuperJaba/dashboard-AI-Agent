@@ -45,6 +45,13 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
     let activeWorkerSocket = null;
 
     socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent }) => {
+      if (ptyProcess) {
+        try {
+          ptyProcess.kill();
+        } catch {}
+        ptyProcess = null;
+      }
+
       let workerToUse = null;
       if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
         workerToUse = activeWorkers.get(targetWorkerId);

@@ -13,6 +13,7 @@ export const agentsRouter = express.Router();
 // agent CLI should be discoverable by the "System scan" feature.
 const KNOWN_AGENTS = [
   { name: 'Claude Code', cmd: 'claude', desc: 'Anthropic Claude Code CLI', configPath: (home) => `${home}/.claude.json` },
+  { name: 'OpenClaude', cmd: 'openclaude', desc: 'OpenClaude AI CLI agent', configPath: (home) => `${home}/.openclaude/settings.json` },
   { name: 'Codex', cmd: 'codex', desc: 'OpenAI Codex CLI', configPath: (home) => `${home}/.codex/config.json` },
   { name: 'Antigravity', cmd: 'agy', desc: 'Google AI Antigravity CLI', configPath: (home) => `${home}/.gemini/config.json` },
   { name: 'Aider', cmd: 'aider', desc: 'Aider AI pair programming', configPath: (home) => `${home}/.aider.conf.yml` },

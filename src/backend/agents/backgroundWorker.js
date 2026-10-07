@@ -42,6 +42,7 @@ function getAgentCmd(agentName) {
   const map = {
     'antigravity': 'agy',
     'claude code': 'claude',
+    'openclaude': 'openclaude',
     'codex': 'codex',
     'gemini cli': 'gemini',
     'opencode': 'opencode',
