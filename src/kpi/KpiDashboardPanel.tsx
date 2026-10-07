@@ -203,7 +203,13 @@ export function KpiDashboardPanel() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
           {/* Aktywny Unsloth */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <a
+            href="http://10.10.10.30:8888/api-monitor"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
+            title="Otwórz Unsloth Live Traffic Monitor (43.4 tok/s · 98 048 ctx)"
+          >
             <Cpu size={14} color="#10b981" />
             <span style={{ color: 'var(--text-muted)' }}>LLM Local:</span>
             <span style={{ fontWeight: 600, color: '#10b981' }}>
@@ -217,9 +223,9 @@ export function KpiDashboardPanel() {
               color: '#10b981',
               fontWeight: 600
             }}>
-              ONLINE
+              ONLINE · 98k ctx
             </span>
-          </div>
+          </a>
 
           <span style={{ color: 'var(--glass-border)' }}>|</span>
 

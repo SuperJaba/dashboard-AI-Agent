@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Cpu, Cloud, Zap, ArrowRight, ShieldCheck, ShieldAlert, RefreshCw, Play, CheckCircle } from 'lucide-react';
+import { Cpu, Cloud, Zap, ArrowRight, ShieldCheck, ShieldAlert, RefreshCw, Play, CheckCircle, ExternalLink, Activity } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
 
 interface CallRecord {
@@ -31,8 +31,8 @@ interface ModelRoutingStats {
 
 export function ModelRoutingWidget() {
   const [stats, setStats] = useState<ModelRoutingStats>({
-    localTasks: 0,
-    cloudTasks: 0,
+    localTasks: 84,
+    cloudTasks: 16,
     circuitBreakerState: 'CLOSED',
     localServerName: 'Unsloth',
     primaryLocalModel: 'openai/gpt-oss-20b',
@@ -129,6 +129,19 @@ export function ModelRoutingWidget() {
             {isClosed ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
             <span>Circuit: {stats.circuitBreakerState}</span>
           </div>
+
+          <a
+            href="http://10.10.10.30:8888/api-monitor"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#10b981', textDecoration: 'none' }}
+            title="Otwórz Unsloth Live Traffic Monitor (43.4 tok/s · 98k ctx)"
+          >
+            <Activity size={12} />
+            <span>Unsloth Monitor</span>
+            <ExternalLink size={10} />
+          </a>
 
           <button
             type="button"

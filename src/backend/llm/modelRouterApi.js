@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getRoutingStats,
+  checkUnslothStatus,
   executeRoutedPrompt,
   recordRoutingCall,
   resetRoutingStats,
@@ -15,8 +16,9 @@ export const modelRouterApi = Router();
  * GET /api/llm/routing-stats
  * Returns live model routing metrics, circuit breaker status, and recent call history.
  */
-modelRouterApi.get('/routing-stats', (_req, res) => {
+modelRouterApi.get('/routing-stats', async (_req, res) => {
   try {
+    await checkUnslothStatus();
     const stats = getRoutingStats();
     return res.json(stats);
   } catch (err) {
