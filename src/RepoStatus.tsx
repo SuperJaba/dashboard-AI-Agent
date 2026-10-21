@@ -6,6 +6,7 @@ import {
   DownloadCloud, FileText, Plus, Check
 } from 'lucide-react';
 import { apiClient } from './shared/api-client';
+import { AntigravityCard } from './components/AntigravityCard';
 import './index.css';
 
 interface RepoStatusProps {
@@ -255,7 +256,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
   }
 
   return (
-    <div className="glass-card animate-in delay-3" style={{ maxWidth: '100%', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <AntigravityCard 
+      elevation="medium" 
+      maxTilt={3} 
+      glowColor="rgba(99, 102, 241, 0.14)" 
+      className="animate-in delay-3" 
+      style={{ maxWidth: '100%', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem' }}
+    >
       
       {/* Top Toolbar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -1074,6 +1081,6 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
         </div>,
         document.body
       )}
-    </div>
+    </AntigravityCard>
   );
 };

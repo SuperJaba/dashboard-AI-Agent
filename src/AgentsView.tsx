@@ -6,6 +6,7 @@ import {
 import { apiFetch } from './shared/api-client';
 import { LlmServerManager } from './LlmServerManager';
 import { LocalWorkerModal } from './LocalWorkerModal';
+import { AntigravityCard } from './components/AntigravityCard';
 
 export interface Agent {
   id: number;
@@ -272,45 +273,62 @@ export function AgentsView() {
         </header>
 
         {/* Quick Socket Connection Banner */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          background: 'rgba(15, 23, 42, 0.65)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-          padding: '0.85rem 1.25rem',
-          marginBottom: '1.5rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <AntigravityCard
+          elevation="low"
+          maxTilt={4}
+          glowColor={workersCount > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.15)'}
+          style={{
+            padding: '1rem 1.4rem',
+            marginBottom: '1.75rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}
+        >
+          <div className="antigravity-depth-pop" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
             <div style={{
-              background: workersCount > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.1)',
-              border: `1px solid ${workersCount > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.25)'}`,
-              borderRadius: '8px',
-              padding: '0.5rem',
-              color: workersCount > 0 ? '#10b981' : '#ef4444'
+              background: workersCount > 0 ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.12)',
+              border: `1px solid ${workersCount > 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.25)'}`,
+              borderRadius: '10px',
+              padding: '0.55rem',
+              color: workersCount > 0 ? '#10b981' : '#ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: workersCount > 0 ? '0 0 15px rgba(16, 185, 129, 0.25)' : 'none'
             }}>
-              <Laptop size={20} />
+              <Laptop size={22} />
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#f8fafc', letterSpacing: '-0.01em' }}>
                   Lokalny Worker (Socket.IO)
                 </span>
                 <span style={{
-                  fontSize: '0.7rem',
-                  padding: '1px 6px',
-                  borderRadius: '4px',
-                  background: workersCount > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.15)',
+                  fontSize: '0.72rem',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  background: workersCount > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.12)',
+                  border: `1px solid ${workersCount > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.25)'}`,
                   color: workersCount > 0 ? '#34d399' : '#f87171',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
                 }}>
-                  {workersCount > 0 ? `● Połączono (${workersCount})` : '○ Offline'}
+                  {workersCount > 0 ? (
+                    <>
+                      <span className="antigravity-pulse-dot" style={{ width: 6, height: 6 }} />
+                      <span>Połączono ({workersCount})</span>
+                    </>
+                  ) : (
+                    <span>○ Offline</span>
+                  )}
                 </span>
               </div>
-              <p style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+              <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
                 {workersCount > 0
                   ? 'Twój komputer jest podłączony do Socket.IO. Agenci CLI wykonują się w lokalnym środowisku.'
                   : 'Podłącz swój komputer komendą Socket, aby agenci CLI uruchamiali się bezpośrednio na Twoim PC.'}
@@ -318,17 +336,27 @@ export function AgentsView() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div className="antigravity-depth-pop" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button
               onClick={() => setShowWorkerModal(true)}
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+              style={{ 
+                fontSize: '0.8rem', 
+                padding: '0.45rem 0.95rem', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.4rem', 
+                color: '#38bdf8', 
+                borderColor: 'rgba(56, 189, 248, 0.3)',
+                background: 'rgba(56, 189, 248, 0.08)',
+                boxShadow: '0 2px 10px -2px rgba(56, 189, 248, 0.15)'
+              }}
             >
               <Key size={14} />
               <span>Pokaż Komendę i Token Socket</span>
             </button>
           </div>
-        </div>
+        </AntigravityCard>
 
         <div style={{ marginBottom: '2rem' }}>
           <LlmServerManager />
@@ -391,7 +419,7 @@ export function AgentsView() {
         )}
 
         {/* Agents Grid */}
-        <div className="agents-grid">
+        <div className="agents-grid" style={{ perspective: '1200px' }}>
           {(!Array.isArray(agents) || agents.length === 0) ? (
             <div className="col-span-full p-12 text-center text-gray-500 bg-slate-850/40 border border-slate-800/80 rounded-2xl">
               <Bot className="w-14 h-14 text-slate-600 mx-auto mb-4" aria-hidden="true" />
@@ -403,19 +431,36 @@ export function AgentsView() {
               const isTuning = tuningAgentId === agent.id;
               
               return (
-                <div key={agent.id} className="glass-card agent-card">
+                <AntigravityCard 
+                  key={agent.id} 
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor={isTuning ? 'rgba(168, 85, 247, 0.28)' : agent.installed ? 'rgba(16, 185, 129, 0.16)' : 'rgba(244, 63, 94, 0.16)'}
+                  className={`agent-card ${isTuning ? 'antigravity-shimmer-active' : ''}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '1.25rem',
+                    minHeight: '260px'
+                  }}
+                >
                   {/* Top row */}
                   <div>
-                    <div className="agent-header">
+                    <div className="agent-header antigravity-depth-pop">
                       <div className="agent-title-block">
-                        <div className="agent-icon-wrapper">
+                        <div className="agent-icon-wrapper" style={{
+                          boxShadow: agent.installed ? '0 0 16px -2px rgba(16, 185, 129, 0.3)' : '0 0 16px -2px rgba(239, 68, 68, 0.25)',
+                          border: `1px solid ${agent.installed ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                        }}>
                           <Bot size={20} />
                         </div>
                         <div>
                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
                             {agent.name}
                             {agent.installed ? (
-                              <span className="agent-badge agent-badge-active">
+                              <span className="agent-badge agent-badge-active" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span className="antigravity-pulse-dot" style={{ width: 5, height: 5 }} />
                                 Active
                               </span>
                             ) : (
@@ -479,17 +524,23 @@ export function AgentsView() {
                     </div>
 
                     {/* Binary Path Info */}
-                    <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="antigravity-depth-sub" style={{ marginTop: '1rem', marginBottom: '1.25rem' }}>
                       <div className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Ścieżka binarna</div>
-                      <div className="agent-path-box">
+                      <div className="agent-path-box" style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '8px' }}>
                         {agent.path}
                       </div>
                     </div>
                   </div>
 
                   {/* Inner config card */}
-                  <div className="agent-params-panel">
-                    <div className="agent-params-title">
+                  <div className="agent-params-panel antigravity-depth-sub" style={{
+                    background: 'rgba(15, 23, 42, 0.55)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255, 255, 255, 0.07)',
+                    borderRadius: '12px',
+                    padding: '0.85rem'
+                  }}>
+                    <div className="agent-params-title" style={{ color: '#c7d2fe', fontWeight: 600 }}>
                       <Sliders size={14} color="var(--primary)" />
                       Parametry Modelu
                     </div>
@@ -537,12 +588,14 @@ export function AgentsView() {
                     )}
                   </div>
                   
-                  {/* Subtle color highlight in top corner */}
+                  {/* Subtle edge neon light */}
                   <div style={{
-                    position: 'absolute', top: 0, left: 0, width: '4px', height: '100%',
-                    background: agent.installed ? 'var(--success)' : 'var(--danger)'
+                    position: 'absolute', top: 0, left: 0, width: '3px', height: '100%',
+                    background: agent.installed ? 'linear-gradient(180deg, #10b981, rgba(16, 185, 129, 0.2))' : 'linear-gradient(180deg, #ef4444, rgba(239, 68, 68, 0.2))',
+                    borderTopLeftRadius: '16px',
+                    borderBottomLeftRadius: '16px'
                   }} />
-                </div>
+                </AntigravityCard>
               );
             })
           )}

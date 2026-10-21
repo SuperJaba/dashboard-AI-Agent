@@ -569,8 +569,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       console.log('Backend API and Socket.IO running under Phusion Passenger');
       try {
         startBackgroundWorker();
+        startRemoteSyncCron();
       } catch (e) {
-        logger.warn({ err: e.message }, 'Failed to start background worker');
+        logger.warn({ err: e.message }, 'Failed to start background worker or remote sync cron');
       }
     });
   } else {
@@ -579,8 +580,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       logger.info(`Prometheus metrics available at http://localhost:${port}/metrics`);
       try {
         startBackgroundWorker();
+        startRemoteSyncCron();
       } catch (e) {
-        logger.warn({ err: e.message }, 'Failed to start background worker');
+        logger.warn({ err: e.message }, 'Failed to start background worker or remote sync cron');
       }
     });
   }

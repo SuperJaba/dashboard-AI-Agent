@@ -39,12 +39,39 @@ body {
   font-family: 'Inter', sans-serif;
   background-color: var(--bg-color);
   background-image: 
-    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.18) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.16) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.05) 0px, transparent 65%);
   color: var(--text-main);
   min-height: 100vh;
   line-height: 1.5;
   overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    radial-gradient(1px 1px at 25px 35px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 85px 120px, rgba(168, 85, 247, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 150px 70px, rgba(56, 189, 248, 0.55), transparent),
+    radial-gradient(1px 1px at 220px 200px, rgba(52, 211, 153, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 320px 140px, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 450px 280px, rgba(99, 102, 241, 0.5), transparent),
+    radial-gradient(1px 1px at 600px 90px, rgba(244, 114, 182, 0.4), transparent);
+  background-repeat: repeat;
+  background-size: 500px 500px;
+  pointer-events: none;
+  opacity: 0.65;
+  z-index: 0;
+  animation: antigravity-stars-drift 120s linear infinite;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -156,9 +183,11 @@ button.project-item {
 }
 
 .project-item.active {
-  background: rgba(79, 70, 229, 0.2);
-  color: #818cf8;
-  border: 1px solid rgba(79, 70, 229, 0.3);
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.28) 0%, rgba(99, 102, 241, 0.15) 100%);
+  color: #c7d2fe;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 18px -4px rgba(79, 70, 229, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateX(3px);
 }
 
 .btn-add-project {
@@ -169,18 +198,21 @@ button.project-item {
   padding: 0.55rem;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
   color: var(--text-main);
   border: 1px dashed rgba(255, 255, 255, 0.2);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-weight: 500;
   font-size: 0.85rem;
   margin-top: 0.75rem;
 }
 
 .btn-add-project:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
 }
 
 .dashboard-container {
@@ -286,16 +318,20 @@ button.project-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.2s ease;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .task-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.35);
 }
 
 .task-info {
@@ -798,5 +834,105 @@ button.project-item {
     width: 100%;
     height: auto;
     position: relative;
+  }
+}
+
+/* ==========================================================================
+   Antigravity UI & Motion Design System
+   ========================================================================== */
+
+@keyframes antigravity-levitate {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes antigravity-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes antigravity-pulse-ring {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(52, 211, 153, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+.antigravity-levitate {
+  animation: antigravity-levitate 4s ease-in-out infinite;
+}
+
+.antigravity-depth-pop {
+  transform: translateZ(16px);
+  transform-style: preserve-3d;
+}
+
+.antigravity-depth-sub {
+  transform: translateZ(8px);
+  transform-style: preserve-3d;
+}
+
+.antigravity-pulse-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: #10b981;
+  animation: antigravity-pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.antigravity-shimmer-active {
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.08) 0%, rgba(168, 85, 247, 0.25) 50%, rgba(168, 85, 247, 0.08) 100%);
+  background-size: 200% 100%;
+  animation: antigravity-shimmer 2.5s infinite;
+}
+
+.antigravity-progress-glow {
+  box-shadow: 0 0 12px 1px rgba(96, 165, 250, 0.5);
+}
+
+.antigravity-progress-glow-emerald {
+  box-shadow: 0 0 12px 1px rgba(52, 211, 153, 0.5);
+}
+
+.antigravity-progress-glow-rose {
+  box-shadow: 0 0 12px 1px rgba(244, 63, 94, 0.5);
+}
+
+@keyframes antigravity-stars-drift {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-500px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  .antigravity-levitate,
+  .antigravity-shimmer-active,
+  .antigravity-pulse-dot,
+  .animate-in {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
   }
 }
