@@ -23,7 +23,8 @@
     "agent:worker": "node scripts/local-agent-worker.js",
     "sync-tasks": "node src/backend/scripts/syncTasks.js",
     "test:e2e": "cross-env NODE_ENV=test node tests/full_test_suite.js",
-    "deploy:ct8": "bash scripts/deploy-ct8-optimized.sh"
+    "deploy:ct8": "bash scripts/deploy-ct8-optimized.sh",
+    "sync-remote-tasks": "node src/backend/scripts/syncRemoteTasks.js"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -39,6 +40,7 @@
     "i18next": "^26.4.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.24.0",
+    "node-cron": "^3.0.2",
     "node-fetch": "^3.3.2",
     "node-pty": "^1.1.0",
     "pg": "^8.22.0",

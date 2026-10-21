@@ -1,3 +1,4 @@
+<<<<<<<< HEAD:.omc/sessions/4a3dd537-b8f1-459b-8090-b627f1debe19.json
 {
   "session_id": "4a3dd537-b8f1-459b-8090-b627f1debe19",
   "ended_at": "2026-10-01T04:31:04.930Z",
@@ -5,4 +6,13 @@
   "agents_spawned": 0,
   "agents_completed": 0,
   "modes_used": []
+========
+{
+  "session_id": "7b6c60fc-5981-4219-9bc8-e90ad6042875",
+  "ended_at": "2026-09-13T11:34:55.206Z",
+  "reason": "prompt_input_exit",
+  "agents_spawned": 0,
+  "agents_completed": 0,
+  "modes_used": []
+>>>>>>>> origin/dev:.omc/sessions/7b6c60fc-5981-4219-9bc8-e90ad6042875.json
 }

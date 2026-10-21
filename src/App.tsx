@@ -28,6 +28,7 @@ const ViewFallback = () => (
   </div>
 );
 import { DashboardTiles } from './TilesView';
+import { AntigravityCard } from './components/AntigravityCard';
 import { usePreferences, type Language } from './preferences/PreferencesContext';
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
     showTasks, setShowTasks,
     hideCompleted, setHideCompleted,
     useBrowserTerminal,
+    dangerouslySkipPermissions, handleSkipPermissionsToggle,
     terminalConfig, setTerminalConfig,
     selectedTaskIds, setSelectedTaskIds,
     deploying,
@@ -668,6 +670,15 @@ function App() {
                     />
                     Use Browser Terminal
                   </label>
+                  <label title="--dangerously-skip-permissions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--danger, #ef4444)', cursor: 'pointer', paddingRight: '0.25rem' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={dangerouslySkipPermissions}
+                      onChange={(e) => handleSkipPermissionsToggle(e.target.checked)}
+                      style={{ accentColor: 'var(--danger, #ef4444)', width: '16px', height: '16px' }}
+                    />
+                    YOLO
+                  </label>
                 </div>
               </div>
             </header>
@@ -685,59 +696,94 @@ function App() {
 
             <div>
               <AnalyticsPanel projects={projects} />
-              <div className="grid-top" style={{ marginBottom: '2rem' }}>
-                <div className="glass-card animate-in delay-2">
-                  <span className="info-label">Implementation Status</span>
-                  <div className="info-value">
-                    <Activity size={24} color="var(--secondary)" aria-hidden="true" />
-                    {activeProject.complete}% Complete
+              <div className="grid-top" style={{ marginBottom: '2rem', perspective: '1200px' }}>
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(236, 72, 153, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}
+                >
+                  <div className="antigravity-depth-pop">
+                    <span className="info-label">Implementation Status</span>
+                    <div className="info-value">
+                      <Activity size={24} color="var(--secondary)" aria-hidden="true" />
+                      {activeProject.complete}% Complete
+                    </div>
                   </div>
-                  <div style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.1)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ background: 'linear-gradient(90deg, var(--primary), var(--secondary))', width: `${activeProject.complete}%`, height: '100%', transition: 'width 0.5s ease-out' }}></div>
+                  <div className="antigravity-depth-sub" style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.08)', height: '7px', borderRadius: '9999px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div className="antigravity-progress-glow" style={{ background: 'linear-gradient(90deg, var(--primary), var(--secondary))', width: `${activeProject.complete}%`, height: '100%', transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '9999px' }} />
+                    </div>
                   </div>
-                </div>
+                </AntigravityCard>
 
-                <div className="glass-card animate-in delay-2" style={{ animationDelay: '0.25s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(79, 70, 229, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                >
+                  <div className="antigravity-depth-pop">
                     <span className="info-label">Technology Stack</span>
                     <div className="info-value">
                       <TerminalSquare size={24} color="var(--primary)" aria-hidden="true" />
                       {activeProject.tech}
                     </div>
                   </div>
-                  <button 
-                    type="button"
-                    className="btn-add-project" 
-                    style={{ marginTop: '1rem', width: 'fit-content', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
-                    onClick={analyzeProject}
-                    disabled={deploying === 'analyze'}
-                  >
-                    {deploying === 'analyze' ? 'Analyzing...' : 'Analyze Workspace'}
-                  </button>
-                </div>
+                  <div className="antigravity-depth-sub">
+                    <button 
+                      type="button"
+                      className="btn-add-project" 
+                      style={{ marginTop: '1rem', width: 'fit-content', padding: '0.45rem 0.9rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px' }} 
+                      onClick={analyzeProject}
+                      disabled={deploying === 'analyze'}
+                    >
+                      {deploying === 'analyze' && <RefreshCw size={14} className="animate-spin" />}
+                      {deploying === 'analyze' ? 'Analyzing...' : 'Analyze Workspace'}
+                    </button>
+                  </div>
+                </AntigravityCard>
 
-                <div className="glass-card animate-in delay-2" style={{ animationDelay: '0.3s' }}>
-                  <span className="info-label">Project Path</span>
-                  <div className="info-value" style={{ fontSize: '1rem' }}>
-                    <Folder size={20} color="#10B981" aria-hidden="true" />
-                    {activeProject.path}
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(16, 185, 129, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}
+                >
+                  <div className="antigravity-depth-pop">
+                    <span className="info-label">Project Path</span>
+                    <div className="info-value" style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={activeProject.path}>
+                      <Folder size={18} color="#10B981" aria-hidden="true" style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeProject.path}</span>
+                    </div>
                   </div>
-                  <div className="info-value" style={{ fontSize: '1rem', marginTop: '0.5rem' }}>
-                    <GitBranch size={20} color="#F59E0B" aria-hidden="true" />
-                    {activeProject.branch ? (
-                      activeProject.branch
-                    ) : (
-                      <button type="button" className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={initGit}>
-                        Create Git
-                      </button>
-                    )}
+                  <div className="antigravity-depth-sub" style={{ marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="info-value" style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <GitBranch size={18} color="#F59E0B" aria-hidden="true" />
+                      {activeProject.branch ? (
+                        <span style={{ fontFamily: 'monospace', color: '#fcd34d', fontWeight: 600 }}>{activeProject.branch}</span>
+                      ) : (
+                        <button type="button" className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.25rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px' }} onClick={initGit}>
+                          Create Git
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </AntigravityCard>
               </div>
 
               <RepoStatus directory={activeProject.path || ''} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
-              <section className="glass-card animate-in delay-3" style={{ maxWidth: '100%' }}>
+              <AntigravityCard
+                elevation="medium"
+                maxTilt={3}
+                glowColor="rgba(79, 70, 229, 0.14)"
+                className="animate-in delay-3"
+                style={{ maxWidth: '100%', padding: '1.25rem', marginTop: '1.5rem', marginBottom: '2rem' }}
+              >
                 <div 
                   className="sidebar-title-btn tasks-header" 
                   onClick={() => setShowTasks(!showTasks)}
@@ -1104,7 +1150,7 @@ function App() {
                     )}
                   </div>
                 )}
-              </section>
+              </AntigravityCard>
             </div>
           </>
         ) : (

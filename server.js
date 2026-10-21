@@ -55,6 +55,7 @@ startLlmBridge();
 
 // Import background worker and start it.
 import { startBackgroundWorker } from './src/backend/agents/backgroundWorker.js';
+import { startRemoteSyncCron } from './src/backend/scripts/remoteSyncCron.js';
 import { widgetsRouter } from './src/backend/widgets/widgetsRouter.js';
 import { agentsRouter } from './src/backend/agents/agentsRouter.js';
 import { llmServersRouter } from './src/backend/llmServers/llmServersRouter.js';
@@ -568,8 +569,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       console.log('Backend API and Socket.IO running under Phusion Passenger');
       try {
         startBackgroundWorker();
+        startRemoteSyncCron();
       } catch (e) {
-        logger.warn({ err: e.message }, 'Failed to start background worker');
+        logger.warn({ err: e.message }, 'Failed to start background worker or remote sync cron');
       }
     });
   } else {
@@ -578,8 +580,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       logger.info(`Prometheus metrics available at http://localhost:${port}/metrics`);
       try {
         startBackgroundWorker();
+        startRemoteSyncCron();
       } catch (e) {
-        logger.warn({ err: e.message }, 'Failed to start background worker');
+        logger.warn({ err: e.message }, 'Failed to start background worker or remote sync cron');
       }
     });
   }
