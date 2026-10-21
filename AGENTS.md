@@ -1,13 +1,5 @@
 # Repository Guidelines
 
-This document provides a quick reference for contributors working on this project.
-It covers the folder layout, build and test commands, coding style rules, and how to submit changes.
-
-## Project Structure & Module Organization
-- **src/** – Main source code (JavaScript/TypeScript).
-- **tests/** – Unit and integration tests. Test files mirror the structure of `src` and end with `.test.js` or `.spec.ts`.
-- **assets/** – Static assets such as images, stylesheets, and JSON fixtures.
-  
 ## Key Environment Gotchas
 - **UI Language:** Labels and messages in UI components are in Polish.
 - **Database Fallback:** `src/backend/db.js` automatically falls back to an in-memory store if PostgreSQL is unavailable.
@@ -15,11 +7,10 @@ It covers the folder layout, build and test commands, coding style rules, and ho
 - **Styling:** Uses Tailwind CSS v4 via `@tailwindcss/postcss` (no `tailwind.config.js`).
 
 ## Context Pointers (Disclosed Reference)
-Consult these references on demand when handling specific subsystem tasks:
-- **API Spec & Route Definitions**: [`docs/openapi.yaml`](docs/openapi.yaml) or [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md)
-- **C4 Architecture & Service Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md)
-- **Widget Creation & Registration**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md)
-- **Automated SSH & Remote Execution**: [`docs/agent-ssh-con.md`](docs/agent-ssh-con.md)
+- **API Spec & Routes**: [`docs/openapi.yaml`](docs/openapi.yaml) (OpenAPI spec) or [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) (narrative)
+- **Architecture Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md) (C4 diagrams & service layers)
+- **Widget Creation**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md) (registration & layout integration)
+- **Remote SSH Administration**: [`docs/agent-ssh-con.md`](docs/agent-ssh-con.md) (CT8 execution commands & keys)
 
 
 ## Coding & Architectural Conventions
