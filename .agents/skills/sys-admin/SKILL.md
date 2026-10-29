@@ -1,11 +1,11 @@
 ---
 name: sys-admin
-description: On-demand system hardware diagnostics (CPU, RAM, disk, processes) and remote SSH administration for CT8 host (jagger2@s1.ct8.pl).
+description: On-demand system hardware diagnostics (CPU, RAM, disk, processes) and remote SSH administration for CT8 host and OMV (OpenMediaVault).
 ---
 
 # System & Remote Administration Skill
 
-Provides token-efficient, zero-dependency tools for inspecting local host health and executing remote SSH tasks on CT8.
+Provides token-efficient, zero-dependency tools for inspecting local host health and executing remote SSH tasks on CT8 and OMV nodes.
 
 ## Tool Commands
 
@@ -32,7 +32,15 @@ Executes over SSH using `~/.ssh/id_ed25519_antigravity` with non-blocking `Batch
 | `node scripts/ssh-ct8.js logs` | Tail last 30 lines of remote dashboard application/error logs. |
 | `node scripts/ssh-ct8.js "<command>"` | Execute arbitrary remote shell command. |
 
-### 3. SMART Diagnostics & Sector Remediation (Disk Recovery)
+### 3. Remote OMV Administration (`omv`)
+Non-blocking execution for OpenMediaVault / local storage node (`10.10.10.100`, user `root`), using `~/.ssh/id_ed25519_antigravity`:
+
+| Command | Action |
+|---|---|
+| `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes omv -p 22 "bash -c 'journalctl -xe'"` | Inspect system logs and recent errors. |
+| `ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes omv -p 22 "bash -c '<command>'"` | Execute arbitrary remote shell command on OMV. |
+
+### 4. SMART Diagnostics & Sector Remediation (Disk Recovery)
 
 When diagnosing/repairing `Current_Pending_Sector` (attribute 197) or `Offline_Uncorrectable` (attribute 198):
 
@@ -57,7 +65,7 @@ When diagnosing/repairing `Current_Pending_Sector` (attribute 197) or `Offline_U
 
 ## Token Efficiency & Subagent Delegation Rule
 
-1. **Fast Single-Action Checks**: Run `node scripts/sys-info.js` or `node scripts/ssh-ct8.js status` directly in the main thread.
+1. **Fast Single-Action Checks**: Run `node scripts/sys-info.js`, `node scripts/ssh-ct8.js status`, or targeted OMV ssh commands directly in the main thread.
 2. **Heavy / Multi-Step Investigations** (large log searches, process tracking, remote directory scans):
    - **Do NOT dump hundreds of lines into the main conversation context.**
    - Spawn a subagent (`invoke_subagent` with role `System Investigator` or `cavecrew-investigator`).
