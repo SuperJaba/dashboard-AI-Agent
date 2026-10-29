@@ -572,14 +572,26 @@ projectsRouter.post('/deploy', async (req, res) => {
     const agentPath = targetAgent?.path || '';
     const agentPathLower = agentPath.toLowerCase();
 
-    const isClaude = agentRaw === 'claude' || 
+    const isOpenClaude = agentRaw === 'openclaude' ||
+                         agentRaw === 'open claude' ||
+                         agentRaw.includes('openclaude') ||
+                         agentRaw.includes('open claude') ||
+                         agentName === 'open claude' ||
+                         agentName === 'openclaude' ||
+                         agentName.includes('open claude') ||
+                         agentName.includes('openclaude') ||
+                         agentPathLower.includes('openclaude');
+
+    const isClaude = !isOpenClaude && (
+                     agentRaw === 'claude' || 
                      agentRaw === 'claude code' || 
                      agentRaw.includes('claude') || 
                      agentName.includes('claude') || 
                      agentPathLower.endsWith('/claude') || 
                      agentPathLower.endsWith('\\claude.cmd') || 
                      agentPathLower.endsWith('\\claude.exe') ||
-                     agentPathLower.endsWith('claude');
+                     agentPathLower.endsWith('claude')
+    );
 
     const isAntigravity = agentRaw === 'antigravity' || 
                           agentRaw === 'agy' || 
@@ -605,8 +617,12 @@ projectsRouter.post('/deploy', async (req, res) => {
                        agentPathLower.includes('opencode');
 
     let binExec = agentPath || '';
-    if (!binExec || binExec.includes('/home/seba') || (path.isAbsolute(binExec) && !fs.existsSync(binExec))) {
-      if (isClaude) binExec = 'claude';
+    if (path.isAbsolute(binExec) && !fs.existsSync(binExec)) {
+      binExec = '';
+    }
+    if (!binExec) {
+      if (isOpenClaude) binExec = 'openclaude';
+      else if (isClaude) binExec = 'claude';
       else if (isAntigravity) binExec = 'agy';
       else if (isCodex) binExec = 'codex';
       else if (isGemini) binExec = 'gemini';
@@ -671,6 +687,14 @@ projectsRouter.post('/deploy', async (req, res) => {
         agentBaseCmd = isLocalOss ? `"${binExec}" --oss -m "${llmModel}"` : `"${binExec}" -m "${llmModel}"`;
       } else {
         agentBaseCmd = `"${binExec}"`;
+      }
+    } else if (isOpenClaude) {
+      const resolvedCfg = targetAgent?.config_uri ? targetAgent.config_uri.replace(/^~(?=$|\/|\\)/, process.env.HOME || process.env.USERPROFILE || '') : '';
+      const settingsArg = (resolvedCfg && fs.existsSync(resolvedCfg)) ? ` --settings "${resolvedCfg}"` : '';
+      if (llmModel) {
+        agentBaseCmd = `"${binExec}" --model "${llmModel}"${settingsArg}`;
+      } else {
+        agentBaseCmd = `"${binExec}"${settingsArg}`;
       }
     } else if (isClaude) {
       if (llmModel) {
