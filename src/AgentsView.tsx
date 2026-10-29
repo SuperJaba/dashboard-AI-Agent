@@ -7,6 +7,7 @@ import { apiFetch } from './shared/api-client';
 import { LlmServerManager } from './LlmServerManager';
 import { LocalWorkerModal } from './LocalWorkerModal';
 import { AntigravityCard } from './components/AntigravityCard';
+import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
 
 export interface Agent {
   id: number;
@@ -359,6 +360,7 @@ export function AgentsView() {
         </AntigravityCard>
 
         <div style={{ marginBottom: '2rem' }}>
+          <AgentSchedulerWidget className="mb-6" />
           <LlmServerManager />
         </div>
 

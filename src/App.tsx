@@ -14,6 +14,7 @@ import { WebhookSettingsModal } from './components/WebhookSettingsModal';
 import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
 import { DeployCt8Widget } from './components/deploy-ct8-widget';
+import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';
 
@@ -1161,6 +1162,7 @@ function App() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1rem' }}>
                 <ModelRoutingWidget />
                 <DeployCt8Widget />
+                <AgentSchedulerWidget />
               </div>
               <AnalyticsPanel projects={projects} />
             </div>

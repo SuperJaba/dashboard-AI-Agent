@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import { schedulerService, TASK_PRESETS } from './schedulerService.js';
+import { schedulerService } from './schedulerService.js';
 import { schedulerRouter } from './schedulerRouter.js';
 import * as schedulerRepo from './schedulerRepository.js';
 

@@ -103,7 +103,7 @@ class SchedulerService {
   }
 
   stopAll() {
-    for (const [id, job] of this.cronJobs.entries()) {
+    for (const job of this.cronJobs.values()) {
       try {
         job.stop();
       } catch {
