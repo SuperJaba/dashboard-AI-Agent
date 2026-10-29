@@ -276,6 +276,7 @@ The LLM Server management expects the API key field as **`apiKey`** (camelCase) 
 | **[docs/ARCHITECTURE_DOCUMENTATION.md](./docs/ARCHITECTURE_DOCUMENTATION.md)** | System architecture overview and subsystem details |
 | **[docs/API_DOCUMENTATION.md](./docs/API_DOCUMENTATION.md)** | REST API and WebSocket specifications |
 | **[docs/TUTORIAL_ADD_WIDGET.md](./docs/TUTORIAL_ADD_WIDGET.md)** | Step-by-step guide for adding new Custom Widgets |
+| **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** | CT8.pl production deployment, Passenger configuration, and CI/CD pipeline |
 | **[docs/DESIGN.md](./docs/DESIGN.md)** | Architecture decisions and design patterns |
 | **[docs/DEVELOPER_ONBOARDING.md](./docs/DEVELOPER_ONBOARDING.md)** | Detailed onboarding guide for new developers |
 | **[docs/CONTEXT_MANAGEMENT.md](./docs/CONTEXT_MANAGEMENT.md)** | Context management strategy |

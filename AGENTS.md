@@ -11,6 +11,7 @@
 - **Architecture Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md) (C4 diagrams & service layers)
 - **Widget Creation**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md) (registration & layout integration)
 - **Remote SSH Administration**: [`docs/agent-ssh-con.md`](docs/agent-ssh-con.md) (CT8 execution commands & keys)
+- **Deployment & CI/CD**: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (CT8 host architecture, deploy scripts, and GitHub CI pipeline)
 
 
 ## Coding & Architectural Conventions
