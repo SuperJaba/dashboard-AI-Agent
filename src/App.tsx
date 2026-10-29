@@ -13,6 +13,7 @@ import { RepoStatus } from './RepoStatus';
 import { WebhookSettingsModal } from './components/WebhookSettingsModal';
 import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
+import { DeployCt8Widget } from './components/deploy-ct8-widget';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';
 
@@ -1157,7 +1158,10 @@ function App() {
           <div>
             <div style={{ padding: '1.25rem 1.25rem 0 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <KpiDashboardPanel />
-              <ModelRoutingWidget />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1rem' }}>
+                <ModelRoutingWidget />
+                <DeployCt8Widget />
+              </div>
               <AnalyticsPanel projects={projects} />
             </div>
             <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
