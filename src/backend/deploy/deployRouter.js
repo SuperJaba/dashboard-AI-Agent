@@ -43,6 +43,8 @@ deployRouter.post('/start', (req, res) => {
   }
 
   const environment = req.body?.environment || 'production';
+  const workspacePath = req.body?.workspacePath || null;
+  const workspaceName = req.body?.workspaceName || null;
 
   if (environment === 'production') {
     const confirm = req.headers['x-deploy-confirm'] || req.body?.confirm;
@@ -52,7 +54,7 @@ deployRouter.post('/start', (req, res) => {
   }
 
   try {
-    const result = deployService.startDeploy({ environment });
+    const result = deployService.startDeploy({ environment, workspacePath, workspaceName });
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.message });

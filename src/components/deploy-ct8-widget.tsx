@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Rocket, CheckCircle2, AlertCircle, RefreshCw, Terminal, Clock, 
-  ExternalLink, X, ShieldAlert, Copy, Check, Search 
+  ExternalLink, X, ShieldAlert, Copy, Check, Search, FolderGit2 
 } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
 import { cleanLogLine } from '../shared/clean-logs';
 import { useDashboardSocket } from '../hooks/useDashboardSocket';
+
+interface ProjectItem {
+  id: number;
+  name: string;
+  path: string;
+  desc?: string;
+}
 
 interface DeployStatus {
   state: 'IDLE' | 'RUNNING' | 'SUCCESS' | 'FAILED';
@@ -47,6 +54,12 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   const [copiedLogs, setCopiedLogs] = useState<boolean>(false);
   const [copiedRestartCmd, setCopiedRestartCmd] = useState<boolean>(false);
   const [logFilter, setLogFilter] = useState<string>('');
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState<boolean>(false);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
+  const [customPath, setCustomPath] = useState<string>('');
+  const [targetServer, setTargetServer] = useState<string>('dashboard.jagger2.ct8.pl');
+  const [deployEnv, setDeployEnv] = useState<string>('production');
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -71,9 +84,24 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const data = await apiClient.get<ProjectItem[]>('/api/projects');
+      if (Array.isArray(data)) {
+        setProjects(data);
+        if (data.length > 0 && !selectedProject) {
+          const another = data.find(p => p.name !== 'dashboard') || data[0];
+          setSelectedProject(another);
+        }
+      }
+    } catch (err) {
+      console.error('Błąd pobierania projektów workspace:', err);
+    }
+  };
+
   const refreshAll = async () => {
     setLoading(true);
-    await Promise.all([fetchStatus(), fetchHealth()]);
+    await Promise.all([fetchStatus(), fetchHealth(), fetchProjects()]);
     setLoading(false);
   };
 
@@ -81,6 +109,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     refreshAll();
     const interval = setInterval(fetchHealth, 15000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Nasłuchiwanie Socket.IO na zdarzenia deploy
@@ -154,6 +183,35 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
       await fetchStatus();
     } catch (err: any) {
       setErrorMsg(err.message || 'Nie udało się uruchomić wdrożenia.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeployWorkspace = async (workspacePath?: string, workspaceName?: string) => {
+    setActionLoading(true);
+    setErrorMsg(null);
+    try {
+      await apiClient.post<{ success: boolean; message: string }>(
+        '/api/deploy/start',
+        {
+          environment: deployEnv,
+          confirm: 'DEPLOY_CT8',
+          workspacePath: workspacePath || undefined,
+          workspaceName: workspaceName || undefined,
+        },
+        {
+          headers: {
+            'x-admin-role': 'true',
+            'x-deploy-confirm': 'DEPLOY_CT8',
+          },
+        }
+      );
+      setShowWorkspaceModal(false);
+      setShowLogsModal(true);
+      await fetchStatus();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Nie udało się uruchomić wdrożenia wybranego workspace.');
     } finally {
       setActionLoading(false);
     }
@@ -339,28 +397,38 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         )}
 
         {/* Duże Przyciski Akcji */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleStartDeploy}
             disabled={isDeploying || actionLoading}
-            className="flex-1 flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-semibold text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold text-xs md:text-sm transition-colors shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             {isDeploying ? (
               <>
-                <RefreshCw className="w-5 h-5 animate-spin" />
-                Wdrażanie w toku...
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Wdrażanie…
               </>
             ) : (
               <>
-                <Rocket className="w-5 h-5" />
+                <Rocket className="w-4 h-4" />
                 Wdróż na CT8
               </>
             )}
           </button>
 
           <button
+            onClick={() => setShowWorkspaceModal(true)}
+            disabled={isDeploying || actionLoading}
+            className="flex items-center justify-center gap-2 py-3.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs md:text-sm font-semibold border border-slate-700 transition-colors cursor-pointer shadow-sm active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
+            title="Dodaj nowe wdrożenie z innego Workspace"
+          >
+            <FolderGit2 className="w-4 h-4 text-indigo-400" />
+            Inny Workspace
+          </button>
+
+          <button
             onClick={() => setShowLogsModal(true)}
-            className="flex items-center justify-center gap-2 py-3.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-sm font-semibold border border-slate-700 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+            className="flex items-center justify-center gap-2 py-3.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs md:text-sm font-semibold border border-slate-700 transition-colors cursor-pointer shadow-sm active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-emerald-500"
             title="Otwórz pełną konsolę logów wdrożenia"
           >
             <Terminal className="w-4 h-4 text-emerald-400" />
@@ -551,6 +619,139 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                   className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all shadow-md cursor-pointer"
                 >
                   Zamknij
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal: Nowe wdrożenie z innego Workspace */}
+      {showWorkspaceModal && (
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="workspace-deploy-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/75 backdrop-blur-md overscroll-contain animate-in fade-in duration-150"
+        >
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl max-w-xl w-full p-6 md:p-7 shadow-2xl text-slate-100">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400">
+                  <FolderGit2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 id="workspace-deploy-title" className="font-semibold text-slate-100 text-base">
+                    Nowe wdrożenie z innego Workspace
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Wybierz projekt lub podaj ścieżkę do wdrożenia na serwer produkcyjny
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowWorkspaceModal(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Zamknij okno wyboru workspace"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-2">
+                  Dostępne Workspace w Dashboardzie:
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {projects.map((proj) => (
+                    <button
+                      key={proj.id}
+                      type="button"
+                      onClick={() => { setSelectedProject(proj); setCustomPath(''); }}
+                      className={`w-full text-left p-3 rounded-xl border text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                        selectedProject?.id === proj.id && !customPath
+                          ? 'border-indigo-500 bg-indigo-500/15 text-indigo-200 ring-1 ring-indigo-500/50'
+                          : 'border-slate-800/90 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
+                      }`}
+                    >
+                      <div>
+                        <span className="font-semibold block text-slate-100 text-sm tracking-tight">{proj.name}</span>
+                        <span className="text-[11px] text-slate-400 font-mono block mt-0.5">{proj.path}</span>
+                      </div>
+                      {selectedProject?.id === proj.id && !customPath && (
+                        <Check className="w-4 h-4 text-indigo-400 shrink-0 ml-2" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="customWorkspaceInput" className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Lub wpisz własną ścieżkę katalogu roboczego:
+                </label>
+                <input
+                  id="customWorkspaceInput"
+                  type="text"
+                  value={customPath}
+                  onChange={(e) => { setCustomPath(e.target.value); setSelectedProject(null); }}
+                  placeholder="np. /mnt/f/AI-Agents/invoice-splitter"
+                  className="w-full font-mono bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label htmlFor="deployServerSelect" className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Serwer docelowy:
+                  </label>
+                  <select
+                    id="deployServerSelect"
+                    value={targetServer}
+                    onChange={(e) => setTargetServer(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="dashboard.jagger2.ct8.pl">CT8.pl (dashboard.jagger2.ct8.pl)</option>
+                    <option value="10.10.10.100">OMV (root@10.10.10.100)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="deployEnvSelect" className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Środowisko:
+                  </label>
+                  <select
+                    id="deployEnvSelect"
+                    value={deployEnv}
+                    onChange={(e) => setDeployEnv(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="production">Produkcyjne (production)</option>
+                    <option value="staging">Testowe (staging)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-800/80 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowWorkspaceModal(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const effPath = customPath.trim() || selectedProject?.path;
+                    const effName = customPath.trim() ? 'Custom Workspace' : selectedProject?.name;
+                    handleDeployWorkspace(effPath, effName);
+                  }}
+                  disabled={actionLoading || (!selectedProject && !customPath.trim())}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-semibold transition-colors shadow-md disabled:opacity-50 cursor-pointer active:scale-[0.99]"
+                >
+                  <Rocket className="w-4 h-4 inline mr-1.5" />
+                  Wdróż Workspace
                 </button>
               </div>
             </div>

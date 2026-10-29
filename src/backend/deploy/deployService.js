@@ -138,7 +138,7 @@ class DeployService {
     }
   }
 
-  startDeploy({ environment = 'production' } = {}) {
+  startDeploy({ environment = 'production', workspacePath = null, workspaceName = null } = {}) {
     if (this.state === 'RUNNING') {
       throw new Error('Wdrożenie jest już w toku.');
     }
@@ -148,18 +148,22 @@ class DeployService {
     this.currentStep = 'Inicjalizacja skryptu wdrożeniowego...';
     this.logs = [];
 
+    const effectiveDir = (workspacePath && fs.existsSync(workspacePath)) ? workspacePath : REPO_ROOT;
+    const label = workspaceName ? `${workspaceName} (${effectiveDir})` : environment;
+
     const scriptPath = path.join(REPO_ROOT, 'scripts', 'deploy-ct8-optimized.sh');
     const startEpoch = Date.now();
 
-    this.appendLog(`[SYSTEM] Rozpoczęto wdrożenie na środowisko: ${environment}`);
+    this.appendLog(`[SYSTEM] Rozpoczęto wdrożenie Workspace: ${label} [Środowisko: ${environment}]`);
     this.broadcast('deploy:status', this.getStatus());
 
     try {
       this.activeProcess = spawn('bash', [scriptPath, environment], {
-        cwd: REPO_ROOT,
+        cwd: effectiveDir,
         env: {
           ...process.env,
           NODE_ENV: environment,
+          WORKSPACE_PATH: effectiveDir,
         },
       });
 

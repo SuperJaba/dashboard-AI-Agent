@@ -25,6 +25,13 @@ export const TASK_PRESETS = [
     defaultCron: '*/30 * * * *'
   },
   {
+    type: 'omv_audit',
+    name: 'Nocny audyt OMV (SMART, usługi, błędy)',
+    description: 'Badanie dysków SMART, usług failed i logów systemowych serwera OMV',
+    defaultCommand: 'mkdir -p reports && ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes omv \'echo "=== RAPORT OMV [$(date "+%F %T")] ===" && echo "--- 1. STAN DYSKU (SMART) ---" && smartctl -H /dev/disk/by-id/ata-WDC_WD6400BEVT-22A0RT0_WD-WXC0AB9M2067 2>/dev/null | grep -E "result|Pending" || true && echo "--- 2. USŁUGI W STANIE AWARII ---" && systemctl --failed --no-legend 2>/dev/null || true && echo "--- 3. ZASOBY (RAM & DYSK) ---" && free -h | awk "NR<=2" && df -h / | awk "NR<=2" && echo "--- 4. BŁĘDY W DZIENNIKU SYSTEMOWYM ---" && journalctl --file=/var/log/journal/a5964cf8c4d94485b7f779bc2a9eade5/system.journal -p 3 -n 40 --no-pager 2>/dev/null | grep -v "twingate-notifier" | tail -n 25 || true\' | tee reports/omv-$(date +%F).log',
+    defaultCron: '0 3 * * *'
+  },
+  {
     type: 'custom_command',
     name: 'Własne zadanie AI / komenda',
     description: 'Dowolne polecenie powłoki lub skrypt agenta',
