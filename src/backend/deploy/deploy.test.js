@@ -29,6 +29,16 @@ describe('DeployService', () => {
     expect(deployService.currentStep).toContain('Krok 2: Wysyłanie plików');
   });
 
+  it('strips ANSI color escape sequences and orphaned [0m codes', () => {
+    deployService.appendLog('\u001b[32m[OK] Files synchronized\u001b[0m');
+    expect(deployService.logs[deployService.logs.length - 1].text).toBe('[OK] Files synchronized');
+
+    // Lone ANSI reset like [0m should be stripped and not add empty lines
+    const prevCount = deployService.logs.length;
+    deployService.appendLog('[0m');
+    expect(deployService.logs.length).toBe(prevCount);
+  });
+
   it('rejects starting deployment if already in RUNNING state', () => {
     deployService.state = 'RUNNING';
     expect(() => deployService.startDeploy()).toThrow('Wdrożenie jest już w toku.');

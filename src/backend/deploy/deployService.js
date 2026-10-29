@@ -3,11 +3,28 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
+import { notificationService } from '../notifications/notificationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '../../../');
 const LAST_DEPLOY_FILE = path.join(REPO_ROOT, '.last_deploy.json');
+
+// eslint-disable-next-line no-control-regex
+const ANSI_REGEX = /[\u001b\x1b]\[[0-9;]*[a-zA-Z]/g;
+const ORPHANED_ANSI_REGEX = /\[[0-9;]+m/g;
+
+/**
+ * Strips ANSI color/escape sequences and stray formatting artifacts (like [0m)
+ */
+export function stripAnsi(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .replace(ANSI_REGEX, '')
+    .replace(ORPHANED_ANSI_REGEX, '')
+    .replace(/\r/g, '')
+    .trim();
+}
 
 class DeployService {
   constructor() {
@@ -197,12 +214,22 @@ class DeployService {
       durationSeconds,
       error: errorReason,
     });
+
+    notificationService.notify('deploy:finished', {
+      success,
+      durationSeconds,
+      error: errorReason,
+      targetHost: 'dashboard.jagger2.ct8.pl',
+    });
   }
 
   appendLog(line) {
+    const cleanText = stripAnsi(line);
+    if (!cleanText) return;
+
     const logEntry = {
       timestamp: new Date().toLocaleTimeString('pl-PL'),
-      text: line,
+      text: cleanText,
     };
     this.logs.push(logEntry);
     if (this.logs.length > this.maxLogs) {
@@ -212,19 +239,20 @@ class DeployService {
   }
 
   parseStep(line) {
-    if (line.includes('STEP 0')) {
+    const clean = stripAnsi(line);
+    if (clean.includes('STEP 0')) {
       this.currentStep = 'Krok 0: Weryfikacja poświadczeń i dostępności serwera';
       this.broadcast('deploy:status', this.getStatus());
-    } else if (line.includes('STEP 1')) {
+    } else if (clean.includes('STEP 1')) {
       this.currentStep = 'Krok 1: Weryfikacja i przygotowanie paczki frontendu';
       this.broadcast('deploy:status', this.getStatus());
-    } else if (line.includes('STEP 2')) {
+    } else if (clean.includes('STEP 2')) {
       this.currentStep = 'Krok 2: Wysyłanie plików backendu i zasobów na CT8';
       this.broadcast('deploy:status', this.getStatus());
-    } else if (line.includes('STEP 3')) {
+    } else if (clean.includes('STEP 3')) {
       this.currentStep = 'Krok 3: Wykonywanie migracji bazy danych PostgreSQL';
       this.broadcast('deploy:status', this.getStatus());
-    } else if (line.includes('STEP 4')) {
+    } else if (clean.includes('STEP 4')) {
       this.currentStep = 'Krok 4: Przeładowanie Passenger i test /health';
       this.broadcast('deploy:status', this.getStatus());
     }

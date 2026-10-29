@@ -145,15 +145,20 @@ export function WebhookSettingsModal({ token }: Props) {
         <p className="text-xs text-gray-400 font-medium">Nowy webhook</p>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-400" htmlFor="wh-url">URL</label>
+          <label className="text-xs text-gray-400" htmlFor="wh-url">URL Webhooka (Discord, Telegram lub standardowy HTTP)</label>
           <input
             id="wh-url"
             type="url"
             value={formUrl}
             onChange={(e) => setFormUrl(e.target.value)}
-            placeholder="https://example.com/hook"
+            placeholder="https://discord.com/api/webhooks/... lub https://example.com/hook"
             className="bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-400"
           />
+          {formUrl.includes('discord.com/api/webhooks') && (
+            <p className="text-[11px] text-indigo-400">
+              ✓ Wykryto Discord Webhook — powiadomienia będą automatycznie sformatowane jako bogate karty Embed.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">

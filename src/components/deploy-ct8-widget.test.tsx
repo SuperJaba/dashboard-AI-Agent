@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { DeployCt8Widget } from './deploy-ct8-widget';
+import { cleanLogLine } from '../shared/clean-logs';
 import { apiClient } from '../shared/api-client';
 
 vi.mock('../shared/api-client', () => ({
@@ -93,6 +94,38 @@ describe('DeployCt8Widget', () => {
         { environment: 'production', confirm: 'DEPLOY_CT8' },
         { headers: { 'x-admin-role': 'true', 'x-deploy-confirm': 'DEPLOY_CT8' } }
       );
+    });
+  });
+
+  it('cleanLogLine strips ANSI sequences and stray [0m', () => {
+    expect(cleanLogLine('\u001b[32m[OK] Success\u001b[0m')).toBe('[OK] Success');
+    expect(cleanLogLine('[0m')).toBe('');
+    expect(cleanLogLine('ssh jagger2@s1.ct8.pl [0m')).toBe('ssh jagger2@s1.ct8.pl');
+  });
+
+  it('opens and closes redesigned logs console modal', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      state: 'IDLE',
+      isDeploying: false,
+      currentStep: 'Gotowy',
+      logs: [{ timestamp: '12:00:00', text: 'Log testowy wdrożenia' }],
+      lastDeploy: { status: 'SUCCESS', timestamp: null, durationSeconds: 0, targetHost: '', error: null },
+      targetHost: 'dashboard.jagger2.ct8.pl',
+    });
+
+    render(<DeployCt8Widget />);
+
+    const logsBtn = await screen.findByRole('button', { name: /Logi/i });
+    fireEvent.click(logsBtn);
+
+    expect(screen.getByText(/Konsola Wdrożenia CT8\.pl/i)).toBeInTheDocument();
+    expect(screen.getByText('Log testowy wdrożenia')).toBeInTheDocument();
+
+    const closeBtn = screen.getByRole('button', { name: 'Zamknij' });
+    fireEvent.click(closeBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Konsola Wdrożenia CT8\.pl/i)).not.toBeInTheDocument();
     });
   });
 });
