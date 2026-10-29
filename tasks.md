@@ -7,8 +7,8 @@
 - [x] NPM Script: build (kompilacja pakietu produkcyjnego Vite)
 - [x] NPM Script: lint (weryfikacja Oxlint - 0 błędów i ostrzeżeń)
 - [x] NPM Script: test (pełny zestaw 33 plików testowych Vitest)
-- [ ] NPM Script: test:sys (diagnostyka systemowa node --test)
-- [ ] NPM Script: test:e2e (testy end-to-end Playwright)
+- [x] NPM Script: test:sys (diagnostyka systemowa node --test)
+- [x] NPM Script: test:e2e (testy end-to-end Playwright)
 - [ ] NPM Script: deploy:ct8 (optymalizacja i wdrożenie na serwer zdalny CT8)
 
 ## Funkcjonalności i Architektura
