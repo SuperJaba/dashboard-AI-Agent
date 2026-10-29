@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
+import { notificationService } from '../notifications/notificationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -196,6 +197,13 @@ class DeployService {
       success,
       durationSeconds,
       error: errorReason,
+    });
+
+    notificationService.notify('deploy:finished', {
+      success,
+      durationSeconds,
+      error: errorReason,
+      targetHost: 'dashboard.jagger2.ct8.pl',
     });
   }
 
