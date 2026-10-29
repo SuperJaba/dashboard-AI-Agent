@@ -67,6 +67,7 @@ import { sseRouter } from './src/backend/events/sseRouter.js';
 import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
 import { deployRouter } from './src/backend/deploy/deployRouter.js';
 import { deployService } from './src/backend/deploy/deployService.js';
+import { notificationsRouter } from './src/backend/notifications/notificationsRouter.js';
 import { schedulerRouter } from './src/backend/scheduler/schedulerRouter.js';
 import { schedulerService } from './src/backend/scheduler/schedulerService.js';
 import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
@@ -454,6 +455,7 @@ app.use('/api/alerts', authMiddleware, alertsRouter);
 app.use('/api/events', authMiddleware, sseRouter);
 app.use('/api/analytics', authMiddleware, kpiRouter);
 app.use('/api/deploy', authMiddleware, deployRouter);
+app.use('/api/notifications', authMiddleware, notificationsRouter);
 app.use('/api/scheduler', authMiddleware, schedulerRouter);
 
 // T7.4 — Start alert watcher and agent task scheduler (skipped in test env)
