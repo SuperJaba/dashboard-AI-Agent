@@ -36,7 +36,45 @@ export const inMemoryStore = {
   cli_agents: [],
   custom_widgets: [],
   agents: [],
-  user_settings: []
+  user_settings: [],
+  agent_scheduled_tasks: [
+    {
+      id: 1,
+      name: 'Nocny audyt bezpieczeństwa',
+      task_type: 'npm_audit',
+      command: 'npm audit',
+      cron_expression: '0 3 * * *',
+      enabled: true,
+      last_run: null,
+      last_status: 'idle',
+      last_output: null,
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      name: 'Weryfikacja logów błędów',
+      task_type: 'error_check',
+      command: 'node -e "console.log(\'Brak krytycznych błędów w logach.\')"',
+      cron_expression: '0 * * * *',
+      enabled: true,
+      last_run: null,
+      last_status: 'idle',
+      last_output: null,
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 3,
+      name: 'Synchronizacja zadań z tasks.md',
+      task_type: 'sync_tasks',
+      command: 'npm run sync-tasks',
+      cron_expression: '*/30 * * * *',
+      enabled: true,
+      last_run: null,
+      last_status: 'idle',
+      last_output: null,
+      created_at: new Date().toISOString()
+    }
+  ]
 };
 
 let useInMemoryFallback = false;
@@ -275,6 +313,74 @@ export async function safeQuery(text, params = []) {
     return { rows: [row] };
   }
 
+  // Agent Scheduled Tasks
+  if (sql.includes('FROM agent_scheduled_tasks')) {
+    if (sql.includes('WHERE id = $1') || sql.includes('WHERE id=')) {
+      const id = parseInt(params[0], 10);
+      const task = inMemoryStore.agent_scheduled_tasks.find(t => t.id === id);
+      return { rows: task ? [{ ...task }] : [] };
+    }
+    return { rows: inMemoryStore.agent_scheduled_tasks.map(t => ({ ...t })) };
+  }
+
+  if (sql.includes('INSERT INTO agent_scheduled_tasks')) {
+    const nextId = inMemoryStore.agent_scheduled_tasks.length > 0
+      ? Math.max(...inMemoryStore.agent_scheduled_tasks.map(t => t.id || 0)) + 1
+      : 1;
+    const newTask = {
+      id: nextId,
+      name: params[0],
+      task_type: params[1],
+      command: params[2],
+      cron_expression: params[3],
+      enabled: params[4] !== undefined ? Boolean(params[4]) : true,
+      last_status: params[5] || 'idle',
+      last_run: null,
+      last_output: null,
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.agent_scheduled_tasks.push(newTask);
+    return { rows: [{ ...newTask }] };
+  }
+
+  if (sql.includes('UPDATE agent_scheduled_tasks')) {
+    const id = parseInt(params[params.length - 1], 10);
+    const task = inMemoryStore.agent_scheduled_tasks.find(t => t.id === id);
+    if (!task) return { rows: [] };
+
+    // Record run update: SET last_run = $1, last_status = $2, last_output = $3 WHERE id = $4
+    if (sql.includes('SET last_run')) {
+      task.last_run = params[0];
+      task.last_status = params[1];
+      task.last_output = params[2];
+      return { rows: [{ ...task }] };
+    }
+
+    // Toggle enabled update: SET enabled = $1 WHERE id = $2
+    if (sql.includes('SET enabled = $1 WHERE id = $2')) {
+      task.enabled = Boolean(params[0]);
+      return { rows: [{ ...task }] };
+    }
+
+    // Full update: SET name = $1, task_type = $2, command = $3, cron_expression = $4, enabled = $5 WHERE id = $6
+    if (params.length >= 6) {
+      task.name = params[0];
+      task.task_type = params[1];
+      task.command = params[2];
+      task.cron_expression = params[3];
+      task.enabled = Boolean(params[4]);
+      return { rows: [{ ...task }] };
+    }
+
+    return { rows: [{ ...task }] };
+  }
+
+  if (sql.includes('DELETE FROM agent_scheduled_tasks')) {
+    const id = parseInt(params[0], 10);
+    inMemoryStore.agent_scheduled_tasks = inMemoryStore.agent_scheduled_tasks.filter(t => t.id !== id);
+    return { rows: [] };
+  }
+
   return { rows: [] };
 }
 
@@ -371,6 +477,18 @@ export async function migrate() {
       theme VARCHAR(20) DEFAULT 'dark',
       language VARCHAR(10) DEFAULT 'pl',
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS agent_scheduled_tasks (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      task_type VARCHAR(100) NOT NULL,
+      command TEXT,
+      cron_expression VARCHAR(100) NOT NULL,
+      enabled BOOLEAN DEFAULT true,
+      last_run TIMESTAMP,
+      last_status VARCHAR(50) DEFAULT 'idle',
+      last_output TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];
 
