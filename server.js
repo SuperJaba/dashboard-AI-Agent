@@ -65,6 +65,8 @@ import { alertsRouter } from './src/backend/alerts/alertsRouter.js';
 import { startAlertWatcher } from './src/backend/alerts/alertWatcher.js';
 import { sseRouter } from './src/backend/events/sseRouter.js';
 import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
+import { deployRouter } from './src/backend/deploy/deployRouter.js';
+import { deployService } from './src/backend/deploy/deployService.js';
 import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
@@ -306,6 +308,7 @@ dashNsp.use(socketAuthMiddleware);
 
 registerPtyNamespace(ptyNsp, activeWorkers);
 registerDashboardNamespace(dashNsp, activeWorkers);
+deployService.setSocketServer(io);
 
 
 app.use(cors());
@@ -447,6 +450,7 @@ app.use('/api/webhooks', webhooksRouter);
 app.use('/api/alerts', authMiddleware, alertsRouter);
 app.use('/api/events', authMiddleware, sseRouter);
 app.use('/api/analytics', authMiddleware, kpiRouter);
+app.use('/api/deploy', authMiddleware, deployRouter);
 
 // T7.4 — Start alert watcher (skipped in test env)
 if (process.env.NODE_ENV !== 'test') {
