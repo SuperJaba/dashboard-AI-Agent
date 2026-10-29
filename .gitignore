@@ -47,3 +47,7 @@ artifacts/*.json
 # Jupyter notebooks and screenshots in root
 *.ipynb
 
+# Local credentials
+pass.txt
+docs/pass.txt
+

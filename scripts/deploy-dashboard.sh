@@ -37,6 +37,9 @@ elif [ -n "$ACTIVE_KEY" ] && [ -f "$ACTIVE_KEY" ]; then
 elif [ -f "$PASS_FILE" ]; then
   PASS=$(cat "$PASS_FILE")
   AUTH_METHOD="password"
+elif [ -f "$PROJECT_DIR/../invoice-splitter/docs/pass.txt" ]; then
+  PASS=$(cat "$PROJECT_DIR/../invoice-splitter/docs/pass.txt")
+  AUTH_METHOD="password"
 fi
 
 REMOTE_BASE="domains/$REMOTE_HOST"
