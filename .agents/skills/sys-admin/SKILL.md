@@ -32,6 +32,27 @@ Executes over SSH using `~/.ssh/id_ed25519_antigravity` with non-blocking `Batch
 | `node scripts/ssh-ct8.js logs` | Tail last 30 lines of remote dashboard application/error logs. |
 | `node scripts/ssh-ct8.js "<command>"` | Execute arbitrary remote shell command. |
 
+### 3. SMART Diagnostics & Sector Remediation (Disk Recovery)
+
+When diagnosing/repairing `Current_Pending_Sector` (attribute 197) or `Offline_Uncorrectable` (attribute 198):
+
+1. **Locate Failing LBAs**:
+   - Run selective self-test: `smartctl -t select,<LBA>-max /dev/sdX`
+   - Read self-test log: `smartctl -l selftest /dev/sdX` to find `LBA_of_first_error`.
+   - Verify specific sector readability: `dd if=/dev/sdX of=/dev/null skip=<LBA> count=1 iflag=direct`.
+
+2. **Verify Filesystem Impact**:
+   - Calculate block in partition: `(LBA - partition_start_sector) * 512 / block_size`.
+   - Inspect allocation state via `debugfs -R "testb <block>" /dev/sdX<N>`. If block is unallocated, zeroing poses no user data loss.
+
+3. **Force Controller Reallocation / ECC Refresh**:
+   - Write zero directly to LBA: `dd if=/dev/zero of=/dev/sdX seek=<LBA> count=1 bs=512 oflag=direct`.
+   - Verify read: `dd if=/dev/sdX of=/dev/null skip=<LBA> count=1 bs=512 iflag=direct`.
+
+4. **Shell Execution Guard**:
+   - Remote machines with `zsh` fail on unmatched wildcards (`no matches found`). Always wrap compound commands and globbing inside `bash -c '...'`.
+
+
 ---
 
 ## Token Efficiency & Subagent Delegation Rule

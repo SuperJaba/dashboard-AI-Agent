@@ -51,3 +51,6 @@ artifacts/*.json
 pass.txt
 docs/pass.txt
 
+# CodeGraph WSL temporary directory
+.codegraph-wsl/
+
