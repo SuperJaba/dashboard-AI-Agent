@@ -68,6 +68,8 @@ import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
 import { deployRouter } from './src/backend/deploy/deployRouter.js';
 import { deployService } from './src/backend/deploy/deployService.js';
 import { notificationsRouter } from './src/backend/notifications/notificationsRouter.js';
+import { schedulerRouter } from './src/backend/scheduler/schedulerRouter.js';
+import { schedulerService } from './src/backend/scheduler/schedulerService.js';
 import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
@@ -310,6 +312,7 @@ dashNsp.use(socketAuthMiddleware);
 registerPtyNamespace(ptyNsp, activeWorkers);
 registerDashboardNamespace(dashNsp, activeWorkers);
 deployService.setSocketServer(io);
+schedulerService.setSocketServer(io);
 
 
 app.use(cors());
@@ -453,10 +456,12 @@ app.use('/api/events', authMiddleware, sseRouter);
 app.use('/api/analytics', authMiddleware, kpiRouter);
 app.use('/api/deploy', authMiddleware, deployRouter);
 app.use('/api/notifications', authMiddleware, notificationsRouter);
+app.use('/api/scheduler', authMiddleware, schedulerRouter);
 
-// T7.4 — Start alert watcher (skipped in test env)
+// T7.4 — Start alert watcher and agent task scheduler (skipped in test env)
 if (process.env.NODE_ENV !== 'test') {
   startAlertWatcher();
+  schedulerService.initScheduler().catch(err => console.error('Błąd startu schedulera:', err.message));
 }
 
 
@@ -554,6 +559,18 @@ async function initDB() {
         description TEXT,
         server_id INTEGER REFERENCES servers(id),
         status VARCHAR(50) DEFAULT 'stopped',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS agent_scheduled_tasks (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        task_type VARCHAR(100) NOT NULL,
+        command TEXT,
+        cron_expression VARCHAR(100) NOT NULL,
+        enabled BOOLEAN DEFAULT true,
+        last_run TIMESTAMP,
+        last_status VARCHAR(50) DEFAULT 'idle',
+        last_output TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;
