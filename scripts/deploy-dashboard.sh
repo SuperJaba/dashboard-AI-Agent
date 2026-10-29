@@ -9,7 +9,8 @@ set -e
 REMOTE_USER="${CT8_USER:-jagger2}"
 REM_HOST="${CT8_REM_HOST:-s1.ct8.pl}"
 REMOTE_HOST="${CT8_HOST:-dashboard.jagger2.ct8.pl}"
-PASS_FILE="$(dirname "$0")/../docs/pass.txt"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../ && pwd)"
+PASS_FILE="$PROJECT_DIR/docs/pass.txt"
 
 # Locate SSH Key (search for antigravity / antygravity key or user override)
 ACTIVE_KEY=""
@@ -37,14 +38,15 @@ elif [ -n "$ACTIVE_KEY" ] && [ -f "$ACTIVE_KEY" ]; then
 elif [ -f "$PASS_FILE" ]; then
   PASS=$(cat "$PASS_FILE")
   AUTH_METHOD="password"
+elif [ -f "$PROJECT_DIR/../invoice-splitter/docs/pass.txt" ]; then
+  PASS=$(cat "$PROJECT_DIR/../invoice-splitter/docs/pass.txt")
+  AUTH_METHOD="password"
 fi
 
 REMOTE_BASE="domains/$REMOTE_HOST"
 REMOTE_APP="$REMOTE_BASE/public_nodejs"
 REMOTE_PUBLIC="$REMOTE_APP/public"
 REMOTE_LOGS="$REMOTE_BASE/logs"
-
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../ && pwd)"
 
 ENVIRONMENT="production"
 
@@ -412,8 +414,10 @@ main() {
   echo "  Target Host: $REMOTE_HOST ($REM_HOST)"
   if [ "$AUTH_METHOD" = "key" ]; then
     echo "  Auth Method: SSH Key ($ACTIVE_KEY)"
-  else
+  elif [ "$AUTH_METHOD" = "password" ]; then
     echo "  Auth Method: Password (sshpass)"
+  else
+    echo "  Auth Method: None (missing credentials)"
   fi
   echo "============================================================"
   echo -e "${NC}"

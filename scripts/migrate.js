@@ -1,6 +1,66 @@
+import pkg from 'pg';
+import dotenv from 'dotenv';
 import { safeQuery } from '../src/backend/db.js';
 
-async function runMigrations() {
+dotenv.config();
+const { Client } = pkg;
+
+export async function ensureDatabaseExists() {
+  const dbName = process.env.DB_NAME || process.env.PGDATABASE || 'dashboarddb';
+  const user = process.env.DB_USER || process.env.PGUSER || 'SebaP';
+  const host = process.env.DB_HOST || process.env.PGHOST || 'localhost';
+  const password = process.env.DB_PASSWORD || process.env.PGPASSWORD;
+  const port = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : (process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432);
+
+  const candidateAdminDbs = [process.env.DB_ADMIN_NAME, 'postgres', 'template1', user].filter(Boolean);
+  let checked = false;
+
+  for (const adminDb of candidateAdminDbs) {
+    let client;
+    try {
+      client = new Client({
+        user,
+        host,
+        database: adminDb,
+        password,
+        port,
+        connectionTimeoutMillis: 5000,
+      });
+
+      await client.connect();
+      console.log(`🔍 Checking if database '${dbName}' exists (via '${adminDb}')...`);
+      const res = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);
+      if (res.rowCount === 0) {
+        console.log(`📦 Database '${dbName}' does not exist. Creating...`);
+        const safeDbName = dbName.replace(/"/g, '""');
+        await client.query(`CREATE DATABASE "${safeDbName}";`);
+        console.log(`✅ Database '${dbName}' created successfully.`);
+      } else {
+        console.log(`✓ Database '${dbName}' already exists.`);
+      }
+      checked = true;
+      break;
+    } catch (err) {
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('ECONNREFUSED')) {
+        console.warn('⚠️ PostgreSQL server is not reachable, skipping database creation (will use fallback store if needed).');
+        return;
+      }
+      // Try next admin candidate database
+    } finally {
+      if (client) {
+        await client.end().catch(() => {});
+      }
+    }
+  }
+
+  if (!checked) {
+    console.warn(`ℹ️ Note: Could not verify database existence via admin DBs. Proceeding with migration...`);
+  }
+}
+
+export async function runMigrations() {
+  await ensureDatabaseExists();
+
   const schema = process.env.DB_SCHEMA || 'dashboard';
   console.log(`🔄 Running database migrations in schema '${schema}'...`);
   try {
