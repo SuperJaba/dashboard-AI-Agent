@@ -412,8 +412,10 @@ main() {
   echo "  Target Host: $REMOTE_HOST ($REM_HOST)"
   if [ "$AUTH_METHOD" = "key" ]; then
     echo "  Auth Method: SSH Key ($ACTIVE_KEY)"
-  else
+  elif [ "$AUTH_METHOD" = "password" ]; then
     echo "  Auth Method: Password (sshpass)"
+  else
+    echo "  Auth Method: None (missing credentials)"
   fi
   echo "============================================================"
   echo -e "${NC}"
