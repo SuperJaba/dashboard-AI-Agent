@@ -1,6 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Rocket, CheckCircle2, AlertCircle, RefreshCw, Terminal, Clock, ExternalLink, X, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  Rocket, CheckCircle2, AlertCircle, RefreshCw, Terminal, Clock, 
+  ExternalLink, X, ShieldAlert, Copy, Check, Search 
+} from 'lucide-react';
 import { apiClient } from '../shared/api-client';
+import { cleanLogLine } from '../shared/clean-logs';
 import { useDashboardSocket } from '../hooks/useDashboardSocket';
 
 interface DeployStatus {
@@ -31,6 +35,8 @@ interface DeployCt8WidgetProps {
   className?: string;
 }
 
+const REMOTE_RESTART_CMD = "ssh jagger2@s1.ct8.pl 'devil www restart dashboard.jagger2.ct8.pl'";
+
 export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = '' }) => {
   const [status, setStatus] = useState<DeployStatus | null>(null);
   const [health, setHealth] = useState<DeployHealth | null>(null);
@@ -38,6 +44,9 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [showLogsModal, setShowLogsModal] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [copiedLogs, setCopiedLogs] = useState<boolean>(false);
+  const [copiedRestartCmd, setCopiedRestartCmd] = useState<boolean>(false);
+  const [logFilter, setLogFilter] = useState<string>('');
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -79,11 +88,14 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     if (!socket) return;
 
     const handleDeployLog = (logEntry: { timestamp: string; text: string }) => {
+      const cleaned = cleanLogLine(logEntry.text);
+      if (!cleaned) return;
+
       setStatus((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
-          logs: [...prev.logs.slice(-250), logEntry],
+          logs: [...prev.logs.slice(-250), { ...logEntry, text: cleaned }],
         };
       });
     };
@@ -147,52 +159,91 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     }
   };
 
+  const handleCopyLogs = async () => {
+    if (!status?.logs || status.logs.length === 0) return;
+    const textToCopy = status.logs
+      .map((l) => `[${l.timestamp}] ${cleanLogLine(l.text)}`)
+      .filter((line) => line.length > 12)
+      .join('\n');
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopiedLogs(true);
+      setTimeout(() => setCopiedLogs(false), 2500);
+    } catch (err) {
+      console.error('Błąd kopiowania logów:', err);
+    }
+  };
+
+  const handleCopyRestartCmd = async () => {
+    try {
+      await navigator.clipboard.writeText(REMOTE_RESTART_CMD);
+      setCopiedRestartCmd(true);
+      setTimeout(() => setCopiedRestartCmd(false), 2500);
+    } catch (err) {
+      console.error('Błąd kopiowania komendy:', err);
+    }
+  };
+
   const isDeploying = status?.isDeploying || false;
+  const currentLogs = status?.logs;
+
+  const filteredLogs = useMemo(() => {
+    if (!currentLogs) return [];
+    return currentLogs
+      .map((l) => ({ ...l, text: cleanLogLine(l.text) }))
+      .filter((l) => l.text.length > 0)
+      .filter((l) => {
+        if (!logFilter.trim()) return true;
+        return l.text.toLowerCase().includes(logFilter.toLowerCase());
+      });
+  }, [currentLogs, logFilter]);
 
   return (
     <>
       <div
-        className={`bg-gray-900/80 border border-gray-800 rounded-2xl p-5 shadow-xl backdrop-blur-md text-white transition-all hover:border-gray-700 ${className}`}
+        className={`bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-md text-white transition-all hover:border-slate-700 ${className}`}
         style={{ letterSpacing: '-0.01em' }}
       >
         {/* Nagłówek Widgetu */}
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-800/80">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500/20 to-emerald-500/20 border border-indigo-500/30 text-indigo-400">
-              <Rocket className="w-5 h-5" />
+        <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-800">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500/20 to-emerald-500/20 border border-indigo-500/30 text-indigo-400 shadow-inner">
+              <Rocket className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-base text-gray-100 flex items-center gap-2">
-                Wdrożenie CT8.pl
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-lg text-slate-100 tracking-tight">
+                  Wdrożenie CT8.pl
+                </h3>
                 <a
                   href="https://dashboard.jagger2.ct8.pl"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-gray-400 hover:text-emerald-400 transition-colors"
-                  title="Otwórz produkcję w nowej karcie"
+                  className="text-slate-400 hover:text-emerald-400 transition-colors p-1 rounded-md hover:bg-slate-800"
+                  title="Otwórz aplikację produkcyjną w nowej karcie"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <ExternalLink className="w-4 h-4" />
                 </a>
-              </h3>
-              <p className="text-xs text-gray-400 font-mono">dashboard.jagger2.ct8.pl</p>
+              </div>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">dashboard.jagger2.ct8.pl</p>
             </div>
           </div>
 
-          {/* Dioda Healthcheck */}
-          <div className="flex items-center gap-2">
+          {/* Dioda Healthcheck & Przycisk Odświeżania */}
+          <div className="flex items-center gap-2.5">
             {health?.healthy ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 Działa ({health.latencyMs} ms)
               </span>
             ) : health && !health.healthy ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/30">
-                <span className="w-2 h-2 rounded-full bg-rose-400" />
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
                 Offline
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400">
-                <RefreshCw className="w-3 h-3 animate-spin" />
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 Sprawdzanie...
               </span>
             )}
@@ -200,49 +251,53 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             <button
               onClick={refreshAll}
               disabled={loading}
-              className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
-              title="Odśwież status"
+              className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 transition-all disabled:opacity-50 cursor-pointer"
+              title="Odśwież stan serwera i wdrożenia"
+              aria-label="Odśwież status wdrożenia"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
         {/* Informacje o ostatnim wdrożeniu */}
-        <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
-          <div className="p-3 bg-gray-950/60 rounded-xl border border-gray-800/60">
-            <span className="text-gray-400 block mb-1">Status ostatniego deployu</span>
-            <div className="flex items-center gap-1.5 font-medium">
+        <div className="grid grid-cols-2 gap-3.5 mb-5 text-xs">
+          <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 shadow-sm">
+            <span className="text-slate-400 font-medium block mb-1.5">Status ostatniego wdrożenia</span>
+            <div className="flex items-center gap-2 font-semibold">
               {status?.lastDeploy?.status === 'SUCCESS' ? (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span className="text-emerald-300">Pomyślny ({status.lastDeploy.durationSeconds}s)</span>
                 </>
               ) : status?.lastDeploy?.status === 'FAILED' ? (
                 <>
-                  <AlertCircle className="w-4 h-4 text-rose-400" />
-                  <span className="text-rose-300">Niepowodzenie</span>
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span className="text-rose-300 truncate" title={status.lastDeploy.error || 'Niepowodzenie'}>
+                    Niepowodzenie
+                  </span>
                 </>
               ) : isDeploying ? (
                 <>
-                  <RefreshCw className="w-4 h-4 text-amber-400 animate-spin" />
+                  <RefreshCw className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
                   <span className="text-amber-300">W toku...</span>
                 </>
               ) : (
-                <span className="text-gray-400">Brak danych</span>
+                <span className="text-slate-400 font-normal">Brak historii</span>
               )}
             </div>
           </div>
 
-          <div className="p-3 bg-gray-950/60 rounded-xl border border-gray-800/60">
-            <span className="text-gray-400 block mb-1">Czas ostatniej operacji</span>
-            <div className="flex items-center gap-1.5 font-medium text-gray-200">
-              <Clock className="w-4 h-4 text-gray-400" />
+          <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 shadow-sm">
+            <span className="text-slate-400 font-medium block mb-1.5">Data ostatniej operacji</span>
+            <div className="flex items-center gap-2 font-medium text-slate-200">
+              <Clock className="w-4 h-4 text-slate-400 shrink-0" />
               <span>
                 {status?.lastDeploy?.timestamp
                   ? new Date(status.lastDeploy.timestamp).toLocaleString('pl-PL', {
                       day: '2-digit',
                       month: '2-digit',
+                      year: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit',
                     })
@@ -254,42 +309,50 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
 
         {/* Komunikat o błędzie jeśli wystąpił */}
         {errorMsg && (
-          <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{errorMsg}</span>
+          <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{errorMsg}</span>
+            </div>
+            <button
+              onClick={() => setErrorMsg(null)}
+              className="text-rose-400 hover:text-rose-200 p-1"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 
         {/* Bieżący krok jeśli w trakcie wdrożenia */}
         {isDeploying && (
-          <div className="mb-4 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
-            <div className="flex items-center justify-between text-xs text-indigo-300 mb-1.5">
-              <span className="font-medium flex items-center gap-2">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+          <div className="mb-5 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
+            <div className="flex items-center justify-between text-xs text-indigo-300 mb-2">
+              <span className="font-semibold flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
                 {status?.currentStep || 'Przetwarzanie wdrożenia...'}
               </span>
             </div>
-            <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-indigo-500 h-full rounded-full animate-pulse w-3/4" />
+            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+              <div className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full animate-pulse w-3/4" />
             </div>
           </div>
         )}
 
-        {/* Przyciski akcji */}
-        <div className="flex items-center gap-2">
+        {/* Duże Przyciski Akcji */}
+        <div className="flex items-center gap-3">
           <button
             onClick={handleStartDeploy}
             disabled={isDeploying || actionLoading}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-xs transition-all shadow-md bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+            className="flex-1 flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-semibold text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
           >
             {isDeploying ? (
               <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <RefreshCw className="w-5 h-5 animate-spin" />
                 Wdrażanie w toku...
               </>
             ) : (
               <>
-                <Rocket className="w-3.5 h-3.5" />
+                <Rocket className="w-5 h-5" />
                 Wdróż na CT8
               </>
             )}
@@ -297,71 +360,199 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
 
           <button
             onClick={() => setShowLogsModal(true)}
-            className="flex items-center gap-1.5 py-2.5 px-3 bg-gray-800 hover:bg-gray-700/80 text-gray-300 hover:text-white rounded-xl text-xs font-medium border border-gray-700/60 transition-colors cursor-pointer"
-            title="Podgląd konsoli wdrożenia"
+            className="flex items-center justify-center gap-2 py-3.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-sm font-semibold border border-slate-700 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+            title="Otwórz pełną konsolę logów wdrożenia"
           >
-            <Terminal className="w-3.5 h-3.5 text-gray-400" />
-            Logi
+            <Terminal className="w-4 h-4 text-emerald-400" />
+            Logi {status?.logs && status.logs.length > 0 && `(${status.logs.length})`}
+          </button>
+        </div>
+
+        {/* Pasek szybkiego restartu / wskazówki */}
+        <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <span className="truncate pr-2">
+            Restart aplikacji: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart</code>
+          </span>
+          <button
+            onClick={handleCopyRestartCmd}
+            className="shrink-0 flex items-center gap-1 text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors"
+            title="Kopiuj polecenie SSH do restartu aplikacji"
+          >
+            {copiedRestartCmd ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400 font-medium">Skopiowano!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Kopiuj SSH</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      {/* Modal / Konsola logów na żywo */}
+      {/* Przeprojektowany Modal / Konsola logów na żywo */}
       {showLogsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-3xl flex flex-col h-[75vh] shadow-2xl overflow-hidden">
-            {/* Nagłówek Modalu */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-800 bg-gray-900/50">
-              <div className="flex items-center gap-2.5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-150">
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-4xl flex flex-col h-[82vh] shadow-2xl overflow-hidden">
+            {/* Nagłówek Modalu w stylu konsoli */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 mr-1">
+                  <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                </div>
+                <div className="h-4 w-px bg-slate-800 mx-1" />
                 <Terminal className="w-4 h-4 text-emerald-400" />
-                <h4 className="text-sm font-semibold text-gray-200">
-                  Konsola Wdrożenia CT8.pl — {status?.currentStep || 'Status wdrożenia'}
-                </h4>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                    Konsola Wdrożenia CT8.pl
+                    {isDeploying && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-normal text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        Transmisja na żywo
+                      </span>
+                    )}
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    {status?.currentStep || 'Podgląd operacji strumieniowanych przez WebSocket'}
+                  </p>
+                </div>
               </div>
-              <button
-                onClick={() => setShowLogsModal(false)}
-                className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              {/* Akcje nagłówka modalu */}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={logFilter}
+                    onChange={(e) => setLogFilter(e.target.value)}
+                    placeholder="Filtruj logi..."
+                    className="w-40 md:w-52 bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <button
+                  onClick={handleCopyLogs}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium border border-slate-700 transition-colors cursor-pointer"
+                  title="Kopiuj zawartość logów do schowka"
+                >
+                  {copiedLogs ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Skopiowano</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Kopiuj</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setShowLogsModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors ml-1"
+                  title="Zamknij okno"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            {/* Treść logów (Terminal) */}
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-xs text-gray-300 bg-black/90 space-y-1 select-text">
-              {status?.logs && status.logs.length > 0 ? (
-                status.logs.map((log, index) => (
-                  <div key={index} className="flex gap-2 leading-relaxed">
-                    <span className="text-gray-500 select-none">[{log.timestamp}]</span>
-                    <span
-                      className={
-                        log.text.includes('[OK]')
-                          ? 'text-emerald-400 font-semibold'
-                          : log.text.includes('[ERROR]') || log.text.includes('Błąd')
-                          ? 'text-rose-400 font-semibold'
-                          : log.text.includes('STEP')
-                          ? 'text-indigo-300 font-semibold underline'
-                          : 'text-gray-300'
-                      }
+            {/* Treść logów (Terminal konsoli) */}
+            <div className="flex-1 p-5 overflow-y-auto font-mono text-xs text-slate-300 bg-black/95 space-y-1.5 select-text">
+              {filteredLogs.length > 0 ? (
+                filteredLogs.map((log, index) => {
+                  const lineText = log.text;
+                  const isSuccess =
+                    lineText.includes('[OK]') ||
+                    lineText.includes('SUCCESS') ||
+                    lineText.includes('DEPLOYMENT COMPLETE');
+                  const isError =
+                    lineText.includes('[ERROR]') ||
+                    lineText.includes('Błąd') ||
+                    lineText.includes('FAILED');
+                  const isStep = lineText.includes('STEP') || lineText.startsWith('===');
+                  const isCmd =
+                    lineText.includes('ssh ') ||
+                    lineText.includes('devil ') ||
+                    lineText.includes('git ');
+
+                  return (
+                    <div
+                      key={index}
+                      className={`flex gap-3 leading-relaxed px-2 py-0.5 rounded transition-colors ${
+                        isStep
+                          ? 'bg-indigo-950/40 border-l-2 border-indigo-500 my-1'
+                          : isSuccess
+                          ? 'bg-emerald-950/20'
+                          : isError
+                          ? 'bg-rose-950/30 border-l-2 border-rose-500'
+                          : 'hover:bg-slate-900/40'
+                      }`}
                     >
-                      {log.text}
-                    </span>
-                  </div>
-                ))
+                      <span className="text-slate-600 select-none text-[11px] shrink-0 font-mono pt-0.5">
+                        [{log.timestamp}]
+                      </span>
+                      <span
+                        className={`break-all ${
+                          isStep
+                            ? 'text-indigo-300 font-semibold text-xs tracking-wide'
+                            : isSuccess
+                            ? 'text-emerald-400 font-semibold'
+                            : isError
+                            ? 'text-rose-400 font-semibold'
+                            : isCmd
+                            ? 'text-cyan-300 font-semibold'
+                            : 'text-slate-300'
+                        }`}
+                      >
+                        {lineText}
+                      </span>
+                    </div>
+                  );
+                })
               ) : (
-                <div className="text-gray-500 italic py-8 text-center">Brak zapisanych logów z bieżącej sesji.</div>
+                <div className="text-slate-500 italic py-12 text-center text-xs">
+                  {logFilter
+                    ? `Brak logów pasujących do filtra: "${logFilter}"`
+                    : 'Brak zapisanych logów z bieżącej sesji wdrożenia.'}
+                </div>
               )}
               <div ref={logsEndRef} />
             </div>
 
-            {/* Stopka Modalu */}
-            <div className="px-5 py-3 border-t border-gray-800 bg-gray-900/50 flex items-center justify-between text-xs text-gray-400">
-              <span>{isDeploying ? 'Trwa strumieniowanie wyjścia procesu...' : 'Wykonywanie zakończone.'}</span>
-              <button
-                onClick={() => setShowLogsModal(false)}
-                className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg transition-colors cursor-pointer"
-              >
-                Zamknij
-              </button>
+            {/* Stopka Modalu z dużymi przyciskami */}
+            <div className="px-6 py-3.5 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${isDeploying ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
+                <span>
+                  {isDeploying
+                    ? 'Proces w toku: nasłuchiwanie wyjścia w czasie rzeczywistym...'
+                    : 'Wykonywanie zakończone.'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleCopyRestartCmd}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-medium transition-colors cursor-pointer"
+                  title="Kopiuj polecenie do restartu aplikacji"
+                >
+                  Kopiuj komendę restartu
+                </button>
+                <button
+                  onClick={() => setShowLogsModal(false)}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all shadow-md cursor-pointer"
+                >
+                  Zamknij
+                </button>
+              </div>
             </div>
           </div>
         </div>
