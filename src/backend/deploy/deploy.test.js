@@ -86,4 +86,32 @@ describe('DeployRouter API', () => {
     expect(res.body.logs.length).toBe(1);
     expect(res.body.logs[0].text).toBe('Sample log line');
   });
+
+  it('POST /api/deploy/start returns 403 when admin indicator is missing', async () => {
+    const res = await request(app).post('/api/deploy/start').send({ environment: 'production' });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain('uprawnień administratora');
+  });
+
+  it('POST /api/deploy/start returns 400 when production confirmation is missing', async () => {
+    const res = await request(app)
+      .post('/api/deploy/start')
+      .set('x-admin-role', 'true')
+      .send({ environment: 'production' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('jawne potwierdzenie');
+  });
+
+  it('POST /api/deploy/start succeeds with admin role and confirmation', async () => {
+    vi.spyOn(deployService, 'startDeploy').mockReturnValue({ success: true, message: 'Wdrożenie uruchomione' });
+
+    const res = await request(app)
+      .post('/api/deploy/start')
+      .set('x-admin-role', 'true')
+      .set('x-deploy-confirm', 'DEPLOY_CT8')
+      .send({ environment: 'production' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
 });

@@ -88,7 +88,11 @@ describe('DeployCt8Widget', () => {
 
     expect(window.confirm).toHaveBeenCalled();
     await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledWith('/api/deploy/start', { environment: 'production' });
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/deploy/start',
+        { environment: 'production', confirm: 'DEPLOY_CT8' },
+        { headers: { 'x-admin-role': 'true', 'x-deploy-confirm': 'DEPLOY_CT8' } }
+      );
     });
   });
 });
