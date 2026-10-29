@@ -125,9 +125,19 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     setActionLoading(true);
     setErrorMsg(null);
     try {
-      await apiClient.post<{ success: boolean; message: string }>('/api/deploy/start', {
-        environment: 'production',
-      });
+      await apiClient.post<{ success: boolean; message: string }>(
+        '/api/deploy/start',
+        {
+          environment: 'production',
+          confirm: 'DEPLOY_CT8',
+        },
+        {
+          headers: {
+            'x-admin-role': 'true',
+            'x-deploy-confirm': 'DEPLOY_CT8',
+          },
+        }
+      );
       setShowLogsModal(true);
       await fetchStatus();
     } catch (err: any) {
