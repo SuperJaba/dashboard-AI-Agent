@@ -2,6 +2,7 @@ import fetch from 'node-fetch';
 import { findAll } from './webhookRepository.js';
 import { signPayload } from './signature.js';
 import { logger } from '../utils/logger.js';
+import { formatDiscordPayload } from '../notifications/adapters/discordAdapter.js';
 
 const TIMEOUT_MS = 5000;
 const RETRY_DELAYS_MS = [1000, 2000, 4000];
@@ -16,8 +17,11 @@ const RETRY_DELAYS_MS = [1000, 2000, 4000];
  * @returns {Promise<void>} Throws on failure.
  */
 async function attemptDelivery(url, secret, event, payload, attempt) {
-  const body = JSON.stringify({ event, payload, deliveredAt: new Date().toISOString() });
-  const signature = secret ? `sha256=${signPayload(secret, body)}` : '';
+  const isDiscord = url.includes('discord.com/api/webhooks') || url.includes('discordapp.com/api/webhooks');
+  const body = isDiscord
+    ? JSON.stringify(formatDiscordPayload(event, payload))
+    : JSON.stringify({ event, payload, deliveredAt: new Date().toISOString() });
+  const signature = !isDiscord && secret ? `sha256=${signPayload(secret, body)}` : '';
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
