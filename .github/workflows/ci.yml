@@ -1,20 +1,30 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [ "master", "dev" ]
   pull_request:
     branches: [ "master", "dev" ]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy to CT8 after tests pass'
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     strategy:
@@ -52,6 +62,14 @@ jobs:
       - name: Build production bundle
         run: npm run build
 
+      - name: Upload build artifact
+        if: matrix.node-version == '24.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: dist/
+          retention-days: 7
+
   e2e:
     name: Playwright E2E Tests (T10.2)
     runs-on: ubuntu-latest
@@ -83,3 +101,31 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  deploy-ct8:
+    name: Deploy to CT8
+    needs: build-and-test
+    if: (github.ref == 'refs/heads/master' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.deploy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download frontend distribution artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: dist
+
+      - name: Install deployment prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+
+      - name: Execute CT8 deployment script
+        env:
+          CT8_PASSWORD: ${{ secrets.CT8_PASSWORD }}
+          SKIP_FRONTEND_BUILD: "true"
+        run: |
+          chmod +x ./scripts/deploy-ct8-optimized.sh
+          ./scripts/deploy-ct8-optimized.sh production
