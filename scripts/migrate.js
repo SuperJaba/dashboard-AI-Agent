@@ -164,6 +164,19 @@ export async function runMigrations() {
         status VARCHAR(50) DEFAULT 'stopped',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS agent_scheduled_tasks (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        task_type VARCHAR(100) NOT NULL,
+        command TEXT,
+        cron_expression VARCHAR(100) NOT NULL,
+        enabled BOOLEAN DEFAULT true,
+        last_run TIMESTAMP,
+        last_status VARCHAR(50) DEFAULT 'idle',
+        last_output TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Ensure alter columns exist for upgrades
