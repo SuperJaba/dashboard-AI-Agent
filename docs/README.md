@@ -17,5 +17,6 @@ This directory contains technical documentation, architecture specifications, an
 - [Developer Onboarding](DEVELOPER_ONBOARDING.md) – Setup, local development commands, and environment configuration.
 - [Design Decisions & Tradeoffs](DESIGN.md) – Architectural design records, state management, and fallback strategies.
 - [Context Management](CONTEXT_MANAGEMENT.md) – Protocol for context-passing and agent task coordination.
+- [Deployment & CI/CD](DEPLOYMENT.md) – CT8 target architecture, deployment scripts, and automated GitHub Actions pipeline.
 - [Agent SSH Automation](agent-ssh-con.md) – SSH execution protocol and remote terminal connection rules.
 - [Security Policy](SECURITY.md) – Reporting security issues and disclosure process.
