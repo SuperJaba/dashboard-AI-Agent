@@ -6,15 +6,16 @@ set -e
 #  Target: dashboard.jagger2.ct8.pl @ s1.ct8.pl
 # ============================================================
 
-REMOTE_USER="jagger2"
-REM_HOST="s1.ct8.pl"
-REMOTE_HOST="dashboard.jagger2.ct8.pl"
+REMOTE_USER="${CT8_USER:-jagger2}"
+REM_HOST="${CT8_REM_HOST:-s1.ct8.pl}"
+REMOTE_HOST="${CT8_HOST:-dashboard.jagger2.ct8.pl}"
+PASS_FILE="$(dirname "$0")/../docs/pass.txt"
 
 # Locate SSH Key (search for antigravity / antygravity key or user override)
+ACTIVE_KEY=""
 if [ -n "$SSH_KEY" ] && [ -f "$SSH_KEY" ]; then
   ACTIVE_KEY="$SSH_KEY"
 else
-  ACTIVE_KEY=""
   for candidate in "$HOME/.ssh/id_ed25519_antigravity" "$HOME/.ssh/"*antygravity* "$HOME/.ssh/"*antigravity*; do
     for f in $candidate; do
       if [ -f "$f" ] && [[ ! "$f" =~ \.pub$ ]]; then
@@ -23,6 +24,19 @@ else
       fi
     done
   done
+fi
+
+PASS=""
+AUTH_METHOD=""
+
+if [ -n "$CT8_PASSWORD" ]; then
+  PASS="$CT8_PASSWORD"
+  AUTH_METHOD="password"
+elif [ -n "$ACTIVE_KEY" ] && [ -f "$ACTIVE_KEY" ]; then
+  AUTH_METHOD="key"
+elif [ -f "$PASS_FILE" ]; then
+  PASS=$(cat "$PASS_FILE")
+  AUTH_METHOD="password"
 fi
 
 REMOTE_BASE="domains/$REMOTE_HOST"
@@ -48,11 +62,13 @@ log_warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step()    { echo -e "\n${CYAN}========================================${NC}\n${CYAN}  STEP $1: $2${NC}\n${CYAN}========================================${NC}"; }
 
-# SSH and SCP command helpers using key authentication
+# SSH and SCP command helpers
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=15"
 
 run_remote() {
-  if [ -n "$ACTIVE_KEY" ]; then
+  if [ "$AUTH_METHOD" = "password" ]; then
+    sshpass -p "$PASS" ssh $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
+  elif [ -n "$ACTIVE_KEY" ]; then
     ssh -i "$ACTIVE_KEY" $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
   else
     ssh $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
@@ -60,7 +76,9 @@ run_remote() {
 }
 
 copy_file() {
-  if [ -n "$ACTIVE_KEY" ]; then
+  if [ "$AUTH_METHOD" = "password" ]; then
+    sshpass -p "$PASS" scp $SSH_OPTS "$1" "$2"
+  elif [ -n "$ACTIVE_KEY" ]; then
     scp -i "$ACTIVE_KEY" $SSH_OPTS "$1" "$2"
   else
     scp $SSH_OPTS "$1" "$2"
@@ -70,13 +88,23 @@ copy_file() {
 validate_environment() {
   log_step 0 "Pre-deployment Validation"
 
-  if [ -z "$ACTIVE_KEY" ] || [ ! -f "$ACTIVE_KEY" ]; then
-    log_error "SSH key not found in ~/.ssh/*antigravity*. Please set SSH_KEY environment variable."
+  if [ -z "$AUTH_METHOD" ]; then
+    log_error "No authentication method available! Set CT8_PASSWORD env var, place password in docs/pass.txt, or place SSH key in ~/.ssh/*antigravity* (or set SSH_KEY)."
     exit 1
   fi
-  log_info "Using SSH Key: $ACTIVE_KEY"
 
-  for cmd in ssh scp tar npm; do
+  if [ "$AUTH_METHOD" = "key" ]; then
+    log_info "Using SSH Key: $ACTIVE_KEY"
+  else
+    log_info "Using Password authentication via sshpass"
+  fi
+
+  local required_cmds="ssh scp tar npm"
+  if [ "$AUTH_METHOD" = "password" ]; then
+    required_cmds="sshpass $required_cmds"
+  fi
+
+  for cmd in $required_cmds; do
     if ! command -v "$cmd" &>/dev/null; then
       log_error "Required local command '$cmd' is not installed"
       exit 1
@@ -350,6 +378,10 @@ main() {
     esac
   done
 
+  if [ "$SKIP_FRONTEND_BUILD" = "true" ] || [ "$SKIP_FRONTEND_BUILD" = "1" ]; then
+    skip_build=true
+  fi
+
   if [ "$do_kill" = true ] && [ "$do_health" = false ]; then
     echo -e "${BLUE}\n  Dashboard - Stop Node.js Processes\n  Target: $REMOTE_HOST\n${NC}"
     validate_environment
@@ -378,7 +410,11 @@ main() {
   echo "  Dashboard - Deployment to CT8.pl"
   echo "  Environment: $ENVIRONMENT"
   echo "  Target Host: $REMOTE_HOST ($REM_HOST)"
-  echo "  SSH Key:     ${ACTIVE_KEY:-default}"
+  if [ "$AUTH_METHOD" = "key" ]; then
+    echo "  Auth Method: SSH Key ($ACTIVE_KEY)"
+  else
+    echo "  Auth Method: Password (sshpass)"
+  fi
   echo "============================================================"
   echo -e "${NC}"
 
@@ -387,7 +423,11 @@ main() {
   if [ "$skip_build" = false ]; then
     build_frontend
   else
-    log_info "Skipping frontend build (--skip-build requested)"
+    log_info "Skipping frontend build (requested via --skip-build or SKIP_FRONTEND_BUILD)"
+    if [ ! -d "$PROJECT_DIR/dist" ] || [ ! -f "$PROJECT_DIR/dist/index.html" ]; then
+      log_error "Frontend dist/index.html not found! Build is required when dist is missing."
+      exit 1
+    fi
   fi
   copy_backend
   copy_frontend
@@ -408,10 +448,17 @@ main() {
   echo "  Metrics:     http://$REMOTE_HOST/metrics"
   echo ""
   echo "  To inspect remote logs:"
-  echo "    ssh -i $ACTIVE_KEY $REMOTE_USER@$REM_HOST 'tail -f domains/$REMOTE_HOST/logs/error.log'"
-  echo ""
-  echo "  To restart remote application:"
-  echo "    ssh -i $ACTIVE_KEY $REMOTE_USER@$REM_HOST 'devil www restart $REMOTE_HOST'"
+  if [ "$AUTH_METHOD" = "key" ]; then
+    echo "    ssh -i $ACTIVE_KEY $REMOTE_USER@$REM_HOST 'tail -f domains/$REMOTE_HOST/logs/error.log'"
+    echo ""
+    echo "  To restart remote application:"
+    echo "    ssh -i $ACTIVE_KEY $REMOTE_USER@$REM_HOST 'devil www restart $REMOTE_HOST'"
+  else
+    echo "    ssh $REMOTE_USER@$REM_HOST 'tail -f domains/$REMOTE_HOST/logs/error.log'"
+    echo ""
+    echo "  To restart remote application:"
+    echo "    ssh $REMOTE_USER@$REM_HOST 'devil www restart $REMOTE_HOST'"
+  fi
   echo "============================================================"
   echo -e "${NC}"
 }
