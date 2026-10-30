@@ -1,0 +1,1 @@
+{"segments":[{"id":"604a6d40-3b21-46b2-a1db-eed447d40951","doc_count":17,"size_bytes":7861,"min_seq_no":1,"max_seq_no":17,"created_at_ms":1793389328612,"has_tombstones":false,"seg_path":"604a6d40-3b21-46b2-a1db-eed447d40951.seg","sidx_path":"604a6d40-3b21-46b2-a1db-eed447d40951.sidx"}],"generation":12,"max_seq_no":17}
