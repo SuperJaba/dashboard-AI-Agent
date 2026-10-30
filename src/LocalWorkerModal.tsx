@@ -36,14 +36,18 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
       setActiveToken(propToken);
     } else if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
-      if (stored) setActiveToken(stored);
+      if (stored) {
+        setActiveToken(prev => (!prev || prev === 'twój_token_socket' ? stored : prev));
+      }
     }
-  }, [propToken]);
+  }, [propToken, isOpen]);
 
   const fetchSocketInfo = useCallback(async () => {
     try {
       const headers: Record<string, string> = {};
-      const tokenToSend = activeToken || (typeof window !== 'undefined' ? localStorage.getItem('dashboard_token') : '');
+      const tokenToSend = (activeToken && activeToken !== 'twój_token_socket')
+        ? activeToken
+        : (typeof window !== 'undefined' ? (localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '') : '');
       if (tokenToSend) {
         headers['Authorization'] = `Bearer ${tokenToSend}`;
       }
@@ -51,7 +55,10 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
       const res = await fetch('/api/socket-info', { headers });
       if (res.ok) {
         const data = await res.json();
-        if (data.token && (!activeToken || activeToken === 'fallback-super-secret-key-123')) {
+        if (data.serverUrl) {
+          setServerUrl(data.serverUrl);
+        }
+        if (data.token && (!activeToken || activeToken === 'twój_token_socket' || activeToken === 'fallback-super-secret-key-123')) {
           setActiveToken(data.token);
           if (typeof window !== 'undefined' && !localStorage.getItem('dashboard_token')) {
             localStorage.setItem('dashboard_token', data.token);
@@ -124,7 +131,12 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
     }
   };
 
-  const safeToken = activeToken || 'twój_token_socket';
+  const storedToken = typeof window !== 'undefined'
+    ? (localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '')
+    : '';
+  const safeToken = (activeToken && activeToken !== 'twój_token_socket')
+    ? activeToken
+    : (storedToken || 'twój_token_socket');
   const cleanServerUrl = (serverUrl || defaultUrl).trim().replace(/\/$/, '');
 
   const commands = {

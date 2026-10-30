@@ -4,7 +4,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { io, Socket } from 'socket.io-client';
-import { X, Minus, Maximize2, Laptop } from 'lucide-react';
+import { X, Minus, Maximize2, Laptop, Copy, Check } from 'lucide-react';
 import { LocalWorkerModal } from './LocalWorkerModal';
 
 interface TerminalViewProps {
@@ -43,6 +43,11 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const [execTarget, setExecTarget] = useState<'remote' | 'worker' | 'auto'>(config?.executionTarget || 'auto');
   const [workers, setWorkers] = useState<any[]>([]);
   const [showWorkerModal, setShowWorkerModal] = useState(false);
+  const [copiedTunnelCmd, setCopiedTunnelCmd] = useState(false);
+
+  const activeToken = typeof window !== 'undefined'
+    ? (localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '')
+    : '';
 
   const dragStartPos = useRef({ x: 0, y: 0 });
   const initialPos = useRef({ x: 0, y: 0 });
@@ -343,6 +348,38 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
             <Laptop size={12} />
             <span>Tunel PC</span>
           </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const serverTarget = typeof window !== 'undefined'
+                ? (window.location.port === '5173' ? 'http://localhost:3001' : window.location.origin)
+                : 'https://dashboard.jagger2.ct8.pl';
+              const tokenVal = activeToken || 'twój_token_socket';
+              const cmd = `DASHBOARD_SERVER_URL="${serverTarget}" DASHBOARD_TOKEN="${tokenVal}" WORKER_NAME="Moj-PC" npm run agent:worker`;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(cmd);
+              }
+              setCopiedTunnelCmd(true);
+              setTimeout(() => setCopiedTunnelCmd(false), 2500);
+            }}
+            title="Kopiuj gotową komendę połączenia workera ze schowka (z automatycznym URL i tokenem)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              background: copiedTunnelCmd ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${copiedTunnelCmd ? 'rgba(16, 185, 129, 0.4)' : '#334155'}`,
+              borderRadius: '4px',
+              padding: '2px 6px',
+              color: copiedTunnelCmd ? '#34d399' : '#94a3b8',
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            {copiedTunnelCmd ? <Check size={12} /> : <Copy size={12} />}
+            <span>{copiedTunnelCmd ? 'Skopiowano!' : 'Kopiuj komendę'}</span>
+          </button>
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -385,7 +422,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
           </svg>
         </div>
       )}
-      <LocalWorkerModal isOpen={showWorkerModal} onClose={() => setShowWorkerModal(false)} />
+      <LocalWorkerModal isOpen={showWorkerModal} onClose={() => setShowWorkerModal(false)} token={activeToken} />
     </div>,
     document.body
   );

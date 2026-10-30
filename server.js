@@ -31,7 +31,7 @@ try {
 import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
-import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+import { authMiddleware, optionalAuthMiddleware } from './src/backend/auth/authMiddleware.js';
 import { logger, requestLogger } from './src/backend/utils/logger.js';
 import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
 
@@ -393,10 +393,8 @@ app.get('/v1/metrics', async (req, res) => {
 // --- Auth Routes ---
 app.use('/api/auth', authRouter);
 
-// API Auth Middleware
-app.use('/api', authMiddleware);
-
-app.get('/api/agents/workers', (req, res) => {
+// Public / Token-optional Socket Endpoints
+app.get('/api/agents/workers', optionalAuthMiddleware, (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
@@ -407,7 +405,7 @@ app.get('/api/agents/workers', (req, res) => {
   res.json(workers);
 });
 
-app.get('/api/socket-info', (req, res) => {
+app.get('/api/socket-info', optionalAuthMiddleware, (req, res) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${port}`;
   const serverUrl = `${protocol}://${host}`;
@@ -449,6 +447,9 @@ app.get('/api/socket-info', (req, res) => {
     }
   });
 });
+
+// API Auth Middleware
+app.use('/api', authMiddleware);
 
 app.post('/api/socket/token', (req, res) => {
   const user = req.user || { id: 1, username: 'worker-client' };
