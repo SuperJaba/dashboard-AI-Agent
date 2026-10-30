@@ -282,8 +282,8 @@ configure_remote_env() {
 
 install_dependencies() {
   log_step 6 "Installing Remote Dependencies"
-  log_info "Running npm install (--omit=dev) with node24 runtime on remote..."
-  run_remote "cd \$HOME/$REMOTE_APP && (command -v /usr/local/bin/npm24 &>/dev/null && /usr/local/bin/npm24 install --omit=dev || npm install --omit=dev)"
+  log_info "Running npm install (--omit=dev --omit=optional) with node24 runtime on remote..."
+  run_remote "cd \$HOME/$REMOTE_APP && (command -v /usr/local/bin/npm24 &>/dev/null && /usr/local/bin/npm24 install --omit=dev --omit=optional || npm install --omit=dev --omit=optional)"
   log_success "Remote dependencies installed successfully"
 }
 

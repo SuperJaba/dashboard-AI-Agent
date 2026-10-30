@@ -12,7 +12,14 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import pty from 'node-pty';
+
+let pty = null;
+try {
+  const ptyModule = await import('node-pty');
+  pty = ptyModule.default || ptyModule;
+} catch {
+  // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
+}
 
 import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
@@ -209,6 +216,12 @@ io.on('connection', (socket) => {
         env,
         scriptContent
       });
+      return;
+    }
+
+    if (!pty) {
+      socket.emit('terminal_data', '\r\n\x1b[33m[Warning] Local terminal is not supported on this host environment (FreeBSD / CT8). Please connect an Agent Worker (Local PC) to execute terminal commands.\x1b[0m\r\n');
+      socket.emit('terminal_exit', { exitCode: 1 });
       return;
     }
 
