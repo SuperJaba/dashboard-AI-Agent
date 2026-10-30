@@ -49,21 +49,27 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const initialSize = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
-    // Fetch active workers list
+    // Fetch active workers list periodically so the dropdown stays up-to-date
     let isMounted = true;
-    const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
-    fetch('/api/agents/workers', {
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-    })
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        if (isMounted) setWorkers(Array.isArray(data) ? data : []);
+    const fetchWorkers = () => {
+      const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
+      fetch('/api/agents/workers', {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
       })
-      .catch(() => {
-        if (isMounted) setWorkers([]);
-      });
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          if (isMounted) setWorkers(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {
+          if (isMounted) setWorkers([]);
+        });
+    };
+
+    fetchWorkers();
+    const interval = setInterval(fetchWorkers, 3000);
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
   }, []);
 
@@ -311,7 +317,9 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
               }}
             >
               <option value="auto">⚡ Auto ({workers.length > 0 ? 'Local Worker' : 'Remote'})</option>
-              <option value="worker" disabled={workers.length === 0}>💻 Local Worker ({workers.length})</option>
+              <option value="worker" disabled={workers.length === 0}>
+                💻 Local Worker ({workers.length > 0 ? `${workers.length} online` : 'offline - kliknij Tunel PC'})
+              </option>
               <option value="remote">🌐 Remote Server</option>
             </select>
           </div>
