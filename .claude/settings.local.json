@@ -115,5 +115,11 @@
   "disabledMcpjsonServers": [
     "MCP_DOCKER"
   ],
-  "prefersReducedMotion": true
+  "prefersReducedMotion": true,
+  "env": {
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "45000",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "36000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75",
+    "enable_thinking": "false"
+  }
 }

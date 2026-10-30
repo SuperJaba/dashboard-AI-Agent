@@ -154,7 +154,8 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2000,
-        padding: '1rem'
+        padding: '1rem',
+        overscrollBehavior: 'contain'
       }}
     >
       <div
@@ -168,6 +169,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           maxWidth: '100%',
           maxHeight: '92vh',
           overflowY: 'auto',
+          overscrollBehavior: 'contain',
           display: 'flex',
           flexDirection: 'column',
           gap: '1.1rem',
@@ -252,7 +254,8 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           background: 'rgba(30, 41, 59, 0.45)',
           border: '1px solid #334155',
           borderRadius: '10px',
-          padding: '1rem'
+          padding: '1rem',
+        overscrollBehavior: 'contain'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -317,6 +320,9 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
             }}>
               <input
                 type={showToken ? 'text' : 'password'}
+                name="workerToken"
+                autoComplete="off"
+                spellCheck={false}
                 readOnly
                 value={safeToken}
                 aria-label="Aktualny token do socketu"

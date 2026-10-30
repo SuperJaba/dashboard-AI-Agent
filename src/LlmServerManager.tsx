@@ -315,7 +315,7 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
         <div
           role="dialog"
           aria-modal="true"
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, overscrollBehavior: 'contain' }}
         >
           <div className="glass-card animate-in" style={{ width: '480px', maxWidth: '92vw', padding: '1.5rem', position: 'relative' }}>
             <button
@@ -334,6 +334,8 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Nazwa serwera</label>
                 <input
                   type="text"
+                  name="serverName"
+                  autoComplete="off"
                   required
                   placeholder="np. LM Studio Local lub NVIDIA NIM"
                   value={formData.name}
@@ -360,6 +362,9 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>URL API (Base URL)</label>
                 <input
                   type="text"
+                  name="serverUrl"
+                  autoComplete="off"
+                  spellCheck={false}
                   required
                   placeholder="http://127.0.0.1:1337/v1 lub https://integrate.api.nvidia.com/v1"
                   value={formData.url}
@@ -371,6 +376,9 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Model LLM</label>
                 <input
                   type="text"
+                  name="serverModel"
+                  autoComplete="off"
+                  spellCheck={false}
                   placeholder="np. google/gemma-4-e4b lub meta/llama-3.3-70b-instruct"
                   value={formData.model}
                   onChange={e => setFormData({ ...formData, model: e.target.value })}
@@ -381,6 +389,9 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Klucz API (API Key / Token)</label>
                 <input
                   type="password"
+                  name="apiKey"
+                  autoComplete="off"
+                  spellCheck={false}
                   placeholder="Opcjonalne dla serwerów lokalnych"
                   value={formData.api_key}
                   onChange={e => setFormData({ ...formData, api_key: e.target.value })}

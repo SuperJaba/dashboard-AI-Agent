@@ -92,7 +92,11 @@ export function DashboardTiles({
             <Search size={15} style={{ position: 'absolute', left: '0.85rem', color: '#64748b', pointerEvents: 'none' }} />
             <input 
               className="industrial-input"
-              placeholder="QUERY_DB..."
+              name="workspaceFilter"
+              aria-label="Filtruj obszary robocze"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="QUERY_DB…"
               value={filter}
               onChange={e => setFilter(e.target.value)}
               style={{
@@ -105,7 +109,7 @@ export function DashboardTiles({
                 fontSize: '0.825rem',
                 width: '180px',
                 outline: 'none',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                transition: 'border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                 fontFamily: 'monospace'
               }}
               onFocus={(e) => {
@@ -199,7 +203,7 @@ export function DashboardTiles({
                 alignItems: 'center',
                 gap: '0.4rem',
                 boxShadow: '0 4px 15px -3px rgba(16, 185, 129, 0.3)',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                transition: 'border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';

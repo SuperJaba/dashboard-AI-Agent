@@ -287,8 +287,12 @@ function App() {
             {servers.map(server => (
               <div 
                 key={server.id} 
+                role="button"
+                tabIndex={0}
+                aria-selected={activeProjectId === `server-${server.id}`}
                 className={`project-item ${activeProjectId === `server-${server.id}` ? 'active' : ''}`}
                 onClick={() => setActiveProjectId(`server-${server.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveProjectId(`server-${server.id}`); } }}
                 style={{ justifyContent: 'space-between' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -386,11 +390,10 @@ function App() {
           role="dialog"
           aria-modal="true"
           aria-label={t('settings.title')}
-          onClick={() => setShowSettings(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overscrollBehavior: 'contain' }}
         >
           <div
-            onClick={(e) => e.stopPropagation()}
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '360px', maxWidth: '90vw', maxHeight: '85vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -448,6 +451,8 @@ function App() {
               <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
               <input 
                 id="custom-llm-name"
+                name="customLlmName"
+                autoComplete="off"
                 type="text" 
                 placeholder="np. AtomicChat" 
                 value={customLlmName}
@@ -457,6 +462,9 @@ function App() {
               <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
               <input 
                 id="custom-llm-url"
+                name="customLlmUrl"
+                autoComplete="off"
+                spellCheck={false}
                 type="text" 
                 placeholder="http://localhost:1337/v1" 
                 value={customLlmUrl}
@@ -466,6 +474,9 @@ function App() {
               <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
               <input 
                 id="custom-llm-model"
+                name="customLlmModel"
+                autoComplete="off"
+                spellCheck={false}
                 type="text" 
                 placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
                 value={customLlmModel}
@@ -475,6 +486,9 @@ function App() {
               <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
               <input 
                 id="custom-api-key"
+                name="customApiKey"
+                autoComplete="off"
+                spellCheck={false}
                 type="password" 
                 placeholder="Brak" 
                 value={customApiKey}
@@ -582,7 +596,7 @@ function App() {
                   id="remote-prompt-input"
                   value={remotePrompt}
                   onChange={e => setRemotePrompt(e.target.value)}
-                  placeholder="e.g., Check PHP logs for errors, update packages, or install Grafana..."
+                  placeholder="e.g., Check PHP logs for errors, update packages, or install Grafana…"
                   style={{ 
                     width: '100%', minHeight: '100px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', 
                     borderRadius: '6px', padding: '0.75rem', color: 'var(--text-main)', marginBottom: '1rem', resize: 'vertical'
@@ -605,7 +619,7 @@ function App() {
                       }}
                     >
                       <Rocket size={18} aria-hidden="true" />
-                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
+                      {deploying === agent.name.toLowerCase() ? 'Deploying…' : `Deploy ${agent.name}`}
                     </button>
                   ))}
                 </div>
@@ -666,7 +680,7 @@ function App() {
                         }}
                       >
                         <Rocket size={20} aria-hidden="true" />
-                        {deploying === activeAgentName ? 'Deploying...' : 'Deploy'}
+                        {deploying === activeAgentName ? 'Deploying…' : 'Deploy'}
                       </button>
                     </>
                   )}
@@ -750,7 +764,7 @@ function App() {
                       disabled={deploying === 'analyze'}
                     >
                       {deploying === 'analyze' && <RefreshCw size={14} className="animate-spin" />}
-                      {deploying === 'analyze' ? 'Analyzing...' : 'Analyze Workspace'}
+                      {deploying === 'analyze' ? 'Analyzing…' : 'Analyze Workspace'}
                     </button>
                   </div>
                 </AntigravityCard>
@@ -949,6 +963,19 @@ function App() {
                       <div 
                         className="task-item" 
                         key={task.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-selected={selectedTaskIds.includes(task.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            if (selectedTaskIds.includes(task.id)) {
+                              setSelectedTaskIds(selectedTaskIds.filter(id => id !== task.id));
+                            } else {
+                              setSelectedTaskIds([...selectedTaskIds, task.id]);
+                            }
+                          }
+                        }}
                         onClick={() => {
                           if (selectedTaskIds.includes(task.id)) {
                             setSelectedTaskIds(selectedTaskIds.filter(id => id !== task.id));
@@ -1052,10 +1079,12 @@ function App() {
                     <form onSubmit={addTask} style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', padding: '0 0.5rem' }}>
                       <input 
                         id="new-task-input"
+                        name="newTaskTitle"
+                        autoComplete="off"
                         type="text" 
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
-                        placeholder="Add a new custom task..." 
+                        placeholder="Add a new custom task…" 
                         aria-label="Add a new custom task"
                         style={{ 
                           flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', 
@@ -1195,6 +1224,8 @@ function App() {
                 <label htmlFor="new-server-name" className="info-label">Name</label>
                 <input 
                   id="new-server-name"
+                  name="serverName"
+                  autoComplete="off"
                   type="text" 
                   value={newServer.name}
                   onChange={e => setNewServer({...newServer, name: e.target.value})}
@@ -1207,6 +1238,9 @@ function App() {
                 <label htmlFor="new-server-host" className="info-label">Host (IP or Domain)</label>
                 <input 
                   id="new-server-host"
+                  name="serverHost"
+                  autoComplete="off"
+                  spellCheck={false}
                   type="text" 
                   value={newServer.host}
                   onChange={e => setNewServer({...newServer, host: e.target.value})}
@@ -1220,6 +1254,9 @@ function App() {
                   <label htmlFor="new-server-username" className="info-label">Username</label>
                   <input 
                     id="new-server-username"
+                    name="serverUsername"
+                    autoComplete="off"
+                    spellCheck={false}
                     type="text" 
                     value={newServer.username}
                     onChange={e => setNewServer({...newServer, username: e.target.value})}
@@ -1232,6 +1269,8 @@ function App() {
                   <label htmlFor="new-server-port" className="info-label">Port</label>
                   <input 
                     id="new-server-port"
+                    name="serverPort"
+                    autoComplete="off"
                     type="number" 
                     value={newServer.port}
                     onChange={e => setNewServer({...newServer, port: parseInt(e.target.value)})}
@@ -1263,6 +1302,9 @@ function App() {
                 <div style={{ position: 'relative' }}>
                   <input
                     id="new-server-ssh-password"
+                    name="serverSshPassword"
+                    autoComplete="current-password"
+                    spellCheck={false}
                     type={showPassword ? 'text' : 'password'}
                     value={newServer.ssh_password}
                     onChange={e => setNewServer({...newServer, ssh_password: e.target.value})}
@@ -1302,8 +1344,16 @@ function App() {
 
       {/* Clone Git Repository Modal */}
       {showCloneModal && (
-        <div className="modal-overlay" onClick={() => !cloneLoading && setShowCloneModal(false)}>
-          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+        <div 
+          className="modal-overlay" 
+          role="dialog"
+          aria-modal="true"
+          aria-label="Klonuj repozytorium Git"
+          onKeyDown={(e) => { if (e.key === 'Escape' && !cloneLoading) setShowCloneModal(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget && !cloneLoading) setShowCloneModal(false); }}
+          style={{ overscrollBehavior: 'contain' }}
+        >
+          <div className="modal-content glass-card" style={{ maxWidth: '520px', width: '100%', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
             <h3 className="section-title" style={{ color: '#38bdf8' }}>
               <DownloadCloud size={20} />
               Clone Git Repository
@@ -1320,6 +1370,9 @@ function App() {
                 <label htmlFor="clone-repo-url" className="info-label">Repository URL (HTTPS or SSH)</label>
                 <input
                   id="clone-repo-url"
+                  name="cloneRepoUrl"
+                  autoComplete="off"
+                  spellCheck={false}
                   type="text"
                   value={cloneRepoUrl}
                   onChange={e => {
@@ -1340,6 +1393,9 @@ function App() {
                 <label htmlFor="clone-target-dir" className="info-label">Target Directory</label>
                 <input
                   id="clone-target-dir"
+                  name="cloneTargetDir"
+                  autoComplete="off"
+                  spellCheck={false}
                   type="text"
                   value={cloneTargetDir}
                   onChange={e => setCloneTargetDir(e.target.value)}
@@ -1353,6 +1409,8 @@ function App() {
                 <label htmlFor="clone-project-name" className="info-label">Project Name in Dashboard (optional)</label>
                 <input
                   id="clone-project-name"
+                  name="cloneProjectName"
+                  autoComplete="off"
                   type="text"
                   value={cloneProjectName}
                   onChange={e => setCloneProjectName(e.target.value)}
@@ -1393,7 +1451,7 @@ function App() {
                     }
                   }}
                 >
-                  {cloneLoading ? 'Cloning...' : 'Clone Repository'}
+                  {cloneLoading ? 'Cloning…' : 'Clone Repository'}
                 </button>
               </div>
             </div>
@@ -1426,7 +1484,7 @@ function App() {
           }}
         >
           <WifiOff size={14} aria-hidden="true" />
-          <span>Brak połączenia z serwerem — ponawiam...</span>
+          <span>Brak połączenia z serwerem — ponawiam…</span>
         </div>
       )}
 

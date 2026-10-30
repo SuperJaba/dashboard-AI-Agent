@@ -395,7 +395,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   return (
     <>
       <div
-        className={`bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-md text-white transition-all hover:border-slate-700 ${className}`}
+        className={`bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-md text-white transition-colors hover:border-slate-700 ${className}`}
         style={{ letterSpacing: '-0.01em' }}
       >
         {/* Nagłówek Widgetu */}
@@ -438,7 +438,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             ) : (
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                Sprawdzanie...
+                Sprawdzanie…
               </span>
             )}
 
@@ -446,7 +446,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             <button
               onClick={() => handleKillRemoteProcesses('ct8')}
               disabled={killingRemote}
-              className="w-9 h-9 flex items-center justify-center text-rose-400 hover:text-rose-200 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-all disabled:opacity-50 cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center text-rose-400 hover:text-rose-200 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-colors disabled:opacity-50 cursor-pointer"
               title="Ubij zawieszone procesy na serwerze CT8 (Node.js/zsh) i zrestartuj domenę"
               aria-label="Ubij zawieszone procesy CT8"
             >
@@ -460,7 +460,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             <button
               onClick={refreshAll}
               disabled={loading}
-              className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 transition-all disabled:opacity-50 cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 transition-colors disabled:opacity-50 cursor-pointer"
               title="Odśwież stan serwera i wdrożenia"
               aria-label="Odśwież status wdrożenia"
             >
@@ -470,7 +470,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         </div>
 
         {/* Informacje o ostatnim wdrożeniu */}
-        <div className="grid grid-cols-2 gap-3.5 mb-4 text-xs">
+        <div className="grid grid-cols-2 gap-3.5 mb-4 text-xs tabular-nums">
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 shadow-sm">
             <span className="text-slate-400 font-medium block mb-1.5">Status ostatniego wdrożenia</span>
             <div className="flex items-center gap-2 font-semibold">
@@ -489,7 +489,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
               ) : isDeploying ? (
                 <>
                   <RefreshCw className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
-                  <span className="text-amber-300">W toku...</span>
+                  <span className="text-amber-300">W toku…</span>
                 </>
               ) : (
                 <span className="text-slate-400 font-normal">Brak historii</span>
@@ -516,85 +516,94 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           </div>
         </div>
 
-        {/* Wybór Aplikacji do wdrożenia */}
-        <div className="mb-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Package className="w-3.5 h-3.5 text-emerald-400" />
-              Aplikacja do wdrożenia
-            </span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              {activeApp.domain}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {appsList.map((app) => {
-              const isSelected = selectedApp === app.id;
-              return (
-                <button
-                  type="button"
-                  key={app.id}
-                  onClick={() => handleSelectApp(app.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-200 shadow-sm'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}`} />
-                  <span>{app.name}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">({app.domain})</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Multi-Deploy: Wybór Celów Wdrożenia */}
-        <div className="mb-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Server className="w-3.5 h-3.5 text-indigo-400" />
-              Cele Wdrożenia (Multi-Deploy)
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedTargets(targetsList.map((t) => t.id))}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
-              >
-                Wszystkie ({targetsList.length})
-              </button>
-              <span className="text-slate-600 text-xs">|</span>
-              <button
-                type="button"
-                onClick={() => setSelectedTargets(['ct8'])}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
-              >
-                Tylko CT8
-              </button>
+        {/* Konfiguracja Wdrożenia: Aplikacja + Cele (Dwukolumnowy układ na desktopie) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-4">
+          {/* Wybór Aplikacji do wdrożenia */}
+          <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
+                  Aplikacja do wdrożenia
+                </span>
+                <span className="text-[11px] text-slate-400 font-mono truncate max-w-[140px]" title={activeApp.domain}>
+                  {activeApp.domain}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {appsList.map((app) => {
+                  const isSelected = selectedApp === app.id;
+                  return (
+                    <button
+                      type="button"
+                      key={app.id}
+                      aria-pressed={isSelected}
+                      onClick={() => handleSelectApp(app.id)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
+                        isSelected
+                          ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-200 shadow-sm'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}`} aria-hidden="true" />
+                      <span>{app.name}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">({app.domain})</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {targetsList.map((target) => {
-              const isChecked = selectedTargets.includes(target.id);
-              return (
-                <button
-                  type="button"
-                  key={target.id}
-                  onClick={() => toggleTarget(target.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-all ${
-                    isChecked
-                      ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-sm'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-indigo-400' : 'bg-slate-600'}`} />
-                  <span>{target.name}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">({target.host})</span>
-                </button>
-              );
-            })}
+
+          {/* Multi-Deploy: Wybór Celów Wdrożenia */}
+          <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Server className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" />
+                  Cele Wdrożenia (Multi-Deploy)
+                </span>
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTargets(targetsList.map((t) => t.id))}
+                    className="text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer px-1.5 py-0.5 rounded hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                  >
+                    Wszystkie ({targetsList.length})
+                  </button>
+                  <span className="text-slate-600">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTargets(['ct8'])}
+                    className="text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer px-1.5 py-0.5 rounded hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                  >
+                    Tylko CT8
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {targetsList.map((target) => {
+                  const isChecked = selectedTargets.includes(target.id);
+                  return (
+                    <button
+                      type="button"
+                      key={target.id}
+                      aria-pressed={isChecked}
+                      onClick={() => toggleTarget(target.id)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 ${
+                        isChecked
+                          ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-sm'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-indigo-400' : 'bg-slate-600'}`} aria-hidden="true" />
+                      <span>{target.name}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">({target.host})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -636,7 +645,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             <div className="flex items-center justify-between text-xs text-indigo-300 mb-2">
               <span className="font-semibold flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
-                {status?.currentStep || 'Przetwarzanie wdrożenia...'}
+                {status?.currentStep || 'Przetwarzanie wdrożenia…'}
               </span>
             </div>
             <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -650,12 +659,12 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           <button
             onClick={handleStartDeploy}
             disabled={isDeploying || actionLoading || selectedTargets.length === 0}
-            className="flex-1 flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-semibold text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
+            className="flex-1 flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-semibold text-sm transition-colors shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
           >
             {isDeploying ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
-                Wdrażanie w toku...
+                Wdrażanie w toku…
               </>
             ) : selectedTargets.length > 1 ? (
               <>
@@ -675,18 +684,18 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
               type="button"
               onClick={handleAbortDeploy}
               disabled={abortingDeploy}
-              className="flex items-center justify-center gap-2 py-3.5 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-semibold border border-rose-500 transition-all cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50"
+              className="flex items-center justify-center gap-2 py-3.5 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-semibold border border-rose-500 transition-colors cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50"
               title="Ubij zawieszony proces wdrożenia (SIGKILL)"
               aria-label="Ubij proces wdrożenia"
             >
               <OctagonX className={`w-4 h-4 ${abortingDeploy ? 'animate-spin' : ''}`} />
-              <span>{abortingDeploy ? 'Ubija...' : 'Ubij proces'}</span>
+              <span>{abortingDeploy ? 'Ubija…' : 'Ubij proces'}</span>
             </button>
           )}
 
           <button
             onClick={() => setShowLogsModal(true)}
-            className="flex items-center justify-center gap-2 py-3.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-sm font-semibold border border-slate-700 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+            className="flex items-center justify-center gap-2 py-3.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-sm font-semibold border border-slate-700 transition-colors cursor-pointer shadow-sm active:scale-[0.99]"
             title="Otwórz pełną konsolę logów wdrożenia"
           >
             <Terminal className="w-4 h-4 text-emerald-400" />
@@ -712,7 +721,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
               {killingRemote ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-400" />
-                  <span>Ubija procesy...</span>
+                  <span>Ubija procesy…</span>
                 </>
               ) : (
                 <>
@@ -782,7 +791,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                     type="text"
                     value={logFilter}
                     onChange={(e) => setLogFilter(e.target.value)}
-                    placeholder="Filtruj logi..."
+                    placeholder="Filtruj logi…"
                     className="w-40 md:w-52 bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -847,7 +856,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
               <button
                 type="button"
                 onClick={() => setActiveLogTab('all')}
-                className={`px-3 py-1 rounded-md transition-all cursor-pointer shrink-0 ${
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer shrink-0 ${
                   activeLogTab === 'all'
                     ? 'bg-indigo-600 text-white font-medium shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -864,7 +873,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                     key={target.id}
                     type="button"
                     onClick={() => setActiveLogTab(target.id)}
-                    className={`px-3 py-1 rounded-md transition-all cursor-pointer shrink-0 ${
+                    className={`px-3 py-1 rounded-md transition-colors cursor-pointer shrink-0 ${
                       activeLogTab === target.id
                         ? 'bg-indigo-600 text-white font-medium shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -950,7 +959,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                 <span className={`w-2 h-2 rounded-full ${isDeploying ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
                 <span>
                   {isDeploying
-                    ? 'Proces w toku: nasłuchiwanie wyjścia w czasie rzeczywistym...'
+                    ? 'Proces w toku: nasłuchiwanie wyjścia w czasie rzeczywistym…'
                     : 'Wykonywanie zakończone.'}
                 </span>
               </div>
@@ -965,7 +974,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                 </button>
                 <button
                   onClick={() => setShowLogsModal(false)}
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all shadow-md cursor-pointer"
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-colors shadow-md cursor-pointer"
                 >
                   Zamknij
                 </button>
