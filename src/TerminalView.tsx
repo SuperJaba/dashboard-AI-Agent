@@ -51,7 +51,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   useEffect(() => {
     // Fetch active workers list
     let isMounted = true;
-    const token = localStorage.getItem('dashboard_token');
+    const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
     fetch('/api/agents/workers', {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
     })
@@ -94,12 +94,23 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     fitAddonInstance.current = fitAddon;
 
     // Connect to WebSocket /pty namespace with token authentication and fallback transports
-    const token = localStorage.getItem('dashboard_token');
+    const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
     const socket = io('/pty', {
       auth: { token },
       transports: ['polling', 'websocket']
     });
     socketRef.current = socket;
+
+    socket.on('connect_error', (err) => {
+      term.write(`\r\n\x1b[31m[Błąd połączenia z terminalem /pty: ${err.message || 'Brak autoryzacji lub niedostępny backend'}]\x1b[0m\r\n`);
+      if (err.message?.toLowerCase().includes('unauthorized')) {
+        term.write('\x1b[33m[Wskazówka: Zaloguj się ponownie w dashboardzie, aby odświeżyć token sesji.]\x1b[0m\r\n');
+      }
+    });
+
+    socket.on('disconnect', (reason) => {
+      term.write(`\r\n\x1b[33m[Połączenie z terminalem zostało przerwane: ${reason}]\x1b[0m\r\n`);
+    });
 
     socket.on('connect', () => {
       term.write('\x1b[32m[Connected to Backend]\x1b[0m\r\n');

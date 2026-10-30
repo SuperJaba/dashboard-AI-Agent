@@ -111,15 +111,21 @@
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [],
+  "enabledMcpjsonServers": [
+    "filesystem",
+    "MCP_DOCKER",
+    "database",
+    "context7",
+    "playwright"
+  ],
   "disabledMcpjsonServers": [
     "MCP_DOCKER"
   ],
   "prefersReducedMotion": true,
   "env": {
-    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "45000",
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "36000",
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "131072",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
     "enable_thinking": "false"
   }
 }
