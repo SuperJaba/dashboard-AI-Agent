@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Rocket, CheckCircle2, AlertCircle, RefreshCw, Terminal, Clock, 
   ExternalLink, X, ShieldAlert, Copy, Check, Search, Server, OctagonX, Package
@@ -134,7 +134,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     return `ssh jagger2 "touch ~/domains/${activeApp.domain}/tmp/restart.txt && devil www restart ${activeApp.domain}"`;
   }, [activeApp.domain]);
 
-  const fetchApps = async () => {
+  const fetchApps = useCallback(async () => {
     try {
       const data = await apiClient.get<DeployApp[]>('/api/deploy/apps');
       if (Array.isArray(data) && data.length > 0) {
@@ -143,9 +143,9 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     } catch {
       // Use fallback DEFAULT_APPS
     }
-  };
+  }, []);
 
-  const fetchTargets = async () => {
+  const fetchTargets = useCallback(async () => {
     try {
       const data = await apiClient.get<DeployTarget[]>('/api/deploy/targets');
       if (Array.isArray(data) && data.length > 0) {
@@ -154,18 +154,18 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     } catch {
       // Use fallback DEFAULT_TARGETS
     }
-  };
+  }, []);
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       const data = await apiClient.get<DeployStatus>('/api/deploy/status');
       setStatus(data);
     } catch (err: any) {
       console.error('Błąd pobierania statusu wdrożenia:', err);
     }
-  };
+  }, []);
 
-  const fetchHealth = async (appId?: string) => {
+  const fetchHealth = useCallback(async (appId?: string) => {
     const targetApp = appId || selectedApp;
     try {
       const data = await apiClient.get<DeployHealth>(`/api/deploy/health?app=${encodeURIComponent(targetApp)}`);
@@ -173,7 +173,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     } catch (err: any) {
       console.error('Błąd pobierania healthchecku CT8:', err);
     }
-  };
+  }, [selectedApp]);
 
   const handleSelectApp = (appId: string) => {
     setSelectedApp(appId);
@@ -185,11 +185,11 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     fetchHealth(appId);
   };
 
-  const refreshAll = async () => {
+  const refreshAll = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchApps(), fetchTargets(), fetchStatus(), fetchHealth(selectedApp)]);
     setLoading(false);
-  };
+  }, [fetchApps, fetchTargets, fetchStatus, fetchHealth, selectedApp]);
 
   useEffect(() => {
     refreshAll();
@@ -197,7 +197,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
       fetchHealth(selectedApp);
     }, 15000);
     return () => clearInterval(interval);
-  }, [selectedApp]);
+  }, [refreshAll, fetchHealth, selectedApp]);
 
   // Notyfikuj komponent nadrzędny o stanie wdrażania
   useEffect(() => {
@@ -242,7 +242,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
       socket.off('deploy:status', handleDeployStatus);
       socket.off('deploy:finished', handleDeployFinished);
     };
-  }, [socket]);
+  }, [socket, fetchHealth, fetchStatus]);
 
   useEffect(() => {
     if (showLogsModal && typeof logsEndRef.current?.scrollIntoView === 'function') {
@@ -665,7 +665,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             ) : (
               <>
                 <Rocket className="w-5 h-5" />
-                Wdróż na CT8
+                Wdróż {activeApp.id === 'dashboard' ? '' : `${activeApp.name.split(' ')[0]} `}na CT8
               </>
             )}
           </button>
@@ -698,7 +698,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-2 truncate pr-2">
             <span className="truncate">
-              Restart: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart</code>
+              Restart: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart {activeApp.domain}</code>
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
