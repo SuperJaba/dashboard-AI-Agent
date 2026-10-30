@@ -21,3 +21,14 @@
 - [x] Internacjonalizacja i18n (język polski jako domyślny, obsługa angielskiego)
 - [x] Synchronizacja zadań i auto-detekcja w projektach zdalnych
 - [x] Flaga YOLO dla pomijania uprawnień przy uruchamianiu terminala
+
+## Bezpieczeństwo i Hardening (Audyt 2026-10-30 - docs/SECURITY_AUDIT.md)
+- [ ] [SEC-01] Usunięcie Auth Bypass w `/api/socket-info` (blokada wydawania 30-dniowych JWT niezalogowanym)
+- [ ] [SEC-02] Zabezpieczenie resetu bazy użytkowników (usunięcie przycisku z `Login.tsx`, ochrona `POST /api/auth/reset` w produkcji)
+- [ ] [SEC-03] Eliminacja arbitralnego SSRF w `/api/llm-proxy` (objęcie `authMiddleware`, walidacja i blokada adresów RFC1918/link-local)
+- [ ] [SEC-04] Ochrona przed Command Injection w `gitService.js` (refaktoryzacja `execSync` na bezpieczną tablicę argumentów `execFileSync`)
+- [ ] [SEC-05] Konfiguracja nagłówków bezpieczeństwa Content-Security-Policy (CSP) oraz HSTS w `securityHeaders.js`
+- [ ] [SEC-06] Ścisła konfiguracja CORS (whitelist domen zamiast wildcarda `*` w Express i Socket.IO)
+- [ ] [SEC-07] Wymuszenie bezpiecznego i trwałego `ENCRYPTION_KEY` w trybie produkcyjnym w `crypto.js`
+- [ ] [SEC-08] Usunięcie akceptacji tokenu w query stringu (`?token=...`) w `authMiddleware.js`
+
