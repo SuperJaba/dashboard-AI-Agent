@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Folder, FolderPlus, ChevronUp, ChevronRight, X, Loader2, Check, HardDrive, ArrowRight } from 'lucide-react';
 import { apiClient } from './shared/api-client';
 
@@ -21,6 +21,8 @@ interface FsResponse {
   drives?: string[];
 }
 
+export const STORAGE_KEY_LAST_WORKSPACE_PATH = 'last_workspace_folder_path';
+
 export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
   isOpen,
   onClose,
@@ -35,7 +37,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDirectory = async (targetPath?: string) => {
+  const loadDirectory = useCallback(async function fetchDir(targetPath?: string, isFallbackCandidate = false) {
     setLoading(true);
     setError(null);
     try {
@@ -52,17 +54,36 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
       }
       setSelectedFolder(null);
     } catch (err: any) {
+      if (isFallbackCandidate) {
+        try {
+          localStorage.removeItem(STORAGE_KEY_LAST_WORKSPACE_PATH);
+        } catch {
+          // ignore
+        }
+        await fetchDir();
+        return;
+      }
       setError(err.message || 'Nie udało się odczytać zawartości folderu');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      loadDirectory();
+      let savedPath: string | null = null;
+      try {
+        savedPath = localStorage.getItem(STORAGE_KEY_LAST_WORKSPACE_PATH);
+      } catch {
+        // ignore
+      }
+      if (savedPath && savedPath.trim()) {
+        loadDirectory(savedPath.trim(), true);
+      } else {
+        loadDirectory();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, loadDirectory]);
 
   if (!isOpen) return null;
 
@@ -76,17 +97,29 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
 
   const handleConfirm = () => {
     const trimmedInput = (inputPath || '').trim();
+    let chosenPath = '';
+    let chosenName = '';
+
     if (selectedFolder) {
-      const name = selectedFolder.name.replace(/^Dysk\s*\((.*)\)$/, '$1') || selectedFolder.name;
-      onSelectFolder(selectedFolder.path, name);
-      onClose();
+      chosenName = selectedFolder.name.replace(/^Dysk\s*\((.*)\)$/, '$1') || selectedFolder.name;
+      chosenPath = selectedFolder.path;
     } else if (trimmedInput && trimmedInput !== currentPath) {
-      const name = trimmedInput.replace(/[/\\]$/, '').split(/[/\\]/).pop() || trimmedInput;
-      onSelectFolder(trimmedInput, name);
-      onClose();
+      chosenName = trimmedInput.replace(/[/\\]$/, '').split(/[/\\]/).pop() || trimmedInput;
+      chosenPath = trimmedInput;
     } else if (currentPath) {
-      const name = currentPath.replace(/[/\\]$/, '').split(/[/\\]/).pop() || currentPath;
-      onSelectFolder(currentPath, name);
+      chosenName = currentPath.replace(/[/\\]$/, '').split(/[/\\]/).pop() || currentPath;
+      chosenPath = currentPath;
+    }
+
+    if (chosenPath) {
+      try {
+        const parent = chosenPath.replace(/[/\\][^/\\]+[/\\]?$/, '');
+        const pathToSave = parent && parent !== chosenPath ? parent : chosenPath;
+        localStorage.setItem(STORAGE_KEY_LAST_WORKSPACE_PATH, pathToSave);
+      } catch {
+        // ignore storage errors
+      }
+      onSelectFolder(chosenPath, chosenName);
       onClose();
     }
   };

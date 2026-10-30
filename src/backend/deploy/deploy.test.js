@@ -124,4 +124,32 @@ describe('DeployRouter API', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  it('GET /api/deploy/targets returns available deploy targets including ct8 and omv', async () => {
+    const res = await request(app).get('/api/deploy/targets');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.some(t => t.id === 'ct8')).toBe(true);
+    expect(res.body.some(t => t.id === 'omv')).toBe(true);
+  });
+
+  it('POST /api/deploy/start supports multi-target deployment', async () => {
+    const spy = vi.spyOn(deployService, 'startDeploy').mockReturnValue({
+      success: true,
+      message: 'Wdrożenie uruchomione na cele: ct8, omv',
+      targets: ['ct8', 'omv'],
+    });
+
+    const res = await request(app)
+      .post('/api/deploy/start')
+      .set('x-admin-role', 'true')
+      .set('x-deploy-confirm', 'DEPLOY_CT8')
+      .send({ environment: 'production', targets: ['ct8', 'omv'] });
+
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith({
+      environment: 'production',
+      targets: ['ct8', 'omv'],
+    });
+  });
 });

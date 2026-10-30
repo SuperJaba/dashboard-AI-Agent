@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Rocket, CheckCircle2, AlertCircle, RefreshCw, Terminal, Clock, 
-  ExternalLink, X, ShieldAlert, Copy, Check, Search 
+  ExternalLink, X, ShieldAlert, Copy, Check, Search, Server
 } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
 import { cleanLogLine } from '../shared/clean-logs';
@@ -12,15 +12,18 @@ interface DeployStatus {
   isDeploying: boolean;
   currentStep: string;
   startTime: string | null;
-  logs: { timestamp: string; text: string }[];
+  logs: { timestamp: string; text: string; target?: string }[];
   lastDeploy: {
     status: string;
     timestamp: string | null;
     durationSeconds: number;
     targetHost: string;
     error: string | null;
+    activeTargets?: string[];
   };
   targetHost: string;
+  activeTargets?: string[];
+  targetStates?: Record<string, { state: string; currentStep: string; logs: { timestamp: string; text: string; target?: string }[] }>;
 }
 
 interface DeployHealth {
@@ -31,13 +34,39 @@ interface DeployHealth {
   error?: string;
 }
 
+export interface DeployTarget {
+  id: string;
+  name: string;
+  host: string;
+  type: string;
+  default?: boolean;
+}
+
 interface DeployCt8WidgetProps {
   className?: string;
+  onDeployStateChange?: (isDeploying: boolean) => void;
 }
 
 const REMOTE_RESTART_CMD = "ssh jagger2@s1.ct8.pl 'devil www restart dashboard.jagger2.ct8.pl'";
 
-export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = '' }) => {
+const DEFAULT_TARGETS: DeployTarget[] = [
+  {
+    id: 'ct8',
+    name: 'CT8.pl Production',
+    host: 'dashboard.jagger2.ct8.pl',
+    type: 'ct8',
+    default: true,
+  },
+  {
+    id: 'omv',
+    name: 'OMV (Home Server)',
+    host: '10.10.10.100',
+    type: 'omv',
+    default: false,
+  },
+];
+
+export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = '', onDeployStateChange }) => {
   const [status, setStatus] = useState<DeployStatus | null>(null);
   const [health, setHealth] = useState<DeployHealth | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -47,11 +76,25 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   const [copiedLogs, setCopiedLogs] = useState<boolean>(false);
   const [copiedRestartCmd, setCopiedRestartCmd] = useState<boolean>(false);
   const [logFilter, setLogFilter] = useState<string>('');
+  const [targetsList, setTargetsList] = useState<DeployTarget[]>(DEFAULT_TARGETS);
+  const [selectedTargets, setSelectedTargets] = useState<string[]>(['ct8']);
+  const [activeLogTab, setActiveLogTab] = useState<string>('all');
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   // Hook do nasłuchiwania WebSocket z /dashboard
   const { socket } = useDashboardSocket();
+
+  const fetchTargets = async () => {
+    try {
+      const data = await apiClient.get<DeployTarget[]>('/api/deploy/targets');
+      if (Array.isArray(data) && data.length > 0) {
+        setTargetsList(data);
+      }
+    } catch {
+      // Use fallback DEFAULT_TARGETS
+    }
+  };
 
   const fetchStatus = async () => {
     try {
@@ -73,7 +116,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
 
   const refreshAll = async () => {
     setLoading(true);
-    await Promise.all([fetchStatus(), fetchHealth()]);
+    await Promise.all([fetchTargets(), fetchStatus(), fetchHealth()]);
     setLoading(false);
   };
 
@@ -83,11 +126,16 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     return () => clearInterval(interval);
   }, []);
 
+  // Notyfikuj komponent nadrzędny o stanie wdrażania
+  useEffect(() => {
+    onDeployStateChange?.(status?.isDeploying || false);
+  }, [status?.isDeploying, onDeployStateChange]);
+
   // Nasłuchiwanie Socket.IO na zdarzenia deploy
   useEffect(() => {
     if (!socket) return;
 
-    const handleDeployLog = (logEntry: { timestamp: string; text: string }) => {
+    const handleDeployLog = (logEntry: { timestamp: string; text: string; target?: string }) => {
       const cleaned = cleanLogLine(logEntry.text);
       if (!cleaned) return;
 
@@ -130,7 +178,12 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   }, [status?.logs, showLogsModal]);
 
   const handleStartDeploy = async () => {
-    if (!confirm('Czy na pewno chcesz uruchomić wdrożenie produkcyjne na serwer CT8.pl?')) {
+    const isSingleCt8 = selectedTargets.length === 1 && selectedTargets[0] === 'ct8';
+    const confirmMessage = isSingleCt8
+      ? 'Czy na pewno chcesz uruchomić wdrożenie produkcyjne na serwer CT8.pl?'
+      : `Czy na pewno chcesz uruchomić wdrożenie na ${selectedTargets.length} serwery (${selectedTargets.join(', ')})?`;
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -142,6 +195,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         {
           environment: 'production',
           confirm: 'DEPLOY_CT8',
+          targets: selectedTargets,
         },
         {
           headers: {
@@ -162,7 +216,11 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   const handleCopyLogs = async () => {
     if (!status?.logs || status.logs.length === 0) return;
     const textToCopy = status.logs
-      .map((l) => `[${l.timestamp}] ${cleanLogLine(l.text)}`)
+      .filter((l) => {
+        if (activeLogTab === 'all') return true;
+        return l.target === activeLogTab || (!l.target && activeLogTab === 'ct8');
+      })
+      .map((l) => `[${l.timestamp}]${l.target ? ` [${l.target.toUpperCase()}]` : ''} ${cleanLogLine(l.text)}`)
       .filter((line) => line.length > 12)
       .join('\n');
     try {
@@ -184,19 +242,33 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     }
   };
 
+  const toggleTarget = (targetId: string) => {
+    if (selectedTargets.includes(targetId)) {
+      if (selectedTargets.length > 1) {
+        setSelectedTargets(selectedTargets.filter((id) => id !== targetId));
+      }
+    } else {
+      setSelectedTargets([...selectedTargets, targetId]);
+    }
+  };
+
   const isDeploying = status?.isDeploying || false;
   const currentLogs = status?.logs;
 
   const filteredLogs = useMemo(() => {
     if (!currentLogs) return [];
     return currentLogs
+      .filter((l) => {
+        if (activeLogTab === 'all') return true;
+        return l.target === activeLogTab || (!l.target && activeLogTab === 'ct8');
+      })
       .map((l) => ({ ...l, text: cleanLogLine(l.text) }))
       .filter((l) => l.text.length > 0)
       .filter((l) => {
         if (!logFilter.trim()) return true;
         return l.text.toLowerCase().includes(logFilter.toLowerCase());
       });
-  }, [currentLogs, logFilter]);
+  }, [currentLogs, activeLogTab, logFilter]);
 
   return (
     <>
@@ -213,7 +285,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-lg text-slate-100 tracking-tight">
-                  Wdrożenie CT8.pl
+                  Wdrożenie CT8.pl / Multi-Deploy
                 </h3>
                 <a
                   href="https://dashboard.jagger2.ct8.pl"
@@ -261,7 +333,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         </div>
 
         {/* Informacje o ostatnim wdrożeniu */}
-        <div className="grid grid-cols-2 gap-3.5 mb-5 text-xs">
+        <div className="grid grid-cols-2 gap-3.5 mb-4 text-xs">
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 shadow-sm">
             <span className="text-slate-400 font-medium block mb-1.5">Status ostatniego wdrożenia</span>
             <div className="flex items-center gap-2 font-semibold">
@@ -307,9 +379,57 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           </div>
         </div>
 
+        {/* Multi-Deploy: Wybór Celów Wdrożenia */}
+        <div className="mb-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <Server className="w-3.5 h-3.5 text-indigo-400" />
+              Cele Wdrożenia (Multi-Deploy)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedTargets(targetsList.map((t) => t.id))}
+                className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+              >
+                Wszystkie ({targetsList.length})
+              </button>
+              <span className="text-slate-600 text-xs">|</span>
+              <button
+                type="button"
+                onClick={() => setSelectedTargets(['ct8'])}
+                className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+              >
+                Tylko CT8
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {targetsList.map((target) => {
+              const isChecked = selectedTargets.includes(target.id);
+              return (
+                <button
+                  type="button"
+                  key={target.id}
+                  onClick={() => toggleTarget(target.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-all ${
+                    isChecked
+                      ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-sm'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-indigo-400' : 'bg-slate-600'}`} />
+                  <span>{target.name}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">({target.host})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Komunikat o błędzie jeśli wystąpił */}
         {errorMsg && (
-          <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center justify-between gap-2">
+          <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{errorMsg}</span>
@@ -325,7 +445,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
 
         {/* Bieżący krok jeśli w trakcie wdrożenia */}
         {isDeploying && (
-          <div className="mb-5 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
+          <div className="mb-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
             <div className="flex items-center justify-between text-xs text-indigo-300 mb-2">
               <span className="font-semibold flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
@@ -342,13 +462,18 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         <div className="flex items-center gap-3">
           <button
             onClick={handleStartDeploy}
-            disabled={isDeploying || actionLoading}
+            disabled={isDeploying || actionLoading || selectedTargets.length === 0}
             className="flex-1 flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-semibold text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
           >
             {isDeploying ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
                 Wdrażanie w toku...
+              </>
+            ) : selectedTargets.length > 1 ? (
+              <>
+                <Rocket className="w-5 h-5" />
+                Wdróż na wybrane ({selectedTargets.length})
               </>
             ) : (
               <>
@@ -393,7 +518,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         </div>
       </div>
 
-      {/* Przeprojektowany Modal / Konsola logów na żywo */}
+      {/* Przeprojektowany Modal / Konsola logów na żywo z obsługą Multi-Deploy */}
       {showLogsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-150">
           <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-4xl flex flex-col h-[82vh] shadow-2xl overflow-hidden">
@@ -409,7 +534,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                 <Terminal className="w-4 h-4 text-emerald-400" />
                 <div>
                   <h4 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                    Konsola Wdrożenia CT8.pl
+                    Konsola Wdrożenia CT8.pl / Multi-Deploy
                     {isDeploying && (
                       <span className="inline-flex items-center gap-1 text-[11px] font-normal text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                         <RefreshCw className="w-3 h-3 animate-spin" />
@@ -456,12 +581,49 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
 
                 <button
                   onClick={() => setShowLogsModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors ml-1"
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors ml-1 cursor-pointer"
                   title="Zamknij okno"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
+            </div>
+
+            {/* Pasek zakładek celów (Multi-Deploy Tabs) */}
+            <div className="flex items-center gap-1 px-6 py-2.5 bg-slate-900 border-b border-slate-800 text-xs overflow-x-auto">
+              <span className="text-[11px] text-slate-500 mr-2 uppercase tracking-wider font-semibold shrink-0">
+                Zakładka serwera:
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveLogTab('all')}
+                className={`px-3 py-1 rounded-md transition-all cursor-pointer shrink-0 ${
+                  activeLogTab === 'all'
+                    ? 'bg-indigo-600 text-white font-medium shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                Wszystkie logi ({currentLogs?.length || 0})
+              </button>
+              {targetsList.map((target) => {
+                const count = (currentLogs || []).filter(
+                  (l) => l.target === target.id || (!l.target && target.id === 'ct8')
+                ).length;
+                return (
+                  <button
+                    key={target.id}
+                    type="button"
+                    onClick={() => setActiveLogTab(target.id)}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer shrink-0 ${
+                      activeLogTab === target.id
+                        ? 'bg-indigo-600 text-white font-medium shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                    }`}
+                  >
+                    {target.name} ({count})
+                  </button>
+                );
+              })}
             </div>
 
             {/* Treść logów (Terminal konsoli) */}
@@ -498,6 +660,11 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                     >
                       <span className="text-slate-600 select-none text-[11px] shrink-0 font-mono pt-0.5">
                         [{log.timestamp}]
+                        {log.target && (
+                          <span className="ml-1 px-1.5 py-0.2 bg-slate-800 text-indigo-300 rounded text-[10px] uppercase">
+                            {log.target}
+                          </span>
+                        )}
                       </span>
                       <span
                         className={`break-all ${

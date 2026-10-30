@@ -67,28 +67,16 @@ export async function runMigrations() {
     await safeQuery(`CREATE SCHEMA IF NOT EXISTS ${schema};`);
     await safeQuery(`SET search_path TO ${schema}, public;`);
 
-    // Drop tables if they exist (to fix corruption)
-    console.log(`📊 Dropping existing tables in schema '${schema}' to ensure clean state...`);
+    // Create tables safely if they do not exist
+    console.log('📝 Creating database tables if not exist...');
     await safeQuery(`
-      DROP TABLE IF EXISTS settings CASCADE;
-      DROP TABLE IF EXISTS projects CASCADE;
-      DROP TABLE IF EXISTS servers CASCADE;
-      DROP TABLE IF EXISTS cli_agents CASCADE;
-      DROP TABLE IF EXISTS custom_widgets CASCADE;
-      DROP TABLE IF EXISTS llm_servers CASCADE;
-      DROP TABLE IF EXISTS users CASCADE;
-    `);
-    
-    // Create tables with correct structure
-    console.log('📝 Creating database tables...');
-    await safeQuery(`
-      CREATE TABLE settings (
+      CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
         key VARCHAR(255) UNIQUE NOT NULL,
         value TEXT NOT NULL
       );
       
-      CREATE TABLE projects (
+      CREATE TABLE IF NOT EXISTS projects (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         "desc" TEXT,
@@ -99,7 +87,7 @@ export async function runMigrations() {
         tasks JSONB DEFAULT '[]'::jsonb
       );
       
-      CREATE TABLE servers (
+      CREATE TABLE IF NOT EXISTS servers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         host VARCHAR(255) NOT NULL,
@@ -109,7 +97,7 @@ export async function runMigrations() {
         ssh_password TEXT
       );
       
-      CREATE TABLE cli_agents (
+      CREATE TABLE IF NOT EXISTS cli_agents (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
         description TEXT,
@@ -121,7 +109,7 @@ export async function runMigrations() {
         max_tokens INTEGER DEFAULT 4096
       );
       
-      CREATE TABLE custom_widgets (
+      CREATE TABLE IF NOT EXISTS custom_widgets (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         command TEXT NOT NULL,
@@ -130,7 +118,7 @@ export async function runMigrations() {
         server_id INTEGER
       );
       
-      CREATE TABLE llm_servers (
+      CREATE TABLE IF NOT EXISTS llm_servers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         url VARCHAR(512) NOT NULL,
@@ -141,7 +129,7 @@ export async function runMigrations() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       
-      CREATE TABLE users (
+      CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT NOT NULL
@@ -152,16 +140,24 @@ export async function runMigrations() {
         language VARCHAR(10) DEFAULT 'pl',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `);
-    // Create additional tables if missing
-    console.log('📝 Creating additional tables...');
-    await safeQuery(`
       CREATE TABLE IF NOT EXISTS agents (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
         description TEXT,
         server_id INTEGER REFERENCES servers(id),
         status VARCHAR(50) DEFAULT 'stopped',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS agent_scheduled_tasks (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        task_type VARCHAR(100) NOT NULL,
+        command TEXT,
+        cron_expression VARCHAR(100) NOT NULL,
+        enabled BOOLEAN DEFAULT true,
+        last_run TIMESTAMP,
+        last_status VARCHAR(50) DEFAULT 'idle',
+        last_output TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);

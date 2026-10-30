@@ -7,6 +7,7 @@ vi.mock('../shared/api-client', () => ({
   apiClient: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
     patch: vi.fn(),
     delete: vi.fn(),
   },
@@ -136,6 +137,31 @@ describe('AgentSchedulerWidget', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('Dodaj nowe zadanie harmonogramu')).not.toBeInTheDocument();
+    });
+  });
+
+  it('opens edit modal and submits updated task data via PUT', async () => {
+    vi.mocked(apiClient.put).mockResolvedValue({ success: true });
+
+    render(<AgentSchedulerWidget />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Nocny audyt bezpieczeństwa')).toBeInTheDocument();
+    });
+
+    const editBtns = screen.getAllByTitle('Edytuj zadanie');
+    fireEvent.click(editBtns[0]);
+
+    expect(screen.getByText('Edytuj zadanie harmonogramu')).toBeInTheDocument();
+
+    const saveChangesBtn = screen.getByText('Zapisz zmiany');
+    fireEvent.click(saveChangesBtn);
+
+    await waitFor(() => {
+      expect(apiClient.put).toHaveBeenCalledWith('/api/scheduler/tasks/1', expect.objectContaining({
+        name: 'Nocny audyt bezpieczeństwa',
+        cron_expression: '0 3 * * *'
+      }));
     });
   });
 });

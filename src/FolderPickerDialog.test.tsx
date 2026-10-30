@@ -219,4 +219,83 @@ describe('FolderPickerDialog Component', () => {
     expect(mockOnSelectFolder).toHaveBeenCalledWith('F:\\AI-Agents\\dashboard', 'dashboard');
     expect(mockOnClose).toHaveBeenCalled();
   });
+
+  it('loads previously remembered path from localStorage when opened', async () => {
+    localStorage.setItem('last_workspace_folder_path', 'F:\\AI-Agents');
+
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      currentPath: 'F:\\AI-Agents',
+      parentPath: 'F:\\',
+      directories: [{ name: 'dashboard', path: 'F:\\AI-Agents\\dashboard' }],
+      drives: ['F:\\']
+    });
+
+    render(
+      <FolderPickerDialog
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectFolder={mockOnSelectFolder}
+      />
+    );
+
+    await waitFor(() => {
+      expect(apiClient.get).toHaveBeenCalledWith('/api/fs/directories?path=F%3A%5CAI-Agents');
+    });
+
+    localStorage.removeItem('last_workspace_folder_path');
+  });
+
+  it('falls back to default directory if remembered path fails to load', async () => {
+    localStorage.setItem('last_workspace_folder_path', 'Z:\\NonExistentPath');
+
+    vi.mocked(apiClient.get)
+      .mockRejectedValueOnce(new Error('Folder not found'))
+      .mockResolvedValueOnce({
+        currentPath: 'C:\\Users\\User',
+        parentPath: 'C:\\Users',
+        directories: [{ name: 'Projects', path: 'C:\\Users\\User\\Projects' }],
+        drives: ['C:\\']
+      });
+
+    render(
+      <FolderPickerDialog
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectFolder={mockOnSelectFolder}
+      />
+    );
+
+    await waitFor(() => {
+      expect(apiClient.get).toHaveBeenCalledWith('/api/fs/directories');
+      expect(localStorage.getItem('last_workspace_folder_path')).toBeNull();
+    });
+  });
+
+  it('saves parent path to localStorage upon confirmation', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      currentPath: 'F:\\AI-Agents',
+      parentPath: 'F:\\',
+      directories: [{ name: 'my-project', path: 'F:\\AI-Agents\\my-project' }],
+      drives: ['F:\\']
+    });
+
+    render(
+      <FolderPickerDialog
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectFolder={mockOnSelectFolder}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('my-project')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('my-project'));
+    const confirmButton = screen.getByRole('button', { name: /Wybierz ten folder/i });
+    fireEvent.click(confirmButton);
+
+    expect(localStorage.getItem('last_workspace_folder_path')).toBe('F:\\AI-Agents');
+    localStorage.removeItem('last_workspace_folder_path');
+  });
 });
