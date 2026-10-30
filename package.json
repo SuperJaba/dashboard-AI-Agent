@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev:frontend": "vite",
-    "dev:backend": "node server.js",
-    "dev": "concurrently -k -n \"backend,frontend\" -c \"blue,green\" \"node server.js\" \"vite\"",
+    "dev:backend": "node --watch server.js",
+    "dev": "concurrently -k -n \"backend,frontend\" -c \"blue,green\" \"node --watch server.js\" \"vite\"",
     "db:migrate": "node scripts/migrate.js",
     "build": "vite build",
     "lint": "oxlint",
@@ -29,7 +29,7 @@
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
     "concurrently": "^9.2.4",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -37,12 +37,12 @@
     "express-rate-limit": "^8.7.0",
     "framer-motion": "^12.42.2",
     "fresh": "^2.0.0",
+    "helmet": "^8.3.0",
     "i18next": "^26.4.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.24.0",
     "node-cron": "^4.6.0",
     "node-fetch": "^3.3.2",
-    "node-pty": "^1.1.0",
     "pg": "^8.22.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
@@ -56,6 +56,7 @@
     "zod": "^4.6.6"
   },
   "devDependencies": {
+    "@jridgewell/sourcemap-codec": "^1.6.0",
     "@babel/plugin-proposal-decorators": "^8.0.2",
     "@babel/plugin-syntax-decorators": "^8.0.1",
     "@playwright/test": "^1.61.1",
@@ -68,8 +69,9 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "@vitest/coverage-v8": "^4.1.10",
-    "@vitest/ui": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.5",
+    "@vitest/mocker": "^5.0.5",
+    "@vitest/ui": "^5.0.5",
     "autoprefixer": "^10.5.2",
     "cross-env": "^10.1.0",
     "jsdom": "^29.1.1",
@@ -79,13 +81,14 @@
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.5"
   },
   "overrides": {
+    "@jridgewell/sourcemap-codec": "^1.6.0",
     "qs": "^6.17.0"
   },
-  "allowScripts": {
-    "bcrypt@6.0.0": true,
-    "node-pty@1.1.0": true
-  }
+  "optionalDependencies": {
+    "node-pty": "^1.1.0"
+  },
+  "allowScripts": { "*": true }
 }

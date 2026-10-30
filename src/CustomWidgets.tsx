@@ -1164,7 +1164,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 <textarea 
                   value={agentInstructions} 
                   onChange={e => setAgentInstructions(e.target.value)} 
-                  placeholder="e.g., Build a script that retrieves this data and fixes errors..."
+                  placeholder="e.g., Build a script that retrieves this data and fixes errors…"
                   style={{ 
                     width: '100%', 
                     padding: '0.65rem 0.85rem', 

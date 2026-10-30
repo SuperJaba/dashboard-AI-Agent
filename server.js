@@ -6,18 +6,32 @@ if (typeof PhusionPassenger !== 'undefined') {
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 import fetch from 'node-fetch';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import pty from 'node-pty';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+let pty = null;
+try {
+  pty = require('node-pty');
+} catch {
+  // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
+}
 
 import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
-import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+import { authMiddleware, optionalAuthMiddleware } from './src/backend/auth/authMiddleware.js';
 import { logger, requestLogger } from './src/backend/utils/logger.js';
 import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
 
@@ -75,18 +89,16 @@ import { registerDashboardNamespace } from './src/backend/socket/dashboardNamesp
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { llmProxyRouter } from './src/backend/llm/llmProxyRouter.js';
+import { securityHeadersMiddleware } from './src/backend/utils/securityHeaders.js';
 
 const isTestEnvironment = process.env.NODE_ENV === 'test';
-dotenv.config();
 if (isTestEnvironment) {
   process.env.NODE_ENV = 'test';
 }
 
 const app = express();
+app.disable('x-powered-by');
 
 const port = process.env.PORT || 3001;
 
@@ -212,6 +224,12 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (!pty) {
+      socket.emit('terminal_data', '\r\n\x1b[33m[Warning] Local terminal is not supported on this host environment (FreeBSD / CT8). Please connect an Agent Worker (Local PC) to execute terminal commands.\x1b[0m\r\n');
+      socket.emit('terminal_exit', { exitCode: 1 });
+      return;
+    }
+
     // Default remote execution
     try {
       const shellCmd = findShellExecutable(command);
@@ -315,8 +333,10 @@ deployService.setSocketServer(io);
 schedulerService.setSocketServer(io);
 
 
+app.use(securityHeadersMiddleware);
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(requestLogger);
 app.use(metricsMiddleware);
 // Serve static assets from the public directory
@@ -374,10 +394,8 @@ app.get('/v1/metrics', async (req, res) => {
 // --- Auth Routes ---
 app.use('/api/auth', authRouter);
 
-// API Auth Middleware
-app.use('/api', authMiddleware);
-
-app.get('/api/agents/workers', (req, res) => {
+// Public / Token-optional Socket Endpoints
+app.get('/api/agents/workers', optionalAuthMiddleware, (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
@@ -388,7 +406,7 @@ app.get('/api/agents/workers', (req, res) => {
   res.json(workers);
 });
 
-app.get('/api/socket-info', (req, res) => {
+app.get('/api/socket-info', optionalAuthMiddleware, (req, res) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${port}`;
   const serverUrl = `${protocol}://${host}`;
@@ -430,6 +448,12 @@ app.get('/api/socket-info', (req, res) => {
     }
   });
 });
+
+// LLM Proxy for transparent token metrics collection (passes agent API keys directly)
+app.use('/api/llm-proxy', llmProxyRouter);
+
+// API Auth Middleware
+app.use('/api', authMiddleware);
 
 app.post('/api/socket/token', (req, res) => {
   const user = req.user || { id: 1, username: 'worker-client' };
@@ -479,6 +503,18 @@ if (staticPath) {
     next();
   });
 }
+
+// Centralized security error handler to prevent internal stack trace leakage
+app.use((err, req, res, next) => {
+  logger.error({ err: err.message, stack: err.stack, path: req.path }, 'Unhandled server error');
+  if (res.headersSent) {
+    return next(err);
+  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.status(err.status || 500).json({
+    error: isProduction ? 'Wystąpił wewnętrzny błąd serwera' : (err.message || 'Internal Server Error')
+  });
+});
 
 // Init DB
 async function initDB() {

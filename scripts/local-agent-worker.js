@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { io } from 'socket.io-client';
 import pty from 'node-pty';
 import os from 'os';

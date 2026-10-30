@@ -148,11 +148,14 @@ export function WebhookSettingsModal({ token }: Props) {
           <label className="text-xs text-gray-400" htmlFor="wh-url">URL Webhooka (Discord, Telegram lub standardowy HTTP)</label>
           <input
             id="wh-url"
+            name="webhookUrl"
             type="url"
+            autoComplete="off"
+            spellCheck={false}
             value={formUrl}
             onChange={(e) => setFormUrl(e.target.value)}
-            placeholder="https://discord.com/api/webhooks/... lub https://example.com/hook"
-            className="bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-400"
+            placeholder="https://discord.com/api/webhooks/… lub https://example.com/hook"
+            className="bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-400 focus-visible:border-purple-400"
           />
           {formUrl.includes('discord.com/api/webhooks') && (
             <p className="text-[11px] text-indigo-400">
@@ -185,11 +188,14 @@ export function WebhookSettingsModal({ token }: Props) {
           <label className="text-xs text-gray-400" htmlFor="wh-secret">Sekret (HMAC, opcjonalny)</label>
           <input
             id="wh-secret"
+            name="webhookSecret"
             type="password"
+            autoComplete="off"
+            spellCheck={false}
             value={formSecret}
             onChange={(e) => setFormSecret(e.target.value)}
             placeholder="••••••••"
-            className="bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-400"
+            className="bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-400 focus-visible:border-purple-400"
           />
         </div>
 

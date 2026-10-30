@@ -1,7 +1,12 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pkg from 'pg';
 import dotenv from 'dotenv';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const { Pool } = pkg;
 
 const schema = process.env.DB_SCHEMA || 'dashboard';
@@ -74,7 +79,9 @@ export const inMemoryStore = {
       last_output: null,
       created_at: new Date().toISOString()
     }
-  ]
+  ],
+  agent_tasks: [],
+  agent_logs: []
 };
 
 let useInMemoryFallback = false;
@@ -381,6 +388,116 @@ export async function safeQuery(text, params = []) {
     return { rows: [] };
   }
 
+  // Agent Tasks queries
+  if (sql.includes('DELETE FROM agent_tasks')) {
+    inMemoryStore.agent_tasks = [];
+    return { rows: [] };
+  }
+
+  if (sql.includes('FROM agent_tasks')) {
+    if (sql.includes('WHERE id = $1') || sql.includes('WHERE id =')) {
+      const id = parseInt(params[0], 10);
+      const task = inMemoryStore.agent_tasks.find(t => t.id === id);
+      return { rows: task ? [{ ...task }] : [] };
+    }
+
+    const fromTime = params[0] ? new Date(params[0]).getTime() : 0;
+    const tasksInWindow = inMemoryStore.agent_tasks.filter(t => new Date(t.created_at).getTime() >= fromTime);
+
+    if (sql.includes('COUNT(*) AS total') || sql.includes('COUNT(*) as total')) {
+      return { rows: [{ total: tasksInWindow.length.toString() }] };
+    }
+    if (sql.includes('COUNT(*) AS ok') || sql.includes('COUNT(*) as ok')) {
+      const okCount = tasksInWindow.filter(t => t.status === 'completed').length;
+      return { rows: [{ ok: okCount.toString() }] };
+    }
+    if (sql.includes('AVG(EXTRACT(EPOCH')) {
+      const completed = tasksInWindow.filter(t => t.duration_ms && t.duration_ms > 0);
+      const avgSec = completed.length > 0
+        ? completed.reduce((acc, curr) => acc + (curr.duration_ms / 1000), 0) / completed.length
+        : 0;
+      return { rows: [{ avg_dur: avgSec.toString() }] };
+    }
+    if (sql.includes('SUM(tokens_used)')) {
+      const sumTokens = tasksInWindow.reduce((acc, curr) => acc + (parseInt(curr.tokens_used, 10) || 0), 0);
+      return { rows: [{ tokens: sumTokens.toString() }] };
+    }
+    return { rows: inMemoryStore.agent_tasks };
+  }
+
+  if (sql.includes('INSERT INTO agent_tasks')) {
+    const newTask = {
+      id: inMemoryStore.agent_tasks.length + 1,
+      agent_name: params[0] || 'Unknown Agent',
+      project_id: params[1] ? parseInt(params[1], 10) : null,
+      status: params[2] || 'started',
+      model: params[3] || null,
+      tokens_used: parseInt(params[4], 10) || 0,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      duration_ms: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    inMemoryStore.agent_tasks.push(newTask);
+    return { rows: [newTask] };
+  }
+
+  if (sql.includes('UPDATE agent_tasks')) {
+    if (sql.includes('status = $1') && sql.includes('duration_ms = $2')) {
+      const id = parseInt(params[2], 10);
+      const task = inMemoryStore.agent_tasks.find(t => t.id === id);
+      if (task) {
+        task.status = params[0];
+        task.duration_ms = parseInt(params[1], 10) || 0;
+        task.updated_at = new Date().toISOString();
+        return { rows: [task] };
+      }
+    }
+    if (sql.includes('tokens_used = tokens_used + $1')) {
+      const id = params[3] ? parseInt(params[3], 10) : null;
+      let task = id ? inMemoryStore.agent_tasks.find(t => t.id === id) : null;
+      if (!task && inMemoryStore.agent_tasks.length > 0) {
+        task = inMemoryStore.agent_tasks[inMemoryStore.agent_tasks.length - 1];
+      }
+      if (task) {
+        task.tokens_used = (task.tokens_used || 0) + (parseInt(params[0], 10) || 0);
+        task.prompt_tokens = (task.prompt_tokens || 0) + (parseInt(params[1], 10) || 0);
+        task.completion_tokens = (task.completion_tokens || 0) + (parseInt(params[2], 10) || 0);
+        task.updated_at = new Date().toISOString();
+        return { rows: [task] };
+      }
+    }
+    return { rows: [] };
+  }
+
+  // Agent Logs queries
+  if (sql.includes('FROM agent_logs')) {
+    if (sql.includes('GROUP BY message')) {
+      const fromTime = params[0] ? new Date(params[0]).getTime() : 0;
+      const errorLogs = inMemoryStore.agent_logs.filter(l => l.level === 'error' && new Date(l.created_at).getTime() >= fromTime);
+      const map = {};
+      for (const log of errorLogs) {
+        map[log.message] = (map[log.message] || 0) + 1;
+      }
+      const rows = Object.entries(map).map(([error, count]) => ({ error, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+      return { rows };
+    }
+    return { rows: inMemoryStore.agent_logs };
+  }
+
+  if (sql.includes('INSERT INTO agent_logs')) {
+    const newLog = {
+      id: inMemoryStore.agent_logs.length + 1,
+      task_id: params[0] ? parseInt(params[0], 10) : null,
+      level: params[1] || 'info',
+      message: params[2] || '',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.agent_logs.push(newLog);
+    return { rows: [newLog] };
+  }
+
   return { rows: [] };
 }
 
@@ -488,6 +605,26 @@ export async function migrate() {
       last_run TIMESTAMP,
       last_status VARCHAR(50) DEFAULT 'idle',
       last_output TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS agent_tasks (
+      id SERIAL PRIMARY KEY,
+      agent_name VARCHAR(255) NOT NULL,
+      project_id INTEGER,
+      status VARCHAR(50) DEFAULT 'started',
+      tokens_used INTEGER DEFAULT 0,
+      prompt_tokens INTEGER DEFAULT 0,
+      completion_tokens INTEGER DEFAULT 0,
+      model VARCHAR(255),
+      duration_ms INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS agent_logs (
+      id SERIAL PRIMARY KEY,
+      task_id INTEGER,
+      level VARCHAR(20) DEFAULT 'info',
+      message TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];

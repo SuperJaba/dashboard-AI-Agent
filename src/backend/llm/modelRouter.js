@@ -36,6 +36,12 @@ class CircuitBreaker {
     }
   }
 
+  reset() {
+    this.failureCount = 0;
+    this.state = 'CLOSED';
+    this.nextAttempt = Date.now();
+  }
+
   canAttempt() {
     if (this.state === 'CLOSED') return true;
     if (this.state === 'OPEN') {
@@ -50,6 +56,55 @@ class CircuitBreaker {
 }
 
 export const localCircuitBreaker = new CircuitBreaker(3, 60_000);
+
+// In-memory telemetry metrics for model routing
+const statsState = {
+  localTasks: 0,
+  cloudTasks: 0,
+  totalLocalLatencyMs: 0,
+  totalCloudLatencyMs: 0,
+  fallbackCount: 0,
+};
+
+export function recordTaskExecution({ tier, durationMs, fallback = false }) {
+  if (tier === 'high' || tier === 'cloud') {
+    statsState.cloudTasks += 1;
+    statsState.totalCloudLatencyMs += durationMs;
+  } else {
+    statsState.localTasks += 1;
+    statsState.totalLocalLatencyMs += durationMs;
+  }
+  if (fallback) {
+    statsState.fallbackCount += 1;
+  }
+}
+
+export function getRouterStats() {
+  const avgLocalLatencyMs = statsState.localTasks > 0
+    ? Math.round(statsState.totalLocalLatencyMs / statsState.localTasks)
+    : 0;
+  const avgCloudLatencyMs = statsState.cloudTasks > 0
+    ? Math.round(statsState.totalCloudLatencyMs / statsState.cloudTasks)
+    : 0;
+
+  return {
+    localTasks: statsState.localTasks,
+    cloudTasks: statsState.cloudTasks,
+    circuitBreakerState: localCircuitBreaker.state,
+    primaryLocalModel: LOCAL_PRIMARY,
+    fallbackLocalModel: LOCAL_FALLBACK,
+    cloudModel: CLOUD_MODEL === 'agy-gemini-pro' ? 'AGY (Gemini Pro)' : CLOUD_MODEL,
+    avgLocalLatencyMs,
+    avgCloudLatencyMs,
+    localEndpoint: LOCAL_URL,
+    fallbackCount: statsState.fallbackCount,
+  };
+}
+
+export function resetRouterCircuitBreaker() {
+  localCircuitBreaker.reset();
+  return getRouterStats();
+}
 
 /**
  * Selects the optimal model routing tier based on prompt complexity and health.
@@ -114,6 +169,7 @@ export function selectModelRoute(prompt, context = {}) {
  */
 export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
   const route = selectModelRoute(prompt, context);
+  const startTime = Date.now();
 
   if (route.provider === 'lm-studio') {
     const localProvider = getProvider('lm-studio');
@@ -123,6 +179,8 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
         model: route.model,
       });
       localCircuitBreaker.recordSuccess();
+      const durationMs = Date.now() - startTime;
+      recordTaskExecution({ tier: route.tier, durationMs, fallback: false });
       return {
         ...result,
         route,
@@ -140,6 +198,8 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
             model: route.fallbackModel,
           });
           localCircuitBreaker.recordSuccess();
+          const durationMs = Date.now() - startTime;
+          recordTaskExecution({ tier: route.tier, durationMs, fallback: true });
           return {
             ...fallbackResult,
             route,
@@ -158,6 +218,8 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
         ...opts,
         model: CLOUD_MODEL,
       });
+      const durationMs = Date.now() - startTime;
+      recordTaskExecution({ tier: 'cloud', durationMs, fallback: true });
       return {
         ...agyResult,
         route,
@@ -173,6 +235,8 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
     ...opts,
     model: route.model || CLOUD_MODEL,
   });
+  const durationMs = Date.now() - startTime;
+  recordTaskExecution({ tier: 'high', durationMs, fallback: Boolean(route.fallbackReason) });
 
   return {
     ...result,

@@ -154,12 +154,21 @@ describe('AgentSchedulerWidget', () => {
 
     expect(screen.getByText('Edytuj zadanie harmonogramu')).toBeInTheDocument();
 
+<<<<<<< HEAD
     const submitBtn = screen.getByText('Zapisz zmiany');
     fireEvent.click(submitBtn);
+=======
+    const saveChangesBtn = screen.getByText('Zapisz zmiany');
+    fireEvent.click(saveChangesBtn);
+>>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
 
     await waitFor(() => {
       expect(apiClient.put).toHaveBeenCalledWith('/api/scheduler/tasks/1', expect.objectContaining({
         name: 'Nocny audyt bezpieczeństwa',
+<<<<<<< HEAD
+=======
+        cron_expression: '0 3 * * *'
+>>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
       }));
     });
   });

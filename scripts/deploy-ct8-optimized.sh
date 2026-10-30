@@ -35,6 +35,8 @@ if [ -n "$CT8_PASSWORD" ]; then
   AUTH_METHOD="password"
 elif [ -n "$ACTIVE_KEY" ] && [ -f "$ACTIVE_KEY" ]; then
   AUTH_METHOD="key"
+elif ssh -q -o BatchMode=yes -o ConnectTimeout=5 jagger2 true 2>/dev/null; then
+  AUTH_METHOD="ssh_config"
 elif [ -f "$PASS_FILE" ]; then
   PASS=$(cat "$PASS_FILE")
   AUTH_METHOD="password"
@@ -70,8 +72,10 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=15"
 run_remote() {
   if [ "$AUTH_METHOD" = "password" ]; then
     sshpass -p "$PASS" ssh $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
-  elif [ -n "$ACTIVE_KEY" ]; then
+  elif [ "$AUTH_METHOD" = "key" ] && [ -n "$ACTIVE_KEY" ]; then
     ssh -i "$ACTIVE_KEY" $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
+  elif [ "$AUTH_METHOD" = "ssh_config" ]; then
+    ssh $SSH_OPTS jagger2 "$@"
   else
     ssh $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
   fi
@@ -80,8 +84,10 @@ run_remote() {
 copy_file() {
   if [ "$AUTH_METHOD" = "password" ]; then
     sshpass -p "$PASS" scp $SSH_OPTS "$1" "$2"
-  elif [ -n "$ACTIVE_KEY" ]; then
+  elif [ "$AUTH_METHOD" = "key" ] && [ -n "$ACTIVE_KEY" ]; then
     scp -i "$ACTIVE_KEY" $SSH_OPTS "$1" "$2"
+  elif [ "$AUTH_METHOD" = "ssh_config" ]; then
+    scp $SSH_OPTS "$1" "jagger2:$2"
   else
     scp $SSH_OPTS "$1" "$2"
   fi
@@ -97,6 +103,8 @@ validate_environment() {
 
   if [ "$AUTH_METHOD" = "key" ]; then
     log_info "Using SSH Key: $ACTIVE_KEY"
+  elif [ "$AUTH_METHOD" = "ssh_config" ]; then
+    log_info "Using SSH Config Host alias: jagger2"
   else
     log_info "Using Password authentication via sshpass"
   fi
@@ -216,12 +224,27 @@ EOF_APP
   fi
 
   local include_list=(
-    package.json package-lock.json server.js app.js
+    package.json server.js app.js
     src/backend scripts
   )
+  if [ -f "$PROJECT_DIR/package-lock.json" ]; then
+    include_list+=(package-lock.json)
+  fi
 
-  log_info "Creating backend archive..."
-  tar -czf "$tmp_tar" --exclude="scripts/deploy*" "${include_list[@]}"
+  log_info "Creating backend archive (excluding tests, test scripts, and dev artifacts)..."
+  tar -czf "$tmp_tar" \
+    --exclude="scripts/deploy*" \
+    --exclude="*.test.js" \
+    --exclude="*.test.ts" \
+    --exclude="*.test.tsx" \
+    --exclude="*.spec.js" \
+    --exclude="__tests__" \
+    --exclude="scripts/test-*" \
+    --exclude="scripts/autotest_*" \
+    --exclude="scripts/ci_*" \
+    --exclude="*.log" \
+    --exclude="*.map" \
+    "${include_list[@]}"
 
   log_info "Uploading backend archive to $REMOTE_HOST..."
   copy_file "$tmp_tar" "$REMOTE_USER@$REM_HOST:$REMOTE_APP/backend.tar.gz"
@@ -282,9 +305,48 @@ configure_remote_env() {
 
 install_dependencies() {
   log_step 6 "Installing Remote Dependencies"
-  log_info "Running npm install (--omit=dev) with node24 runtime on remote..."
-  run_remote "cd \$HOME/$REMOTE_APP && (command -v /usr/local/bin/npm24 &>/dev/null && /usr/local/bin/npm24 install --omit=dev || npm install --omit=dev)"
-  log_success "Remote dependencies installed successfully"
+  local lock_file=""
+  if [ -f "$PROJECT_DIR/package-lock.json" ]; then
+    lock_file="$PROJECT_DIR/package-lock.json"
+  elif [ -f "$PROJECT_DIR/package.json" ]; then
+    lock_file="$PROJECT_DIR/package.json"
+  fi
+
+  local lock_hash=""
+  if [ -n "$lock_file" ]; then
+    if command -v sha256sum &>/dev/null; then
+      lock_hash=$(sha256sum "$lock_file" | awk '{print $1}')
+    elif command -v shasum &>/dev/null; then
+      lock_hash=$(shasum -a 256 "$lock_file" | awk '{print $1}')
+    fi
+  fi
+
+  local cache_hit=false
+  if [ "$FORCE_INSTALL" != true ] && [ -n "$lock_hash" ]; then
+    local remote_check
+    remote_check=$(run_remote "
+      cd \$HOME/$REMOTE_APP 2>/dev/null || exit 1
+      if [ -f .deps.hash ] && [ \"\$(cat .deps.hash 2>/dev/null)\" = \"$lock_hash\" ] && [ -d node_modules ]; then
+        echo 'MATCH'
+      else
+        echo 'NO_MATCH'
+      fi
+    " 2>/dev/null || echo "NO_MATCH")
+    if [[ "$remote_check" =~ "MATCH" ]]; then
+      cache_hit=true
+    fi
+  fi
+
+  if [ "$cache_hit" = true ]; then
+    log_success "Remote dependencies up-to-date (lockfile hash: ${lock_hash:0:12}..., skipping npm install)"
+  else
+    log_info "Running npm install (--omit=dev --omit=optional) with Passenger node runtime on remote..."
+    run_remote "cd \$HOME/$REMOTE_APP && npm install --omit=dev --omit=optional"
+    if [ -n "$lock_hash" ]; then
+      run_remote "echo '$lock_hash' > \$HOME/$REMOTE_APP/.deps.hash"
+    fi
+    log_success "Remote dependencies installed successfully"
+  fi
 }
 
 run_migrations() {
@@ -368,6 +430,7 @@ main() {
   local skip_build=false
   DO_RUN_TESTS=false
   FORCE_MIGRATE=false
+  FORCE_INSTALL=false
 
   for arg in "$@"; do
     case "$arg" in
@@ -375,7 +438,26 @@ main() {
       --health-check) do_health=true ;;
       --skip-build) skip_build=true ;;
       --run-tests) DO_RUN_TESTS=true ;;
+      --force-install) FORCE_INSTALL=true ;;
       --force-migrate) FORCE_MIGRATE=true ;;
+      -h|--help)
+        echo -e "${CYAN}============================================================${NC}"
+        echo -e "${CYAN}  Dashboard - Deployment Script for CT8.pl${NC}"
+        echo -e "${CYAN}============================================================${NC}"
+        echo "Usage: npm run deploy:ct8 [-- [options] [environment]]"
+        echo ""
+        echo "Options:"
+        echo "  --skip-build      Skip local Vite build (requires existing dist/)"
+        echo "  --run-tests       Run unit tests prior to deployment"
+        echo "  --force-install   Force remote npm install even if package-lock hash matches"
+        echo "  --force-migrate   Run destructive migrate.js database migration"
+        echo "  --kill            Stop targeted dashboard Node.js processes on CT8"
+        echo "  --health-check    Check active processes and HTTP health endpoint"
+        echo "  -h, --help        Show this help message"
+        echo ""
+        echo "Environments: production (default), staging, dev"
+        exit 0
+        ;;
       production|staging|dev) ENVIRONMENT="$arg" ;;
     esac
   done

@@ -1,7 +1,16 @@
-import pty from 'node-pty';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+let pty = null;
+try {
+  pty = require('node-pty');
+} catch {
+  // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
+}
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger.js';
+import { safeQuery } from '../db.js';
 
 /**
  * Finds the best shell executable for the current platform.
@@ -44,7 +53,8 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
     let ptyProcess = null;
     let activeWorkerSocket = null;
 
-    socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent }) => {
+    socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent, taskId }) => {
+      const sessionStartTime = Date.now();
       let workerToUse = null;
       if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
         workerToUse = activeWorkers.get(targetWorkerId);
@@ -63,6 +73,12 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
           env,
           scriptContent,
         });
+        return;
+      }
+
+      if (!pty) {
+        socket.emit('terminal_data', '\r\n\x1b[33m[Warning] Local terminal is not supported on this host environment (FreeBSD / CT8). Please connect an Agent Worker (Local PC) to execute terminal commands.\x1b[0m\r\n');
+        socket.emit('terminal_exit', { exitCode: 1 });
         return;
       }
 
@@ -104,7 +120,16 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
         });
 
         ptyProcess.onData((data) => socket.emit('terminal_data', data));
-        ptyProcess.onExit(({ exitCode, signal }) => socket.emit('terminal_exit', { exitCode, signal }));
+        ptyProcess.onExit(({ exitCode, signal }) => {
+          if (taskId) {
+            const durationMs = Date.now() - sessionStartTime;
+            safeQuery(
+              'UPDATE agent_tasks SET status = $1, duration_ms = $2, updated_at = NOW() WHERE id = $3',
+              [exitCode === 0 ? 'completed' : 'failed', durationMs, taskId]
+            ).catch(() => {});
+          }
+          socket.emit('terminal_exit', { exitCode, signal });
+        });
       } catch (err) {
         logger.error({ err: err.message }, 'PTY spawn error');
         socket.emit('terminal_error', err.message);

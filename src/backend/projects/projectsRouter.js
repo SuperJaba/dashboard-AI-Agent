@@ -10,6 +10,7 @@ import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
 import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects, findMarkdownFiles, extractChecklistItems } from './tasksSyncService.js';
 import { detectTechnology } from './techDetector.js';
+import { safeQuery } from '../db.js';
 
 export const projectsRouter = express.Router();
 
@@ -809,6 +810,30 @@ projectsRouter.post('/deploy', async (req, res) => {
       }
     }
 
+    let projectId = null;
+    try {
+      const projRes = await safeQuery('SELECT id FROM projects WHERE path = $1', [targetDir]);
+      if (projRes?.rows?.[0]?.id) {
+        projectId = projRes.rows[0].id;
+      }
+    } catch {}
+
+    let taskId = null;
+    try {
+      const taskRes = await safeQuery(
+        `INSERT INTO agent_tasks (agent_name, project_id, status, model, tokens_used)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [targetAgent?.name || agent, projectId, 'started', llmModel || null, 0]
+      );
+      taskId = taskRes?.rows?.[0]?.id || null;
+    } catch (e) {
+      console.warn('Failed to insert agent_tasks entry:', e.message);
+    }
+
+    if (taskId) {
+      exportEnvLines.push(`export AGENT_TASK_ID="${taskId}"`);
+    }
+
     const scriptContent = `#!/bin/bash
 cd "${targetDir}" 2>/dev/null || true
 stty cols 100 rows 30 2>/dev/null || true
@@ -840,6 +865,7 @@ exec bash
     if (isBrowserMode) {
       return res.json({ 
         success: true, 
+        taskId,
         browserTerminal: true, 
         command: 'bash', 
         args: [scriptPath], 
@@ -849,7 +875,18 @@ exec bash
       });
     }
 
-    if (process.platform === 'win32') {
+    const isWsl = process.platform === 'linux' && (
+      (fs.existsSync('/proc/version') && fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft')) ||
+      Boolean(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP)
+    );
+
+    if (isWsl) {
+      const cmdPath = fs.existsSync('/mnt/c/WINDOWS/system32/cmd.exe')
+        ? '/mnt/c/WINDOWS/system32/cmd.exe'
+        : 'cmd.exe';
+      command = cmdPath;
+      args = ['/c', 'start', '""', 'wsl.exe', 'bash', scriptPath];
+    } else if (process.platform === 'win32') {
       const gitBash = [
         'C:\\Program Files\\Git\\git-bash.exe',
         'C:\\Program Files (x86)\\Git\\git-bash.exe',
@@ -867,8 +904,37 @@ exec bash
       command = 'open';
       args = ['-a', 'Terminal', scriptPath];
     } else {
-      command = 'x-terminal-emulator';
-      args = ['-e', scriptPath];
+      // Linux – try a list of known terminal emulators; fallback to headless execution
+      const candidates = [
+        'gnome-terminal',
+        'xfce4-terminal',
+        'xterm',
+        'x-terminal-emulator',
+      ];
+      const available = candidates.find((c) => {
+        try {
+          return require('child_process').spawnSync('which', [c]).status === 0;
+        } catch {
+          return false;
+        }
+      });
+      const hasDisplay = Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+      if (available && hasDisplay) {
+        switch (available) {
+          case 'gnome-terminal':
+          case 'xfce4-terminal':
+            command = available;
+            args = ['--', scriptPath];
+            break;
+          default:
+            command = available;
+            args = ['-e', scriptPath];
+        }
+      } else {
+        console.warn('No graphical display or terminal emulator found – running script directly via bash');
+        command = 'bash';
+        args = [scriptPath];
+      }
     }
 
     const child = spawn(command, args, {
@@ -882,7 +948,7 @@ exec bash
     });
 
     child.unref();
-    res.json({ success: true, message: `${agent} launched in ${targetDir}` });
+    res.json({ success: true, taskId, message: `${agent} launched in ${targetDir}` });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });

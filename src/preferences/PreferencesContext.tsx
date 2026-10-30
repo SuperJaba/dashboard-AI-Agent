@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { i18n } from '../i18n';
 
 export type Theme = 'dark' | 'light';
 export type Language = 'pl' | 'en' | 'hi';
@@ -166,9 +167,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     setLanguageState(next);
     saveRemoteSettings(theme, next);
     // Also sync i18next runtime
-    import('../i18n').then(({ i18n }) => {
-      i18n.changeLanguage(next).catch(() => {});
-    });
+    i18n.changeLanguage(next).catch(() => {});
   };
   const t = (key: TranslationKey) => TRANSLATIONS[language][key] ?? key;
 

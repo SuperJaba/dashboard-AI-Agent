@@ -231,6 +231,8 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 </div>
                 <input
                   id="login-username"
+                  name="username"
+                  autoComplete="username"
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
@@ -262,6 +264,8 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 </div>
                 <input
                   id="login-password"
+                  name="password"
+                  autoComplete="current-password"
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
