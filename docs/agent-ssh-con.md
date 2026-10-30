@@ -36,9 +36,13 @@ ssh -i ~/.ssh/id_ed25519_antigravity -o BatchMode=yes -o StrictHostKeyChecking=a
 ```
 
 ### Examples:
-- Safe log cleanup (npm logs & domain logs):
+- Bezpieczne czyszczenie logów (logi npm oraz domen):
   ```bash
   ssh -i ~/.ssh/id_ed25519_antigravity -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p 22 jagger2 "rm -rf ~/.npm/_logs/* ~/domains/*/logs/* 2>/dev/null || true"
+  ```
+  (lub w skróconej formie z wykorzystaniem `~/.ssh/config`):
+  ```bash
+  ssh jagger2 "rm -rf ~/.npm/_logs/* ~/domains/*/logs/* 2>/dev/null || true"
   ```
 - Or using wrapper script:
 ```bash
