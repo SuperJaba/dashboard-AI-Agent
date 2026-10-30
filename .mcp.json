@@ -18,6 +18,15 @@
         "serve",
         "--mcp"
       ]
+    },
+    "xerj": {
+      "command": "C:\\Users\\Seba\\AppData\\Local\\Programs\\xerj\\xerj.exe",
+      "args": [
+        "mcp"
+      ],
+      "env": {
+        "XERJ_URL": "http://localhost:9200"
+      }
     }
   }
 }

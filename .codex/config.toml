@@ -1,0 +1,8 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+CLAUDE_CODE_MAX_CONTEXT_TOKENS = "131072"
+CLAUDE_CODE_AUTO_COMPACT_WINDOW = "100000"
+CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "80"
+enable_thinking = "false"

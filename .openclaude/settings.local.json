@@ -110,10 +110,13 @@
       "Bash(git rm:*)"
     ]
   },
-  "enabledMcpjsonServers": [],
+  "enabledMcpjsonServers": [
+    "xerj"
+  ],
   "disabledMcpjsonServers": [
     "MCP_DOCKER",
     "codegraph"
   ],
-  "prefersReducedMotion": false
+  "prefersReducedMotion": false,
+  "enableAllProjectMcpServers": true
 }
