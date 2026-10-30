@@ -1,11 +1,21 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Rocket, CheckCircle2, AlertCircle, RefreshCw, Terminal, Clock, 
-  ExternalLink, X, ShieldAlert, Copy, Check, Search, Server, OctagonX
+  ExternalLink, X, ShieldAlert, Copy, Check, Search, Server, OctagonX, Package
 } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
 import { cleanLogLine } from '../shared/clean-logs';
 import { useDashboardSocket } from '../hooks/useDashboardSocket';
+
+export interface DeployApp {
+  id: string;
+  name: string;
+  domain: string;
+  localPath?: string;
+  healthUrl?: string;
+  deployScript?: string;
+  default?: boolean;
+}
 
 interface DeployStatus {
   state: 'IDLE' | 'RUNNING' | 'SUCCESS' | 'FAILED';
@@ -20,8 +30,10 @@ interface DeployStatus {
     targetHost: string;
     error: string | null;
     activeTargets?: string[];
+    app?: string;
   };
   targetHost: string;
+  selectedApp?: string;
   activeTargets?: string[];
   targetStates?: Record<string, { state: string; currentStep: string; logs: { timestamp: string; text: string; target?: string }[] }>;
 }
@@ -32,6 +44,7 @@ interface DeployHealth {
   latencyMs: number;
   timestamp: string;
   error?: string;
+  app?: string;
 }
 
 export interface DeployTarget {
@@ -47,7 +60,24 @@ interface DeployCt8WidgetProps {
   onDeployStateChange?: (isDeploying: boolean) => void;
 }
 
-const REMOTE_RESTART_CMD = "ssh jagger2@s1.ct8.pl 'devil www restart dashboard.jagger2.ct8.pl'";
+const DEFAULT_APPS: DeployApp[] = [
+  {
+    id: 'dashboard',
+    name: 'Dashboard (Command Center)',
+    domain: 'dashboard.jagger2.ct8.pl',
+    healthUrl: 'https://dashboard.jagger2.ct8.pl/health',
+    deployScript: 'scripts/deploy-ct8-optimized.sh',
+    default: true,
+  },
+  {
+    id: 'invoice-splitter',
+    name: 'Invoice Splitter',
+    domain: 'invoice-server.jagger2.ct8.pl',
+    healthUrl: 'https://invoice-server.jagger2.ct8.pl/health',
+    deployScript: 'scripts/deploy-ct8-optimized.sh',
+    default: false,
+  },
+];
 
 const DEFAULT_TARGETS: DeployTarget[] = [
   {
@@ -67,6 +97,14 @@ const DEFAULT_TARGETS: DeployTarget[] = [
 ];
 
 export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = '', onDeployStateChange }) => {
+  const [appsList, setAppsList] = useState<DeployApp[]>(DEFAULT_APPS);
+  const [selectedApp, setSelectedApp] = useState<string>(() => {
+    try {
+      return localStorage.getItem('dashboard_last_deploy_app') || 'dashboard';
+    } catch {
+      return 'dashboard';
+    }
+  });
   const [status, setStatus] = useState<DeployStatus | null>(null);
   const [health, setHealth] = useState<DeployHealth | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -88,7 +126,26 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   // Hook do nasłuchiwania WebSocket z /dashboard
   const { socket } = useDashboardSocket();
 
-  const fetchTargets = async () => {
+  const activeApp = useMemo(() => {
+    return appsList.find((a) => a.id === selectedApp) || appsList[0] || DEFAULT_APPS[0];
+  }, [appsList, selectedApp]);
+
+  const currentRestartCmd = useMemo(() => {
+    return `ssh jagger2 "touch ~/domains/${activeApp.domain}/tmp/restart.txt && devil www restart ${activeApp.domain}"`;
+  }, [activeApp.domain]);
+
+  const fetchApps = useCallback(async () => {
+    try {
+      const data = await apiClient.get<DeployApp[]>('/api/deploy/apps');
+      if (Array.isArray(data) && data.length > 0) {
+        setAppsList(data);
+      }
+    } catch {
+      // Use fallback DEFAULT_APPS
+    }
+  }, []);
+
+  const fetchTargets = useCallback(async () => {
     try {
       const data = await apiClient.get<DeployTarget[]>('/api/deploy/targets');
       if (Array.isArray(data) && data.length > 0) {
@@ -97,37 +154,50 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     } catch {
       // Use fallback DEFAULT_TARGETS
     }
-  };
+  }, []);
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       const data = await apiClient.get<DeployStatus>('/api/deploy/status');
       setStatus(data);
     } catch (err: any) {
       console.error('Błąd pobierania statusu wdrożenia:', err);
     }
-  };
+  }, []);
 
-  const fetchHealth = async () => {
+  const fetchHealth = useCallback(async (appId?: string) => {
+    const targetApp = appId || selectedApp;
     try {
-      const data = await apiClient.get<DeployHealth>('/api/deploy/health');
+      const data = await apiClient.get<DeployHealth>(`/api/deploy/health?app=${encodeURIComponent(targetApp)}`);
       setHealth(data);
     } catch (err: any) {
       console.error('Błąd pobierania healthchecku CT8:', err);
     }
+  }, [selectedApp]);
+
+  const handleSelectApp = (appId: string) => {
+    setSelectedApp(appId);
+    try {
+      localStorage.setItem('dashboard_last_deploy_app', appId);
+    } catch {
+      // ignore
+    }
+    fetchHealth(appId);
   };
 
-  const refreshAll = async () => {
+  const refreshAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchTargets(), fetchStatus(), fetchHealth()]);
+    await Promise.all([fetchApps(), fetchTargets(), fetchStatus(), fetchHealth(selectedApp)]);
     setLoading(false);
-  };
+  }, [fetchApps, fetchTargets, fetchStatus, fetchHealth, selectedApp]);
 
   useEffect(() => {
     refreshAll();
-    const interval = setInterval(fetchHealth, 15000);
+    const interval = setInterval(() => {
+      fetchHealth(selectedApp);
+    }, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshAll, fetchHealth, selectedApp]);
 
   // Notyfikuj komponent nadrzędny o stanie wdrażania
   useEffect(() => {
@@ -172,7 +242,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
       socket.off('deploy:status', handleDeployStatus);
       socket.off('deploy:finished', handleDeployFinished);
     };
-  }, [socket]);
+  }, [socket, fetchHealth, fetchStatus]);
 
   useEffect(() => {
     if (showLogsModal && typeof logsEndRef.current?.scrollIntoView === 'function') {
@@ -183,8 +253,8 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   const handleStartDeploy = async () => {
     const isSingleCt8 = selectedTargets.length === 1 && selectedTargets[0] === 'ct8';
     const confirmMessage = isSingleCt8
-      ? 'Czy na pewno chcesz uruchomić wdrożenie produkcyjne na serwer CT8.pl?'
-      : `Czy na pewno chcesz uruchomić wdrożenie na ${selectedTargets.length} serwery (${selectedTargets.join(', ')})?`;
+      ? `Czy na pewno chcesz uruchomić wdrożenie aplikacji "${activeApp.name}" na serwer CT8.pl (${activeApp.domain})?`
+      : `Czy na pewno chcesz uruchomić wdrożenie aplikacji "${activeApp.name}" na ${selectedTargets.length} serwery (${selectedTargets.join(', ')})?`;
 
     if (!confirm(confirmMessage)) {
       return;
@@ -199,6 +269,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           environment: 'production',
           confirm: 'DEPLOY_CT8',
           targets: selectedTargets,
+          app: selectedApp,
         },
         {
           headers: {
@@ -237,7 +308,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
 
   const handleCopyRestartCmd = async () => {
     try {
-      await navigator.clipboard.writeText(REMOTE_RESTART_CMD);
+      await navigator.clipboard.writeText(currentRestartCmd);
       setCopiedRestartCmd(true);
       setTimeout(() => setCopiedRestartCmd(false), 2500);
     } catch (err) {
@@ -270,7 +341,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
 
   const handleKillRemoteProcesses = async (target: string = 'ct8') => {
     const isCt8 = target === 'ct8';
-    const targetLabel = isCt8 ? 'CT8.pl (dashboard.jagger2.ct8.pl)' : target.toUpperCase();
+    const targetLabel = isCt8 ? `CT8.pl (${activeApp.domain})` : target.toUpperCase();
     if (!confirm(`Czy na pewno chcesz ubić wiszące procesy (Node.js/zsh) na serwerze ${targetLabel} i zrestartować aplikację?`)) {
       return;
     }
@@ -280,12 +351,12 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     try {
       const res = await apiClient.post<{ success: boolean; message: string }>(
         '/api/deploy/kill-remote',
-        { target },
+        { target, app: selectedApp, domain: activeApp.domain },
         { headers: { 'x-admin-role': 'true' } }
       );
       setSuccessMsg(res.message || 'Zawieszone procesy zdalne zostały ubite, a aplikacja zrestartowana.');
       setTimeout(() => setSuccessMsg(null), 6000);
-      await Promise.all([fetchStatus(), fetchHealth()]);
+      await Promise.all([fetchStatus(), fetchHealth(selectedApp)]);
     } catch (err: any) {
       setErrorMsg(err.message || 'Nie udało się ubić procesów zdalnych.');
     } finally {
@@ -339,16 +410,16 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                   Wdrożenie CT8.pl / Multi-Deploy
                 </h3>
                 <a
-                  href="https://dashboard.jagger2.ct8.pl"
+                  href={`https://${activeApp.domain}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-slate-400 hover:text-emerald-400 transition-colors p-1 rounded-md hover:bg-slate-800"
-                  title="Otwórz aplikację produkcyjną w nowej karcie"
+                  title={`Otwórz aplikację ${activeApp.name} w nowej karcie`}
                 >
                   <ExternalLink className="w-4 h-4" />
                 </a>
               </div>
-              <p className="text-xs text-slate-400 font-mono mt-0.5">dashboard.jagger2.ct8.pl</p>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">{activeApp.domain}</p>
             </div>
           </div>
 
@@ -442,6 +513,40 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                   : '—'}
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Wybór Aplikacji do wdrożenia */}
+        <div className="mb-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <Package className="w-3.5 h-3.5 text-emerald-400" />
+              Aplikacja do wdrożenia
+            </span>
+            <span className="text-[11px] text-slate-400 font-mono">
+              {activeApp.domain}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {appsList.map((app) => {
+              const isSelected = selectedApp === app.id;
+              return (
+                <button
+                  type="button"
+                  key={app.id}
+                  onClick={() => handleSelectApp(app.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-200 shadow-sm'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}`} />
+                  <span>{app.name}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">({app.domain})</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -560,7 +665,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             ) : (
               <>
                 <Rocket className="w-5 h-5" />
-                Wdróż na CT8
+                Wdróż {activeApp.id === 'dashboard' ? '' : `${activeApp.name.split(' ')[0]} `}na CT8
               </>
             )}
           </button>
@@ -593,7 +698,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-2 truncate pr-2">
             <span className="truncate">
-              Restart: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart</code>
+              Restart: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart {activeApp.domain}</code>
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">

@@ -53,6 +53,19 @@ deployRouter.get('/targets', async (req, res) => {
 });
 
 /**
+ * GET /api/deploy/apps
+ * Returns list of deployable applications detected locally or remotely.
+ */
+deployRouter.get('/apps', async (req, res) => {
+  try {
+    const apps = await deployService.getDeployableApps();
+    res.json(apps);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * GET /api/deploy/status
  * Returns current deployment status, step, targets, and last deployment record.
  */
@@ -67,11 +80,12 @@ deployRouter.get('/status', (req, res) => {
 
 /**
  * GET /api/deploy/health
- * Probes the live CT8 host /health endpoint and returns response time & status.
+ * Probes the target host /health endpoint and returns response time & status.
  */
 deployRouter.get('/health', async (req, res) => {
   try {
-    const health = await deployService.checkHealth();
+    const app = req.query.app || (req.query.url ? undefined : 'dashboard');
+    const health = await deployService.checkHealth(req.query.url, app);
     res.json(health);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -103,8 +117,13 @@ deployRouter.post('/start', (req, res) => {
     }
   }
 
+  const deployOptions = { environment, targets };
+  if (req.body?.app) {
+    deployOptions.app = req.body.app;
+  }
+
   try {
-    const result = deployService.startDeploy({ environment, targets });
+    const result = deployService.startDeploy(deployOptions);
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -153,8 +172,12 @@ deployRouter.post('/kill-remote', async (req, res) => {
   }
 
   const target = req.body?.target || 'ct8';
+  const killOptions = { target };
+  if (req.body?.app) killOptions.app = req.body.app;
+  if (req.body?.domain) killOptions.domain = req.body.domain;
+
   try {
-    const result = await deployService.killRemoteProcesses({ target });
+    const result = await deployService.killRemoteProcesses(killOptions);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

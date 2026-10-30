@@ -1,7 +1,7 @@
 {
   "status": "SUCCESS",
-  "timestamp": "2026-10-30T01:44:02.030Z",
-  "durationSeconds": 166,
+  "timestamp": "2026-10-30T02:17:11.169Z",
+  "durationSeconds": 32,
   "targetHost": "dashboard.jagger2.ct8.pl",
   "error": null,
   "activeTargets": [
