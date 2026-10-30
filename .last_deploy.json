@@ -1,10 +1,11 @@
 {
   "status": "SUCCESS",
-  "timestamp": "2026-10-30T02:17:11.169Z",
-  "durationSeconds": 32,
-  "targetHost": "dashboard.jagger2.ct8.pl",
+  "timestamp": "2026-10-30T02:44:52.722Z",
+  "durationSeconds": 69,
+  "targetHost": "invoice-server.jagger2.ct8.pl",
   "error": null,
   "activeTargets": [
     "ct8"
-  ]
+  ],
+  "app": "invoice-splitter"
 }
