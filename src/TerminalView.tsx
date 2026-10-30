@@ -313,6 +313,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
             <select
               value={execTarget}
               onChange={(e) => setExecTarget(e.target.value as 'remote' | 'worker' | 'auto')}
+              aria-label="Wybór celu wykonania (Target)"
               style={{
                 background: 'transparent',
                 color: execTarget === 'worker' ? '#38bdf8' : execTarget === 'remote' ? '#a855f7' : '#10b981',
@@ -323,11 +324,11 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
                 cursor: 'pointer'
               }}
             >
-              <option value="auto">⚡ Auto ({workers.length > 0 ? 'Local Worker' : 'Remote'})</option>
+              <option value="auto">Auto ({workers.length > 0 ? 'Local Worker' : 'Remote'})</option>
               <option value="worker" disabled={workers.length === 0}>
-                💻 Local Worker ({workers.length > 0 ? `${workers.length} online` : 'offline - kliknij Tunel PC'})
+                Local Worker ({workers.length > 0 ? `${workers.length} online` : 'offline - kliknij Tunel PC'})
               </option>
-              <option value="remote">🌐 Remote Server</option>
+              <option value="remote">Remote Server</option>
             </select>
           </div>
           <button
@@ -386,16 +387,22 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
 
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }} 
-            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            title={isMinimized ? 'Rozwiń terminal' : 'Zminimalizuj terminal'}
+            aria-label={isMinimized ? 'Rozwiń terminal' : 'Zminimalizuj terminal'}
+            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '4px' }}
           >
-            {isMinimized ? <Maximize2 size={16} /> : <Minus size={16} />}
+            {isMinimized ? <Maximize2 size={16} aria-hidden="true" /> : <Minus size={16} aria-hidden="true" />}
           </button>
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); onClose(); }} 
-            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            title="Zamknij terminal"
+            aria-label="Zamknij terminal"
+            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '4px' }}
           >
-            <X size={16} />
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
       </div>

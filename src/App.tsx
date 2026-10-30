@@ -3,7 +3,8 @@ import {
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
-  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
+  Files, Zap, FileText, Flame
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -560,34 +561,38 @@ function App() {
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Skopiuj wybrane pliki i foldery do określonej ścieżki na tym serwerze.')}
                   >
-                    📂 Copy Files
+                    <Files size={14} aria-hidden="true" />
+                    <span>Copy Files</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Uruchom skrypt aktualizacji na tym serwerze i zaraportuj wyniki.')}
                   >
-                    ⚡ Run Script
+                    <Zap size={14} aria-hidden="true" />
+                    <span>Run Script</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.')}
                   >
-                    📋 Analyze Logs
+                    <FileText size={14} aria-hidden="true" />
+                    <span>Analyze Logs</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236,72,153,0.2)' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236,72,153,0.2)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Użyj skilla grafana-dashboards, aby przygotować pliki konfiguracyjne. Następnie połącz się przez SSH z tym serwerem, zainstaluj Dockera (jeśli nie ma) i uruchom stos Prometheus + Grafana za pomocą docker-compose z wygenerowanymi dashboardami na porcie 3000.')}
                   >
-                    🔥 Deploy Grafana Stack
+                    <Flame size={14} aria-hidden="true" />
+                    <span>Deploy Grafana Stack</span>
                   </button>
                 </div>
 
@@ -1315,11 +1320,11 @@ function App() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(p => !p)}
-                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '0.2rem 0.3rem', lineHeight: 1 }}
+                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.2rem 0.3rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     title={showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
                     aria-label={showPassword ? 'Ukryj hasło SSH' : 'Pokaż hasło SSH'}
                   >
-                    {showPassword ? '🙈' : '👁️'}
+                    {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                   </button>
                 </div>
               </div>

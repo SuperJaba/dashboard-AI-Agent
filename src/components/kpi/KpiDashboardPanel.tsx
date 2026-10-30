@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, CheckCircle, Clock, Zap, AlertTriangle } from 'lucide-react';
+import { Activity, CheckCircle, Clock, Zap, AlertTriangle, Info } from 'lucide-react';
 import { MetricSummaryCard } from './MetricSummaryCard';
 import { TimeseriesSparkline } from './TimeseriesSparkline';
 import { TokenBurnBreakdown } from './TokenBurnBreakdown';
@@ -115,11 +115,12 @@ export function KpiDashboardPanel() {
             color: 'var(--text-muted, #94a3b8)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
+            gap: '0.6rem',
             borderLeft: '3px solid var(--primary, #38bdf8)'
           }}
         >
-          <span>ℹ️ Brak aktywności agentów w ostatnim okresie. Uruchom agenta, aby zebrać rzeczywiste dane telemetrii i zużycia tokenów.</span>
+          <Info size={16} className="shrink-0 text-sky-400" aria-hidden="true" />
+          <span>Brak aktywności agentów w ostatnim okresie. Uruchom agenta, aby zebrać rzeczywiste dane telemetrii i zużycia tokenów.</span>
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>

@@ -352,51 +352,60 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                 {getStatusBadge(task)}
 
                 <button
+                  type="button"
                   onClick={() => handleToggle(task.id, task.enabled)}
-                  className={`p-1.5 rounded-md transition-colors ${
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 ${
                     task.enabled 
                       ? 'text-emerald-400 hover:bg-emerald-500/10' 
                       : 'text-slate-500 hover:bg-slate-800'
                   }`}
                   title={task.enabled ? 'Aktywne (kliknij, aby wstrzymać)' : 'Wstrzymane (kliknij, aby włączyć)'}
+                  aria-label={task.enabled ? `Wstrzymaj zadanie ${task.name}` : `Włącz zadanie ${task.name}`}
                 >
-                  {task.enabled ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
+                  {task.enabled ? <Power className="w-3.5 h-3.5" aria-hidden="true" /> : <PowerOff className="w-3.5 h-3.5" aria-hidden="true" />}
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => handleRunNow(task.id)}
                   disabled={actionLoadingId === task.id || task.is_running}
-                  className="p-1.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 transition-colors disabled:opacity-50"
+                  className="p-1.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 transition-colors disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                   title="Uruchom teraz"
+                  aria-label={`Uruchom teraz zadanie ${task.name}`}
                 >
-                  <Play className={`w-3.5 h-3.5 ${actionLoadingId === task.id ? 'animate-pulse' : ''}`} />
+                  <Play className={`w-3.5 h-3.5 ${actionLoadingId === task.id ? 'animate-pulse' : ''}`} aria-hidden="true" />
                 </button>
 
                 {task.last_output && (
                   <button
+                    type="button"
                     onClick={() => setSelectedOutputTask(task)}
-                    className="p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                    className="p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                     title="Pokaż log wyjścia"
+                    aria-label={`Pokaż log wyjścia zadania ${task.name}`}
                   >
-                    <Terminal className="w-3.5 h-3.5" />
+                    <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 )}
 
                 <button
+                  type="button"
                   onClick={() => handleStartEdit(task)}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                  className="p-1.5 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                   title="Edytuj zadanie"
                   aria-label={`Edytuj zadanie ${task.name}`}
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
+                  <Edit2 className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => handleDelete(task.id)}
-                  className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                   title="Usuń zadanie"
+                  aria-label={`Usuń zadanie ${task.name}`}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -416,10 +425,12 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                 </h4>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedOutputTask(null)}
-                className="text-slate-400 hover:text-slate-200 transition-colors"
+                className="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer p-1 rounded hover:bg-slate-800"
+                aria-label="Zamknij okno logu wyjścia"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -452,10 +463,12 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                 </h4>
               </div>
               <button
+                type="button"
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-200 transition-colors"
+                className="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer p-1 rounded hover:bg-slate-800"
+                aria-label="Zamknij okno dodawania zadania"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
