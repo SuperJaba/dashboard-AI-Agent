@@ -22,19 +22,28 @@ Host: `omv` (10.10.10.100:22, user `root`)
 
 ---
 
-## 2. CT8 (`s1.ct8.pl`)
-BatchMode agent command (copy-paste ready):
+## 2. CT8 (`s1.ct8.pl` / alias `jagger2`)
+Host alias `jagger2` is configured in `~/.ssh/config` (pointing to `s1.ct8.pl`, user `jagger2`, key `~/.ssh/id_ed25519_antigravity`, BatchMode).
+
+Direct execution using alias from `~/.ssh/config`:
 ```bash
-ssh -i ~/.ssh/id_ed25519_antigravity \
-    -o BatchMode=yes \
-    -o StrictHostKeyChecking=accept-new \
-    -o ConnectTimeout=10 \
-    -p 22 jagger2@s1.ct8.pl "COMMAND"
+ssh jagger2 "COMMAND"
 ```
-Or use the convenience wrapper script:
+
+Or explicit command referencing `~/.ssh/config` host:
+```bash
+ssh -i ~/.ssh/id_ed25519_antigravity -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p 22 jagger2 "COMMAND"
+```
+
+### Examples:
+- Safe log cleanup (npm logs & domain logs):
+  ```bash
+  ssh -i ~/.ssh/id_ed25519_antigravity -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p 22 jagger2 "rm -rf ~/.npm/_logs/* ~/domains/*/logs/* 2>/dev/null || true"
+  ```
+- Or using wrapper script:
 ```bash
 node scripts/ssh-ct8.js "<COMMAND>"
 ```
 
 Key: `~/.ssh/id_ed25519_antigravity`  
-Host: `jagger2@s1.ct8.pl:22` (alias `ct8-jagger2`)
+Host alias in `~/.ssh/config`: `jagger2` (mapping to `s1.ct8.pl:22`, user `jagger2`)
