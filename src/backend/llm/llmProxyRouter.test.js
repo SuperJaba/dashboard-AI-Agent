@@ -11,6 +11,7 @@ describe('llmProxyRouter', () => {
     app = express();
     app.use(express.json());
     app.use('/api/llm-proxy', llmProxyRouter);
+    await safeQuery('DELETE FROM agent_tasks');
   });
 
   it('proxies request and records token usage from OpenAI format response', async () => {

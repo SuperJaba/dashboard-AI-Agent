@@ -389,7 +389,18 @@ export async function safeQuery(text, params = []) {
   }
 
   // Agent Tasks queries
+  if (sql.includes('DELETE FROM agent_tasks')) {
+    inMemoryStore.agent_tasks = [];
+    return { rows: [] };
+  }
+
   if (sql.includes('FROM agent_tasks')) {
+    if (sql.includes('WHERE id = $1') || sql.includes('WHERE id =')) {
+      const id = parseInt(params[0], 10);
+      const task = inMemoryStore.agent_tasks.find(t => t.id === id);
+      return { rows: task ? [{ ...task }] : [] };
+    }
+
     const fromTime = params[0] ? new Date(params[0]).getTime() : 0;
     const tasksInWindow = inMemoryStore.agent_tasks.filter(t => new Date(t.created_at).getTime() >= fromTime);
 
@@ -444,8 +455,11 @@ export async function safeQuery(text, params = []) {
       }
     }
     if (sql.includes('tokens_used = tokens_used + $1')) {
-      const id = parseInt(params[3], 10);
-      const task = inMemoryStore.agent_tasks.find(t => t.id === id);
+      const id = params[3] ? parseInt(params[3], 10) : null;
+      let task = id ? inMemoryStore.agent_tasks.find(t => t.id === id) : null;
+      if (!task && inMemoryStore.agent_tasks.length > 0) {
+        task = inMemoryStore.agent_tasks[inMemoryStore.agent_tasks.length - 1];
+      }
       if (task) {
         task.tokens_used = (task.tokens_used || 0) + (parseInt(params[0], 10) || 0);
         task.prompt_tokens = (task.prompt_tokens || 0) + (parseInt(params[1], 10) || 0);
