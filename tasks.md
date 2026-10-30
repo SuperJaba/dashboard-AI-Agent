@@ -9,7 +9,7 @@
 - [x] NPM Script: test (pełny zestaw 33 plików testowych Vitest)
 - [x] NPM Script: test:sys (diagnostyka systemowa node --test)
 - [x] NPM Script: test:e2e (testy end-to-end Playwright)
-- [ ] NPM Script: deploy:ct8 (optymalizacja i wdrożenie na serwer zdalny CT8)
+- [x] NPM Script: deploy:ct8 (optymalizacja i wdrożenie na serwer zdalny CT8)
 
 ## Funkcjonalności i Architektura
 - [x] Dodać autoryzację do API (JWT i ochrona endpointów)
