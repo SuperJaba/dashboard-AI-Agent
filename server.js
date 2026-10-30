@@ -6,13 +6,27 @@ if (typeof PhusionPassenger !== 'undefined') {
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 import fetch from 'node-fetch';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import pty from 'node-pty';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+let pty = null;
+try {
+  pty = require('node-pty');
+} catch {
+  // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
+}
 
 import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
@@ -75,13 +89,7 @@ import { registerDashboardNamespace } from './src/backend/socket/dashboardNamesp
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const isTestEnvironment = process.env.NODE_ENV === 'test';
-dotenv.config();
 if (isTestEnvironment) {
   process.env.NODE_ENV = 'test';
 }
@@ -209,6 +217,12 @@ io.on('connection', (socket) => {
         env,
         scriptContent
       });
+      return;
+    }
+
+    if (!pty) {
+      socket.emit('terminal_data', '\r\n\x1b[33m[Warning] Local terminal is not supported on this host environment (FreeBSD / CT8). Please connect an Agent Worker (Local PC) to execute terminal commands.\x1b[0m\r\n');
+      socket.emit('terminal_exit', { exitCode: 1 });
       return;
     }
 

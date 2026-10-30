@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Clock, Play, CheckCircle2, AlertCircle, RefreshCw, 
   Plus, Trash2, Terminal, X, Power, PowerOff, ShieldCheck, 
-  FileText, Cpu 
+  FileText, Cpu, Edit2 
 } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
 import { useDashboardSocket } from '../hooks/useDashboardSocket';
@@ -49,6 +49,14 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
   const [newTaskCron, setNewTaskCron] = useState('0 3 * * *');
   const [newTaskCommand, setNewTaskCommand] = useState('npm audit');
   const [newTaskEnabled, setNewTaskEnabled] = useState(true);
+
+  // Edit form state
+  const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
+  const [editTaskName, setEditTaskName] = useState('');
+  const [editTaskType, setEditTaskType] = useState('npm_audit');
+  const [editTaskCron, setEditTaskCron] = useState('0 3 * * *');
+  const [editTaskCommand, setEditTaskCommand] = useState('');
+  const [editTaskEnabled, setEditTaskEnabled] = useState(true);
 
   const { socket } = useDashboardSocket();
 
@@ -159,6 +167,35 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
       await fetchTasks();
     } catch (err: any) {
       setErrorMsg(err.message || 'Błąd podczas tworzenia zadania.');
+    }
+  };
+
+  const handleStartEdit = (task: ScheduledTask) => {
+    setEditingTask(task);
+    setEditTaskName(task.name);
+    setEditTaskType(task.task_type || 'custom_command');
+    setEditTaskCron(task.cron_expression);
+    setEditTaskCommand(task.command || '');
+    setEditTaskEnabled(task.enabled);
+    setErrorMsg(null);
+  };
+
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    setErrorMsg(null);
+    try {
+      await apiClient.put(`/api/scheduler/tasks/${editingTask.id}`, {
+        name: editTaskName,
+        task_type: editTaskType,
+        command: editTaskCommand,
+        cron_expression: editTaskCron,
+        enabled: editTaskEnabled
+      });
+      setEditingTask(null);
+      await fetchTasks();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Błąd podczas aktualizacji zadania.');
     }
   };
 
@@ -346,6 +383,15 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                 )}
 
                 <button
+                  onClick={() => handleStartEdit(task)}
+                  className="p-1.5 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                  title="Edytuj zadanie"
+                  aria-label={`Edytuj zadanie ${task.name}`}
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+
+                <button
                   onClick={() => handleDelete(task.id)}
                   className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                   title="Usuń zadanie"
@@ -524,6 +570,119 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                   className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium"
                 >
                   Zapisz zadanie
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edytuj zadanie */}
+      {editingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-indigo-400" />
+                <h4 className="font-semibold text-slate-100 text-sm">
+                  Edytuj zadanie harmonogramu
+                </h4>
+              </div>
+              <button
+                onClick={() => setEditingTask(null)}
+                className="text-slate-400 hover:text-slate-200 transition-colors"
+                aria-label="Zamknij edycję"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateTask} className="mt-4 space-y-3.5">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">
+                  Nazwa zadania:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTaskName}
+                  onChange={e => setEditTaskName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    Harmonogram Cron:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editTaskCron}
+                    onChange={e => setEditTaskCron(e.target.value)}
+                    placeholder="np. 0 3 * * *"
+                    className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  />
+                  <span className="text-[10px] text-slate-500 block mt-0.5">np. 0 3 * * * (03:00 codziennie)</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    Typ zadania:
+                  </label>
+                  <select
+                    value={editTaskType}
+                    onChange={e => setEditTaskType(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="npm_audit">Audyt bezpieczeństwa (npm audit)</option>
+                    <option value="error_check">Weryfikacja logów</option>
+                    <option value="sync_tasks">Synchronizacja zadań</option>
+                    <option value="custom_command">Własna komenda powłoki</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">
+                  Polecenie do wykonania:
+                </label>
+                <input
+                  type="text"
+                  value={editTaskCommand}
+                  onChange={e => setEditTaskCommand(e.target.value)}
+                  placeholder="npm audit lub node script.js"
+                  className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="editTaskEnabled"
+                  checked={editTaskEnabled}
+                  onChange={e => setEditTaskEnabled(e.target.checked)}
+                  className="rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0"
+                />
+                <label htmlFor="editTaskEnabled" className="text-xs text-slate-300">
+                  Zadanie aktywne (włączone w harmonogramie)
+                </label>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTask(null)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium"
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium"
+                >
+                  Zapisz zmiany
                 </button>
               </div>
             </form>

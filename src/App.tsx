@@ -100,6 +100,7 @@ function App() {
   const [workersCount, setWorkersCount] = useState(0);
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [isDeployingApp, setIsDeployingApp] = useState(false);
   const { connected: isSseConnected } = useLiveTelemetry();
 
   useEffect(() => {
@@ -329,51 +330,6 @@ function App() {
         )}
 
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
-          <input 
-            id="custom-llm-name"
-            type="text" 
-            placeholder="np. AtomicChat" 
-            value={customLlmName}
-            onChange={(e) => setCustomLlmName(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
-          <input 
-            id="custom-llm-url"
-            type="text" 
-            placeholder="http://localhost:1337/v1" 
-            value={customLlmUrl}
-            onChange={(e) => setCustomLlmUrl(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
-          <input 
-            id="custom-llm-model"
-            type="text" 
-            placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
-            value={customLlmModel}
-            onChange={(e) => setCustomLlmModel(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
-          <input 
-            id="custom-api-key"
-            type="password" 
-            placeholder="Brak" 
-            value={customApiKey}
-            onChange={(e) => setCustomApiKey(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <button 
-            type="button"
-            onClick={saveSettings}
-            aria-live="polite"
-            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
-          >
-            {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
-            {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
-          </button>
           <button 
             type="button"
             onClick={() => setShowWorkerModal(true)}
@@ -435,7 +391,7 @@ function App() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '320px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '360px', maxWidth: '90vw', maxHeight: '85vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{t('settings.title')}</h2>
@@ -483,6 +439,57 @@ function App() {
                 <option value="en">English</option>
                 <option value="hi">हिन्दी (Hindi)</option>
               </select>
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Domyślny Serwer LLM</span>
+              <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
+              <input 
+                id="custom-llm-name"
+                type="text" 
+                placeholder="np. AtomicChat" 
+                value={customLlmName}
+                onChange={(e) => setCustomLlmName(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontSize: '0.8rem' }}
+              />
+              <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
+              <input 
+                id="custom-llm-url"
+                type="text" 
+                placeholder="http://localhost:1337/v1" 
+                value={customLlmUrl}
+                onChange={(e) => setCustomLlmUrl(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+              />
+              <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
+              <input 
+                id="custom-llm-model"
+                type="text" 
+                placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
+                value={customLlmModel}
+                onChange={(e) => setCustomLlmModel(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+              />
+              <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
+              <input 
+                id="custom-api-key"
+                type="password" 
+                placeholder="Brak" 
+                value={customApiKey}
+                onChange={(e) => setCustomApiKey(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+              />
+              <button 
+                type="button"
+                onClick={saveSettings}
+                aria-live="polite"
+                style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
+              >
+                {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
+                {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
+              </button>
             </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
@@ -697,7 +704,7 @@ function App() {
             )}
 
             <div>
-              <AnalyticsPanel projects={projects} />
+              {!terminalConfig && !isDeployingApp && projects.length > 0 && <AnalyticsPanel projects={projects} />}
               <div className="grid-top" style={{ marginBottom: '2rem', perspective: '1200px' }}>
                 <AntigravityCard
                   elevation="medium"
@@ -1161,10 +1168,10 @@ function App() {
               <KpiDashboardPanel />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1rem' }}>
                 <ModelRoutingWidget />
-                <DeployCt8Widget />
+                <DeployCt8Widget onDeployStateChange={setIsDeployingApp} />
                 <AgentSchedulerWidget />
               </div>
-              <AnalyticsPanel projects={projects} />
+              {!isDeployingApp && projects.length > 0 && <AnalyticsPanel projects={projects} />}
             </div>
             <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
           </div>

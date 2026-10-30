@@ -5,12 +5,13 @@
 - **Database Fallback:** `src/backend/db.js` automatically falls back to an in-memory store if PostgreSQL is unavailable.
 - **Port Mapping:** Development uses Vite on port 5173 (proxies API requests) and Express API on port 3001.
 - **Styling:** Uses Tailwind CSS v4 via `@tailwindcss/postcss` (no `tailwind.config.js`).
+- **SSH Configuration:** Remote hosts (`jagger2` for CT8 `s1.ct8.pl` and `omv` for OpenMediaVault `10.10.10.100`) are configured in `~/.ssh/config`. Use `jagger2` as the SSH target.
 
 ## Context Pointers (Disclosed Reference)
 - **API Spec & Routes**: [`docs/openapi.yaml`](docs/openapi.yaml) (OpenAPI spec) or [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) (narrative)
 - **Architecture Boundaries**: [`docs/C4_ARCHITECTURE.md`](docs/C4_ARCHITECTURE.md) (C4 diagrams & service layers)
 - **Widget Creation**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md) (registration & layout integration)
-- **Remote SSH Administration**: [`docs/agent-ssh-con.md`](docs/agent-ssh-con.md) (CT8 execution commands & keys)
+- **Remote SSH Administration**: [`docs/agent-ssh-con.md`](docs/agent-ssh-con.md) (CT8 & OMV execution commands & keys)
 - **Deployment & CI/CD**: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (CT8 host architecture, deploy scripts, and GitHub CI pipeline)
 
 
