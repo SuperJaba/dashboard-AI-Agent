@@ -1,7 +1,28 @@
 import express from 'express';
 import * as llmRepo from './llmServersRepository.js';
+import { getRouterStats, resetRouterCircuitBreaker } from '../llm/modelRouter.js';
 
 export const llmServersRouter = express.Router();
+
+// Get Model Routing Stats & Circuit Breaker status
+llmServersRouter.get('/llm/routing/stats', (req, res) => {
+  try {
+    const stats = getRouterStats();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reset Circuit Breaker manually
+llmServersRouter.post('/llm/routing/circuit/reset', (req, res) => {
+  try {
+    const stats = resetRouterCircuitBreaker();
+    res.json({ success: true, stats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Get all LLM Servers
 llmServersRouter.get('/llm-servers', async (req, res) => {
