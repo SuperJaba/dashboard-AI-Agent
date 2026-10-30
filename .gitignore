@@ -43,6 +43,8 @@ artifacts/*.json
 # AI agent session states and checkpoints
 .omc/sessions/
 .omc/state/
+.codegraph/
+.codegraph-wsl/
 
 # Jupyter notebooks and screenshots in root
 *.ipynb
@@ -50,7 +52,4 @@ artifacts/*.json
 # Local credentials
 pass.txt
 docs/pass.txt
-
-# CodeGraph WSL temporary directory
-.codegraph-wsl/
 
