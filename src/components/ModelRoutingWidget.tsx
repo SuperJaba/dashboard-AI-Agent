@@ -35,7 +35,7 @@ export function ModelRoutingWidget() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('dashboard_token') || localStorage.getItem('auth_token')) : null;
       const headers: Record<string, string> = {};
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -56,7 +56,7 @@ export function ModelRoutingWidget() {
   const handleResetCircuit = async () => {
     try {
       setResetting(true);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('dashboard_token') || localStorage.getItem('auth_token')) : null;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;

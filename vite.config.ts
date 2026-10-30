@@ -44,7 +44,7 @@ export default defineConfig({
     }
   },
   test: {
-    pool: 'threads',
+    pool: 'forks',
     fileParallelism: false,
     environment: 'jsdom',
     environmentMatchGlobs: [

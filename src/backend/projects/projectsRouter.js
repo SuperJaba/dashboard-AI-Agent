@@ -849,7 +849,18 @@ exec bash
       });
     }
 
-    if (process.platform === 'win32') {
+    const isWsl = process.platform === 'linux' && (
+      (fs.existsSync('/proc/version') && fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft')) ||
+      Boolean(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP)
+    );
+
+    if (isWsl) {
+      const cmdPath = fs.existsSync('/mnt/c/WINDOWS/system32/cmd.exe')
+        ? '/mnt/c/WINDOWS/system32/cmd.exe'
+        : 'cmd.exe';
+      command = cmdPath;
+      args = ['/c', 'start', '""', 'wsl.exe', 'bash', scriptPath];
+    } else if (process.platform === 'win32') {
       const gitBash = [
         'C:\\Program Files\\Git\\git-bash.exe',
         'C:\\Program Files (x86)\\Git\\git-bash.exe',
@@ -867,8 +878,37 @@ exec bash
       command = 'open';
       args = ['-a', 'Terminal', scriptPath];
     } else {
-      command = 'x-terminal-emulator';
-      args = ['-e', scriptPath];
+      // Linux – try a list of known terminal emulators; fallback to headless execution
+      const candidates = [
+        'gnome-terminal',
+        'xfce4-terminal',
+        'xterm',
+        'x-terminal-emulator',
+      ];
+      const available = candidates.find((c) => {
+        try {
+          return require('child_process').spawnSync('which', [c]).status === 0;
+        } catch {
+          return false;
+        }
+      });
+      const hasDisplay = Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+      if (available && hasDisplay) {
+        switch (available) {
+          case 'gnome-terminal':
+          case 'xfce4-terminal':
+            command = available;
+            args = ['--', scriptPath];
+            break;
+          default:
+            command = available;
+            args = ['-e', scriptPath];
+        }
+      } else {
+        console.warn('No graphical display or terminal emulator found – running script directly via bash');
+        command = 'bash';
+        args = [scriptPath];
+      }
     }
 
     const child = spawn(command, args, {
