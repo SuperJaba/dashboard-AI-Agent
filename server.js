@@ -89,12 +89,15 @@ import { registerDashboardNamespace } from './src/backend/socket/dashboardNamesp
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 
+import { securityHeadersMiddleware } from './src/backend/utils/securityHeaders.js';
+
 const isTestEnvironment = process.env.NODE_ENV === 'test';
 if (isTestEnvironment) {
   process.env.NODE_ENV = 'test';
 }
 
 const app = express();
+app.disable('x-powered-by');
 
 const port = process.env.PORT || 3001;
 
@@ -329,8 +332,10 @@ deployService.setSocketServer(io);
 schedulerService.setSocketServer(io);
 
 
+app.use(securityHeadersMiddleware);
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(requestLogger);
 app.use(metricsMiddleware);
 // Serve static assets from the public directory
@@ -493,6 +498,18 @@ if (staticPath) {
     next();
   });
 }
+
+// Centralized security error handler to prevent internal stack trace leakage
+app.use((err, req, res, next) => {
+  logger.error({ err: err.message, stack: err.stack, path: req.path }, 'Unhandled server error');
+  if (res.headersSent) {
+    return next(err);
+  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.status(err.status || 500).json({
+    error: isProduction ? 'Wystąpił wewnętrzny błąd serwera' : (err.message || 'Internal Server Error')
+  });
+});
 
 // Init DB
 async function initDB() {
