@@ -180,6 +180,28 @@ export async function runMigrations() {
         last_output TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS agent_tasks (
+        id SERIAL PRIMARY KEY,
+        agent_name VARCHAR(255) NOT NULL,
+        project_id INTEGER,
+        status VARCHAR(50) DEFAULT 'started',
+        tokens_used INTEGER DEFAULT 0,
+        prompt_tokens INTEGER DEFAULT 0,
+        completion_tokens INTEGER DEFAULT 0,
+        model VARCHAR(255),
+        duration_ms INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS agent_logs (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER,
+        level VARCHAR(20) DEFAULT 'info',
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Ensure alter columns exist for upgrades (idempotent)

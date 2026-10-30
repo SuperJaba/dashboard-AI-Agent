@@ -10,6 +10,7 @@ try {
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger.js';
+import { safeQuery } from '../db.js';
 
 /**
  * Finds the best shell executable for the current platform.
@@ -52,7 +53,8 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
     let ptyProcess = null;
     let activeWorkerSocket = null;
 
-    socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent }) => {
+    socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent, taskId }) => {
+      const sessionStartTime = Date.now();
       let workerToUse = null;
       if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
         workerToUse = activeWorkers.get(targetWorkerId);
@@ -118,7 +120,16 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
         });
 
         ptyProcess.onData((data) => socket.emit('terminal_data', data));
-        ptyProcess.onExit(({ exitCode, signal }) => socket.emit('terminal_exit', { exitCode, signal }));
+        ptyProcess.onExit(({ exitCode, signal }) => {
+          if (taskId) {
+            const durationMs = Date.now() - sessionStartTime;
+            safeQuery(
+              'UPDATE agent_tasks SET status = $1, duration_ms = $2, updated_at = NOW() WHERE id = $3',
+              [exitCode === 0 ? 'completed' : 'failed', durationMs, taskId]
+            ).catch(() => {});
+          }
+          socket.emit('terminal_exit', { exitCode, signal });
+        });
       } catch (err) {
         logger.error({ err: err.message }, 'PTY spawn error');
         socket.emit('terminal_error', err.message);

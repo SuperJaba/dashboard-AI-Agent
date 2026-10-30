@@ -10,6 +10,7 @@ import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
 import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects, findMarkdownFiles, extractChecklistItems } from './tasksSyncService.js';
 import { detectTechnology } from './techDetector.js';
+import { safeQuery } from '../db.js';
 
 export const projectsRouter = express.Router();
 
@@ -809,6 +810,30 @@ projectsRouter.post('/deploy', async (req, res) => {
       }
     }
 
+    let projectId = null;
+    try {
+      const projRes = await safeQuery('SELECT id FROM projects WHERE path = $1', [targetDir]);
+      if (projRes?.rows?.[0]?.id) {
+        projectId = projRes.rows[0].id;
+      }
+    } catch {}
+
+    let taskId = null;
+    try {
+      const taskRes = await safeQuery(
+        `INSERT INTO agent_tasks (agent_name, project_id, status, model, tokens_used)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [targetAgent?.name || agent, projectId, 'started', llmModel || null, 0]
+      );
+      taskId = taskRes?.rows?.[0]?.id || null;
+    } catch (e) {
+      console.warn('Failed to insert agent_tasks entry:', e.message);
+    }
+
+    if (taskId) {
+      exportEnvLines.push(`export AGENT_TASK_ID="${taskId}"`);
+    }
+
     const scriptContent = `#!/bin/bash
 cd "${targetDir}" 2>/dev/null || true
 stty cols 100 rows 30 2>/dev/null || true
@@ -840,6 +865,7 @@ exec bash
     if (isBrowserMode) {
       return res.json({ 
         success: true, 
+        taskId,
         browserTerminal: true, 
         command: 'bash', 
         args: [scriptPath], 
@@ -922,7 +948,7 @@ exec bash
     });
 
     child.unref();
-    res.json({ success: true, message: `${agent} launched in ${targetDir}` });
+    res.json({ success: true, taskId, message: `${agent} launched in ${targetDir}` });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });

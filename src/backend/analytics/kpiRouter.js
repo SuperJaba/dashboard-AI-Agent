@@ -21,35 +21,37 @@ function setCache(key, data) {
   cache.set(key, { ts: Date.now(), data });
 }
 
-// Deterministic mock data (seeded so it changes slowly)
-function mockData() {
-  const seed = Math.floor(Date.now() / 60_000);
-  const rng = (n) => ((seed * 9301 + 49297) % 233280) % n;
+function emptyKpiData() {
   return {
     today: {
-      tasks: 12 + rng(8),
-      successRate: 85 + rng(10),
-      avgDuration: 3.2 + (rng(20) / 10),
+      tasks: 0,
+      successRate: 0,
+      avgDuration: 0,
     },
     sevenDays: {
-      tasks: 78 + rng(20),
-      successRate: 82 + rng(12),
-      avgDuration: 3.5 + (rng(15) / 10),
+      tasks: 0,
+      successRate: 0,
+      avgDuration: 0,
     },
     thirtyDays: {
-      tasks: 310 + rng(50),
-      successRate: 80 + rng(15),
-      avgDuration: 3.8 + (rng(10) / 10),
+      tasks: 0,
+      successRate: 0,
+      avgDuration: 0,
     },
-    topErrors: [
-      { error: 'Timeout', count: 4 + rng(3) },
-      { error: 'Auth failure', count: 2 + rng(2) },
-      { error: 'Rate limit', count: 1 + rng(2) },
-    ],
+    topErrors: [],
     tokenBurn: {
-      today: 24_000 + rng(5000),
-      week: 158_000 + rng(20000),
+      today: 0,
+      week: 0,
     },
+    sparkline: [
+      { time: '6d', value: 0 },
+      { time: '5d', value: 0 },
+      { time: '4d', value: 0 },
+      { time: '3d', value: 0 },
+      { time: '2d', value: 0 },
+      { time: '1d', value: 0 },
+      { time: 'dziś', value: 0 },
+    ],
   };
 }
 
@@ -113,9 +115,29 @@ async function buildKpiData() {
     const todayTokens = parseInt(tokenTodayRes?.rows?.[0]?.tokens ?? '0', 10);
     const weekTokens = parseInt(tokenWeekRes?.rows?.[0]?.tokens ?? '0', 10);
 
-    // If store has no agent tasks data yet, provide mockData for dashboard demonstration
-    if (today.tasks === 0 && todayTokens === 0) {
-      return mockData();
+    const sparklineRes = await safeQuery(
+      `SELECT to_char(created_at, 'YYYY-MM-DD') AS day, COUNT(*) AS count
+       FROM agent_tasks
+       WHERE created_at >= $1
+       GROUP BY to_char(created_at, 'YYYY-MM-DD')
+       ORDER BY day ASC`,
+      [sevenDaysAgo]
+    ).catch(() => ({ rows: [] }));
+
+    const sparklineMap = {};
+    for (const r of sparklineRes?.rows || []) {
+      sparklineMap[r.day] = parseInt(r.count, 10);
+    }
+
+    const sparkline = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now - i * 24 * 3600 * 1000);
+      const isoDay = d.toISOString().slice(0, 10);
+      const label = i === 0 ? 'dziś' : `${i}d`;
+      sparkline.push({
+        time: label,
+        value: sparklineMap[isoDay] || 0,
+      });
     }
 
     return {
@@ -127,9 +149,10 @@ async function buildKpiData() {
         today: todayTokens,
         week: weekTokens,
       },
+      sparkline,
     };
   } catch {
-    return mockData();
+    return emptyKpiData();
   }
 }
 
