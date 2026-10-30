@@ -105,18 +105,33 @@ export function ModelRoutingWidget() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            fontSize: '0.75rem',
-            padding: '0.2rem 0.5rem',
-            borderRadius: '4px',
-            background: isCircuitOpen ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)',
-            color: isCircuitOpen ? '#ef4444' : stats.circuitBreakerState === 'CLOSED' ? '#10b981' : '#f59e0b',
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.75rem',
+              padding: '0.2rem 0.5rem',
+              borderRadius: '4px',
+              background: isCircuitOpen ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+              color: isCircuitOpen ? '#ef4444' : stats.circuitBreakerState === 'CLOSED' ? '#10b981' : '#f59e0b',
+            }}
+            title={
+              stats.circuitBreakerState === 'CLOSED'
+                ? 'Obwód zamknięty (stan prawidłowy: zapytania płyną bezpośrednio do lokalnego LLM)'
+                : isCircuitOpen
+                ? 'Obwód otwarty (awaryjny: zapytania są przekierowywane do chmury)'
+                : 'Obwód w fazie testowej (sprawdzanie dostępności lokalnego LLM)'
+            }
+          >
             <ShieldCheck size={14} />
-            <span>Circuit: {stats.circuitBreakerState}</span>
+            <span>
+              {stats.circuitBreakerState === 'CLOSED'
+                ? 'Obwód: SPRAWNY (CLOSED)'
+                : stats.circuitBreakerState === 'OPEN'
+                ? 'Obwód: ROZŁĄCZONY (OPEN)'
+                : 'Obwód: TEST (HALF-OPEN)'}
+            </span>
           </div>
 
           {isCircuitOpen && (
