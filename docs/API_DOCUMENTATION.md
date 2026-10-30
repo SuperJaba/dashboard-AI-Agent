@@ -71,19 +71,58 @@ Configure LLM backend providers (OpenAI, Anthropic, Ollama, LM Studio, etc.).
 | `DELETE` | `/api/widgets/:id` | Delete widget. |
 | `POST` / `GET` | `/api/widgets/:id/run` | Execute widget command immediately and return output. |
 
+## Deployment & Multi-Deploy (`/api/deploy`)
+Manage deployment to CT8.pl, OMV, and remote servers.
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/deploy/targets` | List available deployment targets (CT8, OMV, custom registered servers). |
+| `GET` | `/api/deploy/status` | Current deployment status, step, active targets, and last deployment record. |
+| `GET` | `/api/deploy/health` | Check live remote application health, HTTP status code, and latency. |
+| `POST` | `/api/deploy/start` | Start deployment. Body: `{ environment: 'production', targets: ['ct8', ...], confirm: 'DEPLOY_CT8' }`. Headers: `x-admin-role: true`, `x-deploy-confirm: DEPLOY_CT8`. |
+| `POST` | `/api/deploy/abort` | Abort/kill running local deployment process (SIGTERM/SIGKILL). Requires `x-admin-role: true`. |
+| `POST` | `/api/deploy/kill-remote` | Kill hung remote processes (Node.js, zsh, gitstatusd) via SSH and restart domain. Body: `{ target: 'ct8' }`. Requires `x-admin-role: true`. |
+| `GET` | `/api/deploy/logs` | Fetch buffered deployment logs for current or last deployment run. |
+
+## Scheduler & Cron Jobs (`/api/scheduler`)
+Scheduled background task automation and recurring maintenance jobs.
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/scheduler/presets` | Get predefined task templates (git pull, cleanup, backup, etc.). |
+| `GET` | `/api/scheduler/tasks` | List all scheduled tasks with execution status and active cron state. |
+| `GET` | `/api/scheduler/tasks/:id` | Get details for a specific scheduled task. |
+| `POST` | `/api/scheduler/tasks` | Create new scheduled task `{ name, task_type, command, cron_expression, enabled }`. |
+| `PUT` | `/api/scheduler/tasks/:id` | Update existing scheduled task parameters, schedule expression, or command. |
+| `PATCH` | `/api/scheduler/tasks/:id/toggle` | Enable or disable a task `{ enabled?: boolean }`. |
+| `DELETE` | `/api/scheduler/tasks/:id` | Remove a scheduled task and stop its running cron job. |
+| `POST` | `/api/scheduler/tasks/:id/run` | Trigger immediate manual execution of a scheduled task. |
+
+## Notifications & Alerts (`/api/notifications`, `/api/alerts`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/notifications/channels` | List configured notification channels (Discord, Telegram, Email). |
+| `POST` | `/api/notifications/test` | Send test notification payload to verify channel connectivity. |
+| `GET` | `/api/alerts` | List system alert rules and thresholds. |
+| `POST` | `/api/alerts` | Create or update alert threshold definitions. |
+
 ## Settings (`/api/settings`)
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/settings` | Get dashboard settings (LLM overrides, polling intervals). |
 | `PUT` | `/api/settings` | Save settings `{ defaultModel, maxTokens, temperature, ... }`. |
 
-## Real-Time Terminal (Socket.io)
-Connect via WebSocket with JWT authentication:
-- **Client Emits**:
-  - `spawn_terminal`: `{ command, args, cwd, target: 'auto'|'worker'|'remote', serverId }`
-  - `terminal_input`: `{ data }`
-  - `terminal_resize`: `{ cols, rows }`
-- **Server Emits**:
-  - `terminal_data`: String chunks from stdout/stderr.
-  - `terminal_exit`: Process exit event `{ code, signal }`.
-  - `terminal_error`: Error payload `{ error }`.
+## Real-Time Streaming & WebSocket Events
+- **Socket.io `/dashboard` Namespace**:
+  - `deploy:status`: Broadcasts status updates, progress steps, and active targets.
+  - `deploy:log`: Real-time streaming log lines tagged by target (`ct8`, `omv`, etc.).
+  - `deploy:finished`: Broadcasts final deployment status, elapsed duration, and error details.
+  - `notification:new`: Dispatches dashboard toast alerts and system notifications.
+- **PTY Terminal (`/pty`)**:
+  - Connect via WebSocket with JWT authentication:
+  - **Client Emits**:
+    - `spawn_terminal`: `{ command, args, cwd, target: 'auto'|'worker'|'remote', serverId }`
+    - `terminal_input`: `{ data }`
+    - `terminal_resize`: `{ cols, rows }`
+  - **Server Emits**:
+    - `terminal_data`: String chunks from stdout/stderr.
+    - `terminal_exit`: Process exit event `{ code, signal }`.
+    - `terminal_error`: Error payload `{ error }`.
