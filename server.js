@@ -31,7 +31,7 @@ try {
 import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
-import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+import { authMiddleware, optionalAuthMiddleware } from './src/backend/auth/authMiddleware.js';
 import { logger, requestLogger } from './src/backend/utils/logger.js';
 import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
 
@@ -89,12 +89,15 @@ import { registerDashboardNamespace } from './src/backend/socket/dashboardNamesp
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 
+import { securityHeadersMiddleware } from './src/backend/utils/securityHeaders.js';
+
 const isTestEnvironment = process.env.NODE_ENV === 'test';
 if (isTestEnvironment) {
   process.env.NODE_ENV = 'test';
 }
 
 const app = express();
+app.disable('x-powered-by');
 
 const port = process.env.PORT || 3001;
 
@@ -329,8 +332,10 @@ deployService.setSocketServer(io);
 schedulerService.setSocketServer(io);
 
 
+app.use(securityHeadersMiddleware);
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(requestLogger);
 app.use(metricsMiddleware);
 // Serve static assets from the public directory
@@ -388,10 +393,8 @@ app.get('/v1/metrics', async (req, res) => {
 // --- Auth Routes ---
 app.use('/api/auth', authRouter);
 
-// API Auth Middleware
-app.use('/api', authMiddleware);
-
-app.get('/api/agents/workers', (req, res) => {
+// Public / Token-optional Socket Endpoints
+app.get('/api/agents/workers', optionalAuthMiddleware, (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
@@ -402,7 +405,7 @@ app.get('/api/agents/workers', (req, res) => {
   res.json(workers);
 });
 
-app.get('/api/socket-info', (req, res) => {
+app.get('/api/socket-info', optionalAuthMiddleware, (req, res) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${port}`;
   const serverUrl = `${protocol}://${host}`;
@@ -444,6 +447,9 @@ app.get('/api/socket-info', (req, res) => {
     }
   });
 });
+
+// API Auth Middleware
+app.use('/api', authMiddleware);
 
 app.post('/api/socket/token', (req, res) => {
   const user = req.user || { id: 1, username: 'worker-client' };
@@ -493,6 +499,18 @@ if (staticPath) {
     next();
   });
 }
+
+// Centralized security error handler to prevent internal stack trace leakage
+app.use((err, req, res, next) => {
+  logger.error({ err: err.message, stack: err.stack, path: req.path }, 'Unhandled server error');
+  if (res.headersSent) {
+    return next(err);
+  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.status(err.status || 500).json({
+    error: isProduction ? 'Wystąpił wewnętrzny błąd serwera' : (err.message || 'Internal Server Error')
+  });
+});
 
 // Init DB
 async function initDB() {

@@ -18,7 +18,7 @@ describe('ServerStats', () => {
   it('renders loading state initially', () => {
     vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {})); // Never resolves
     render(<ServerStats serverId={1} />);
-    expect(screen.getByText(/Ładowanie telemetryki serwera\.\.\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Ładowanie telemetryki serwera/i)).toBeInTheDocument();
   });
 
   it('renders error state when stats API returns error or empty', async () => {

@@ -141,7 +141,8 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 150
+        zIndex: 150,
+        overscrollBehavior: 'contain'
       }}
     >
       <div
@@ -218,7 +219,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
                 fontWeight: 'bold'
               }}
             >
-              <option value="" disabled>Dysk...</option>
+              <option value="" disabled>Dysk…</option>
               {drives.map(drive => (
                 <option key={drive} value={drive} style={{ background: '#1e293b', color: '#fff' }}>
                   {drive}
@@ -233,7 +234,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
               type="text"
               value={inputPath}
               onChange={(e) => setInputPath(e.target.value)}
-              placeholder="Wpisz lub wklej ścieżkę (np. C:\...)"
+              placeholder="Wpisz lub wklej ścieżkę (np. C:\…)"
               aria-label="Ścieżka folderu"
               style={{
                 flex: 1,
@@ -281,7 +282,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '0.5rem', color: 'var(--text-muted)' }}>
               <Loader2 className="animate-spin" size={20} />
-              <span>Wczytywanie folderów...</span>
+              <span>Wczytywanie folderów…</span>
             </div>
           ) : error ? (
             <div style={{ color: '#ef4444', padding: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>
@@ -298,8 +299,20 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
               return (
                 <div
                   key={dir.path}
+                  role="button"
+                  tabIndex={0}
+                  aria-selected={isSelected}
                   onClick={() => setSelectedFolder(dir)}
                   onDoubleClick={() => loadDirectory(dir.path)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      loadDirectory(dir.path);
+                    } else if (e.key === " ") {
+                      e.preventDefault();
+                      setSelectedFolder(dir);
+                    }
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

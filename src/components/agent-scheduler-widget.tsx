@@ -298,7 +298,7 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors shadow-sm"
           >
             <Plus className="w-3.5 h-3.5" />
             Dodaj zadanie
@@ -326,7 +326,7 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
         {tasks.map(task => (
           <div 
             key={task.id}
-            className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3 hover:border-slate-700/80 transition-all flex flex-col gap-2"
+            className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3 hover:border-slate-700/80 transition-colors flex flex-col gap-2"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
@@ -471,7 +471,7 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                       key={p.type}
                       type="button"
                       onClick={() => handleSelectPreset(p.type)}
-                      className={`text-left p-2.5 rounded-lg border text-xs transition-all ${
+                      className={`text-left p-2.5 rounded-lg border text-xs transition-colors ${
                         newTaskType === p.type
                           ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
                           : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
@@ -490,11 +490,13 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                 </label>
                 <input
                   type="text"
+                  name="newTaskName"
+                  autoComplete="off"
                   required
                   value={newTaskName}
                   onChange={e => setNewTaskName(e.target.value)}
                   placeholder="np. Nocny audyt bezpieczeństwa"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
                 />
               </div>
 
@@ -505,11 +507,13 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                   </label>
                   <input
                     type="text"
+                    name="newTaskCron"
+                    autoComplete="off"
                     required
                     value={newTaskCron}
                     onChange={e => setNewTaskCron(e.target.value)}
                     placeholder="np. 0 3 * * *"
-                    className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
                   />
                   <span className="text-[10px] text-slate-500 block mt-0.5">np. 0 3 * * * (03:00 codziennie)</span>
                 </div>
@@ -537,10 +541,13 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                 </label>
                 <input
                   type="text"
+                  name="newTaskCommand"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={newTaskCommand}
                   onChange={e => setNewTaskCommand(e.target.value)}
                   placeholder="npm audit lub node script.js"
-                  className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
                 />
               </div>
 
@@ -604,10 +611,12 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                 </label>
                 <input
                   type="text"
+                  name="editTaskName"
+                  autoComplete="off"
                   required
                   value={editTaskName}
                   onChange={e => setEditTaskName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
                 />
               </div>
 
@@ -618,11 +627,13 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                   </label>
                   <input
                     type="text"
+                    name="editTaskCron"
+                    autoComplete="off"
                     required
                     value={editTaskCron}
-                    onChange={e => setEditTaskCron(e.target.value)}
+                    onChange={e => setNewTaskCron(e.target.value)}
                     placeholder="np. 0 3 * * *"
-                    className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
                   />
                   <span className="text-[10px] text-slate-500 block mt-0.5">np. 0 3 * * * (03:00 codziennie)</span>
                 </div>
@@ -650,10 +661,13 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                 </label>
                 <input
                   type="text"
+                  name="editTaskCommand"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={editTaskCommand}
                   onChange={e => setEditTaskCommand(e.target.value)}
                   placeholder="npm audit lub node script.js"
-                  className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
                 />
               </div>
 

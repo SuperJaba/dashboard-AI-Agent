@@ -172,7 +172,7 @@ button.project-item {
   border-radius: 10px;
   cursor: pointer;
   color: var(--text-muted);
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   font-weight: 500;
   font-size: 0.9rem;
 }
@@ -202,7 +202,7 @@ button.project-item {
   color: var(--text-main);
   border: 1px dashed rgba(255, 255, 255, 0.2);
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-weight: 500;
   font-size: 0.85rem;
   margin-top: 0.75rem;
@@ -276,7 +276,7 @@ button.project-item {
   font-size: 0.9rem;
   cursor: pointer;
   border: none;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
   font-family: 'Inter', sans-serif;
 }
 
@@ -470,7 +470,7 @@ button.project-item {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .btn-secondary:hover {
@@ -489,7 +489,7 @@ button.project-item {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .btn-tune:hover {
@@ -703,7 +703,7 @@ button.project-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .modal-close-btn:hover {
@@ -793,7 +793,7 @@ button.project-item {
   border-radius: 10px;
   color: var(--text-main);
   font-size: 0.85rem;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .form-input:focus-visible {
@@ -935,4 +935,12 @@ button.project-item {
     transition: none !important;
     transform: none !important;
   }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
 }
