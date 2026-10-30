@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Rocket, CheckCircle2, AlertCircle, RefreshCw, Terminal, Clock, 
-  ExternalLink, X, ShieldAlert, Copy, Check, Search, Server
+  ExternalLink, X, ShieldAlert, Copy, Check, Search, Server, OctagonX
 } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
 import { cleanLogLine } from '../shared/clean-logs';
@@ -79,6 +79,9 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   const [targetsList, setTargetsList] = useState<DeployTarget[]>(DEFAULT_TARGETS);
   const [selectedTargets, setSelectedTargets] = useState<string[]>(['ct8']);
   const [activeLogTab, setActiveLogTab] = useState<string>('all');
+  const [killingRemote, setKillingRemote] = useState<boolean>(false);
+  const [abortingDeploy, setAbortingDeploy] = useState<boolean>(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -242,6 +245,54 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     }
   };
 
+  const handleAbortDeploy = async () => {
+    if (!confirm('Czy na pewno chcesz natychmiast przerwać wdrożenie i ubić aktywny proces wdrożenia?')) {
+      return;
+    }
+
+    setAbortingDeploy(true);
+    setErrorMsg(null);
+    try {
+      const res = await apiClient.post<{ success: boolean; message: string }>(
+        '/api/deploy/abort',
+        {},
+        { headers: { 'x-admin-role': 'true' } }
+      );
+      setSuccessMsg(res.message || 'Proces wdrożenia został przerwany.');
+      setTimeout(() => setSuccessMsg(null), 5000);
+      await fetchStatus();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Nie udało się ubić procesu wdrożenia.');
+    } finally {
+      setAbortingDeploy(false);
+    }
+  };
+
+  const handleKillRemoteProcesses = async (target: string = 'ct8') => {
+    const isCt8 = target === 'ct8';
+    const targetLabel = isCt8 ? 'CT8.pl (dashboard.jagger2.ct8.pl)' : target.toUpperCase();
+    if (!confirm(`Czy na pewno chcesz ubić wiszące procesy (Node.js/zsh) na serwerze ${targetLabel} i zrestartować aplikację?`)) {
+      return;
+    }
+
+    setKillingRemote(true);
+    setErrorMsg(null);
+    try {
+      const res = await apiClient.post<{ success: boolean; message: string }>(
+        '/api/deploy/kill-remote',
+        { target },
+        { headers: { 'x-admin-role': 'true' } }
+      );
+      setSuccessMsg(res.message || 'Zawieszone procesy zdalne zostały ubite, a aplikacja zrestartowana.');
+      setTimeout(() => setSuccessMsg(null), 6000);
+      await Promise.all([fetchStatus(), fetchHealth()]);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Nie udało się ubić procesów zdalnych.');
+    } finally {
+      setKillingRemote(false);
+    }
+  };
+
   const toggleTarget = (targetId: string) => {
     if (selectedTargets.includes(targetId)) {
       if (selectedTargets.length > 1) {
@@ -319,6 +370,21 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                 Sprawdzanie...
               </span>
             )}
+
+            {/* Przycisk Ubicia procesów zdalnych / awaryjny restart */}
+            <button
+              onClick={() => handleKillRemoteProcesses('ct8')}
+              disabled={killingRemote}
+              className="w-9 h-9 flex items-center justify-center text-rose-400 hover:text-rose-200 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-all disabled:opacity-50 cursor-pointer"
+              title="Ubij zawieszone procesy na serwerze CT8 (Node.js/zsh) i zrestartuj domenę"
+              aria-label="Ubij zawieszone procesy CT8"
+            >
+              {killingRemote ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-rose-400" />
+              ) : (
+                <OctagonX className="w-4 h-4 text-rose-400" />
+              )}
+            </button>
 
             <button
               onClick={refreshAll}
@@ -427,6 +493,22 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           </div>
         </div>
 
+        {/* Komunikat o sukcesie operacji (np. ubicie procesów) */}
+        {successMsg && (
+          <div className="mb-4 p-3.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span>{successMsg}</span>
+            </div>
+            <button
+              onClick={() => setSuccessMsg(null)}
+              className="text-emerald-400 hover:text-emerald-200 p-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Komunikat o błędzie jeśli wystąpił */}
         {errorMsg && (
           <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center justify-between gap-2">
@@ -483,6 +565,20 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             )}
           </button>
 
+          {isDeploying && (
+            <button
+              type="button"
+              onClick={handleAbortDeploy}
+              disabled={abortingDeploy}
+              className="flex items-center justify-center gap-2 py-3.5 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-semibold border border-rose-500 transition-all cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50"
+              title="Ubij zawieszony proces wdrożenia (SIGKILL)"
+              aria-label="Ubij proces wdrożenia"
+            >
+              <OctagonX className={`w-4 h-4 ${abortingDeploy ? 'animate-spin' : ''}`} />
+              <span>{abortingDeploy ? 'Ubija...' : 'Ubij proces'}</span>
+            </button>
+          )}
+
           <button
             onClick={() => setShowLogsModal(true)}
             className="flex items-center justify-center gap-2 py-3.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-sm font-semibold border border-slate-700 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
@@ -493,28 +589,53 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           </button>
         </div>
 
-        {/* Pasek szybkiego restartu / wskazówki */}
+        {/* Pasek szybkiego restartu / ubicia procesów zdalnych */}
         <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-          <span className="truncate pr-2">
-            Restart aplikacji: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart</code>
-          </span>
-          <button
-            onClick={handleCopyRestartCmd}
-            className="shrink-0 flex items-center gap-1 text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors"
-            title="Kopiuj polecenie SSH do restartu aplikacji"
-          >
-            {copiedRestartCmd ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400 font-medium">Skopiowano!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Kopiuj SSH</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2 truncate pr-2">
+            <span className="truncate">
+              Restart: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart</code>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleKillRemoteProcesses('ct8')}
+              disabled={killingRemote}
+              className="flex items-center gap-1.5 text-rose-400 hover:text-rose-200 px-2.5 py-1 rounded-md bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors text-xs font-medium cursor-pointer disabled:opacity-50"
+              title="Ubij wiszące procesy (Node.js/zsh) na serwerze CT8 i zrestartuj aplikację"
+            >
+              {killingRemote ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                  <span>Ubija procesy...</span>
+                </>
+              ) : (
+                <>
+                  <OctagonX className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Ubij procesy CT8</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopyRestartCmd}
+              className="flex items-center gap-1 text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Kopiuj polecenie SSH do restartu aplikacji"
+            >
+              {copiedRestartCmd ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400 font-medium">Skopiowano!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Kopiuj SSH</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -577,6 +698,30 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                       <span>Kopiuj</span>
                     </>
                   )}
+                </button>
+
+                {isDeploying && (
+                  <button
+                    type="button"
+                    onClick={handleAbortDeploy}
+                    disabled={abortingDeploy}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/90 hover:bg-rose-500 text-white rounded-lg text-xs font-medium border border-rose-500/80 transition-colors cursor-pointer disabled:opacity-50"
+                    title="Natychmiast przerwij wdrożenie i ubić proces"
+                  >
+                    <OctagonX className={`w-3.5 h-3.5 ${abortingDeploy ? 'animate-spin' : ''}`} />
+                    <span>Ubij wdrożenie</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleKillRemoteProcesses('ct8')}
+                  disabled={killingRemote}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-rose-950/60 text-rose-300 rounded-lg text-xs font-medium border border-rose-500/30 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Ubij wiszące procesy zdalne na CT8 (Node.js/zsh) i zrestartuj domenę"
+                >
+                  <OctagonX className={`w-3.5 h-3.5 ${killingRemote ? 'animate-spin text-rose-400' : 'text-rose-400'}`} />
+                  <span>Ubij procesy CT8</span>
                 </button>
 
                 <button

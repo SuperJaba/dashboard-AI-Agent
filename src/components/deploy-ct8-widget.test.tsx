@@ -201,4 +201,72 @@ describe('DeployCt8Widget', () => {
       expect(screen.queryByText(/Konsola Wdrożenia CT8\.pl \/ Multi-Deploy/i)).not.toBeInTheDocument();
     });
   });
+
+  it('triggers abort deploy when deploy is running and user clicks "Ubij proces"', async () => {
+    vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
+    vi.mocked(apiClient.get).mockResolvedValue({
+      state: 'RUNNING',
+      isDeploying: true,
+      currentStep: 'Wdrażanie...',
+      logs: [],
+      lastDeploy: { status: 'RUNNING', timestamp: null, durationSeconds: 0, targetHost: '', error: null },
+      targetHost: 'dashboard.jagger2.ct8.pl',
+    });
+
+    vi.mocked(apiClient.post).mockResolvedValue({
+      success: true,
+      message: 'Proces wdrożenia został przerwany.',
+    });
+
+    render(<DeployCt8Widget />);
+
+    const killBtn = await screen.findByRole('button', { name: /Ubij proces wdrożenia/i });
+    expect(killBtn).toBeInTheDocument();
+
+    fireEvent.click(killBtn);
+
+    expect(window.confirm).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/deploy/abort',
+        {},
+        { headers: { 'x-admin-role': 'true' } }
+      );
+    });
+  });
+
+  it('triggers kill remote CT8 processes when clicking "Ubij procesy CT8"', async () => {
+    vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
+    vi.mocked(apiClient.get).mockResolvedValue({
+      state: 'IDLE',
+      isDeploying: false,
+      currentStep: 'Gotowy',
+      logs: [],
+      lastDeploy: { status: 'SUCCESS', timestamp: null, durationSeconds: 0, targetHost: '', error: null },
+      targetHost: 'dashboard.jagger2.ct8.pl',
+    });
+
+    vi.mocked(apiClient.post).mockResolvedValue({
+      success: true,
+      message: 'Zawieszone procesy zdalne na CT8 zostały ubite, a aplikacja zrestartowana.',
+    });
+
+    render(<DeployCt8Widget />);
+
+    const killRemoteBtns = await screen.findAllByRole('button', { name: /Ubij procesy CT8/i });
+    expect(killRemoteBtns.length).toBeGreaterThan(0);
+
+    fireEvent.click(killRemoteBtns[0]);
+
+    expect(window.confirm).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/deploy/kill-remote',
+        { target: 'ct8' },
+        { headers: { 'x-admin-role': 'true' } }
+      );
+    });
+  });
 });

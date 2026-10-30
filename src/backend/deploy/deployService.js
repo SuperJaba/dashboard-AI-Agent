@@ -1,9 +1,11 @@
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
 import { notificationService } from '../notifications/notificationService.js';
+import * as serversRepo from '../servers/serversRepository.js';
+import { sshCmd } from '../utils/ssh.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -345,6 +347,97 @@ class DeployService {
       }
       this.broadcast('deploy:status', this.getStatus());
     }
+  }
+
+  abortDeploy() {
+    let killedCount = 0;
+    for (const [target, proc] of this.activeProcesses.entries()) {
+      try {
+        if (proc && !proc.killed) {
+          proc.kill('SIGTERM');
+          setTimeout(() => {
+            try {
+              if (proc && !proc.killed) proc.kill('SIGKILL');
+            } catch {
+              // ignore
+            }
+          }, 500);
+          killedCount++;
+        }
+      } catch (err) {
+        logger.warn({ err: err.message, target }, 'Failed to kill deploy process');
+      }
+    }
+    this.activeProcesses.clear();
+    this.activeProcess = null;
+
+    const hadRunning = this.state === 'RUNNING' || killedCount > 0;
+    this.state = 'FAILED';
+    this.currentStep = 'Wdrożenie zatrzymane przez użytkownika';
+    this.appendLog('[SYSTEM] 🛑 Wdrożenie zostało przerwane na żądanie użytkownika. Procesy ubite.');
+    this.broadcast('deploy:status', this.getStatus());
+    this.broadcast('deploy:finished', {
+      success: false,
+      durationSeconds: 0,
+      error: 'Wdrożenie przerwane przez użytkownika',
+      activeTargets: this.activeTargets,
+    });
+
+    return {
+      success: true,
+      message: hadRunning
+        ? `Uruchomione procesy wdrożenia (${killedCount}) zostały pomyślnie zatrzymane.`
+        : 'Brak aktywnego procesu wdrożenia do zatrzymania.',
+    };
+  }
+
+  async killRemoteProcesses({ target = 'ct8' } = {}) {
+    let sshCmdStr = 'ssh -i ~/.ssh/id_ed25519_antigravity -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=10 jagger2@s1.ct8.pl';
+    let remoteKillCmd = 'killall -9 node gitstatusd-freebsd-amd64 2>/dev/null || true; touch ~/domains/dashboard.jagger2.ct8.pl/tmp/restart.txt && devil www restart dashboard.jagger2.ct8.pl';
+
+    if (target === 'omv') {
+      sshCmdStr = 'ssh -i ~/.ssh/id_ed25519_antigravity -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=10 root@10.10.10.100';
+      remoteKillCmd = 'systemctl restart dashboard || docker restart dashboard 2>/dev/null || true';
+    } else if (target.startsWith('custom_')) {
+      const serverId = target.replace('custom_', '');
+      try {
+        const s = await serversRepo.getServerById(serverId, true);
+        if (s) {
+          sshCmdStr = sshCmd(s);
+          if (s.use_devil || (s.host && s.host.includes('ct8.pl'))) {
+            remoteKillCmd = 'killall -9 node gitstatusd-freebsd-amd64 2>/dev/null || true; devil www restart';
+          } else {
+            remoteKillCmd = 'killall -9 node 2>/dev/null || true';
+          }
+        }
+      } catch {
+        // use default
+      }
+    }
+
+    this.appendLog(`[${target.toUpperCase()}] 🛑 Ubijanie zawieszonych procesów zdalnych i restart aplikacji...`, target);
+
+    return new Promise((resolve) => {
+      exec(`${sshCmdStr} "${remoteKillCmd}"`, { timeout: 15000 }, (error, stdout, stderr) => {
+        if (error) {
+          const errMsg = stderr || error.message;
+          logger.warn({ error, target }, 'Error killing remote processes');
+          this.appendLog(`[${target.toUpperCase()}] ⚠️ Błąd podczas ubijania procesów zdalnych: ${errMsg}`, target);
+          resolve({
+            success: false,
+            message: `Nie udało się ubić procesów zdalnych: ${errMsg}`,
+            error: errMsg,
+          });
+        } else {
+          this.appendLog(`[${target.toUpperCase()}] ✓ Zawieszone procesy zdalne zostały ubite, a aplikacja zrestartowana.`, target);
+          resolve({
+            success: true,
+            message: `Zawieszone procesy zdalne na ${target.toUpperCase()} zostały ubite, a aplikacja zrestartowana.`,
+            output: stdout,
+          });
+        }
+      });
+    });
   }
 }
 

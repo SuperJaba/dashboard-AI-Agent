@@ -152,4 +152,47 @@ describe('DeployRouter API', () => {
       targets: ['ct8', 'omv'],
     });
   });
+
+  it('POST /api/deploy/abort returns 403 when not admin', async () => {
+    const res = await request(app).post('/api/deploy/abort');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain('uprawnień administratora');
+  });
+
+  it('POST /api/deploy/abort calls deployService.abortDeploy', async () => {
+    const spy = vi.spyOn(deployService, 'abortDeploy').mockReturnValue({
+      success: true,
+      message: 'Procesy wdrożenia zatrzymane.',
+    });
+
+    const res = await request(app)
+      .post('/api/deploy/abort')
+      .set('x-admin-role', 'true');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('POST /api/deploy/kill-remote returns 403 when not admin', async () => {
+    const res = await request(app).post('/api/deploy/kill-remote');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain('uprawnień administratora');
+  });
+
+  it('POST /api/deploy/kill-remote calls deployService.killRemoteProcesses with target', async () => {
+    const spy = vi.spyOn(deployService, 'killRemoteProcesses').mockResolvedValue({
+      success: true,
+      message: 'Zawieszone procesy zdalne na CT8 zostały ubite.',
+    });
+
+    const res = await request(app)
+      .post('/api/deploy/kill-remote')
+      .set('x-admin-role', 'true')
+      .send({ target: 'ct8' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(spy).toHaveBeenCalledWith({ target: 'ct8' });
+  });
 });

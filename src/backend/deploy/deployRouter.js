@@ -122,3 +122,41 @@ deployRouter.get('/logs', (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * POST /api/deploy/abort
+ * Kills any active deployment processes and marks status as aborted.
+ */
+deployRouter.post('/abort', (req, res) => {
+  const isAdmin = req.headers['x-admin-role'] === 'true' || req.user?.role === 'admin';
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Brak uprawnień administratora.' });
+  }
+
+  try {
+    const result = deployService.abortDeploy();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/deploy/kill-remote
+ * Connects over SSH to target (defaults to CT8) and kills hung processes (node, gitstatusd, etc.)
+ * then triggers application restart (devil www restart).
+ */
+deployRouter.post('/kill-remote', async (req, res) => {
+  const isAdmin = req.headers['x-admin-role'] === 'true' || req.user?.role === 'admin';
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Brak uprawnień administratora.' });
+  }
+
+  const target = req.body?.target || 'ct8';
+  try {
+    const result = await deployService.killRemoteProcesses({ target });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
