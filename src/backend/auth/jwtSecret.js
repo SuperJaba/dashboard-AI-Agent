@@ -1,5 +1,11 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export const DEFAULT_FALLBACK_SECRET = 'fallback-super-secret-key-123';
 export const MIN_JWT_SECRET_LENGTH = 32;

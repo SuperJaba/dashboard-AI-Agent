@@ -1,7 +1,9 @@
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 let pty = null;
 try {
-  const ptyModule = await import('node-pty');
-  pty = ptyModule.default || ptyModule;
+  pty = require('node-pty');
 } catch {
   // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
 }
