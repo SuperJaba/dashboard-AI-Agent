@@ -59,10 +59,10 @@ export const localCircuitBreaker = new CircuitBreaker(3, 60_000);
 
 // In-memory telemetry metrics for model routing
 const statsState = {
-  localTasks: 84, // Initial baseline
-  cloudTasks: 16,
-  totalLocalLatencyMs: 84 * 380,
-  totalCloudLatencyMs: 16 * 1450,
+  localTasks: 0,
+  cloudTasks: 0,
+  totalLocalLatencyMs: 0,
+  totalCloudLatencyMs: 0,
   fallbackCount: 0,
 };
 

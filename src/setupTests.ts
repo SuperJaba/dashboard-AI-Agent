@@ -1,6 +1,4 @@
-if (typeof window !== 'undefined') {
-  await import('@testing-library/jest-dom');
-}
+import '@testing-library/jest-dom';
 
 const mockStorage = (() => {
   let store: Record<string, string> = {};

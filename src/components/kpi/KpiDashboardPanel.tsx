@@ -25,6 +25,7 @@ interface KpiData {
     today: number;
     week: number;
   };
+  sparkline?: Array<{ time: string; value: number }>;
 }
 
 export function KpiDashboardPanel() {
@@ -36,7 +37,7 @@ export function KpiDashboardPanel() {
     let isMounted = true;
     async function fetchKpi() {
       try {
-        const token = localStorage.getItem('auth_token');
+        const token = localStorage.getItem('dashboard_token');
         const headers: Record<string, string> = {};
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
@@ -84,34 +85,56 @@ export function KpiDashboardPanel() {
     );
   }
 
-  const sampleSparkline = [
-    { time: '1', value: Math.max(1, data.today.tasks - 4) },
-    { time: '2', value: Math.max(2, data.today.tasks - 2) },
-    { time: '3', value: data.today.tasks },
-    { time: '4', value: data.today.tasks + 2 },
-    { time: '5', value: data.today.tasks + 1 },
-  ];
+  const sparklineData = data.sparkline && data.sparkline.length > 0
+    ? data.sparkline
+    : [
+        { time: '6d', value: 0 },
+        { time: '5d', value: 0 },
+        { time: '4d', value: 0 },
+        { time: '3d', value: 0 },
+        { time: '2d', value: 0 },
+        { time: '1d', value: 0 },
+        { time: 'dziś', value: 0 },
+      ];
 
   const tokenModels = [
     { model: 'Dzisiaj', tokens: data.tokenBurn.today },
     { model: 'Tydzień', tokens: data.tokenBurn.week },
   ];
 
+  const isZeroActivity = data.today.tasks === 0 && data.sevenDays.tasks === 0 && data.tokenBurn.today === 0;
+
   return (
     <div className="tabular-nums" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', fontVariantNumeric: 'tabular-nums' }}>
+      {isZeroActivity && (
+        <div
+          className="glass-card"
+          style={{
+            padding: '0.6rem 1rem',
+            fontSize: '0.8rem',
+            color: 'var(--text-muted, #94a3b8)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            borderLeft: '3px solid var(--primary, #38bdf8)'
+          }}
+        >
+          <span>ℹ️ Brak aktywności agentów w ostatnim okresie. Uruchom agenta, aby zebrać rzeczywiste dane telemetrii i zużycia tokenów.</span>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
         <MetricSummaryCard
           title="Zadania dziś"
           value={data.today.tasks}
           subtitle={`7 dni: ${data.sevenDays.tasks}`}
-          trend="up"
+          trend={data.today.tasks > 0 ? 'up' : 'flat'}
           icon={Activity}
         />
         <MetricSummaryCard
           title="Skuteczność"
           value={`${Math.round(data.today.successRate)}%`}
           subtitle={`7 dni: ${Math.round(data.sevenDays.successRate)}%`}
-          trend={data.today.successRate >= 80 ? 'up' : 'down'}
+          trend={data.today.successRate >= 80 ? 'up' : 'flat'}
           icon={CheckCircle}
         />
         <MetricSummaryCard
@@ -125,15 +148,15 @@ export function KpiDashboardPanel() {
           title="Tokeny dziś"
           value={data.tokenBurn.today.toLocaleString()}
           subtitle={`Tydzień: ${data.tokenBurn.week.toLocaleString()}`}
-          trend="up"
+          trend={data.tokenBurn.today > 0 ? 'up' : 'flat'}
           icon={Zap}
         />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem' }}>
         <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Dynamika zadań (ostatnie okna)</span>
-          <TimeseriesSparkline data={sampleSparkline} color="var(--primary, #38bdf8)" />
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Dynamika zadań (ostatnie 7 dni)</span>
+          <TimeseriesSparkline data={sparklineData} color="var(--primary, #38bdf8)" />
         </div>
         <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Podział zużycia tokenów</span>

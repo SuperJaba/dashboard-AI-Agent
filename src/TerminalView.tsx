@@ -16,6 +16,7 @@ interface TerminalViewProps {
     executionTarget?: 'remote' | 'worker' | 'auto';
     targetWorkerId?: string;
     scriptContent?: string;
+    taskId?: number | null;
   } | null;
   onClose: () => void;
 }
@@ -135,7 +136,8 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
         env: config.env,
         executionTarget: execTarget,
         targetWorkerId: config.targetWorkerId,
-        scriptContent: config.scriptContent
+        scriptContent: config.scriptContent,
+        taskId: config.taskId
       });
       
       // Resize to current xterm size

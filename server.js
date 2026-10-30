@@ -89,6 +89,7 @@ import { registerDashboardNamespace } from './src/backend/socket/dashboardNamesp
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 
+import { llmProxyRouter } from './src/backend/llm/llmProxyRouter.js';
 import { securityHeadersMiddleware } from './src/backend/utils/securityHeaders.js';
 
 const isTestEnvironment = process.env.NODE_ENV === 'test';
@@ -447,6 +448,9 @@ app.get('/api/socket-info', optionalAuthMiddleware, (req, res) => {
     }
   });
 });
+
+// LLM Proxy for transparent token metrics collection (passes agent API keys directly)
+app.use('/api/llm-proxy', llmProxyRouter);
 
 // API Auth Middleware
 app.use('/api', authMiddleware);

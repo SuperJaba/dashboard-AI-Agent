@@ -75,6 +75,28 @@ CREATE TABLE IF NOT EXISTS custom_widgets (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS agent_tasks (
+  id SERIAL PRIMARY KEY,
+  agent_name VARCHAR(255) NOT NULL,
+  project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  status VARCHAR(50) DEFAULT 'started',
+  tokens_used INTEGER DEFAULT 0,
+  prompt_tokens INTEGER DEFAULT 0,
+  completion_tokens INTEGER DEFAULT 0,
+  model VARCHAR(255),
+  duration_ms INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS agent_logs (
+  id SERIAL PRIMARY KEY,
+  task_id INTEGER REFERENCES agent_tasks(id) ON DELETE CASCADE,
+  level VARCHAR(20) DEFAULT 'info',
+  message TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Seed initial settings
 INSERT INTO settings (key, value) VALUES
   ('llmName', 'AtomicChat'),

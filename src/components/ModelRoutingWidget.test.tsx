@@ -13,7 +13,7 @@ describe('ModelRoutingWidget', () => {
     expect(screen.getByText(/Inteligentny Routing Modeli \(T5\)/i)).toBeDefined();
     expect(screen.getByText(/Tier Low \/ Medium \(Local\)/i)).toBeDefined();
     expect(screen.getByText(/Tier High \(Cloud \/ AGY\)/i)).toBeDefined();
-    expect(screen.getByText(/Circuit: CLOSED/i)).toBeDefined();
+    expect(screen.getByText(/Obwód: SPRAWNY \(CLOSED\)/i)).toBeDefined();
   });
 
   it('fetches dynamic stats from /api/llm/routing/stats on mount', async () => {
@@ -77,7 +77,7 @@ describe('ModelRoutingWidget', () => {
     render(<ModelRoutingWidget />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Circuit: OPEN/i)).toBeDefined();
+      expect(screen.getByText(/ROZŁĄCZONY \(OPEN\)/i)).toBeDefined();
     });
 
     const resetBtn = screen.getByRole('button', { name: /Reset/i });
@@ -86,7 +86,7 @@ describe('ModelRoutingWidget', () => {
     fireEvent.click(resetBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Circuit: CLOSED/i)).toBeDefined();
+      expect(screen.getByText(/Obwód: SPRAWNY \(CLOSED\)/i)).toBeDefined();
     });
   });
 });
