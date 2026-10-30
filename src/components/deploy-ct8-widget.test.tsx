@@ -43,7 +43,7 @@ describe('DeployCt8Widget', () => {
           targetHost: 'dashboard.jagger2.ct8.pl',
         };
       }
-      if (url === '/api/deploy/health') {
+      if (url.startsWith('/api/deploy/health')) {
         return {
           healthy: true,
           statusCode: 200,
@@ -63,7 +63,7 @@ describe('DeployCt8Widget', () => {
     render(<DeployCt8Widget />);
 
     expect(screen.getByText(/Wdrożenie CT8\.pl/i)).toBeInTheDocument();
-    expect(screen.getByText('dashboard.jagger2.ct8.pl')).toBeInTheDocument();
+    expect(screen.getAllByText('dashboard.jagger2.ct8.pl').length).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(screen.getByText(/Działa \(38 ms\)/i)).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('DeployCt8Widget', () => {
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/deploy/start',
-        { environment: 'production', confirm: 'DEPLOY_CT8', targets: ['ct8'] },
+        { environment: 'production', confirm: 'DEPLOY_CT8', targets: ['ct8'], app: 'dashboard' },
         { headers: { 'x-admin-role': 'true', 'x-deploy-confirm': 'DEPLOY_CT8' } }
       );
     });
@@ -139,7 +139,7 @@ describe('DeployCt8Widget', () => {
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/deploy/start',
-        { environment: 'production', confirm: 'DEPLOY_CT8', targets: ['ct8', 'omv'] },
+        { environment: 'production', confirm: 'DEPLOY_CT8', targets: ['ct8', 'omv'], app: 'dashboard' },
         { headers: { 'x-admin-role': 'true', 'x-deploy-confirm': 'DEPLOY_CT8' } }
       );
     });
@@ -264,8 +264,52 @@ describe('DeployCt8Widget', () => {
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/deploy/kill-remote',
-        { target: 'ct8' },
+        { target: 'ct8', app: 'dashboard', domain: 'dashboard.jagger2.ct8.pl' },
         { headers: { 'x-admin-role': 'true' } }
+      );
+    });
+  });
+
+  it('allows selecting a different application and deploys it', async () => {
+    vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
+    vi.mocked(apiClient.get).mockImplementation(async (url: string) => {
+      if (url === '/api/deploy/apps') {
+        return [
+          { id: 'dashboard', name: 'Dashboard (Command Center)', domain: 'dashboard.jagger2.ct8.pl', default: true },
+          { id: 'invoice-splitter', name: 'Invoice Splitter', domain: 'invoice-server.jagger2.ct8.pl', default: false },
+        ];
+      }
+      return {
+        state: 'IDLE',
+        isDeploying: false,
+        currentStep: 'Gotowy',
+        logs: [],
+        lastDeploy: { status: 'SUCCESS', timestamp: null, durationSeconds: 0, targetHost: '', error: null },
+        targetHost: 'dashboard.jagger2.ct8.pl',
+      };
+    });
+
+    vi.mocked(apiClient.post).mockResolvedValue({
+      success: true,
+      message: 'Wdrożenie uruchomione',
+    });
+
+    render(<DeployCt8Widget />);
+
+    const invoiceAppBtn = await screen.findByRole('button', { name: /Invoice Splitter/i });
+    fireEvent.click(invoiceAppBtn);
+
+    expect(screen.getAllByText('invoice-server.jagger2.ct8.pl').length).toBeGreaterThan(0);
+
+    const deployBtn = screen.getByRole('button', { name: /Wdróż Invoice na CT8/i });
+    fireEvent.click(deployBtn);
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/deploy/start',
+        { environment: 'production', confirm: 'DEPLOY_CT8', targets: ['ct8'], app: 'invoice-splitter' },
+        { headers: { 'x-admin-role': 'true', 'x-deploy-confirm': 'DEPLOY_CT8' } }
       );
     });
   });

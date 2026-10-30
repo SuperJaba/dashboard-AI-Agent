@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
 import { notificationService } from '../notifications/notificationService.js';
 import * as serversRepo from '../servers/serversRepository.js';
+import * as projectsRepo from '../projects/projectsRepository.js';
 import { sshCmd } from '../utils/ssh.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,11 +40,75 @@ class DeployService {
     this.activeProcess = null;
     this.activeProcesses = new Map();
     this.activeTargets = ['ct8'];
+    this.selectedApp = 'dashboard';
     this.targetStates = {
       ct8: { state: 'IDLE', currentStep: 'Gotowy', logs: [] },
       omv: { state: 'IDLE', currentStep: 'Gotowy', logs: [] },
     };
     this.io = null;
+  }
+
+  getAppDomain(appId = 'dashboard') {
+    if (appId === 'invoice-splitter' || appId === 'invoice-server') {
+      return 'invoice-server.jagger2.ct8.pl';
+    }
+    return 'dashboard.jagger2.ct8.pl';
+  }
+
+  getAppDir(appId = 'dashboard') {
+    if (appId === 'invoice-splitter' || appId === 'invoice-server') {
+      const candidate = path.resolve(REPO_ROOT, '../invoice-splitter');
+      if (fs.existsSync(candidate)) return candidate;
+    }
+    return REPO_ROOT;
+  }
+
+  async getDeployableApps() {
+    const defaultApps = [
+      {
+        id: 'dashboard',
+        name: 'Dashboard (Command Center)',
+        domain: 'dashboard.jagger2.ct8.pl',
+        localPath: REPO_ROOT,
+        healthUrl: 'https://dashboard.jagger2.ct8.pl/health',
+        deployScript: 'scripts/deploy-ct8-optimized.sh',
+        default: true,
+      },
+      {
+        id: 'invoice-splitter',
+        name: 'Invoice Splitter',
+        domain: 'invoice-server.jagger2.ct8.pl',
+        localPath: path.resolve(REPO_ROOT, '../invoice-splitter'),
+        healthUrl: 'https://invoice-server.jagger2.ct8.pl/health',
+        deployScript: 'scripts/deploy-ct8-optimized.sh',
+        default: false,
+      },
+    ];
+
+    try {
+      const extraProjects = await projectsRepo.getProjects();
+      if (Array.isArray(extraProjects)) {
+        for (const p of extraProjects) {
+          if (p.name && !defaultApps.some((a) => a.id === p.name || a.name === p.name)) {
+            const hasScript = fs.existsSync(path.join(p.path, 'scripts', 'deploy-ct8-optimized.sh')) ||
+                              fs.existsSync(path.join(p.path, 'scripts', 'deploy.sh'));
+            defaultApps.push({
+              id: p.name.toLowerCase().replace(/\s+/g, '-'),
+              name: p.name,
+              domain: `${p.name.toLowerCase()}.jagger2.ct8.pl`,
+              localPath: p.path,
+              healthUrl: `https://${p.name.toLowerCase()}.jagger2.ct8.pl/health`,
+              deployScript: hasScript ? 'scripts/deploy-ct8-optimized.sh' : undefined,
+              default: false,
+            });
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return defaultApps;
   }
 
   setSocketServer(io) {
@@ -95,6 +160,7 @@ class DeployService {
   }
 
   getStatus() {
+    const appDomain = this.getAppDomain(this.selectedApp);
     return {
       state: this.state,
       isDeploying: this.state === 'RUNNING',
@@ -102,19 +168,25 @@ class DeployService {
       startTime: this.startTime,
       logs: this.logs,
       lastDeploy: this.lastDeploy,
-      targetHost: 'dashboard.jagger2.ct8.pl',
+      targetHost: appDomain,
+      selectedApp: this.selectedApp,
       activeTargets: this.activeTargets,
       targetStates: this.targetStates,
     };
   }
 
-  async checkHealth(targetUrl = 'https://dashboard.jagger2.ct8.pl/health') {
+  async checkHealth(targetUrl = null, app = 'dashboard') {
+    const selectedApp = app || this.selectedApp || 'dashboard';
+    const url = targetUrl || (selectedApp === 'invoice-splitter' || selectedApp === 'invoice-server'
+      ? 'https://invoice-server.jagger2.ct8.pl/health'
+      : 'https://dashboard.jagger2.ct8.pl/health');
+
     const start = Date.now();
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-      const res = await fetch(targetUrl, {
+      const res = await fetch(url, {
         signal: controller.signal,
         headers: { 'User-Agent': 'Dashboard-HealthCheck/1.0' },
       });
@@ -135,6 +207,8 @@ class DeployService {
         latencyMs,
         timestamp: new Date().toISOString(),
         details: body,
+        app: selectedApp,
+        targetUrl: url,
       };
     } catch (err) {
       const latencyMs = Date.now() - start;
@@ -144,20 +218,24 @@ class DeployService {
         latencyMs,
         timestamp: new Date().toISOString(),
         error: err.message,
+        app: selectedApp,
+        targetUrl: url,
       };
     }
   }
 
-  startDeploy({ environment = 'production', targets = ['ct8'] } = {}) {
+  startDeploy({ environment = 'production', targets = ['ct8'], app = 'dashboard' } = {}) {
     if (this.state === 'RUNNING') {
       throw new Error('Wdrożenie jest już w toku.');
     }
 
+    this.selectedApp = app || 'dashboard';
+    const appDomain = this.getAppDomain(this.selectedApp);
     const deployTargets = Array.isArray(targets) && targets.length > 0 ? targets : ['ct8'];
     this.activeTargets = deployTargets;
     this.state = 'RUNNING';
     this.startTime = new Date().toISOString();
-    this.currentStep = `Inicjalizacja wdrożenia na cel(e): ${deployTargets.join(', ')}...`;
+    this.currentStep = `Inicjalizacja wdrożenia aplikacji [${this.selectedApp}] na cel(e): ${deployTargets.join(', ')}...`;
     this.logs = [];
 
     // Initialize per-target states
@@ -171,11 +249,11 @@ class DeployService {
     }
 
     const startEpoch = Date.now();
-    this.appendLog(`[SYSTEM] Rozpoczęto wdrożenie na środowisko: ${environment} [Cele: ${deployTargets.join(', ')}]`);
+    this.appendLog(`[SYSTEM] Rozpoczęto wdrożenie aplikacji: ${this.selectedApp} (${appDomain}) na środowisko: ${environment} [Cele: ${deployTargets.join(', ')}]`);
     this.broadcast('deploy:status', this.getStatus());
 
     // Run targets in parallel
-    const targetPromises = deployTargets.map((target) => this.runSingleTarget(target, environment));
+    const targetPromises = deployTargets.map((target) => this.runSingleTarget(target, environment, this.selectedApp));
 
     Promise.allSettled(targetPromises).then((results) => {
       const allSuccess = results.every((r) => r.status === 'fulfilled' && r.value.success);
@@ -185,33 +263,38 @@ class DeployService {
         .filter(Boolean);
 
       const errorReason = allSuccess ? null : errors.join('; ') || 'Wystąpił błąd wdrożenia na wybrane serwery';
-      this.finishDeploy(allSuccess, errorReason, startEpoch);
+      this.finishDeploy(allSuccess, errorReason, startEpoch, appDomain);
     });
 
     return {
       success: true,
-      message: `Wdrożenie uruchomione na cele: ${deployTargets.join(', ')}`,
+      message: `Wdrożenie aplikacji ${this.selectedApp} uruchomione na cele: ${deployTargets.join(', ')}`,
       targets: deployTargets,
+      app: this.selectedApp,
+      targetHost: appDomain,
     };
   }
 
-  runSingleTarget(target, environment) {
+  runSingleTarget(target, environment, app = 'dashboard') {
     return new Promise((resolve) => {
+      const appDir = this.getAppDir(app);
       let scriptPath = '';
       if (target === 'omv') {
         scriptPath = path.join(REPO_ROOT, 'scripts', 'deploy-omv.sh');
       } else {
-        scriptPath = path.join(REPO_ROOT, 'scripts', 'deploy-ct8-optimized.sh');
+        const customScript = path.join(appDir, 'scripts', 'deploy-ct8-optimized.sh');
+        scriptPath = fs.existsSync(customScript) ? customScript : path.join(REPO_ROOT, 'scripts', 'deploy-ct8-optimized.sh');
       }
 
-      this.appendLog(`[${target.toUpperCase()}] Start procesu wdrożenia...`, target);
+      this.appendLog(`[${target.toUpperCase()}] Start procesu wdrożenia dla [${app}]...`, target);
 
       try {
         const proc = spawn('bash', [scriptPath, environment], {
-          cwd: REPO_ROOT,
+          cwd: appDir,
           env: {
             ...process.env,
             NODE_ENV: environment,
+            APP_NAME: app,
           },
         });
 
@@ -233,7 +316,7 @@ class DeployService {
         proc.stderr.on('data', handleData);
 
         proc.on('error', (err) => {
-          logger.error({ err, target }, `Error spawning deploy script for target ${target}`);
+          logger.error({ err, target, app }, `Error spawning deploy script for target ${target}`);
           if (this.targetStates[target]) {
             this.targetStates[target].state = 'FAILED';
             this.targetStates[target].currentStep = `Błąd procesu: ${err.message}`;
@@ -268,35 +351,41 @@ class DeployService {
     });
   }
 
-  finishDeploy(success, errorReason, startEpoch) {
+  finishDeploy(success, errorReason, startEpoch, targetHost) {
     const durationSeconds = Math.round((Date.now() - startEpoch) / 1000);
     this.state = success ? 'SUCCESS' : 'FAILED';
     this.currentStep = success
-      ? 'Wdrożenie zakończone pomyślnie'
-      : `Błąd wdrożenia: ${errorReason || 'Nieznany błąd'}`;
+      ? `Wdrożenie [${this.selectedApp}] zakończone pomyślnie`
+      : `Błąd wdrożenia [${this.selectedApp}]: ${errorReason || 'Nieznany błąd'}`;
 
+    const host = targetHost || this.getAppDomain(this.selectedApp);
     this.saveLastDeploy({
       status: this.state,
       timestamp: new Date().toISOString(),
       durationSeconds,
       error: errorReason,
+      targetHost: host,
       activeTargets: this.activeTargets,
+      app: this.selectedApp,
     });
 
-    this.appendLog(`[SYSTEM] Wdrożenie zakończone ze statusem: ${this.state} (${durationSeconds}s)`);
+    this.appendLog(`[SYSTEM] Wdrożenie aplikacji [${this.selectedApp}] zakończone ze statusem: ${this.state} (${durationSeconds}s)`);
     this.broadcast('deploy:status', this.getStatus());
     this.broadcast('deploy:finished', {
       success,
       durationSeconds,
       error: errorReason,
+      targetHost: host,
       activeTargets: this.activeTargets,
+      app: this.selectedApp,
     });
 
     notificationService.notify('deploy:finished', {
       success,
       durationSeconds,
       error: errorReason,
-      targetHost: 'dashboard.jagger2.ct8.pl',
+      targetHost: host,
+      app: this.selectedApp,
     });
   }
 
@@ -391,9 +480,10 @@ class DeployService {
     };
   }
 
-  async killRemoteProcesses({ target = 'ct8' } = {}) {
-    let sshCmdStr = 'ssh -i ~/.ssh/id_ed25519_antigravity -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=10 jagger2@s1.ct8.pl';
-    let remoteKillCmd = 'killall -9 node gitstatusd-freebsd-amd64 2>/dev/null || true; touch ~/domains/dashboard.jagger2.ct8.pl/tmp/restart.txt && devil www restart dashboard.jagger2.ct8.pl';
+  async killRemoteProcesses({ target = 'ct8', app, domain } = {}) {
+    const targetDomain = domain || this.getAppDomain(app || this.selectedApp);
+    let sshCmdStr = 'ssh -i ~/.ssh/id_ed25519_antigravity -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=10 -p 22 jagger2';
+    let remoteKillCmd = `killall -9 node gitstatusd-freebsd-amd64 2>/dev/null || true; touch ~/domains/${targetDomain}/tmp/restart.txt && devil www restart ${targetDomain}`;
 
     if (target === 'omv') {
       sshCmdStr = 'ssh -i ~/.ssh/id_ed25519_antigravity -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=10 root@10.10.10.100';
@@ -405,7 +495,7 @@ class DeployService {
         if (s) {
           sshCmdStr = sshCmd(s);
           if (s.use_devil || (s.host && s.host.includes('ct8.pl'))) {
-            remoteKillCmd = 'killall -9 node gitstatusd-freebsd-amd64 2>/dev/null || true; devil www restart';
+            remoteKillCmd = `killall -9 node gitstatusd-freebsd-amd64 2>/dev/null || true; devil www restart ${targetDomain}`;
           } else {
             remoteKillCmd = 'killall -9 node 2>/dev/null || true';
           }
@@ -415,7 +505,7 @@ class DeployService {
       }
     }
 
-    this.appendLog(`[${target.toUpperCase()}] 🛑 Ubijanie zawieszonych procesów zdalnych i restart aplikacji...`, target);
+    this.appendLog(`[${target.toUpperCase()}] 🛑 Ubijanie zawieszonych procesów zdalnych (${targetDomain}) i restart aplikacji...`, target);
 
     return new Promise((resolve) => {
       exec(`${sshCmdStr} "${remoteKillCmd}"`, { timeout: 15000 }, (error, stdout, stderr) => {

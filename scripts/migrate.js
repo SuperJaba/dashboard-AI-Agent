@@ -62,33 +62,38 @@ export async function runMigrations() {
   await ensureDatabaseExists();
 
   const schema = process.env.DB_SCHEMA || 'dashboard';
-  console.log(`🔄 Running database migrations in schema '${schema}'...`);
+  console.log(`🔄 Running non-destructive database migrations in schema '${schema}'...`);
   try {
     await safeQuery(`CREATE SCHEMA IF NOT EXISTS ${schema};`);
     await safeQuery(`SET search_path TO ${schema}, public;`);
 
-    // Drop tables if they exist (to fix corruption)
-    console.log(`📊 Dropping existing tables in schema '${schema}' to ensure clean state...`);
+    // Optional destructive reset only when explicitly requested via RESET_DB=true
+    if (process.env.RESET_DB === 'true' || process.env.DROP_TABLES === 'true') {
+      console.warn(`⚠️ RESET_DB is enabled! Dropping existing tables in schema '${schema}'...`);
+      await safeQuery(`
+        DROP TABLE IF EXISTS settings CASCADE;
+        DROP TABLE IF EXISTS projects CASCADE;
+        DROP TABLE IF EXISTS servers CASCADE;
+        DROP TABLE IF EXISTS cli_agents CASCADE;
+        DROP TABLE IF EXISTS custom_widgets CASCADE;
+        DROP TABLE IF EXISTS llm_servers CASCADE;
+        DROP TABLE IF EXISTS users CASCADE;
+        DROP TABLE IF EXISTS user_settings CASCADE;
+        DROP TABLE IF EXISTS agents CASCADE;
+        DROP TABLE IF EXISTS agent_scheduled_tasks CASCADE;
+      `);
+    }
+
+    // Create tables safely if they do not exist (preserve existing data!)
+    console.log('📝 Creating database tables if not exist...');
     await safeQuery(`
-      DROP TABLE IF EXISTS settings CASCADE;
-      DROP TABLE IF EXISTS projects CASCADE;
-      DROP TABLE IF EXISTS servers CASCADE;
-      DROP TABLE IF EXISTS cli_agents CASCADE;
-      DROP TABLE IF EXISTS custom_widgets CASCADE;
-      DROP TABLE IF EXISTS llm_servers CASCADE;
-      DROP TABLE IF EXISTS users CASCADE;
-    `);
-    
-    // Create tables with correct structure
-    console.log('📝 Creating database tables...');
-    await safeQuery(`
-      CREATE TABLE settings (
+      CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
         key VARCHAR(255) UNIQUE NOT NULL,
         value TEXT NOT NULL
       );
       
-      CREATE TABLE projects (
+      CREATE TABLE IF NOT EXISTS projects (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         "desc" TEXT,
@@ -99,7 +104,7 @@ export async function runMigrations() {
         tasks JSONB DEFAULT '[]'::jsonb
       );
       
-      CREATE TABLE servers (
+      CREATE TABLE IF NOT EXISTS servers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         host VARCHAR(255) NOT NULL,
@@ -109,7 +114,7 @@ export async function runMigrations() {
         ssh_password TEXT
       );
       
-      CREATE TABLE cli_agents (
+      CREATE TABLE IF NOT EXISTS cli_agents (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
         description TEXT,
@@ -121,7 +126,7 @@ export async function runMigrations() {
         max_tokens INTEGER DEFAULT 4096
       );
       
-      CREATE TABLE custom_widgets (
+      CREATE TABLE IF NOT EXISTS custom_widgets (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         command TEXT NOT NULL,
@@ -130,7 +135,7 @@ export async function runMigrations() {
         server_id INTEGER
       );
       
-      CREATE TABLE llm_servers (
+      CREATE TABLE IF NOT EXISTS llm_servers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         url VARCHAR(512) NOT NULL,
@@ -141,21 +146,19 @@ export async function runMigrations() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       
-      CREATE TABLE users (
+      CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT NOT NULL
       );
+
       CREATE TABLE IF NOT EXISTS user_settings (
         user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         theme VARCHAR(20) DEFAULT 'dark',
         language VARCHAR(10) DEFAULT 'pl',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `);
-    // Create additional tables if missing
-    console.log('📝 Creating additional tables...');
-    await safeQuery(`
+
       CREATE TABLE IF NOT EXISTS agents (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
@@ -179,7 +182,7 @@ export async function runMigrations() {
       );
     `);
 
-    // Ensure alter columns exist for upgrades
+    // Ensure alter columns exist for upgrades (idempotent)
     await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS use_devil BOOLEAN DEFAULT false;');
     await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_password TEXT;');
     await safeQuery('ALTER TABLE servers ADD COLUMN IF NOT EXISTS provider VARCHAR(255) DEFAULT \'local\';');
@@ -190,13 +193,13 @@ export async function runMigrations() {
     await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS temperature NUMERIC DEFAULT 0.7;');
     await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS max_tokens INTEGER DEFAULT 4096;');
 
-    // Default settings seeding
-    console.log('📝 Seeding default settings...');
+    // Default settings seeding (idempotent, won't overwrite existing keys)
+    console.log('📝 Seeding default settings (if not exist)...');
     await safeQuery("INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;");
     await safeQuery("INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1') ON CONFLICT (key) DO NOTHING;");
     await safeQuery("INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0') ON CONFLICT (key) DO NOTHING;");
     
-    console.log('✅ Database migration completed successfully!');
+    console.log('✅ Database migration completed successfully (data preserved)!');
     process.exit(0);
   } catch (err) {
     console.error('❌ Migration failed:', err.message);

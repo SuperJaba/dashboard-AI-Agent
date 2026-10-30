@@ -195,4 +195,51 @@ describe('DeployRouter API', () => {
     expect(res.body.success).toBe(true);
     expect(spy).toHaveBeenCalledWith({ target: 'ct8' });
   });
+
+  it('GET /api/deploy/apps returns list of deployable applications', async () => {
+    const res = await request(app).get('/api/deploy/apps');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.some(a => a.id === 'dashboard')).toBe(true);
+    expect(res.body.some(a => a.id === 'invoice-splitter')).toBe(true);
+  });
+
+  it('POST /api/deploy/start passes app parameter to startDeploy', async () => {
+    const spy = vi.spyOn(deployService, 'startDeploy').mockReturnValue({
+      success: true,
+      message: 'Wdrożenie uruchomione',
+    });
+
+    const res = await request(app)
+      .post('/api/deploy/start')
+      .set('x-admin-role', 'true')
+      .set('x-deploy-confirm', 'DEPLOY_CT8')
+      .send({ environment: 'production', targets: ['ct8'], app: 'invoice-splitter' });
+
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith({
+      environment: 'production',
+      targets: ['ct8'],
+      app: 'invoice-splitter',
+    });
+  });
+
+  it('POST /api/deploy/kill-remote passes app and domain options', async () => {
+    const spy = vi.spyOn(deployService, 'killRemoteProcesses').mockResolvedValue({
+      success: true,
+      message: 'Udało się.',
+    });
+
+    const res = await request(app)
+      .post('/api/deploy/kill-remote')
+      .set('x-admin-role', 'true')
+      .send({ target: 'ct8', app: 'invoice-splitter', domain: 'invoice-server.jagger2.ct8.pl' });
+
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith({
+      target: 'ct8',
+      app: 'invoice-splitter',
+      domain: 'invoice-server.jagger2.ct8.pl',
+    });
+  });
 });
