@@ -16,7 +16,7 @@ export function TimeseriesSparkline({ data, color = 'var(--primary, #4F46E5)', l
   const filterId = useId().replace(/:/g, '');
 
   return (
-    <div style={{ width: '100%' }}>
+    <div className="tabular-nums" style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }}>
       {label && (
         <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
           {label}

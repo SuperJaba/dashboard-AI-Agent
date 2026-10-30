@@ -49,7 +49,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
     return (
       <div className="text-gray-400 p-6 flex items-center justify-center gap-3">
         <div className="antigravity-pulse-dot" />
-        <span className="text-sm font-medium tracking-wide">Ładowanie telemetryki serwera...</span>
+        <span className="text-sm font-medium tracking-wide">Ładowanie telemetryki serwera…</span>
       </div>
     );
   }
@@ -80,7 +80,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
   const memUsagePercent = Math.round(stats.memory.usagePercent ?? 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2.5rem' }}>
+    <div className="tabular-nums" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2.5rem', fontVariantNumeric: 'tabular-nums' }}>
       {/* Metrics Row - Spatial Telemetry Pods */}
       <div className="grid-top" style={{ perspective: '1200px' }}>
         {/* CPU Pod */}

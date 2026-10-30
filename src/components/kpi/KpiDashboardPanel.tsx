@@ -98,7 +98,7 @@ export function KpiDashboardPanel() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+    <div className="tabular-nums" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', fontVariantNumeric: 'tabular-nums' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
         <MetricSummaryCard
           title="Zadania dziś"

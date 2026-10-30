@@ -19,24 +19,26 @@ const BAR_COLORS = [
 
 export function TokenBurnBreakdown({ data }: TokenBurnBreakdownProps) {
   return (
-    <ResponsiveContainer width="100%" height={Math.max(60, data.length * 36)}>
-      <BarChart
-        data={data}
-        layout="vertical"
-        margin={{ top: 4, right: 8, bottom: 4, left: 4 }}
-      >
-        <XAxis type="number" hide />
-        <XAxis dataKey="model" type="category" hide />
-        <Tooltip
-          contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', borderRadius: '6px', fontSize: '0.75rem' }}
-          formatter={(val: number) => [val.toLocaleString(), 'tokens']}
-        />
-        <Bar dataKey="tokens" radius={[0, 4, 4, 0]}>
-          {data.map((_entry, index) => (
-            <Cell key={index} fill={BAR_COLORS[index % BAR_COLORS.length]} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="tabular-nums" style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }}>
+      <ResponsiveContainer width="100%" height={Math.max(60, data.length * 36)}>
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 4, right: 8, bottom: 4, left: 4 }}
+        >
+          <XAxis type="number" hide />
+          <XAxis dataKey="model" type="category" hide />
+          <Tooltip
+            contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', borderRadius: '6px', fontSize: '0.75rem' }}
+            formatter={(val: number) => [val.toLocaleString(), 'tokens']}
+          />
+          <Bar dataKey="tokens" radius={[0, 4, 4, 0]}>
+            {data.map((_entry, index) => (
+              <Cell key={index} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

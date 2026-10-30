@@ -210,7 +210,7 @@ export function AgentsView() {
   if (loading) return (
     <div className="p-8 text-center flex flex-col gap-3 items-center justify-center min-h-[50vh]" role="status" aria-live="polite">
       <RefreshCw className="w-8 h-8 animate-spin" style={{ color: 'var(--primary)' }} /> 
-      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Wyszukiwanie agentów...</span>
+      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Wyszukiwanie agentów…</span>
     </div>
   );
 
@@ -551,20 +551,20 @@ export function AgentsView() {
                       <div className="space-y-3">
                         <div>
                           <label className="text-[10px] text-slate-400 block mb-1">Config URI</label>
-                          <input type="text" value={editConfig.config_uri} onChange={(e) => setEditConfig({...editConfig, config_uri: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="np. ~/.agent.json" />
+                          <input type="text" name="editConfigUri" autoComplete="off" spellCheck={false} value={editConfig.config_uri} onChange={(e) => setEditConfig({...editConfig, config_uri: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500" placeholder="np. ~/.agent.json" />
                         </div>
                         <div>
                           <label className="text-[10px] text-slate-400 block mb-1">Model LLM</label>
-                          <input type="text" value={editConfig.llm_model} onChange={(e) => setEditConfig({...editConfig, llm_model: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="gpt-4o" />
+                          <input type="text" name="editLlmModel" autoComplete="off" spellCheck={false} value={editConfig.llm_model} onChange={(e) => setEditConfig({...editConfig, llm_model: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500" placeholder="gpt-4o" />
                         </div>
                         <div className="flex gap-3">
                           <div className="flex-1">
                             <label className="text-[10px] text-slate-400 block mb-1">Temp ({editConfig.temperature})</label>
-                            <input type="range" min="0.0" max="1.0" step="0.1" value={editConfig.temperature} onChange={(e) => setEditConfig({...editConfig, temperature: parseFloat(e.target.value)})} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                            <input type="range" name="editTemperature" min="0.0" max="1.0" step="0.1" value={editConfig.temperature} onChange={(e) => setEditConfig({...editConfig, temperature: parseFloat(e.target.value)})} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
                           </div>
                           <div className="flex-1">
                             <label className="text-[10px] text-slate-400 block mb-1">Max Tokens</label>
-                            <input type="number" value={editConfig.max_tokens} onChange={(e) => setEditConfig({...editConfig, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                            <input type="number" name="editMaxTokens" autoComplete="off" value={editConfig.max_tokens} onChange={(e) => setEditConfig({...editConfig, max_tokens: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500" />
                           </div>
                         </div>
                       </div>
@@ -623,7 +623,7 @@ export function AgentsView() {
               <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
                 <RefreshCw className="w-8 h-8 text-purple-400 animate-spin" />
                 <div>
-                  <h4 className="font-semibold text-white">Strojenie i testowanie połączeń...</h4>
+                  <h4 className="font-semibold text-white">Strojenie i testowanie połączeń…</h4>
                   <p className="text-xs text-gray-400 mt-1">Skanujemy porty Ollama (11434), LM Studio (1234) i vLLM (8000).</p>
                 </div>
               </div>
