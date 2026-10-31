@@ -120,17 +120,6 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const handleResetAuth = async () => {
-    try {
-      await fetch('/api/auth/reset', { method: 'POST' });
-      localStorage.removeItem('dashboard_token');
-      setNeedsSetup(true);
-      setError('Zresetowano stan autentykacji. Utwórz nowe konto administratora.');
-    } catch (err: any) {
-      setError('Błąd resetowania: ' + err.message);
-    }
-  };
-
   return (
     <div 
       style={{ 
@@ -327,28 +316,6 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
               <ChevronRight size={18} aria-hidden="true" />
             </button>
           </form>
-
-          {/* Reset Auth Options */}
-          <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'center' }}>
-            <button
-              type="button"
-              onClick={handleResetAuth}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#94a3b8',
-                fontSize: '0.75rem',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                transition: 'color 0.2s'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.color = '#ef4444'}
-              onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
-              title="Wyczyść użytkowników w bazie danych i przejdź do ponownego Setupu"
-            >
-              Resetuj bazę autentykacji (Zresetuj dostęp)
-            </button>
-          </div>
         </div>
       </div>
     </div>

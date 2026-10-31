@@ -101,4 +101,44 @@ describe('llmProxyRouter', () => {
       server.close();
     }
   });
+
+  describe('SSRF Protection (SEC-03)', () => {
+    it('blocks requests to cloud metadata 169.254.169.254', async () => {
+      const res = await request(app)
+        .post('/api/llm-proxy/chat/completions')
+        .set('x-target-url', 'http://169.254.169.254/latest/meta-data')
+        .send({ messages: [] });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain('SSRF Blocked');
+    });
+
+    it('blocks requests targeting RFC 1918 private IP addresses (10.0.0.0/8, 192.168.0.0/16)', async () => {
+      const res10 = await request(app)
+        .post('/api/llm-proxy/chat/completions')
+        .set('x-target-url', 'http://10.10.10.100:8000/v1')
+        .send({ messages: [] });
+
+      expect(res10.status).toBe(403);
+      expect(res10.body.error).toContain('SSRF Blocked');
+
+      const res192 = await request(app)
+        .post('/api/llm-proxy/chat/completions')
+        .set('x-target-url', 'http://192.168.1.1/api')
+        .send({ messages: [] });
+
+      expect(res192.status).toBe(403);
+      expect(res192.body.error).toContain('SSRF Blocked');
+    });
+
+    it('blocks requests using non-http protocols (file://, gopher://)', async () => {
+      const res = await request(app)
+        .post('/api/llm-proxy/chat/completions')
+        .set('x-target-url', 'file:///etc/passwd')
+        .send({ messages: [] });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain('SSRF Blocked');
+    });
+  });
 });

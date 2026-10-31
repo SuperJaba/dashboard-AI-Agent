@@ -16,6 +16,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 import fetch from 'node-fetch';
 import cors from 'cors';
+import { corsOptions, corsOriginDelegate } from './src/backend/utils/corsConfig.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { createRequire } from 'module';
@@ -109,8 +110,9 @@ const port = process.env.PORT || 3001;
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: corsOriginDelegate,
+    methods: ['GET', 'POST'],
+    credentials: true
   },
   transports: ['polling', 'websocket']
 });
@@ -335,7 +337,7 @@ schedulerService.setSocketServer(io);
 
 
 app.use(securityHeadersMiddleware);
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(requestLogger);
@@ -407,7 +409,7 @@ app.get('/api/agents/workers', optionalAuthMiddleware, (req, res) => {
   res.json(workers);
 });
 
-app.get('/api/socket-info', optionalAuthMiddleware, (req, res) => {
+app.get('/api/socket-info', authMiddleware, (req, res) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${port}`;
   const serverUrl = `${protocol}://${host}`;
@@ -416,13 +418,11 @@ app.get('/api/socket-info', optionalAuthMiddleware, (req, res) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.query.token) {
-    token = req.query.token;
   }
 
-  if (!token) {
+  if (!token && req.user) {
     token = jwt.sign(
-      { id: req.user?.id || 1, username: req.user?.username || 'worker-client', isWorker: true },
+      { id: req.user.id || 1, username: req.user.username || 'worker-client', isWorker: true },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -451,7 +451,7 @@ app.get('/api/socket-info', optionalAuthMiddleware, (req, res) => {
 });
 
 // LLM Proxy for transparent token metrics collection (passes agent API keys directly)
-app.use('/api/llm-proxy', llmProxyRouter);
+app.use('/api/llm-proxy', authMiddleware, llmProxyRouter);
 
 // API Auth Middleware
 app.use('/api', authMiddleware);
