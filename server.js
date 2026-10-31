@@ -99,6 +99,7 @@ if (isTestEnvironment) {
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 
 const port = process.env.PORT || 3001;
 

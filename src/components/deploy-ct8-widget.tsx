@@ -1,23 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Rocket, CheckCircle2, AlertCircle, RefreshCw, Terminal, Clock, 
-<<<<<<< HEAD
-  ExternalLink, X, ShieldAlert, Copy, Check, Search, FolderGit2 
-=======
-  ExternalLink, X, ShieldAlert, Copy, Check, Search, Server, OctagonX, Package
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
+  ExternalLink, X, ShieldAlert, Copy, Check, Search, Server, OctagonX, Package, FolderGit2
 } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
 import { cleanLogLine } from '../shared/clean-logs';
 import { useDashboardSocket } from '../hooks/useDashboardSocket';
 
-<<<<<<< HEAD
 interface ProjectItem {
   id: number;
   name: string;
   path: string;
   desc?: string;
-=======
+}
+
 export interface DeployApp {
   id: string;
   name: string;
@@ -26,7 +22,6 @@ export interface DeployApp {
   healthUrl?: string;
   deployScript?: string;
   default?: boolean;
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
 }
 
 interface DeployStatus {
@@ -126,21 +121,18 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
   const [copiedLogs, setCopiedLogs] = useState<boolean>(false);
   const [copiedRestartCmd, setCopiedRestartCmd] = useState<boolean>(false);
   const [logFilter, setLogFilter] = useState<string>('');
-<<<<<<< HEAD
   const [showWorkspaceModal, setShowWorkspaceModal] = useState<boolean>(false);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
   const [customPath, setCustomPath] = useState<string>('');
   const [targetServer, setTargetServer] = useState<string>('dashboard.jagger2.ct8.pl');
   const [deployEnv, setDeployEnv] = useState<string>('production');
-=======
   const [targetsList, setTargetsList] = useState<DeployTarget[]>(DEFAULT_TARGETS);
   const [selectedTargets, setSelectedTargets] = useState<string[]>(['ct8']);
   const [activeLogTab, setActiveLogTab] = useState<string>('all');
   const [killingRemote, setKillingRemote] = useState<boolean>(false);
   const [abortingDeploy, setAbortingDeploy] = useState<boolean>(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -196,6 +188,23 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     }
   }, [selectedApp]);
 
+  const fetchProjects = useCallback(async () => {
+    try {
+      const data = await apiClient.get<ProjectItem[]>('/api/projects');
+      if (Array.isArray(data)) {
+        setProjects(data);
+        setSelectedProject((prev) => {
+          if (!prev && data.length > 0) {
+            return data.find((p) => p.name !== 'dashboard') || data[0];
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('Błąd pobierania projektów workspace:', err);
+    }
+  }, []);
+
   const handleSelectApp = (appId: string) => {
     setSelectedApp(appId);
     try {
@@ -206,32 +215,11 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
     fetchHealth(appId);
   };
 
-<<<<<<< HEAD
-  const fetchProjects = async () => {
-    try {
-      const data = await apiClient.get<ProjectItem[]>('/api/projects');
-      if (Array.isArray(data)) {
-        setProjects(data);
-        if (data.length > 0 && !selectedProject) {
-          const another = data.find(p => p.name !== 'dashboard') || data[0];
-          setSelectedProject(another);
-        }
-      }
-    } catch (err) {
-      console.error('Błąd pobierania projektów workspace:', err);
-    }
-  };
-
-  const refreshAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchStatus(), fetchHealth(), fetchProjects()]);
-=======
   const refreshAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchApps(), fetchTargets(), fetchStatus(), fetchHealth(selectedApp)]);
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
+    await Promise.all([fetchApps(), fetchTargets(), fetchStatus(), fetchHealth(selectedApp), fetchProjects()]);
     setLoading(false);
-  }, [fetchApps, fetchTargets, fetchStatus, fetchHealth, selectedApp]);
+  }, [fetchApps, fetchTargets, fetchStatus, fetchHealth, selectedApp, fetchProjects]);
 
   useEffect(() => {
     refreshAll();
@@ -239,17 +227,12 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
       fetchHealth(selectedApp);
     }, 15000);
     return () => clearInterval(interval);
-<<<<<<< HEAD
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-=======
   }, [refreshAll, fetchHealth, selectedApp]);
 
   // Notyfikuj komponent nadrzędny o stanie wdrażania
   useEffect(() => {
     onDeployStateChange?.(status?.isDeploying || false);
   }, [status?.isDeploying, onDeployStateChange]);
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
 
   // Nasłuchiwanie Socket.IO na zdarzenia deploy
   useEffect(() => {
@@ -482,7 +465,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-lg text-slate-100 tracking-tight">
+                <h3 className="font-semibold text-base text-slate-100 tracking-tight truncate">
                   Wdrożenie CT8.pl / Multi-Deploy
                 </h3>
                 <a
@@ -592,8 +575,8 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           </div>
         </div>
 
-        {/* Konfiguracja Wdrożenia: Aplikacja + Cele (Dwukolumnowy układ na desktopie) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-4">
+        {/* Konfiguracja Wdrożenia: Aplikacja + Cele (Elastyczny układ responsywny) */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 mb-4">
           {/* Wybór Aplikacji do wdrożenia */}
           <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800/80 flex flex-col justify-between">
             <div>
@@ -606,7 +589,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                   {activeApp.domain}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-1.5">
                 {appsList.map((app) => {
                   const isSelected = selectedApp === app.id;
                   return (
@@ -615,15 +598,18 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                       key={app.id}
                       aria-pressed={isSelected}
                       onClick={() => handleSelectApp(app.id)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
+                      title={`${app.name} (${app.domain})`}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
                         isSelected
                           ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-200 shadow-sm'
                           : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}`} aria-hidden="true" />
-                      <span>{app.name}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">({app.domain})</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-2 h-2 shrink-0 rounded-full ${isSelected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}`} aria-hidden="true" />
+                        <span className="truncate">{app.name}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono shrink-0">({app.domain})</span>
                     </button>
                   );
                 })}
@@ -657,7 +643,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                   </button>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-1.5">
                 {targetsList.map((target) => {
                   const isChecked = selectedTargets.includes(target.id);
                   return (
@@ -666,15 +652,18 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                       key={target.id}
                       aria-pressed={isChecked}
                       onClick={() => toggleTarget(target.id)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 ${
+                      title={`${target.name} (${target.host})`}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 ${
                         isChecked
                           ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-sm'
                           : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-indigo-400' : 'bg-slate-600'}`} aria-hidden="true" />
-                      <span>{target.name}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">({target.host})</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-2 h-2 shrink-0 rounded-full ${isChecked ? 'bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-600'}`} aria-hidden="true" />
+                        <span className="truncate">{target.name}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono shrink-0">({target.host})</span>
                     </button>
                   );
                 })}
@@ -731,23 +720,9 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         )}
 
         {/* Duże Przyciski Akcji */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleStartDeploy}
-<<<<<<< HEAD
-            disabled={isDeploying || actionLoading}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold text-xs md:text-sm transition-colors shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-emerald-500"
-          >
-            {isDeploying ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Wdrażanie…
-              </>
-            ) : (
-              <>
-                <Rocket className="w-4 h-4" />
-                Wdróż na CT8
-=======
             disabled={isDeploying || actionLoading || selectedTargets.length === 0}
             className="flex-1 flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-semibold text-sm transition-colors shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
           >
@@ -765,7 +740,6 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
               <>
                 <Rocket className="w-5 h-5" />
                 Wdróż {activeApp.id === 'dashboard' ? '' : `${activeApp.name.split(' ')[0]} `}na CT8
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
               </>
             )}
           </button>
@@ -785,6 +759,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           )}
 
           <button
+            type="button"
             onClick={() => setShowWorkspaceModal(true)}
             disabled={isDeploying || actionLoading}
             className="flex items-center justify-center gap-2 py-3.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs md:text-sm font-semibold border border-slate-700 transition-colors cursor-pointer shadow-sm active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
@@ -796,11 +771,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
 
           <button
             onClick={() => setShowLogsModal(true)}
-<<<<<<< HEAD
-            className="flex items-center justify-center gap-2 py-3.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs md:text-sm font-semibold border border-slate-700 transition-colors cursor-pointer shadow-sm active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-emerald-500"
-=======
             className="flex items-center justify-center gap-2 py-3.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-sm font-semibold border border-slate-700 transition-colors cursor-pointer shadow-sm active:scale-[0.99]"
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
             title="Otwórz pełną konsolę logów wdrożenia"
           >
             <Terminal className="w-4 h-4 text-emerald-400" />
@@ -809,7 +780,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         </div>
 
         {/* Pasek szybkiego restartu / ubicia procesów zdalnych */}
-        <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
           <div className="flex items-center gap-2 truncate pr-2">
             <span className="truncate">
               Restart: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart {activeApp.domain}</code>
@@ -1112,6 +1083,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowWorkspaceModal(false)}
                 className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
                 aria-label="Zamknij okno wyboru workspace"
