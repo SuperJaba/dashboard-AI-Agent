@@ -406,7 +406,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-lg text-slate-100 tracking-tight">
+                <h3 className="font-semibold text-base text-slate-100 tracking-tight truncate">
                   Wdrożenie CT8.pl / Multi-Deploy
                 </h3>
                 <a
@@ -516,8 +516,8 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
           </div>
         </div>
 
-        {/* Konfiguracja Wdrożenia: Aplikacja + Cele (Dwukolumnowy układ na desktopie) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-4">
+        {/* Konfiguracja Wdrożenia: Aplikacja + Cele (Elastyczny układ responsywny) */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 mb-4">
           {/* Wybór Aplikacji do wdrożenia */}
           <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800/80 flex flex-col justify-between">
             <div>
@@ -530,7 +530,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                   {activeApp.domain}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-1.5">
                 {appsList.map((app) => {
                   const isSelected = selectedApp === app.id;
                   return (
@@ -539,15 +539,18 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                       key={app.id}
                       aria-pressed={isSelected}
                       onClick={() => handleSelectApp(app.id)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
+                      title={`${app.name} (${app.domain})`}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
                         isSelected
                           ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-200 shadow-sm'
                           : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}`} aria-hidden="true" />
-                      <span>{app.name}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">({app.domain})</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-2 h-2 shrink-0 rounded-full ${isSelected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}`} aria-hidden="true" />
+                        <span className="truncate">{app.name}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono shrink-0">({app.domain})</span>
                     </button>
                   );
                 })}
@@ -581,7 +584,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                   </button>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-1.5">
                 {targetsList.map((target) => {
                   const isChecked = selectedTargets.includes(target.id);
                   return (
@@ -590,15 +593,18 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
                       key={target.id}
                       aria-pressed={isChecked}
                       onClick={() => toggleTarget(target.id)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 ${
+                      title={`${target.name} (${target.host})`}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 ${
                         isChecked
                           ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-sm'
                           : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-indigo-400' : 'bg-slate-600'}`} aria-hidden="true" />
-                      <span>{target.name}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">({target.host})</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-2 h-2 shrink-0 rounded-full ${isChecked ? 'bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-600'}`} aria-hidden="true" />
+                        <span className="truncate">{target.name}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono shrink-0">({target.host})</span>
                     </button>
                   );
                 })}
@@ -704,7 +710,7 @@ export const DeployCt8Widget: React.FC<DeployCt8WidgetProps> = ({ className = ''
         </div>
 
         {/* Pasek szybkiego restartu / ubicia procesów zdalnych */}
-        <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
           <div className="flex items-center gap-2 truncate pr-2">
             <span className="truncate">
               Restart: <code className="text-slate-300 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">devil www restart {activeApp.domain}</code>
