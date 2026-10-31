@@ -14,7 +14,7 @@ deployRouter.get('/targets', async (req, res) => {
       {
         id: 'ct8',
         name: 'CT8.pl (FreeBSD Production)',
-        host: 'dashboard.jagger2.ct8.pl',
+        host: 's1.ct8.pl',
         type: 'ct8',
         default: true,
       },
@@ -31,7 +31,14 @@ deployRouter.get('/targets', async (req, res) => {
       const extraServers = await serversRepo.getServers();
       if (Array.isArray(extraServers)) {
         for (const s of extraServers) {
-          if (s.host && !baseTargets.some((b) => b.host === s.host)) {
+          const isCt8 = s.type === 'ct8' || s.use_devil || s.name?.toLowerCase() === 'ct8' || s.host === 's1.ct8.pl' || s.host === 'dashboard.jagger2.ct8.pl';
+          const isOmv = s.type === 'omv' || s.name?.toLowerCase() === 'omv' || s.host === '10.10.10.100';
+
+          if (isCt8 || isOmv) {
+            continue;
+          }
+
+          if (s.host && !baseTargets.some((b) => b.host === s.host || b.id === s.id)) {
             baseTargets.push({
               id: `custom_${s.id}`,
               name: s.name || s.host,
