@@ -96,7 +96,8 @@
       "Bash(codegraph *)",
       "Bash(agy *)",
       "Bash(openclaude *)",
-      "Bash(claude *)"
+      "Bash(claude *)",
+      "Skill(sys-admin)"
     ],
     "deny": [
       "Bash(rm -rf /*)",
@@ -110,6 +111,7 @@
       "Bash(git rm:*)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "xerj"
   ],
@@ -117,6 +119,5 @@
     "MCP_DOCKER",
     "codegraph"
   ],
-  "prefersReducedMotion": false,
-  "enableAllProjectMcpServers": true
+  "prefersReducedMotion": false
 }
