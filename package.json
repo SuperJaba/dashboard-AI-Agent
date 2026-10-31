@@ -59,7 +59,7 @@
     "@jridgewell/sourcemap-codec": "^1.6.0",
     "@babel/plugin-proposal-decorators": "^8.0.2",
     "@babel/plugin-syntax-decorators": "^8.0.1",
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
