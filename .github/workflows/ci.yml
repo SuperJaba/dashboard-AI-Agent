@@ -21,25 +21,21 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NODE_VERSION: '24.x'
 
 jobs:
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
 
-    # Only use Node.js 24 to avoid duplicated jobs.
-    strategy:
-      matrix:
-        node-version: [24.x]
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       # Reuse node_modules from the main job by running the same install step.
@@ -65,7 +61,6 @@ jobs:
         run: npm run build
 
       - name: Upload build artifact
-        if: matrix.node-version == '24.x'
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
@@ -81,17 +76,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22.x
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+
+      - name: Cache Playwright Browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright OS dependencies
+        run: npx playwright install-deps chromium
+
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
 
       - name: Run Playwright E2E tests
         run: npm run test:e2e
@@ -109,6 +115,9 @@ jobs:
     needs: build-and-test
     if: (github.ref == 'refs/heads/master' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.deploy)
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://dashboard.jagger2.ct8.pl
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
