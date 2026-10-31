@@ -1,9 +1,23 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync, exec } from 'child_process';
+import { execFileSync, exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = typeof exec === 'function' ? promisify(exec) : async () => ({ stdout: '' });
+
+/**
+ * Validates branch names against unsafe characters and path traversal.
+ */
+export function validateBranchName(branch) {
+  if (!branch || typeof branch !== 'string') {
+    throw new Error('Branch name is required');
+  }
+  const trimmed = branch.trim();
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._\-/]*$/.test(trimmed) || trimmed.includes('..') || trimmed.endsWith('.lock')) {
+    throw new Error(`Invalid branch name: ${branch}`);
+  }
+  return trimmed;
+}
 
 export function resolveDirectory(dir) {
   if (!dir || typeof dir !== 'string') return '';
@@ -37,21 +51,21 @@ export function getStatus(directory) {
   let commits = [];
 
   try {
-    branch = execSync('git branch --show-current', execOpts).toString().trim();
-  } catch  {}
+    branch = execFileSync('git', ['branch', '--show-current'], execOpts).toString().trim();
+  } catch {}
 
   try {
-    const statusOut = execSync('git status -s', execOpts).toString().trim();
+    const statusOut = execFileSync('git', ['status', '-s'], execOpts).toString().trim();
     changes = statusOut ? statusOut.split(/\r?\n/) : [];
-  } catch  {}
+  } catch {}
 
   try {
-    const logOut = execSync('git log -n 10 --pretty=format:"%h|%s|%ar|%an"', execOpts).toString().trim();
+    const logOut = execFileSync('git', ['log', '-n', '10', '--pretty=format:%h|%s|%ar|%an'], execOpts).toString().trim();
     commits = logOut ? logOut.split(/\r?\n/).map(line => {
       const parts = line.split('|');
       return { hash: parts[0], msg: parts[1], time: parts[2], author: parts[3] };
     }) : [];
-  } catch  {}
+  } catch {}
 
   return { branch, changes, commits };
 }
@@ -68,11 +82,11 @@ export function getBranches(directory) {
   const remote = [];
 
   try {
-    current = execSync('git branch --show-current', execOpts).toString().trim();
-  } catch  {}
+    current = execFileSync('git', ['branch', '--show-current'], execOpts).toString().trim();
+  } catch {}
 
   try {
-    const branchOut = execSync('git branch -a --format="%(refname:short)|%(HEAD)"', execOpts).toString().trim();
+    const branchOut = execFileSync('git', ['branch', '-a', '--format=%(refname:short)|%(HEAD)'], execOpts).toString().trim();
     const lines = branchOut ? branchOut.split(/\r?\n/) : [];
     
     for (const line of lines) {
@@ -90,15 +104,15 @@ export function getBranches(directory) {
         local.push(ref);
       }
     }
-  } catch  {
+  } catch {
     // Fallback simple list
     try {
-      const simpleOut = execSync('git branch', execOpts).toString().trim();
+      const simpleOut = execFileSync('git', ['branch'], execOpts).toString().trim();
       simpleOut.split(/\r?\n/).forEach(b => {
         const clean = b.replace('*', '').trim();
         if (clean) local.push(clean);
       });
-    } catch  {}
+    } catch {}
   }
 
   return { current, local, remote };
@@ -109,15 +123,16 @@ export function checkoutBranch(directory, branch, createNew = false) {
   if (!isGitRepo(resolved)) {
     throw new Error('Not a git repository');
   }
+  const validBranch = validateBranchName(branch);
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
   if (createNew) {
-    execSync(`git checkout -b "${branch}"`, execOpts);
+    execFileSync('git', ['checkout', '-b', validBranch], execOpts);
   } else {
-    execSync(`git checkout "${branch}"`, execOpts);
+    execFileSync('git', ['checkout', validBranch], execOpts);
   }
 
-  const current = execSync('git branch --show-current', execOpts).toString().trim();
+  const current = execFileSync('git', ['branch', '--show-current'], execOpts).toString().trim();
   return { success: true, current };
 }
 
@@ -126,10 +141,11 @@ export function createBranch(directory, branch) {
   if (!isGitRepo(resolved)) {
     throw new Error('Not a git repository');
   }
+  const validBranch = validateBranchName(branch);
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
-  execSync(`git branch "${branch}"`, execOpts);
-  return { success: true, branch };
+  execFileSync('git', ['branch', validBranch], execOpts);
+  return { success: true, branch: validBranch };
 }
 
 export function deleteBranch(directory, branch, force = false) {
@@ -137,10 +153,11 @@ export function deleteBranch(directory, branch, force = false) {
   if (!isGitRepo(resolved)) {
     throw new Error('Not a git repository');
   }
+  const validBranch = validateBranchName(branch);
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
-  execSync(`git branch ${force ? '-D' : '-d'} "${branch}"`, execOpts);
-  return { success: true, branch };
+  execFileSync('git', ['branch', force ? '-D' : '-d', validBranch], execOpts);
+  return { success: true, branch: validBranch };
 }
 
 export function getDiff(directory, staged = false, file = null) {
@@ -150,21 +167,26 @@ export function getDiff(directory, staged = false, file = null) {
   }
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 10 * 1024 * 1024 };
-  const fileArg = file ? ` -- "${file}"` : '';
-  const stagedFlag = staged ? ' --staged' : '';
-  
+  const diffArgs = ['diff'];
+  if (staged) diffArgs.push('--staged');
+  if (file) diffArgs.push('--', file);
+
+  const statArgs = ['diff', '--stat'];
+  if (staged) statArgs.push('--staged');
+  if (file) statArgs.push('--', file);
+
   let diff = '';
   let stat = '';
 
   try {
-    diff = execSync(`git diff${stagedFlag}${fileArg}`, execOpts).toString();
+    diff = execFileSync('git', diffArgs, execOpts).toString();
   } catch (e) {
     diff = e.stdout ? e.stdout.toString() : '';
   }
 
   try {
-    stat = execSync(`git diff --stat${stagedFlag}${fileArg}`, execOpts).toString();
-  } catch  {
+    stat = execFileSync('git', statArgs, execOpts).toString();
+  } catch {
     stat = '';
   }
 
@@ -179,8 +201,7 @@ export function stageFiles(directory, files = ['.']) {
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
   const fileList = Array.isArray(files) ? files : [files];
-  const fileArgs = fileList.map(f => `"${f}"`).join(' ');
-  execSync(`git add ${fileArgs}`, execOpts);
+  execFileSync('git', ['add', '--', ...fileList], execOpts);
 
   return { success: true, staged: fileList };
 }
@@ -193,11 +214,10 @@ export function unstageFiles(directory, files = ['.']) {
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
   const fileList = Array.isArray(files) ? files : [files];
-  const fileArgs = fileList.map(f => `"${f}"`).join(' ');
   try {
-    execSync(`git restore --staged ${fileArgs}`, execOpts);
-  } catch  {
-    execSync(`git reset HEAD -- ${fileArgs}`, execOpts);
+    execFileSync('git', ['restore', '--staged', '--', ...fileList], execOpts);
+  } catch {
+    execFileSync('git', ['reset', 'HEAD', '--', ...fileList], execOpts);
   }
 
   return { success: true, unstaged: fileList };
@@ -213,8 +233,7 @@ export function commitChanges(directory, message) {
   }
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
-  const cleanMsg = message.replace(/"/g, '\\"');
-  const output = execSync(`git commit -m "${cleanMsg}"`, execOpts).toString();
+  const output = execFileSync('git', ['commit', '-m', message], execOpts).toString();
 
   return { success: true, output };
 }
@@ -226,8 +245,11 @@ export function pullChanges(directory, remote = 'origin', branch = '') {
   }
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
-  const branchArg = branch ? ` "${branch}"` : '';
-  const output = execSync(`git pull --rebase "${remote}"${branchArg}`, execOpts).toString();
+  const args = ['pull', '--rebase', remote];
+  if (branch) {
+    args.push(validateBranchName(branch));
+  }
+  const output = execFileSync('git', args, execOpts).toString();
 
   return { success: true, log: output };
 }
@@ -239,17 +261,25 @@ export function pushChanges(directory, remote = 'origin', branch = '', force = f
   }
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
-  let currentBranch = branch;
+  let currentBranch = branch ? validateBranchName(branch) : '';
   if (!currentBranch) {
     try {
-      currentBranch = execSync('git branch --show-current', execOpts).toString().trim();
-    } catch  {}
+      const detected = execFileSync('git', ['branch', '--show-current'], execOpts).toString().trim();
+      if (detected && /^[a-zA-Z0-9][a-zA-Z0-9._\-/]*$/.test(detected)) {
+        currentBranch = detected;
+      }
+    } catch {}
   }
 
-  const forceFlag = force ? ' --force-with-lease' : '';
-  const branchArg = currentBranch ? ` "${currentBranch}"` : '';
-  const output = execSync(`git push -u "${remote}"${branchArg}${forceFlag}`, execOpts).toString();
+  const args = ['push', '-u', remote];
+  if (currentBranch) {
+    args.push(currentBranch);
+  }
+  if (force) {
+    args.push('--force-with-lease');
+  }
 
+  const output = execFileSync('git', args, execOpts).toString();
   return { success: true, log: output };
 }
 
@@ -260,7 +290,7 @@ export function fetchChanges(directory, remote = 'origin') {
   }
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] };
-  const output = execSync(`git fetch "${remote}" --prune`, execOpts).toString();
+  const output = execFileSync('git', ['fetch', remote, '--prune'], execOpts).toString();
 
   return { success: true, log: output };
 }
@@ -269,6 +299,11 @@ export function cloneRepo(repoUrl, targetDir) {
   if (!repoUrl || !repoUrl.trim()) {
     throw new Error('Repository URL is required');
   }
+  const trimmedUrl = repoUrl.trim();
+  if (trimmedUrl.startsWith('-')) {
+    throw new Error('Invalid repository URL');
+  }
+
   if (!targetDir || !targetDir.trim()) {
     throw new Error('Target directory is required');
   }
@@ -283,7 +318,7 @@ export function cloneRepo(repoUrl, targetDir) {
     fs.mkdirSync(parentDir, { recursive: true });
   }
 
-  const output = execSync(`git clone "${repoUrl.trim()}" "${resolved}"`, { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+  const output = execFileSync('git', ['clone', trimmedUrl, resolved], { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
   return { success: true, directory: resolved, log: output };
 }
 
@@ -302,7 +337,7 @@ export async function getGithubPRsAndRuns(directory) {
       { cwd: resolved, timeout: GH_TIMEOUT_MS }
     );
     prs = JSON.parse(prsOut || '[]');
-  } catch  {
+  } catch {
     // gh CLI might not be authenticated or timed out
   }
   
@@ -314,7 +349,7 @@ export async function getGithubPRsAndRuns(directory) {
     );
     const runs = JSON.parse(runsOut || '[]');
     latestRun = runs.length > 0 ? runs[0] : null;
-  } catch  {
+  } catch {
     // gh CLI might not be authenticated or timed out
   }
   
@@ -329,9 +364,13 @@ export function cancelCIJobs(directory) {
   
   let runIds = [];
   try {
-    const runsOut = execSync('gh run list --status in_progress --json databaseId -q ".[].databaseId"', { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const runsOut = execFileSync(
+      'gh',
+      ['run', 'list', '--status', 'in_progress', '--json', 'databaseId', '-q', '.[].databaseId'],
+      { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'] }
+    ).toString();
     runIds = runsOut.trim().split('\n').filter(Boolean);
-  } catch  {
+  } catch {
     // gh CLI might not be authenticated or fail
   }
   
@@ -341,8 +380,8 @@ export function cancelCIJobs(directory) {
   
   for (const id of runIds) {
     try {
-      execSync(`gh run cancel ${id}`, { cwd: resolved });
-    } catch  {
+      execFileSync('gh', ['run', 'cancel', id], { cwd: resolved });
+    } catch {
       // Ignore single cancellation error
     }
   }
@@ -357,19 +396,19 @@ export function autoDeploy(directory) {
   }
 
   // 1. Commit any uncommitted changes
-  const statusOut = execSync('git status -s', { cwd: resolved }).toString().trim();
+  const statusOut = execFileSync('git', ['status', '-s'], { cwd: resolved }).toString().trim();
   if (statusOut) {
-    execSync('git add .', { cwd: resolved });
-    execSync('git commit -m "Auto deploy from dashboard"', { cwd: resolved });
+    execFileSync('git', ['add', '.'], { cwd: resolved });
+    execFileSync('git', ['commit', '-m', 'Auto deploy from dashboard'], { cwd: resolved });
   }
 
   // 2. Pull and Push to remote
   try {
-    execSync('git pull --rebase', { cwd: resolved });
+    execFileSync('git', ['pull', '--rebase'], { cwd: resolved });
   } catch (pullError) {
     console.warn('Git pull failed, pushing anyway (might be a new branch):', pullError.message);
   }
-  execSync('git push', { cwd: resolved });
+  execFileSync('git', ['push'], { cwd: resolved });
 
   let deployLog = 'Pushed successfully.\n';
 
@@ -377,7 +416,7 @@ export function autoDeploy(directory) {
   const deployScriptPath = path.join(resolved, 'scripts', 'deploy-ct8-optimized.sh');
   if (fs.existsSync(deployScriptPath)) {
     deployLog += 'Executing custom deploy script...\n';
-    const scriptOutput = execSync(`bash "${deployScriptPath}"`, { cwd: resolved }).toString();
+    const scriptOutput = execFileSync('bash', [deployScriptPath], { cwd: resolved }).toString();
     deployLog += scriptOutput;
   } else {
     deployLog += 'No custom deploy script found. Skipped remote execution.\n';
@@ -392,6 +431,7 @@ export function initGit(directory) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
   
-  execSync(`git -C "${targetDir}" init && git -C "${targetDir}" branch -m main`);
+  execFileSync('git', ['-C', targetDir, 'init']);
+  execFileSync('git', ['-C', targetDir, 'branch', '-m', 'main']);
   return { success: true, branch: 'main' };
 }

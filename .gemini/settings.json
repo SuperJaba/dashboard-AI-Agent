@@ -101,6 +101,11 @@
       "command(rm)"
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "ccstatusline",
+    "enabled": true
+  },
   "mcpServers": {
     "codegraph": {
       "type": "stdio",

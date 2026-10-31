@@ -82,14 +82,19 @@ run_remote() {
 }
 
 copy_file() {
-  if [ "$AUTH_METHOD" = "password" ]; then
-    sshpass -p "$PASS" scp $SSH_OPTS "$1" "$2"
+  local src="$1"
+  local dest="$2"
+  local remote_path="${dest#*s1.ct8.pl:}"
+  remote_path="${remote_path#*jagger2:}"
+
+  if [ "$AUTH_METHOD" = "ssh_config" ]; then
+    scp $SSH_OPTS "$src" "jagger2:$remote_path"
   elif [ "$AUTH_METHOD" = "key" ] && [ -n "$ACTIVE_KEY" ]; then
-    scp -i "$ACTIVE_KEY" $SSH_OPTS "$1" "$2"
-  elif [ "$AUTH_METHOD" = "ssh_config" ]; then
-    scp $SSH_OPTS "$1" "jagger2:$2"
+    scp -i "$ACTIVE_KEY" $SSH_OPTS "$src" "$REMOTE_USER@$REM_HOST:$remote_path"
+  elif [ "$AUTH_METHOD" = "password" ]; then
+    sshpass -p "$PASS" scp $SSH_OPTS "$src" "$REMOTE_USER@$REM_HOST:$remote_path"
   else
-    scp $SSH_OPTS "$1" "$2"
+    scp $SSH_OPTS "$src" "$REMOTE_USER@$REM_HOST:$remote_path"
   fi
 }
 
@@ -298,6 +303,7 @@ configure_remote_env() {
     grep -q 'DB_SCHEMA' \"\$ENV_FILE\" || echo 'DB_SCHEMA=dashboard' >> \"\$ENV_FILE\"
     grep -q 'JWT_SECRET' \"\$ENV_FILE\" || echo 'JWT_SECRET=super-secret-jwt-key-dashboard-production-ct8' >> \"\$ENV_FILE\"
     grep -q 'ENCRYPTION_KEY' \"\$ENV_FILE\" || echo 'ENCRYPTION_KEY=32_character_long_secret_encryption_key_123' >> \"\$ENV_FILE\"
+    grep -q 'ALLOWED_ORIGINS' \"\$ENV_FILE\" || echo 'ALLOWED_ORIGINS=https://dashboard.jagger2.ct8.pl,http://dashboard.jagger2.ct8.pl' >> \"\$ENV_FILE\"
     grep -q 'NODE_ENV' \"\$ENV_FILE\" || echo 'NODE_ENV=production' >> \"\$ENV_FILE\"
   "
   log_success "Remote .env verified"

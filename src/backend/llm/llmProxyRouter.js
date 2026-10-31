@@ -1,16 +1,94 @@
 import express from 'express';
 import fetch from 'node-fetch';
+import net from 'net';
 import { safeQuery } from '../db.js';
 import { logger } from '../utils/logger.js';
 
 export const llmProxyRouter = express.Router();
 
 /**
+ * Checks if an IP address belongs to RFC 1918 private ranges, link-local, or cloud metadata.
+ * @param {string} ip
+ * @returns {boolean}
+ */
+export function isPrivateOrReservedIp(ip) {
+  if (net.isIPv4(ip)) {
+    const parts = ip.split('.').map(Number);
+    // 0.0.0.0/8
+    if (parts[0] === 0) return true;
+    // 10.0.0.0/8 (RFC 1918)
+    if (parts[0] === 10) return true;
+    // 100.64.0.0/10 (Shared Address Space)
+    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
+    // 169.254.0.0/16 (Link-local / Cloud metadata RFC 3927)
+    if (parts[0] === 169 && parts[1] === 254) return true;
+    // 172.16.0.0/12 (RFC 1918)
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    // 192.168.0.0/16 (RFC 1918)
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    // Multicast & Reserved
+    if (parts[0] >= 224) return true;
+    return false;
+  }
+  if (net.isIPv6(ip)) {
+    const normalized = ip.toLowerCase();
+    // IPv6 link-local fe80::/10
+    if (normalized.startsWith('fe8') || normalized.startsWith('fe9') || normalized.startsWith('fea') || normalized.startsWith('feb')) return true;
+    // IPv6 unique local fc00::/7 (RFC 4193)
+    if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Validates upstream target URL against SSRF attacks (RFC1918, link-local, metadata).
+ * @param {string} urlStr
+ * @returns {{ valid: boolean, error?: string }}
+ */
+export function validateTargetUrl(urlStr) {
+  let parsed;
+  try {
+    parsed = new URL(urlStr);
+  } catch {
+    return { valid: false, error: 'Nieprawidłowy adres URL' };
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { valid: false, error: 'Dozwolone są wyłącznie protokoły HTTP i HTTPS' };
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Cloud metadata endpoints
+  if (
+    hostname === '169.254.169.254' ||
+    hostname === 'metadata.google.internal' ||
+    hostname === 'instance-data'
+  ) {
+    return { valid: false, error: 'Dostęp do endpointów metadanych chmury jest zabroniony' };
+  }
+
+  if (isPrivateOrReservedIp(hostname)) {
+    return { valid: false, error: 'Dostęp do prywatnych adresów sieciowych (RFC1918 / link-local) jest zablokowany' };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Resolves upstream LLM URL from headers or dashboard settings.
  */
 async function resolveUpstreamBaseUrl(req) {
   if (req.headers['x-target-url']) {
-    return String(req.headers['x-target-url']).trim().replace(/\/+$/, '');
+    const rawUrl = String(req.headers['x-target-url']).trim().replace(/\/+$/, '');
+    const validation = validateTargetUrl(rawUrl);
+    if (!validation.valid) {
+      const err = new Error(validation.error);
+      err.status = 403;
+      throw err;
+    }
+    return rawUrl;
   }
   try {
     const res = await safeQuery("SELECT value FROM settings WHERE key = 'llmUrl'");
@@ -62,7 +140,15 @@ async function recordTokenUsage({ totalTokens, promptTokens, completionTokens, t
  * Catch-all proxy handler for OpenAI and Anthropic format completions.
  */
 llmProxyRouter.use(async (req, res) => {
-  const upstreamBase = await resolveUpstreamBaseUrl(req);
+  let upstreamBase;
+  try {
+    upstreamBase = await resolveUpstreamBaseUrl(req);
+  } catch (urlErr) {
+    return res.status(urlErr.status || 400).json({
+      error: `SSRF Blocked: ${urlErr.message}`
+    });
+  }
+
   const subPath = req.url.startsWith('/') ? req.url : `/${req.url}`;
   const targetUrl = `${upstreamBase}${subPath}`;
 

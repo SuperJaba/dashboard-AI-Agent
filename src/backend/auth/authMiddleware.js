@@ -9,9 +9,6 @@ export const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.query.token) {
-    // Keep fallback for quick tests if needed, but validate it as JWT
-    token = req.query.token;
   }
 
   if (!token) {
@@ -38,8 +35,6 @@ export const optionalAuthMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.query.token) {
-    token = req.query.token;
   }
 
   if (token) {

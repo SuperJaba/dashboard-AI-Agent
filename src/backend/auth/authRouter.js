@@ -140,8 +140,14 @@ authRouter.post('/refresh', refreshLimiter, validate(refreshSchema), async (req,
   }
 });
 
-// POST /api/auth/reset
+// POST /api/auth/reset - blocked in production (SEC-02)
 authRouter.post('/reset', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({
+      error: 'Resetowanie bazy użytkowników jest zablokowane w środowisku produkcyjnym'
+    });
+  }
+
   try {
     await safeQuery('DELETE FROM users');
     res.json({ success: true, message: 'Stan autentykacji zresetowany pomyślnie' });
