@@ -4,18 +4,21 @@
 :root {
   --primary: #4F46E5;
   --primary-hover: #4338CA;
-  --secondary: #EC4899;
-  --bg-color: #0f172a;
-  --bg-surface: rgba(30, 41, 59, 0.7);
-  --bg-surface-hover: rgba(30, 41, 59, 0.9);
+  --primary-glow: rgba(79, 70, 229, 0.25);
+  --secondary: #38BDF8;
+  --bg-color: #090d16;
+  --bg-surface: rgba(15, 23, 42, 0.68);
+  --bg-surface-hover: rgba(22, 33, 58, 0.85);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-highlight: rgba(255, 255, 255, 0.16);
   --success: #10B981;
   --warning: #F59E0B;
   --danger: #EF4444;
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.09);
 }
 
 [data-theme="light"] {
@@ -36,15 +39,16 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-color);
   background-image: 
-    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.18) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.16) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.05) 0px, transparent 65%);
+    radial-gradient(ellipse 70% 35% at 50% 0%, rgba(79, 70, 229, 0.12), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.05), transparent 40%);
   color: var(--text-main);
-  min-height: 100vh;
+  min-height: 100dvh;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   position: relative;
 }
@@ -53,20 +57,11 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: 
-    radial-gradient(1px 1px at 25px 35px, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 85px 120px, rgba(168, 85, 247, 0.45), transparent),
-    radial-gradient(1.5px 1.5px at 150px 70px, rgba(56, 189, 248, 0.55), transparent),
-    radial-gradient(1px 1px at 220px 200px, rgba(52, 211, 153, 0.45), transparent),
-    radial-gradient(1.5px 1.5px at 320px 140px, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(1px 1px at 450px 280px, rgba(99, 102, 241, 0.5), transparent),
-    radial-gradient(1px 1px at 600px 90px, rgba(244, 114, 182, 0.4), transparent);
-  background-repeat: repeat;
-  background-size: 500px 500px;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
   pointer-events: none;
-  opacity: 0.65;
+  opacity: 0.35;
   z-index: 0;
-  animation: antigravity-stars-drift 120s linear infinite;
 }
 
 #root {
@@ -77,6 +72,8 @@ body::before {
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Outfit', sans-serif;
   color: var(--text-main);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 :focus-visible {
@@ -142,17 +139,19 @@ button.project-item {
   gap: 1.25rem;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100dvh;
+  background: rgba(11, 16, 27, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   overflow-y: auto;
 }
 
 .sidebar-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  background: linear-gradient(to right, #818cf8, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
+  color: #f1f5f9;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -183,10 +182,10 @@ button.project-item {
 }
 
 .project-item.active {
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.28) 0%, rgba(99, 102, 241, 0.15) 100%);
-  color: #c7d2fe;
-  border: 1px solid rgba(99, 102, 241, 0.4);
-  box-shadow: 0 4px 18px -4px rgba(79, 70, 229, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  background: rgba(79, 70, 229, 0.14);
+  color: #e0e7ff;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 16px -4px rgba(79, 70, 229, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: translateX(3px);
 }
 
@@ -245,23 +244,23 @@ button.project-item {
 /* Glassmorphism cards */
 .glass-card {
   background: var(--bg-surface);
-  /* Ensure card stays above modal backdrop during animation */
   position: relative;
-  margin: 0 auto; /* center horizontally */
-  max-width: 480px; /* constrain width for better centering */
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  margin: 0 auto;
+  max-width: 480px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
   border-radius: 14px;
-  padding: 1rem;
-  box-shadow: var(--glass-shadow);
-  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  padding: 1.25rem;
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease;
 }
 
 .glass-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.55), var(--glass-highlight);
   background: var(--bg-surface-hover);
+  border-color: var(--border-highlight);
 }
 
 /* Buttons */
@@ -281,18 +280,24 @@ button.project-item {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  color: white;
-  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+  background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
+  background: linear-gradient(180deg, #5b52f0 0%, #473dc9 100%);
+  box-shadow: 0 4px 18px rgba(79, 70, 229, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
 }
 
-.btn-primary:active:not(:disabled) {
-  transform: translateY(0) scale(0.98);
+.btn-primary:active:not(:disabled),
+.btn:active:not(:disabled),
+.btn-secondary:active:not(:disabled),
+.btn-tune:active:not(:disabled),
+.project-item:active {
+  transform: translateY(1px) scale(0.985);
 }
 
 .btn-primary:disabled {
