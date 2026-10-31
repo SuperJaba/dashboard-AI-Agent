@@ -1,3 +1,5 @@
+[![CI/CD](https://github.com/SuperJaba/dashboard-AI-Agent/actions/workflows/ci.yml/badge.svg?branch=master&event=deployment)](https://github.com/SuperJaba/dashboard-AI-Agent/actions/workflows/ci.yml)
+
 # Dashboard 📊
 
 A full-stack, modern dashboard application built with React, TypeScript, Vite, and Express. This dashboard provides a comprehensive platform for monitoring servers, managing projects, executing AI agents, real-time terminal interactions, and LLM server management.
