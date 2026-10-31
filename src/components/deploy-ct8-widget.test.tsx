@@ -313,4 +313,38 @@ describe('DeployCt8Widget', () => {
       );
     });
   });
+
+  it('opens and closes modal to deploy from another workspace', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async (url: string) => {
+      if (url === '/api/projects') {
+        return [
+          { id: 1, name: 'dashboard', path: '/mnt/f/AI-Agents/dashboard' },
+          { id: 2, name: 'invoice-splitter', path: '/mnt/f/AI-Agents/invoice-splitter' },
+        ];
+      }
+      return {
+        state: 'IDLE',
+        isDeploying: false,
+        currentStep: 'Gotowy',
+        logs: [],
+        lastDeploy: { status: 'SUCCESS', timestamp: null, durationSeconds: 0, targetHost: '', error: null },
+        targetHost: 'dashboard.jagger2.ct8.pl',
+      };
+    });
+
+    render(<DeployCt8Widget />);
+
+    const workspaceBtn = await screen.findByRole('button', { name: /Inny Workspace/i });
+    fireEvent.click(workspaceBtn);
+
+    expect(screen.getByText('Nowe wdrożenie z innego Workspace')).toBeInTheDocument();
+    expect(screen.getByText('invoice-splitter')).toBeInTheDocument();
+
+    const cancelBtn = screen.getByRole('button', { name: 'Anuluj' });
+    fireEvent.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Nowe wdrożenie z innego Workspace')).not.toBeInTheDocument();
+    });
+  });
 });

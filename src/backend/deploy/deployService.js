@@ -224,7 +224,11 @@ class DeployService {
     }
   }
 
+<<<<<<< HEAD
+  startDeploy({ environment = 'production', workspacePath = null, workspaceName = null } = {}) {
+=======
   startDeploy({ environment = 'production', targets = ['ct8'], app = 'dashboard' } = {}) {
+>>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
     if (this.state === 'RUNNING') {
       throw new Error('Wdrożenie jest już w toku.');
     }
@@ -238,6 +242,26 @@ class DeployService {
     this.currentStep = `Inicjalizacja wdrożenia aplikacji [${this.selectedApp}] na cel(e): ${deployTargets.join(', ')}...`;
     this.logs = [];
 
+<<<<<<< HEAD
+    const effectiveDir = (workspacePath && fs.existsSync(workspacePath)) ? workspacePath : REPO_ROOT;
+    const label = workspaceName ? `${workspaceName} (${effectiveDir})` : environment;
+
+    const scriptPath = path.join(REPO_ROOT, 'scripts', 'deploy-ct8-optimized.sh');
+    const startEpoch = Date.now();
+
+    this.appendLog(`[SYSTEM] Rozpoczęto wdrożenie Workspace: ${label} [Środowisko: ${environment}]`);
+    this.broadcast('deploy:status', this.getStatus());
+
+    try {
+      this.activeProcess = spawn('bash', [scriptPath, environment], {
+        cwd: effectiveDir,
+        env: {
+          ...process.env,
+          NODE_ENV: environment,
+          WORKSPACE_PATH: effectiveDir,
+        },
+      });
+=======
     // Initialize per-target states
     this.targetStates = {};
     for (const t of deployTargets) {
@@ -254,6 +278,7 @@ class DeployService {
 
     // Run targets in parallel
     const targetPromises = deployTargets.map((target) => this.runSingleTarget(target, environment, this.selectedApp));
+>>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
 
     Promise.allSettled(targetPromises).then((results) => {
       const allSuccess = results.every((r) => r.status === 'fulfilled' && r.value.success);
