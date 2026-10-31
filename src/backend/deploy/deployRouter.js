@@ -113,14 +113,9 @@ deployRouter.post('/start', (req, res) => {
   }
 
   const environment = req.body?.environment || 'production';
-<<<<<<< HEAD
-  const workspacePath = req.body?.workspacePath || null;
-  const workspaceName = req.body?.workspaceName || null;
-=======
   const targets = Array.isArray(req.body?.targets) && req.body.targets.length > 0
     ? req.body.targets
     : ['ct8'];
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
 
   if (environment === 'production' && targets.includes('ct8')) {
     const confirm = req.headers['x-deploy-confirm'] || req.body?.confirm;
@@ -135,11 +130,7 @@ deployRouter.post('/start', (req, res) => {
   }
 
   try {
-<<<<<<< HEAD
-    const result = deployService.startDeploy({ environment, workspacePath, workspaceName });
-=======
     const result = deployService.startDeploy(deployOptions);
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.message });

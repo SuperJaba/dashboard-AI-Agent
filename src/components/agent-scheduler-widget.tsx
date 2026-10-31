@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Clock, Play, CheckCircle2, AlertCircle, RefreshCw, 
   Plus, Trash2, Terminal, X, Power, PowerOff, ShieldCheck, 
-<<<<<<< HEAD
-  FileText, Cpu, Pencil 
-=======
   FileText, Cpu, Edit2 
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
 } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
 import { useDashboardSocket } from '../hooks/useDashboardSocket';
@@ -45,7 +41,6 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [selectedOutputTask, setSelectedOutputTask] = useState<ScheduledTask | null>(null);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
-  const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form state
@@ -156,29 +151,10 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
     }
   };
 
-  const handleEditTask = (task: ScheduledTask) => {
-    setEditingTask(task);
-    setNewTaskName(task.name);
-    setNewTaskType(task.task_type);
-    setNewTaskCron(task.cron_expression);
-    setNewTaskCommand(task.command);
-    setNewTaskEnabled(task.enabled);
-    setShowAddModal(true);
-  };
-
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     try {
-      if (editingTask) {
-        await apiClient.put(`/api/scheduler/tasks/${editingTask.id}`, {
-          name: newTaskName,
-          task_type: newTaskType,
-          command: newTaskCommand,
-          cron_expression: newTaskCron,
-          enabled: newTaskEnabled
-        });
-      } else {
       await apiClient.post('/api/scheduler/tasks', {
         name: newTaskName,
         task_type: newTaskType,
@@ -186,12 +162,11 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
         cron_expression: newTaskCron,
         enabled: newTaskEnabled
       });
-      }
       setShowAddModal(false);
       resetForm();
       await fetchTasks();
     } catch (err: any) {
-      setErrorMsg(err.message || (editingTask ? 'Błąd podczas edycji zadania.' : 'Błąd podczas tworzenia zadania.'));
+      setErrorMsg(err.message || 'Błąd podczas tworzenia zadania.');
     }
   };
 
@@ -225,7 +200,6 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
   };
 
   const resetForm = () => {
-    setEditingTask(null);
     setNewTaskName('');
     setNewTaskType('npm_audit');
     setNewTaskCron('0 3 * * *');
@@ -283,8 +257,6 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
 
   const getTaskIcon = (taskType: string) => {
     switch (taskType) {
-      case 'omv_audit':
-        return <Terminal className="w-4 h-4 text-emerald-400" />;
       case 'npm_audit':
         return <ShieldCheck className="w-4 h-4 text-emerald-400" />;
       case 'error_check':
@@ -297,28 +269,28 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
   };
 
   return (
-    <div className={`bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-md text-white relative transition-colors hover:border-slate-700 ${className}`}>
+    <div className={`bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-800">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-400 shadow-inner">
-            <Clock className="w-6 h-6" />
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <Clock className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-100 text-lg tracking-tight">
+            <h3 className="font-semibold text-slate-100 text-sm tracking-wide">
               Harmonogram Zadań Agentów (Cron)
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-400">
               Cykliczne audyty bezpieczeństwa, synchronizacja i zadania AI
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => fetchTasks()}
             disabled={loading}
-            className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 transition-colors disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
             title="Odśwież listę zadań"
             aria-label="Odśwież zadania"
           >
@@ -326,26 +298,18 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-<<<<<<< HEAD
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors shadow-md hover:shadow-indigo-500/20 cursor-pointer active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-indigo-500"
-=======
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors shadow-sm"
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             Dodaj zadanie
           </button>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center justify-between">
+        <div className="mb-4 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center justify-between">
           <span>{errorMsg}</span>
-          <button 
-            onClick={() => setErrorMsg(null)} 
-            className="text-rose-400 hover:text-rose-200 p-1 rounded-md"
-            aria-label="Zamknij powiadomienie"
-          >
+          <button onClick={() => setErrorMsg(null)} className="text-rose-400 hover:text-rose-200">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -418,36 +382,28 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                     onClick={() => setSelectedOutputTask(task)}
                     className="p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                     title="Pokaż log wyjścia"
-                    aria-label="Pokaż log wyjścia"
+                    aria-label={`Pokaż log wyjścia zadania ${task.name}`}
                   >
                     <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 )}
 
                 <button
-<<<<<<< HEAD
-                  onClick={() => handleEditTask(task)}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors cursor-pointer"
-                  title="Edytuj zadanie"
-                  aria-label="Edytuj zadanie"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-=======
+                  type="button"
                   onClick={() => handleStartEdit(task)}
                   className="p-1.5 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                   title="Edytuj zadanie"
                   aria-label={`Edytuj zadanie ${task.name}`}
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
+                  <Edit2 className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleDelete(task.id)}
-                  className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                   title="Usuń zadanie"
-                  aria-label="Usuń zadanie"
+                  aria-label={`Usuń zadanie ${task.name}`}
                 >
                   <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
@@ -497,159 +453,102 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
 
       {/* Modal: Dodaj nowe zadanie */}
       {showAddModal && (
-        <div 
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-task-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/75 backdrop-blur-md overscroll-contain animate-in fade-in duration-150"
-        >
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 md:p-7 shadow-2xl overflow-y-auto max-h-[92vh] text-slate-100">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 id="add-task-modal-title" className="font-semibold text-slate-100 text-base">
-                    {editingTask ? 'Edytuj zadanie harmonogramu' : 'Dodaj nowe zadanie harmonogramu'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-indigo-400" />
+                <h4 className="font-semibold text-slate-100 text-sm">
+                  Dodaj nowe zadanie harmonogramu
                 </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {editingTask ? 'Zaktualizuj parametry zadania, polecenie lub regułę cron' : 'Skonfiguruj cykliczne zadanie powłoki, audytu lub diagnostyki'}
-                  </p>
-                </div>
               </div>
               <button
-                onClick={() => { setShowAddModal(false); resetForm(); }}
-                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-                aria-label="Zamknij formularz"
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer p-1 rounded hover:bg-slate-800"
+                aria-label="Zamknij okno dodawania zadania"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTask} className="mt-5 space-y-4">
+            <form onSubmit={handleCreateTask} className="mt-4 space-y-3.5">
               {/* Presets selector */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">
-                  Wybierz gotowy szablon zadania:
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                  Wybierz szablon zadania:
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   {presets.map(p => (
                     <button
                       key={p.type}
                       type="button"
                       onClick={() => handleSelectPreset(p.type)}
-<<<<<<< HEAD
-                      className={`text-left p-3 rounded-xl border text-xs transition-colors cursor-pointer ${
-=======
                       className={`text-left p-2.5 rounded-lg border text-xs transition-colors ${
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
                         newTaskType === p.type
-                          ? 'border-indigo-500 bg-indigo-500/15 text-indigo-200 shadow-sm ring-1 ring-indigo-500/50'
-                          : 'border-slate-800/90 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
+                          ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
+                          : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
                       }`}
                     >
-                      <span className="font-semibold block text-slate-100 text-xs tracking-tight">{p.name}</span>
-                      <span className="text-[11px] text-slate-400 block mt-1 leading-snug line-clamp-2">{p.description}</span>
+                      <span className="font-medium block text-slate-200">{p.name}</span>
+                      <span className="text-[10px] text-slate-500 truncate block mt-0.5">{p.description}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label htmlFor="newTaskName" className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-medium text-slate-400 mb-1">
                   Nazwa zadania:
                 </label>
                 <input
-                  id="newTaskName"
-                  name="name"
                   type="text"
                   name="newTaskName"
                   autoComplete="off"
                   required
                   value={newTaskName}
                   onChange={e => setNewTaskName(e.target.value)}
-<<<<<<< HEAD
-                  placeholder="np. Nocny audyt bezpieczeństwa…"
-                  autoComplete="off"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-=======
                   placeholder="np. Nocny audyt bezpieczeństwa"
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="newTaskCron" className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
                     Harmonogram Cron:
                   </label>
                   <input
-                    id="newTaskCron"
-                    name="cron"
                     type="text"
                     name="newTaskCron"
                     autoComplete="off"
                     required
                     value={newTaskCron}
                     onChange={e => setNewTaskCron(e.target.value)}
-<<<<<<< HEAD
-                    placeholder="np. 0 3 * * *…"
-                    spellCheck={false}
-                    autoComplete="off"
-                    className="w-full font-mono bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-=======
                     placeholder="np. 0 3 * * *"
                     className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
                   />
-                  <span className="text-[11px] text-slate-500 block mt-1 font-mono">
-                    np. 0 3 * * * (codziennie o 03:00 w nocy)
-                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">np. 0 3 * * * (03:00 codziennie)</span>
                 </div>
 
                 <div>
-                  <label htmlFor="newTaskType" className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
                     Typ zadania:
                   </label>
                   <select
-                    id="newTaskType"
-                    name="type"
                     value={newTaskType}
                     onChange={e => handleSelectPreset(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors cursor-pointer"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="omv_audit">Nocny audyt OMV (SMART + logi)</option>
                     <option value="npm_audit">Audyt bezpieczeństwa (npm audit)</option>
-                    <option value="error_check">Weryfikacja logów aplikacji</option>
-                    <option value="sync_tasks">Synchronizacja zadań (tasks.md)</option>
-                    <option value="custom_command">Własna komenda powłoki (SSH / Bash)</option>
+                    <option value="error_check">Weryfikacja logów</option>
+                    <option value="sync_tasks">Synchronizacja zadań</option>
+                    <option value="custom_command">Własna komenda powłoki</option>
                   </select>
                 </div>
               </div>
 
               <div>
-<<<<<<< HEAD
-                <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="newTaskCommand" className="text-xs font-semibold text-slate-300">
-                    Polecenie do wykonania:
-                  </label>
-                  <span className="text-[11px] text-slate-500 font-mono">
-                    Bash / SSH jednolinijkowiec
-                  </span>
-                </div>
-                <textarea
-                  id="newTaskCommand"
-                  name="command"
-                  rows={4}
-                  value={newTaskCommand}
-                  onChange={e => setNewTaskCommand(e.target.value)}
-                  placeholder="np. npm audit lub komenda SSH z badaniem logów…"
-                  spellCheck={false}
-                  autoComplete="off"
-                  className="w-full font-mono bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs md:text-sm text-emerald-300 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 leading-relaxed resize-y min-h-[105px] transition-colors"
-=======
                 <label className="block text-xs font-medium text-slate-400 mb-1">
                   Polecenie do wykonania:
                 </label>
@@ -662,41 +561,35 @@ export const AgentSchedulerWidget: React.FC<AgentSchedulerWidgetProps> = ({ clas
                   onChange={e => setNewTaskCommand(e.target.value)}
                   placeholder="npm audit lub node script.js"
                   className="w-full font-mono bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
->>>>>>> 459cbfdc07f71aa09b3dcc5f3782effcd36d81af
                 />
               </div>
 
-              <div className="pt-1">
-                <label 
-                  htmlFor="taskEnabled" 
-                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-900/60 cursor-pointer select-none transition-colors border border-transparent hover:border-slate-800"
-                >
+              <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
                   id="taskEnabled"
                   checked={newTaskEnabled}
                   onChange={e => setNewTaskEnabled(e.target.checked)}
-                    className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0"
                 />
-                  <span className="text-xs text-slate-300 font-medium">
-                    Włącz zadanie w harmonogramie natychmiast po zapisaniu
-                  </span>
+                <label htmlFor="taskEnabled" className="text-xs text-slate-300">
+                  Włącz zadanie natychmiast po zapisaniu
                 </label>
               </div>
 
-              <div className="pt-4 border-t border-slate-800/80 flex justify-end gap-3">
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => { setShowAddModal(false); resetForm(); }}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors shadow-md hover:shadow-indigo-500/20 cursor-pointer active:scale-[0.99]"
+                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium"
                 >
-                  {editingTask ? 'Zapisz zmiany' : 'Zapisz zadanie'}
+                  Zapisz zadanie
                 </button>
               </div>
             </form>
