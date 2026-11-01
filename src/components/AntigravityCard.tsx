@@ -66,7 +66,7 @@ export const AntigravityCard: React.FC<AntigravityCardProps> = ({
         const percentY = ((y / rect.height) * 100).toFixed(1);
         setGlareStyle({
           opacity: 1,
-          background: `radial-gradient(circle at ${percentX}% ${percentY}%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 40%, transparent 70%)`,
+          background: `radial-gradient(circle at ${percentX}% ${percentY}%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 40%, transparent 70%)`,
         });
       }
     });
@@ -84,11 +84,11 @@ export const AntigravityCard: React.FC<AntigravityCardProps> = ({
     });
   }, []);
 
-  // Soft multi-tiered weightless floating shadow
+  // Soft multi-tiered floating shadow with true glass refraction highlight
   const shadowTier = {
-    low: '0 10px 25px -10px rgba(0, 0, 0, 0.4), 0 0 15px -3px rgba(255, 255, 255, 0.04)',
-    medium: '0 20px 40px -15px rgba(0, 0, 0, 0.55), 0 0 25px -5px rgba(79, 70, 229, 0.15)',
-    high: '0 28px 50px -12px rgba(0, 0, 0, 0.65), 0 0 35px -5px rgba(99, 102, 241, 0.25)',
+    low: '0 8px 20px -6px rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.07)',
+    medium: '0 16px 36px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.09)',
+    high: '0 24px 48px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.12)',
   }[elevation];
 
   const ambientGlow = glowColor

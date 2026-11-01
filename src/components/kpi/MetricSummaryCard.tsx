@@ -55,7 +55,7 @@ export function MetricSummaryCard({ title, value, subtitle, trend, icon: Icon }:
         )}
       </div>
       <div className="antigravity-depth-pop" style={{ display: 'flex', alignItems: 'flex-end', gap: '0.6rem' }}>
-        <span style={{ fontSize: '1.9rem', fontWeight: 800, color: '#ffffff', lineHeight: 1, letterSpacing: '-0.02em' }}>
+        <span className="tabular-nums" style={{ fontSize: '1.9rem', fontWeight: 800, color: '#ffffff', lineHeight: 1, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
           {value}
         </span>
         {TrendIcon && (

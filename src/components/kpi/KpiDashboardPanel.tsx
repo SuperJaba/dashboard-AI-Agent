@@ -147,8 +147,8 @@ export function KpiDashboardPanel() {
         />
         <MetricSummaryCard
           title="Tokeny dziś"
-          value={data.tokenBurn.today.toLocaleString()}
-          subtitle={`Tydzień: ${data.tokenBurn.week.toLocaleString()}`}
+          value={data.tokenBurn.today.toLocaleString('en-US')}
+          subtitle={`Tydzień: ${data.tokenBurn.week.toLocaleString('en-US')}`}
           trend={data.tokenBurn.today > 0 ? 'up' : 'flat'}
           icon={Zap}
         />

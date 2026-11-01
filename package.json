@@ -56,9 +56,9 @@
     "zod": "^4.6.6"
   },
   "devDependencies": {
-    "@jridgewell/sourcemap-codec": "^1.6.0",
     "@babel/plugin-proposal-decorators": "^8.0.2",
     "@babel/plugin-syntax-decorators": "^8.0.1",
+    "@jridgewell/sourcemap-codec": "^1.6.0",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@testing-library/jest-dom": "^6.9.1",
@@ -90,5 +90,8 @@
   "optionalDependencies": {
     "node-pty": "^1.1.0"
   },
-  "allowScripts": { "*": true }
+  "allowScripts": {
+    "*": true,
+    "node-pty": true
+  }
 }

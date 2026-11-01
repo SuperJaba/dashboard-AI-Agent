@@ -1,4 +1,10 @@
 {
+  "env": {
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "131072",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
+    "enable_thinking": "false"
+  },
   "permissions": {
     "allow": [
       "Bash(git *)",
@@ -96,7 +102,8 @@
       "Bash(codegraph *)",
       "Bash(agy *)",
       "Bash(openclaude *)",
-      "Bash(claude *)"
+      "Bash(claude *)",
+      "Skill(commit-commands:commit-push-pr)"
     ],
     "deny": [
       "Bash(rm -rf /*)",
@@ -121,11 +128,5 @@
   "disabledMcpjsonServers": [
     "MCP_DOCKER"
   ],
-  "prefersReducedMotion": true,
-  "env": {
-    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "131072",
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000",
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
-    "enable_thinking": "false"
-  }
+  "prefersReducedMotion": true
 }
