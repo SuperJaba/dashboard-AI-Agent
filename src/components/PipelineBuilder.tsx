@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Play, Square, CheckCircle, Clock, AlertTriangle, ArrowRight,
+  Play, Square, CheckCircle, Clock, AlertTriangle,
   ShieldAlert, Sparkles, Box, RefreshCw, FileText
 } from 'lucide-react';
 import { apiClient } from '../shared/api-client';

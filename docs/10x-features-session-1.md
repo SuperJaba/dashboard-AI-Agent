@@ -126,6 +126,8 @@ Moving from a *launcher and viewer* to an *autonomous engineering fleet orchestr
 - **Q**: Should mobile notifications prioritize Telegram bot webhook or browser WebPush with service workers? (Telegram is faster to set up and works reliably on iOS/Android without certificate overhead).
 
 ## Next Steps
-- [ ] Implement the **Global Emergency Kill-Switch & VRAM Purge** button in dashboard header.
-- [ ] Prototype the Telegram notification & 1-tap PR merge webhook.
-- [ ] Define the DAG specification for Multi-Agent Assembly Pipelines.
+- [x] Implement the **Global Emergency Kill-Switch & VRAM Purge** button in dashboard header (completed in Phase 1: `EmergencyPanicButton.tsx` + `POST /api/agents/emergency-stop`).
+- [x] Prototype the Telegram notification & 1-tap PR merge webhook (completed in Phase 1: `telegramWebhookRouter.js` + `createTelegramApprovalPayload`).
+- [x] Implement the **Task Card Speedometer & Cost Telemetry** micro-ticker (completed in Phase 1: `TaskSpeedometer.tsx`).
+- [x] Implement **Multi-Agent Pipeline Orchestrator (Agent DAGs)** with artifact context relay, approval gates and visual builder (completed in Feature 02: `PipelineBuilder.tsx`, `pipelineRunner.js`, `pipelineRepository.js`, `pipelineRouter.js`).
+- [ ] Implement Feature 03: Live Time-Travel Execution Player & Instant Rollback.

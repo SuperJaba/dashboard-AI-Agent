@@ -84,7 +84,9 @@ export const inMemoryStore = {
   agent_logs: [],
   pipelines: [],
   pipeline_runs: [],
-  pipeline_artifacts: []
+  pipeline_artifacts: [],
+  snapshot_sessions: [],
+  snapshot_events: []
 };
 
 let useInMemoryFallback = false;
@@ -94,7 +96,12 @@ const rawPoolQuery = pool.query.bind(pool);
 export async function safeQuery(text, params = []) {
   if (!useInMemoryFallback) {
     try {
-      return await rawPoolQuery(text, params);
+      let pgText = text;
+      if (text.includes('?')) {
+        let paramIndex = 1;
+        pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
+      }
+      return await rawPoolQuery(pgText, params);
     } catch (err) {
       if (err.code === 'ECONNREFUSED' || err.code === '57P01' || err.message?.includes('connect ECONNREFUSED')) {
         console.warn('PostgreSQL connection unavailable, using fallback store:', err.message);
@@ -614,6 +621,90 @@ export async function safeQuery(text, params = []) {
     return { rows: [{ ...art }] };
   }
 
+  // Snapshot Sessions queries
+  if (sql.includes('DELETE FROM snapshot_sessions')) {
+    inMemoryStore.snapshot_sessions = [];
+    return { rows: [] };
+  }
+
+  if (sql.includes('FROM snapshot_sessions')) {
+    if (sql.includes('WHERE id = $1') || sql.includes('WHERE id = ?') || sql.includes('WHERE id=')) {
+      const s = inMemoryStore.snapshot_sessions.find(x => x.id === params[0]);
+      return { rows: s ? [{ ...s }] : [] };
+    }
+    return { rows: inMemoryStore.snapshot_sessions.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO snapshot_sessions')) {
+    const session = {
+      id: params[0],
+      agent_name: params[1],
+      started_at: params[2] || new Date().toISOString(),
+      stopped_at: null,
+      ended_at: null
+    };
+    inMemoryStore.snapshot_sessions.push(session);
+    return { rows: [{ ...session }] };
+  }
+
+  if (sql.includes('UPDATE snapshot_sessions')) {
+    const id = params[params.length - 1];
+    const session = inMemoryStore.snapshot_sessions.find(x => x.id === id);
+    if (session) {
+      if (sql.includes('stopped_at') || sql.includes('ended_at')) {
+        session.stopped_at = params[0];
+        session.ended_at = params[0];
+      }
+      return { rows: [{ ...session }] };
+    }
+    return { rows: [] };
+  }
+
+  // Snapshot Events queries
+  if (sql.includes('DELETE FROM snapshot_events')) {
+    inMemoryStore.snapshot_events = [];
+    return { rows: [] };
+  }
+
+  if (sql.includes('FROM snapshot_events')) {
+    if (sql.includes('WHERE session_id = $1') || sql.includes('WHERE session_id = ?') || sql.includes('WHERE session_id=')) {
+      const events = inMemoryStore.snapshot_events
+        .filter(x => x.session_id === params[0])
+        .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+      return { rows: events.map(x => ({ ...x })) };
+    }
+    const events = [...inMemoryStore.snapshot_events].sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+    return { rows: events.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO snapshot_events')) {
+    const colMatch = sql.match(/INSERT\s+INTO\s+snapshot_events\s*\(([^)]+)\)/i);
+    let cols = [];
+    if (colMatch) {
+      cols = colMatch[1].split(',').map(c => c.trim().toLowerCase());
+    }
+    const event = {
+      id: null,
+      session_id: null,
+      seq: Date.now(),
+      ts: new Date().toISOString(),
+      type: 'event',
+      path: null,
+      diff: null,
+      cmdline: null,
+      exit_code: null
+    };
+    cols.forEach((col, idx) => {
+      if (params[idx] !== undefined) {
+        event[col] = params[idx];
+      }
+    });
+    if (!event.id && params[0]) event.id = params[0];
+    if (!event.session_id && params[1]) event.session_id = params[1];
+    inMemoryStore.snapshot_events.push(event);
+    return { rows: [{ ...event }] };
+  }
+
   return { rows: [] };
 }
 
@@ -766,6 +857,25 @@ export async function migrate() {
       type VARCHAR(50) NOT NULL,
       content TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS snapshot_sessions (
+      id VARCHAR(255) PRIMARY KEY,
+      agent_name VARCHAR(255) NOT NULL,
+      started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      stopped_at TIMESTAMP
+    );`,
+    'ALTER TABLE snapshot_sessions ADD COLUMN IF NOT EXISTS stopped_at TIMESTAMP;',
+    'ALTER TABLE snapshot_sessions ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP;',
+    `CREATE TABLE IF NOT EXISTS snapshot_events (
+      id VARCHAR(255) PRIMARY KEY,
+      session_id VARCHAR(255) NOT NULL,
+      seq BIGINT,
+      ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      type VARCHAR(50) NOT NULL,
+      path TEXT,
+      diff TEXT,
+      cmdline TEXT,
+      exit_code INTEGER
     );`
   ];
 

@@ -83,7 +83,7 @@ pipelineRouter.post('/:id/runs/:runId/approve', (req, res) => {
 // DELETE /api/pipelines/:id/runs/:runId - abort run
 pipelineRouter.delete('/:id/runs/:runId', (req, res) => {
   try {
-    const aborted = abortRun(req.params.runId);
+    abortRun(req.params.runId);
     res.json({ aborted: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
