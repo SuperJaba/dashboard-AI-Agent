@@ -119,4 +119,10 @@ describe('ModelRoutingWidget', () => {
       expect(zeroMatches.length).toBe(2);
     });
   });
+
+  it('renders cost savings meter and last routing ticker', () => {
+    render(<ModelRoutingWidget />);
+    expect(screen.getByText(/Oszczędności dzięki routingowi lokalnemu/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ostatni routing/i)).toBeInTheDocument();
+  });
 });

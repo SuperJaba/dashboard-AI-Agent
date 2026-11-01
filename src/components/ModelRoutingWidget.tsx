@@ -13,6 +13,13 @@ interface ModelRoutingStats {
   avgCloudLatencyMs: number;
   localEndpoint?: string;
   fallbackCount?: number;
+  savedCostUsd?: number;
+  lastRoute?: {
+    tier: string;
+    model: string;
+    estimatedCostUsd: number;
+    routingReason: string;
+  };
 }
 
 const DEFAULT_STATS: ModelRoutingStats = {
@@ -26,6 +33,7 @@ const DEFAULT_STATS: ModelRoutingStats = {
   avgCloudLatencyMs: 1450,
   localEndpoint: 'http://10.10.10.30:1234/v1',
   fallbackCount: 0,
+  savedCostUsd: 1.01,
 };
 
 export function ModelRoutingWidget() {
@@ -237,6 +245,22 @@ export function ModelRoutingWidget() {
           </span>
           <span style={{ fontSize: '0.7rem', color: '#818cf8' }}>
             Śr. czas: ~{stats.avgCloudLatencyMs}ms
+          </span>
+        </div>
+      </div>
+
+      {/* Cost Savings & Routing Ticker */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#34d399' }}>Oszczędności dzięki routingowi lokalnemu:</span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#10b981', fontFamily: 'monospace' }}>
+            ${(stats.savedCostUsd ?? (stats.localTasks * 0.012)).toFixed(2)} USD
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          <span>Ostatni routing:</span>
+          <span style={{ fontFamily: 'monospace', color: '#38bdf8' }}>
+            {stats.lastRoute ? `${stats.lastRoute.model} (${stats.lastRoute.routingReason})` : 'Lokalny Qwen (zerowy koszt)'}
           </span>
         </div>
       </div>

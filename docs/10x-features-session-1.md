@@ -131,4 +131,5 @@ Moving from a *launcher and viewer* to an *autonomous engineering fleet orchestr
 - [x] Implement the **Task Card Speedometer & Cost Telemetry** micro-ticker (completed in Phase 1: `TaskSpeedometer.tsx`).
 - [x] Implement **Multi-Agent Pipeline Orchestrator (Agent DAGs)** with artifact context relay, approval gates and visual builder (completed in Feature 02: `PipelineBuilder.tsx`, `pipelineRunner.js`, `pipelineRepository.js`, `pipelineRouter.js`).
 - [x] Implement **Live Time-Travel Execution Player & Instant Rollback** with reverse diff patching and event stream (completed in Feature 03: `TimeTravelPlayer.tsx`, `snapshotService.js`, `snapshotRestoreService.js`, `timemachineRouter.js`).
-- [ ] Implement Feature 04: Local-to-Cloud Dynamic Intelligence & Cost Matrix (Hybrid Inference Router).
+- [x] Implement **Hybrid Inference Router & Cost Matrix** with context size estimation, token pricing accumulator and fallback routing (completed in Feature 04: `contextEstimator.js`, `costTracker.js`, `inferenceRouter.js`, `ModelRoutingWidget.tsx`).
+- [ ] Implement Feature 05: "Ghost Ops" Nightly Autonomous Self-Healing Daemon.
