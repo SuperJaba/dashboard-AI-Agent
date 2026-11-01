@@ -5,9 +5,17 @@ import { getRouterStats, resetRouterCircuitBreaker } from '../llm/modelRouter.js
 export const llmServersRouter = express.Router();
 
 // Get Model Routing Stats & Circuit Breaker status
-llmServersRouter.get('/llm/routing/stats', (req, res) => {
+llmServersRouter.get('/llm/routing/stats', async (req, res) => {
   try {
     const stats = getRouterStats();
+    try {
+      const servers = await llmRepo.getLlmServers();
+      const active = servers.find((s) => s.is_active);
+      if (active) {
+        if (active.url) stats.localEndpoint = active.url;
+        if (active.model) stats.primaryLocalModel = active.model;
+      }
+    } catch {}
     res.json(stats);
   } catch (err) {
     res.status(500).json({ error: err.message });

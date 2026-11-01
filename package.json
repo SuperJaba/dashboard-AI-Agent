@@ -53,6 +53,7 @@
     "recharts": "^3.9.2",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
+    "tldts": "^7.4.19",
     "zod": "^4.6.6"
   },
   "devDependencies": {
@@ -91,7 +92,6 @@
     "node-pty": "^1.1.0"
   },
   "allowScripts": {
-    "*": true,
     "node-pty": true
   }
 }
