@@ -4,18 +4,25 @@ import chokidar from 'chokidar';
 import { createPatch } from 'diff';
 import { safeQuery } from '../db.js';
 
-export const activeSessions = new Map(); // sessionId -> { watcher, agentName, workdir, fileCache }
+export const activeSessions = new Map();
+
+let lastSeq = 0;
+function nextSeq() {
+  const now = Date.now();
+  lastSeq = now > lastSeq ? now : lastSeq + 1;
+  return lastSeq;
+} // sessionId -> { watcher, agentName, workdir, fileCache }
 
 /**
  * Starts a new time-machine recording session for an agent.
  * Initializes chokidar watcher on the agent's workdir (if provided).
  */
-export async function startSession(agentName, workdir) {
+export async function startSession(agentName, workdir, options = {}) {
   const sessionId = crypto.randomUUID();
   const fileCache = new Map(); // path -> last known content
 
   let watcher = null;
-  if (workdir) {
+  if (workdir && options.watch !== false) {
     watcher = chokidar.watch(workdir, {
       ignored: /node_modules|\.git|dist|coverage/,
       persistent: true,
@@ -51,7 +58,7 @@ export async function startSession(agentName, workdir) {
 export async function recordFileWrite(sessionId, filePath, oldContent, newContent) {
   const diff = createPatch(filePath, oldContent ?? '', newContent ?? '');
   const id = crypto.randomUUID();
-  const seq = Date.now();
+  const seq = nextSeq();
   const ts = new Date().toISOString();
 
   await safeQuery(
@@ -76,7 +83,7 @@ export async function recordFileWrite(sessionId, filePath, oldContent, newConten
  */
 export async function recordBashCmd(sessionId, cmdline, exitCode) {
   const id = crypto.randomUUID();
-  const seq = Date.now();
+  const seq = nextSeq();
   const ts = new Date().toISOString();
 
   await safeQuery(
