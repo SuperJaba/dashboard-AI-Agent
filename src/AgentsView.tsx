@@ -8,6 +8,7 @@ import { LlmServerManager } from './LlmServerManager';
 import { LocalWorkerModal } from './LocalWorkerModal';
 import { AntigravityCard } from './components/AntigravityCard';
 import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
+import { TaskSpeedometer } from './components/TaskSpeedometer';
 
 export interface Agent {
   id: number;
@@ -588,6 +589,14 @@ export function AgentsView() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Task Speedometer & Cost Telemetry */}
+                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'center' }}>
+                    <TaskSpeedometer
+                      model={agent.llm_model}
+                      maxContextTokens={agent.max_tokens || 8192}
+                    />
                   </div>
                   
                   {/* Subtle edge neon light */}
