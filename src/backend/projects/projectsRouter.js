@@ -706,7 +706,17 @@ projectsRouter.post('/deploy', async (req, res) => {
       }
     }
     
-    if (dangerouslySkipPermissions) {
+    const hasAdminPrivileges = Boolean(
+      req?.user?.isAdmin ||
+      req?.user?.role === 'admin'
+    );
+    const hasInternalDangerousConfirmation = Boolean(
+      process.env.INTERNAL_DANGEROUS_CONFIRM_TOKEN &&
+      req?.headers?.['x-internal-dangerous-confirm'] === process.env.INTERNAL_DANGEROUS_CONFIRM_TOKEN
+    );
+    const allowDangerousSkip = hasAdminPrivileges || hasInternalDangerousConfirmation;
+
+    if (dangerouslySkipPermissions && allowDangerousSkip) {
       agentBaseCmd += ' --dangerously-skip-permissions';
     }
 
