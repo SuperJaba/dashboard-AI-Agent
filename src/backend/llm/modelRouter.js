@@ -43,6 +43,10 @@ class CircuitBreaker {
     this.nextAttempt = Date.now();
   }
 
+  isOpen() {
+    return this.state === 'OPEN' && Date.now() < this.nextAttempt;
+  }
+
   canAttempt() {
     if (this.state === 'CLOSED') return true;
     if (this.state === 'OPEN') {
