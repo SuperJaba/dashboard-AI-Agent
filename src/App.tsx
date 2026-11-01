@@ -16,6 +16,7 @@ import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
 import { DeployCt8Widget } from './components/deploy-ct8-widget';
 import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
+import { EmergencyPanicButton } from './components/EmergencyPanicButton';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';
 
@@ -359,6 +360,9 @@ function App() {
             <Laptop size={16} aria-hidden="true" />
             <span>{workersCount > 0 ? `Socket: Połączono (${workersCount})` : 'Socket / Tunel PC'}</span>
           </button>
+          <div style={{ marginTop: '0.5rem', display: 'flex' }}>
+            <EmergencyPanicButton />
+          </div>
           <button 
             type="button"
             onClick={() => setShowSettings(true)}
