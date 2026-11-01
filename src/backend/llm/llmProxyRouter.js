@@ -3,6 +3,8 @@ import fetch from 'node-fetch';
 import net from 'net';
 import { safeQuery } from '../db.js';
 import { logger } from '../utils/logger.js';
+import { recordTaskExecution } from './modelRouter.js';
+import { broadcastRoutingStats } from '../socket/dashboardNamespace.js';
 
 export const llmProxyRouter = express.Router();
 
@@ -157,6 +159,7 @@ llmProxyRouter.use(async (req, res) => {
   delete forwardHeaders['content-length'];
 
   const taskIdHeader = req.headers['x-task-id'] ? parseInt(req.headers['x-task-id'], 10) : null;
+  const startTime = Date.now();
 
   try {
     const options = {
@@ -169,6 +172,15 @@ llmProxyRouter.use(async (req, res) => {
     }
 
     const upstreamResponse = await fetch(targetUrl, options);
+    const durationMs = Date.now() - startTime;
+    const isLocal = upstreamBase.includes('10.10.10.') || 
+                    upstreamBase.includes('localhost') || 
+                    upstreamBase.includes('127.0.0.1') || 
+                    upstreamBase.includes('192.168.');
+    try {
+      recordTaskExecution({ tier: isLocal ? 'low' : 'high', durationMs });
+      broadcastRoutingStats();
+    } catch {}
 
     // Forward status and headers
     res.status(upstreamResponse.status);

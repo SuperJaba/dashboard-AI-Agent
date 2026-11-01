@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger.js';
 import { safeQuery } from '../db.js';
+import { broadcastRoutingStats } from './dashboardNamespace.js';
 
 /**
  * Finds the best shell executable for the current platform.
@@ -140,7 +141,9 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
             safeQuery(
               'UPDATE agent_tasks SET status = $1, duration_ms = $2, updated_at = NOW() WHERE id = $3',
               [exitCode === 0 ? 'completed' : 'failed', durationMs, currentTaskId]
-            ).catch(() => {});
+            ).then(() => {
+              broadcastRoutingStats();
+            }).catch(() => {});
           }
           activeTerminalSessions.delete(socket.id);
           socket.emit('terminal_exit', { exitCode, signal });
@@ -180,9 +183,11 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
       if (session?.taskId) {
         const durationMs = Date.now() - session.sessionStartTime;
         safeQuery(
-          "UPDATE agent_tasks SET status = CASE WHEN status = 'started' THEN 'stopped' ELSE status END, duration_ms = COALESCE(duration_ms, $1), updated_at = NOW() WHERE id = $2",
+          "UPDATE agent_tasks SET status = CASE WHEN status = 'started' THEN 'stopped' ELSE status END, duration_ms = CASE WHEN duration_ms IS NULL OR duration_ms = 0 THEN $1 ELSE duration_ms END, updated_at = NOW() WHERE id = $2",
           [durationMs, session.taskId]
-        ).catch(() => {});
+        ).then(() => {
+          broadcastRoutingStats();
+        }).catch(() => {});
         activeTerminalSessions.delete(socket.id);
       }
       if (activeWorkerSocket) {

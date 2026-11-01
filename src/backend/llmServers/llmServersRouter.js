@@ -1,21 +1,28 @@
 import express from 'express';
 import * as llmRepo from './llmServersRepository.js';
-import { getRouterStats, resetRouterCircuitBreaker } from '../llm/modelRouter.js';
+import { getAggregatedRouterStats, resetRouterCircuitBreaker } from '../llm/modelRouter.js';
+import { broadcastRoutingStats } from '../socket/dashboardNamespace.js';
 
 export const llmServersRouter = express.Router();
 
 // Get Model Routing Stats & Circuit Breaker status
 llmServersRouter.get('/llm/routing/stats', async (req, res) => {
   try {
-    const stats = getRouterStats();
+    let activeEndpoint = null;
+    let activeModel = null;
     try {
       const servers = await llmRepo.getLlmServers();
       const active = servers.find((s) => s.is_active);
       if (active) {
-        if (active.url) stats.localEndpoint = active.url;
-        if (active.model) stats.primaryLocalModel = active.model;
+        if (active.url) activeEndpoint = active.url;
+        if (active.model) activeModel = active.model;
       }
     } catch {}
+
+    const stats = await getAggregatedRouterStats({
+      activeLocalModel: activeModel,
+      activeEndpoint: activeEndpoint,
+    });
     res.json(stats);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -23,9 +30,25 @@ llmServersRouter.get('/llm/routing/stats', async (req, res) => {
 });
 
 // Reset Circuit Breaker manually
-llmServersRouter.post('/llm/routing/circuit/reset', (req, res) => {
+llmServersRouter.post('/llm/routing/circuit/reset', async (req, res) => {
   try {
-    const stats = resetRouterCircuitBreaker();
+    resetRouterCircuitBreaker();
+    let activeEndpoint = null;
+    let activeModel = null;
+    try {
+      const servers = await llmRepo.getLlmServers();
+      const active = servers.find((s) => s.is_active);
+      if (active) {
+        if (active.url) activeEndpoint = active.url;
+        if (active.model) activeModel = active.model;
+      }
+    } catch {}
+
+    const stats = await getAggregatedRouterStats({
+      activeLocalModel: activeModel,
+      activeEndpoint: activeEndpoint,
+    });
+    broadcastRoutingStats(stats);
     res.json({ success: true, stats });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -50,6 +73,7 @@ llmServersRouter.post('/llm-servers', async (req, res) => {
       return res.status(400).json({ error: 'Name and URL are required' });
     }
     const server = await llmRepo.createLlmServer({ name, url, apiKey, model, provider, is_active });
+    broadcastRoutingStats();
     res.json(server);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -60,6 +84,7 @@ llmServersRouter.post('/llm-servers', async (req, res) => {
 llmServersRouter.put('/llm-servers/:id', async (req, res) => {
   try {
     const server = await llmRepo.updateLlmServer(req.params.id, req.body);
+    broadcastRoutingStats();
     res.json(server);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -70,6 +95,7 @@ llmServersRouter.put('/llm-servers/:id', async (req, res) => {
 llmServersRouter.delete('/llm-servers/:id', async (req, res) => {
   try {
     const result = await llmRepo.deleteLlmServer(req.params.id);
+    broadcastRoutingStats();
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -80,6 +106,7 @@ llmServersRouter.delete('/llm-servers/:id', async (req, res) => {
 llmServersRouter.post('/llm-servers/select/:id', async (req, res) => {
   try {
     const selected = await llmRepo.selectLlmServer(req.params.id);
+    broadcastRoutingStats();
     res.json({ success: true, selected });
   } catch (err) {
     res.status(500).json({ error: err.message });

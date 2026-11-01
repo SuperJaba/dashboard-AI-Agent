@@ -11,6 +11,7 @@ import { getBestAvailableModel } from '../utils/llm.js';
 import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects, findMarkdownFiles, extractChecklistItems } from './tasksSyncService.js';
 import { detectTechnology } from './techDetector.js';
 import { safeQuery } from '../db.js';
+import { broadcastRoutingStats } from '../socket/dashboardNamespace.js';
 
 export const projectsRouter = express.Router();
 
@@ -826,6 +827,7 @@ projectsRouter.post('/deploy', async (req, res) => {
         [targetAgent?.name || agent, projectId, 'started', llmModel || null, 0]
       );
       taskId = taskRes?.rows?.[0]?.id || null;
+      broadcastRoutingStats();
     } catch (e) {
       console.warn('Failed to insert agent_tasks entry:', e.message);
     }
