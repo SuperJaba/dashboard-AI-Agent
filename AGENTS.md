@@ -6,6 +6,8 @@
 - **Port Mapping:** Development uses Vite on port 5173 (proxies API requests) and Express API on port 3001.
 - **Styling:** Uses Tailwind CSS v4 via `@tailwindcss/postcss` (no `tailwind.config.js`).
 - **SSH Configuration:** Remote hosts (`jagger2` for CT8 `s1.ct8.pl` and `omv` for OpenMediaVault `10.10.10.100`). For OMV direct access, always supply `-i /home/seba/.ssh/id_ed25519_antigravity` and run with `BypassSandbox: true` to avoid sandbox network isolation and auth failures. Use `jagger2` as the CT8 SSH target.
+- **CI/CD & Action Pinning:** When pinning GitHub Actions to immutable commit SHAs, never use arbitrary legacy hashes; verify the live commit of the latest major tag via `gh api repos/{owner}/{repo}/git/ref/tags/{tag}` (deprecated v1/v2 actions like `actions/cache` are actively rejected by GitHub).
+- **Non-Interactive Git Merges:** In non-interactive agent sessions, always pass `--no-edit` or an explicit `-m "..."` to `git merge` to prevent failures when `EDITOR=false`.
 
 ## Context Pointers (Disclosed Reference)
 - **API Spec & Routes**: [`docs/openapi.yaml`](docs/openapi.yaml) (OpenAPI spec) or [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) (narrative)
