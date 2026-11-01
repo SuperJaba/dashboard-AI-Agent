@@ -86,7 +86,8 @@ export const inMemoryStore = {
   pipeline_runs: [],
   pipeline_artifacts: [],
   snapshot_sessions: [],
-  snapshot_events: []
+  snapshot_events: [],
+  llm_usage: []
 };
 
 let useInMemoryFallback = false;
@@ -705,6 +706,54 @@ export async function safeQuery(text, params = []) {
     return { rows: [{ ...event }] };
   }
 
+  // LLM Usage queries
+  if (sql.includes('DELETE FROM llm_usage')) {
+    inMemoryStore.llm_usage = [];
+    return { rows: [] };
+  }
+
+  if (sql.includes('FROM llm_usage')) {
+    if (sql.includes('WHERE task_id = $1') || sql.includes('WHERE task_id = ?') || sql.includes('WHERE task_id=')) {
+      const rows = inMemoryStore.llm_usage.filter(u => u.task_id === params[0]);
+      return { rows: rows.map(x => ({ ...x })) };
+    }
+    if (sql.includes('GROUP BY model_id')) {
+      const grouped = {};
+      for (const item of inMemoryStore.llm_usage) {
+        if (!grouped[item.model_id]) {
+          grouped[item.model_id] = {
+            model_id: item.model_id,
+            calls: 0,
+            total_input: 0,
+            total_output: 0,
+            total_cost: 0
+          };
+        }
+        grouped[item.model_id].calls += 1;
+        grouped[item.model_id].total_input += (Number(item.input_tokens) || 0);
+        grouped[item.model_id].total_output += (Number(item.output_tokens) || 0);
+        grouped[item.model_id].total_cost += (Number(item.cost_usd) || 0);
+      }
+      const rows = Object.values(grouped).sort((a, b) => b.total_cost - a.total_cost);
+      return { rows };
+    }
+    return { rows: inMemoryStore.llm_usage.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO llm_usage')) {
+    const item = {
+      id: inMemoryStore.llm_usage.length + 1,
+      task_id: params[0],
+      model_id: params[1],
+      input_tokens: Number(params[2]) || 0,
+      output_tokens: Number(params[3]) || 0,
+      cost_usd: Number(params[4]) || 0,
+      ts: params[5] || new Date().toISOString()
+    };
+    inMemoryStore.llm_usage.push(item);
+    return { rows: [{ ...item }] };
+  }
+
   return { rows: [] };
 }
 
@@ -876,6 +925,15 @@ export async function migrate() {
       diff TEXT,
       cmdline TEXT,
       exit_code INTEGER
+    );`,
+    `CREATE TABLE IF NOT EXISTS llm_usage (
+      id SERIAL PRIMARY KEY,
+      task_id VARCHAR(255),
+      model_id VARCHAR(255) NOT NULL,
+      input_tokens INTEGER DEFAULT 0,
+      output_tokens INTEGER DEFAULT 0,
+      cost_usd NUMERIC(10, 6) DEFAULT 0,
+      ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];
 
