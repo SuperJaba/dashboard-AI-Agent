@@ -54,16 +54,6 @@ describe('arenaRunner', () => {
       return '';
     });
 
-    const run = {
-      runId: 'test-arena-1',
-      branchName: 'arena-branch-1',
-      arenaPath: '/tmp/arena-1',
-      repoPath: '/workspace/project',
-      status: 'done',
-      agent: 'claude',
-      execFn: mockExec
-    };
-
     // Prepopulate active arenas
     createArenaRun({
       originalTaskId: 'task-1',

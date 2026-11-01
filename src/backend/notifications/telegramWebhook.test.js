@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { createTelegramApprovalPayload } from './adapters/telegramAdapter.js';
 import { telegramWebhookRouter } from './telegramWebhookRouter.js';
-import { requestApproval, getPendingApprovals } from './approvalGateway.js';
+import { requestApproval } from './approvalGateway.js';
 
 describe('Telegram Webhook and Interactive Approvals', () => {
   it('generates telegram payload with inline keyboard buttons for 1-tap approval', () => {
