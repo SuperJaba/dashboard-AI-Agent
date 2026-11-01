@@ -89,4 +89,34 @@ describe('ModelRoutingWidget', () => {
       expect(screen.getByText(/Obwód: SPRAWNY \(CLOSED\)/i)).toBeDefined();
     });
   });
+
+  it('renders 0% for both tiers when total tasks is 0', async () => {
+    const zeroStats = {
+      localTasks: 0,
+      cloudTasks: 0,
+      circuitBreakerState: 'CLOSED',
+      primaryLocalModel: 'unsloth/Qwen3.5-4B-MTP-GGUF',
+      fallbackLocalModel: 'granite-4.0-micro',
+      cloudModel: 'AGY (Gemini Pro)',
+      avgLocalLatencyMs: 0,
+      avgCloudLatencyMs: 0,
+      localEndpoint: 'http://10.10.10.30:8888/v1',
+      fallbackCount: 0,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => zeroStats,
+    } as unknown as Response);
+
+    render(<ModelRoutingWidget />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/10.10.10.30:8888 \(LM Studio\)/i)).toBeDefined();
+      expect(screen.queryByText(/100% \(0 zadań\)/i)).toBeNull();
+      const zeroMatches = screen.getAllByText(/^0%/);
+      expect(zeroMatches.length).toBe(2);
+    });
+  });
 });

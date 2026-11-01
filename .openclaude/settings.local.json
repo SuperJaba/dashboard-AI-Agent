@@ -97,7 +97,10 @@
       "Bash(agy *)",
       "Bash(openclaude *)",
       "Bash(claude *)",
-      "Skill(sys-admin)"
+      "Skill(sys-admin)",
+      "Bash(for pr)",
+      "Bash(do echo:*)",
+      "Bash(done)"
     ],
     "deny": [
       "Bash(rm -rf /*)",

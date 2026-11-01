@@ -37,9 +37,10 @@ describe('T5 Model Routing', () => {
 
   describe('selectModelRoute', () => {
     it('routes low and medium tasks to LM Studio local models', () => {
+      const expectedModel = process.env.LLM_LOCAL_MODEL || 'openai/gpt-oss-20b';
       const lowRoute = selectModelRoute('Wypisz listę plików');
       expect(lowRoute.provider).toBe('lm-studio');
-      expect(lowRoute.model).toBe('openai/gpt-oss-20b');
+      expect(lowRoute.model).toBe(expectedModel);
       expect(lowRoute.fallbackModel).toBe('granite-4.0-micro');
 
       const medRoute = selectModelRoute('Dodaj komponent walidacji formularza');
@@ -69,7 +70,7 @@ describe('T5 Model Routing', () => {
     it('returns initial default statistics and circuit state', () => {
       const stats = getRouterStats();
       expect(stats.circuitBreakerState).toBe('CLOSED');
-      expect(stats.primaryLocalModel).toBe('openai/gpt-oss-20b');
+      expect(stats.primaryLocalModel).toBe(process.env.LLM_LOCAL_MODEL || 'openai/gpt-oss-20b');
       expect(stats.fallbackLocalModel).toBe('granite-4.0-micro');
       expect(stats.localTasks).toBeGreaterThanOrEqual(0);
     });

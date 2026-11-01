@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Cpu, Cloud, Zap, ArrowRight, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useDashboardSocket } from '../hooks/useDashboardSocket';
 
 interface ModelRoutingStats {
   localTasks: number;
@@ -78,14 +79,32 @@ export function ModelRoutingWidget() {
     }
   };
 
+  const { socket } = useDashboardSocket();
+
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 15_000);
+    const interval = setInterval(fetchStats, 5_000);
     return () => clearInterval(interval);
   }, [fetchStats]);
 
+  useEffect(() => {
+    if (!socket) return;
+    const handleDirectStats = (incoming: ModelRoutingStats) => {
+      if (incoming) setStats(incoming);
+    };
+    socket.on('routing:stats', handleDirectStats);
+    socket.on('routing:stats_updated', fetchStats);
+    socket.on('agent_event', fetchStats);
+    return () => {
+      socket.off('routing:stats', handleDirectStats);
+      socket.off('routing:stats_updated', fetchStats);
+      socket.off('agent_event', fetchStats);
+    };
+  }, [socket, fetchStats]);
+
   const total = stats.localTasks + stats.cloudTasks;
   const localRatio = total > 0 ? Math.round((stats.localTasks / total) * 100) : 0;
+  const cloudRatio = total > 0 ? 100 - localRatio : 0;
   const isCircuitOpen = stats.circuitBreakerState === 'OPEN';
 
   return (
@@ -208,7 +227,7 @@ export function ModelRoutingWidget() {
             <Cloud size={14} color="#818cf8" />
           </div>
           <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#818cf8' }}>
-            {100 - localRatio}% <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--text-muted)' }}>({stats.cloudTasks} zadań)</span>
+            {cloudRatio}% <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--text-muted)' }}>({stats.cloudTasks} zadań)</span>
           </span>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
             Model: <code style={{ color: '#818cf8' }}>{stats.cloudModel}</code>
@@ -228,7 +247,7 @@ export function ModelRoutingWidget() {
         <ArrowRight size={12} />
         <code>Scorer (low/med/high)</code>
         <ArrowRight size={12} />
-        <code>{stats.localEndpoint ? `${stats.localEndpoint.replace(/^http:\/\//, '').replace(/\/v1$/, '')} (LM Studio)` : '10.10.10.30:1234 (LM Studio)'} / AGY</code>
+        <code>{stats.localEndpoint ? `${stats.localEndpoint.replace(/^https?:\/\//, '').replace(/\/v1\/?$/, '')} (LM Studio)` : '10.10.10.30:1234 (LM Studio)'} / AGY</code>
       </div>
     </div>
   );

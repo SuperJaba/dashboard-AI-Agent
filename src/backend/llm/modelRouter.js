@@ -7,6 +7,7 @@
 import { scoreComplexity } from './complexityScorer.js';
 import { getProvider } from './providers/index.js';
 import { logger } from '../utils/logger.js';
+import { safeQuery } from '../db.js';
 
 const LOCAL_URL = process.env.LLM_LOCAL_URL || 'http://10.10.10.30:1234/v1';
 const LOCAL_PRIMARY = process.env.LLM_LOCAL_MODEL || 'openai/gpt-oss-20b';
@@ -97,6 +98,94 @@ export function getRouterStats() {
     avgLocalLatencyMs,
     avgCloudLatencyMs,
     localEndpoint: LOCAL_URL,
+    fallbackCount: statsState.fallbackCount,
+  };
+}
+
+export async function getAggregatedRouterStats({ activeLocalModel, activeEndpoint } = {}) {
+  let dbLocalTasks = 0;
+  let dbCloudTasks = 0;
+  let dbTotalLocalLatency = 0;
+  let dbTotalCloudLatency = 0;
+
+  try {
+    const res = await safeQuery(
+      `SELECT model, agent_name, duration_ms, created_at, updated_at, status 
+       FROM agent_tasks 
+       ORDER BY id DESC LIMIT 500`
+    );
+
+    if (res?.rows && Array.isArray(res.rows)) {
+      for (const row of res.rows) {
+        const rawModel = (row.model || '').toLowerCase();
+        const rawAgent = (row.agent_name || '').toLowerCase();
+        const activeModelLower = (activeLocalModel || '').toLowerCase();
+
+        const isExplicitLocal = (activeModelLower && rawModel === activeModelLower) ||
+          rawModel.includes('qwen') ||
+          rawModel.includes('llama') ||
+          rawModel.includes('granite') ||
+          rawModel.includes('mistral') ||
+          rawModel.includes('gguf') ||
+          rawModel.includes('local') ||
+          rawModel.includes('ollama') ||
+          rawModel.includes('openai/gpt-oss-20b');
+
+        const isExplicitCloud = rawModel.includes('gemini') ||
+          rawModel.includes('claude') ||
+          rawModel.includes('gpt-4') ||
+          rawModel.includes('o1') ||
+          rawModel.includes('o3') ||
+          rawModel.includes('agy') ||
+          rawModel.includes('anthropic') ||
+          rawAgent.includes('agy') ||
+          rawAgent.includes('antigravity');
+
+        const isLocal = isExplicitLocal || (!isExplicitCloud && rawModel.length > 0 && !rawAgent.includes('claude'));
+
+        let duration = row.duration_ms || 0;
+        if (!duration && row.created_at && row.updated_at) {
+          const diff = new Date(row.updated_at).getTime() - new Date(row.created_at).getTime();
+          if (diff > 0 && diff < 86_400_000) {
+            duration = diff;
+          }
+        }
+
+        if (isLocal) {
+          dbLocalTasks += 1;
+          if (duration > 0) dbTotalLocalLatency += duration;
+        } else {
+          dbCloudTasks += 1;
+          if (duration > 0) dbTotalCloudLatency += duration;
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to aggregate router stats from agent_tasks');
+  }
+
+  const totalLocal = dbLocalTasks + statsState.localTasks;
+  const totalCloud = dbCloudTasks + statsState.cloudTasks;
+  const totalLocalLatency = dbTotalLocalLatency + statsState.totalLocalLatencyMs;
+  const totalCloudLatency = dbTotalCloudLatency + statsState.totalCloudLatencyMs;
+
+  const avgLocalLatencyMs = totalLocal > 0
+    ? Math.round(totalLocalLatency / totalLocal)
+    : 0;
+  const avgCloudLatencyMs = totalCloud > 0
+    ? Math.round(totalCloudLatency / totalCloud)
+    : 0;
+
+  return {
+    localTasks: totalLocal,
+    cloudTasks: totalCloud,
+    circuitBreakerState: localCircuitBreaker.state,
+    primaryLocalModel: activeLocalModel || LOCAL_PRIMARY,
+    fallbackLocalModel: LOCAL_FALLBACK,
+    cloudModel: CLOUD_MODEL === 'agy-gemini-pro' ? 'AGY (Gemini Pro)' : CLOUD_MODEL,
+    avgLocalLatencyMs,
+    avgCloudLatencyMs,
+    localEndpoint: activeEndpoint || LOCAL_URL,
     fallbackCount: statsState.fallbackCount,
   };
 }

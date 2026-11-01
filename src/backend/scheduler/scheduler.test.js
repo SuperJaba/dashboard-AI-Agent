@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach, afterAll } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { schedulerService } from './schedulerService.js';
@@ -130,6 +130,11 @@ describe('SchedulerRouter HTTP API', () => {
     expect(invalidCron.body.error).toContain('Nieprawidłowe wyrażenie harmonogramu');
   });
 
+  afterAll(async () => {
+    const { safeQuery } = await import('../db.js');
+    await safeQuery("DELETE FROM agent_scheduled_tasks WHERE name IN ('Nowe zadanie testowe', 'Do usunięcia', 'Bad Cron Task', 'Toggle Test Task', 'Run Test Task')").catch(() => {});
+  });
+
   it('POST /api/scheduler/tasks creates a task and returns 201', async () => {
     const res = await request(app).post('/api/scheduler/tasks').send({
       name: 'Nowe zadanie testowe',
@@ -142,36 +147,56 @@ describe('SchedulerRouter HTTP API', () => {
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.task.name).toBe('Nowe zadanie testowe');
+
+    if (res.body.task?.id) {
+      await request(app).delete(`/api/scheduler/tasks/${res.body.task.id}`);
+    }
   });
 
   it('PATCH /api/scheduler/tasks/:id/toggle toggles task enabled state', async () => {
-    const tasksRes = await request(app).get('/api/scheduler/tasks');
-    const firstTask = tasksRes.body.tasks[0];
-    if (!firstTask) return;
+    const createRes = await request(app).post('/api/scheduler/tasks').send({
+      name: 'Toggle Test Task',
+      cron_expression: '0 0 * * *',
+      enabled: true
+    });
+    const taskId = createRes.body.task?.id;
+    try {
+      const toggleRes = await request(app)
+        .patch(`/api/scheduler/tasks/${taskId}/toggle`)
+        .send({ enabled: false });
 
-    const toggleRes = await request(app)
-      .patch(`/api/scheduler/tasks/${firstTask.id}/toggle`)
-      .send({ enabled: !firstTask.enabled });
-
-    expect(toggleRes.status).toBe(200);
-    expect(toggleRes.body.success).toBe(true);
-    expect(toggleRes.body.task.enabled).toBe(!firstTask.enabled);
+      expect(toggleRes.status).toBe(200);
+      expect(toggleRes.body.success).toBe(true);
+      expect(toggleRes.body.task.enabled).toBe(false);
+    } finally {
+      if (taskId) {
+        await request(app).delete(`/api/scheduler/tasks/${taskId}`);
+      }
+    }
   });
 
   it('POST /api/scheduler/tasks/:id/run manually executes task', async () => {
-    const tasksRes = await request(app).get('/api/scheduler/tasks');
-    const firstTask = tasksRes.body.tasks[0];
-    if (!firstTask) return;
-
-    vi.spyOn(schedulerService, 'runTask').mockResolvedValue({
-      success: true,
-      status: 'success',
-      output: 'Ręczne uruchomienie zakończone pomyślnie'
+    const createRes = await request(app).post('/api/scheduler/tasks').send({
+      name: 'Run Test Task',
+      cron_expression: '0 0 * * *',
+      enabled: true
     });
+    const taskId = createRes.body.task?.id;
+    try {
+      vi.spyOn(schedulerService, 'runTask').mockResolvedValue({
+        success: true,
+        status: 'success',
+        output: 'Ręczne uruchomienie zakończone pomyślnie'
+      });
 
-    const runRes = await request(app).post(`/api/scheduler/tasks/${firstTask.id}/run`);
-    expect(runRes.status).toBe(200);
-    expect(runRes.body.success).toBe(true);
+      const runRes = await request(app).post(`/api/scheduler/tasks/${taskId}/run`);
+      expect(runRes.status).toBe(200);
+      expect(runRes.body.success).toBe(true);
+    } finally {
+      if (taskId) {
+        await request(app).delete(`/api/scheduler/tasks/${taskId}`);
+      }
+    }
   });
 
   it('DELETE /api/scheduler/tasks/:id deletes task and returns 200', async () => {

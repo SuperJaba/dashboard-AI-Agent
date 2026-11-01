@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger.js';
 import { safeQuery } from '../db.js';
+import { broadcastRoutingStats } from './dashboardNamespace.js';
 
 /**
  * Finds the best shell executable for the current platform.
@@ -41,6 +42,12 @@ export function findShellExecutable(requestedCmd) {
 }
 
 /**
+ * In-memory map of active terminal sessions (sessionId -> { taskId, sessionStartTime })
+ * Shared across /pty and /dashboard namespaces to correlate worker exit events with database tasks.
+ */
+export const activeTerminalSessions = new Map();
+
+/**
  * Registers PTY terminal socket.io event handlers in the /pty namespace.
  *
  * @param {import('socket.io').Namespace} ptyNsp  - the /pty namespace
@@ -55,6 +62,10 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
 
     socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent, taskId }) => {
       const sessionStartTime = Date.now();
+      if (taskId) {
+        activeTerminalSessions.set(socket.id, { taskId, sessionStartTime });
+      }
+
       let workerToUse = null;
       if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
         workerToUse = activeWorkers.get(targetWorkerId);
@@ -64,7 +75,7 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
 
       if (workerToUse) {
         activeWorkerSocket = workerToUse.socket;
-        logger.info({ sessionId: socket.id, worker: workerToUse.name }, 'Forwarding PTY spawn to local worker');
+        logger.info({ sessionId: socket.id, worker: workerToUse.name, taskId }, 'Forwarding PTY spawn to local worker');
         activeWorkerSocket.emit('worker_spawn_pty', {
           sessionId: socket.id,
           command,
@@ -72,6 +83,7 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
           cwd,
           env,
           scriptContent,
+          taskId,
         });
         return;
       }
@@ -121,13 +133,19 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
 
         ptyProcess.onData((data) => socket.emit('terminal_data', data));
         ptyProcess.onExit(({ exitCode, signal }) => {
-          if (taskId) {
-            const durationMs = Date.now() - sessionStartTime;
+          const session = activeTerminalSessions.get(socket.id);
+          const currentTaskId = session?.taskId || taskId;
+          const currentStartTime = session?.sessionStartTime || sessionStartTime;
+          if (currentTaskId) {
+            const durationMs = Date.now() - currentStartTime;
             safeQuery(
               'UPDATE agent_tasks SET status = $1, duration_ms = $2, updated_at = NOW() WHERE id = $3',
-              [exitCode === 0 ? 'completed' : 'failed', durationMs, taskId]
-            ).catch(() => {});
+              [exitCode === 0 ? 'completed' : 'failed', durationMs, currentTaskId]
+            ).then(() => {
+              broadcastRoutingStats();
+            }).catch(() => {});
           }
+          activeTerminalSessions.delete(socket.id);
           socket.emit('terminal_exit', { exitCode, signal });
         });
       } catch (err) {
@@ -161,6 +179,17 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
     });
 
     socket.on('disconnect', () => {
+      const session = activeTerminalSessions.get(socket.id);
+      if (session?.taskId) {
+        const durationMs = Date.now() - session.sessionStartTime;
+        safeQuery(
+          "UPDATE agent_tasks SET status = CASE WHEN status = 'started' THEN 'stopped' ELSE status END, duration_ms = CASE WHEN duration_ms IS NULL OR duration_ms = 0 THEN $1 ELSE duration_ms END, updated_at = NOW() WHERE id = $2",
+          [durationMs, session.taskId]
+        ).then(() => {
+          broadcastRoutingStats();
+        }).catch(() => {});
+        activeTerminalSessions.delete(socket.id);
+      }
       if (activeWorkerSocket) {
         activeWorkerSocket.emit('worker_kill_pty', { sessionId: socket.id });
         activeWorkerSocket = null;
