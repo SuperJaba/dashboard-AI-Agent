@@ -47,6 +47,16 @@ export function formatTelegramMessage(event, payload = {}) {
       ].join('\n');
     }
 
+    case 'approval:requested': {
+      return [
+        `⚠️ *Wymagane Potwierdzenie Akcji (1-Tap Approval)*`,
+        ``,
+        `• *Akcja:* \`${payload.action || 'Akcja'}\``,
+        `• *Szczegóły:* ${payload.description || 'Brak opisu'}`,
+        `• *Data:* ${new Date().toLocaleString('pl-PL')}`,
+      ].join('\n');
+    }
+
     case 'ping':
     default: {
       return [
@@ -71,5 +81,29 @@ export function createTelegramPayload(chatId, event, payload = {}) {
     chat_id: chatId,
     text: formatTelegramMessage(event, payload),
     parse_mode: 'Markdown',
+  };
+}
+
+/**
+ * Creates Telegram sendMessage request body with interactive 1-tap inline buttons.
+ * @param {string|number} chatId
+ * @param {string} approvalId
+ * @param {string} action
+ * @param {string} description
+ * @returns {object}
+ */
+export function createTelegramApprovalPayload(chatId, approvalId, action, description) {
+  return {
+    chat_id: chatId,
+    text: formatTelegramMessage('approval:requested', { action, description }),
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '✅ Zatwierdź', callback_data: `approve:${approvalId}` },
+          { text: '❌ Odrzuć', callback_data: `reject:${approvalId}` },
+        ],
+      ],
+    },
   };
 }

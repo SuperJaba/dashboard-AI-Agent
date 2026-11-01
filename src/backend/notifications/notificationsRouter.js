@@ -1,7 +1,9 @@
 import express from 'express';
 import { notificationService } from './notificationService.js';
+import { telegramWebhookRouter } from './telegramWebhookRouter.js';
 
 export const notificationsRouter = express.Router();
+notificationsRouter.use(telegramWebhookRouter);
 
 /**
  * GET /api/notifications/channels
