@@ -902,8 +902,9 @@ projectsRouter.post('/deploy', async (req, res) => {
       exportEnvLines.push(`export AGENT_TASK_ID="${taskId}"`);
     }
 
+    const bashTargetDir = targetDir.replace(/\\/g, '/');
     const scriptContent = `#!/bin/bash
-cd "${targetDir}" 2>/dev/null || true
+cd "${bashTargetDir}" 2>/dev/null || true
 stty cols 100 rows 30 2>/dev/null || true
 export COLUMNS=100
 export LINES=30
@@ -920,7 +921,9 @@ echo -e " \\033[1;32m[DONE]\\033[0m"
 echo -e "\\033[1;33m🔑 Authenticating Provider (${llmName || 'Custom Provider'}): ${llmModel || 'default model'}... \\033[1;32m[SUCCESS]\\033[0m"
 ${promptBlock}echo -e "\\033[1;35m⏳ Booting agent engine. Please wait...\\033[0m"
 ${agentCmd}
-exec bash
+if [ -t 0 ] || [ -t 1 ]; then
+    exec bash
+fi
 `;
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
@@ -976,13 +979,37 @@ exec bash
       command = 'open';
       args = ['-a', 'Terminal', scriptPath];
     } else {
-      // Linux – try a list of known terminal emulators; fallback to headless execution
-      const candidates = [
-        'gnome-terminal',
-        'xfce4-terminal',
-        'xterm',
-        'x-terminal-emulator',
-      ];
+      // Linux – detect desktop environment and pick terminal emulator
+      const isKde = Boolean(
+        process.env.KDE_FULL_SESSION ||
+        process.env.KDE_SESSION_VERSION ||
+        String(process.env.XDG_CURRENT_DESKTOP || '').toLowerCase().includes('kde')
+      );
+
+      const candidates = isKde
+        ? [
+            'konsole',
+            'gnome-terminal',
+            'xfce4-terminal',
+            'kitty',
+            'alacritty',
+            'foot',
+            'tilix',
+            'xterm',
+            'x-terminal-emulator'
+          ]
+        : [
+            'gnome-terminal',
+            'konsole',
+            'xfce4-terminal',
+            'kitty',
+            'alacritty',
+            'foot',
+            'tilix',
+            'xterm',
+            'x-terminal-emulator'
+          ];
+
       const available = candidates.find((c) => {
         try {
           return require('child_process').spawnSync('which', [c]).status === 0;
@@ -990,27 +1017,61 @@ exec bash
           return false;
         }
       });
-      const hasDisplay = Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+      const hasDisplay = Boolean(
+        process.env.DISPLAY ||
+        process.env.WAYLAND_DISPLAY ||
+        process.env.MIR_SOCKET
+      );
+
       if (available && hasDisplay) {
         switch (available) {
+          case 'konsole':
+            command = available;
+            args = ['--workdir', targetDir, '-e', 'bash', scriptPath];
+            break;
           case 'gnome-terminal':
           case 'xfce4-terminal':
             command = available;
-            args = ['--', scriptPath];
+            args = ['--', 'bash', scriptPath];
+            break;
+          case 'kitty':
+            command = available;
+            args = ['--directory', targetDir, 'bash', scriptPath];
+            break;
+          case 'alacritty':
+            command = available;
+            args = ['--working-directory', targetDir, '-e', 'bash', scriptPath];
+            break;
+          case 'foot':
+            command = available;
+            args = ['-D', targetDir, 'bash', scriptPath];
+            break;
+          case 'tilix':
+            command = available;
+            args = ['-w', targetDir, '-e', 'bash', scriptPath];
             break;
           default:
             command = available;
-            args = ['-e', scriptPath];
+            args = ['-e', 'bash', scriptPath];
         }
-      } else {
-        console.warn('No graphical display or terminal emulator found – running script directly via bash');
+      } else if (req.body.allowHeadless) {
+        console.warn('No graphical display or terminal emulator found – running script directly via bash (allowHeadless=true)');
         command = 'bash';
         args = [scriptPath];
+      } else {
+        return res.status(400).json({
+          error: 'Nie wykryto dostępnego emulatora terminala ani aktywnej sesji graficznej (DISPLAY/WAYLAND_DISPLAY). Użyj terminala w przeglądarce lub przekaż flagę allowHeadless: true.'
+        });
       }
     }
 
+    const spawnEnv = {
+      ...process.env,
+      ...env
+    };
+
     const child = spawn(command, args, {
-      env,
+      env: spawnEnv,
       detached: true,
       stdio: 'ignore'
     });

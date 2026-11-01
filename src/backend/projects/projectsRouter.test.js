@@ -186,4 +186,42 @@ describe('projectsRouter - deploy agent handling', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toContain('prompt injection');
   });
+
+  it('uses conditional exec bash in script template to prevent zombie headless shells', async () => {
+    const res = await request(app)
+      .post('/api/projects/deploy')
+      .send({
+        agent: 'claude',
+        directory: tmpDir,
+        useBrowserTerminal: true
+      });
+
+    expect(res.status).toBe(200);
+    const scriptPath = path.join(tmpDir, '.start_agent.sh');
+    const content = fs.readFileSync(scriptPath, 'utf8');
+    expect(content).toContain('if [ -t 0 ] || [ -t 1 ]; then\n    exec bash\nfi');
+  });
+
+  it('returns 400 when useBrowserTerminal is false and no graphical display/terminal is available', async () => {
+    const origDisplay = process.env.DISPLAY;
+    const origWayland = process.env.WAYLAND_DISPLAY;
+    delete process.env.DISPLAY;
+    delete process.env.WAYLAND_DISPLAY;
+
+    try {
+      const res = await request(app)
+        .post('/api/projects/deploy')
+        .send({
+          agent: 'claude',
+          directory: tmpDir,
+          useBrowserTerminal: false
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Nie wykryto dostępnego emulatora terminala ani aktywnej sesji graficznej');
+    } finally {
+      if (origDisplay !== undefined) process.env.DISPLAY = origDisplay;
+      if (origWayland !== undefined) process.env.WAYLAND_DISPLAY = origWayland;
+    }
+  });
 });
