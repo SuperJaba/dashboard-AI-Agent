@@ -224,4 +224,22 @@ describe('projectsRouter - deploy agent handling', () => {
       if (origWayland !== undefined) process.env.WAYLAND_DISPLAY = origWayland;
     }
   });
+
+  it('spawns desktop terminal when useBrowserTerminal is false and graphical display is available', async () => {
+    process.env.DISPLAY = ':0';
+    process.env.XDG_CURRENT_DESKTOP = 'KDE';
+
+    const res = await request(app)
+      .post('/api/projects/deploy')
+      .send({
+        agent: 'agy',
+        directory: tmpDir,
+        useBrowserTerminal: false
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.browserTerminal).toBeUndefined();
+    expect(res.body.message).toContain('launched');
+  });
 });
