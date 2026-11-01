@@ -865,6 +865,11 @@ exec bash
     // Always return browserTerminal configuration when requested or running in web mode
     const isBrowserMode = useBrowserTerminal !== false;
     if (isBrowserMode) {
+      const secretEnvKeyPattern = /(KEY|TOKEN|SECRET|PASSWORD|PASS|PRIVATE|CREDENTIAL|AUTH|OPENAI|ANTHROPIC|GEMINI|AWS|AZURE|GCP|DB_|DATABASE|JWT|SESSION)/i;
+      const safeEnv = Object.fromEntries(
+        Object.entries(env || {}).filter(([key]) => !secretEnvKeyPattern.test(key))
+      );
+
       return res.json({ 
         success: true, 
         taskId,
@@ -872,7 +877,7 @@ exec bash
         command: 'bash', 
         args: [scriptPath], 
         cwd: targetDir, 
-        env,
+        env: safeEnv,
         scriptContent
       });
     }
