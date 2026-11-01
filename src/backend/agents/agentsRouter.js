@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 import * as agentsRepo from './agentsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import { getBestAvailableModel } from '../utils/llm.js';
+import { triggerEmergencyStop } from './emergencyService.js';
 
 export const agentsRouter = express.Router();
 
@@ -305,3 +306,15 @@ agentsRouter.post('/:id/tune', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Global Emergency Kill-Switch: aborts active tasks, kills background agent workers, and unloads local LLMs
+agentsRouter.post('/emergency-stop', async (req, res) => {
+  try {
+    const io = req.app?.get('io') || null;
+    const summary = await triggerEmergencyStop({ io });
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+

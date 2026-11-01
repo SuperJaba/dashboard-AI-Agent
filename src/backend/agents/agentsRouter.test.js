@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { KNOWN_AGENTS } from './agentsRouter.js';
+import { describe, it, expect, vi } from 'vitest';
+import express from 'express';
+import request from 'supertest';
+import { KNOWN_AGENTS, agentsRouter } from './agentsRouter.js';
 import { getAgentCmd } from './backgroundWorker.js';
+import * as emergencyService from './emergencyService.js';
+
+vi.mock('./emergencyService.js', () => ({
+  triggerEmergencyStop: vi.fn(),
+}));
 
 describe('Agents router and background worker Open Claude integration', () => {
   it('registers Open Claude in KNOWN_AGENTS catalog with correct command and config path', () => {
@@ -18,4 +25,29 @@ describe('Agents router and background worker Open Claude integration', () => {
     expect(getAgentCmd('Claude Code')).toBe('claude');
     expect(getAgentCmd('Antigravity')).toBe('agy');
   });
+
+  it('POST /emergency-stop invokes triggerEmergencyStop and returns summary', async () => {
+    emergencyService.triggerEmergencyStop.mockResolvedValueOnce({
+      success: true,
+      terminatedTasks: 2,
+      killedProcesses: 3,
+      freedVram: true,
+    });
+
+    const app = express();
+    app.use(express.json());
+    app.use('/api/agents', agentsRouter);
+
+    const res = await request(app).post('/api/agents/emergency-stop');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      terminatedTasks: 2,
+      killedProcesses: 3,
+      freedVram: true,
+    });
+    expect(emergencyService.triggerEmergencyStop).toHaveBeenCalled();
+  });
 });
+

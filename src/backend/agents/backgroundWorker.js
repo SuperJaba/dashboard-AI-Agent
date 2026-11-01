@@ -11,7 +11,7 @@ import { pathToFileURL } from 'url';
 const AGENT_DIR = path.resolve(process.cwd(), 'src/backend/agents');
 
 // Running child processes tracked by agent name
-const activeAgentProcesses = new Map();
+export const activeAgentProcesses = new Map();
 
 // Per-agent environment overrides
 function agentEnv(agent) {
