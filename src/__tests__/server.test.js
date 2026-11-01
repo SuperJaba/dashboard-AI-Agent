@@ -231,6 +231,22 @@ describe('Backend API Tests', () => {
       expect(Array.isArray(res.body)).toBe(true);
     });
 
+    it('GET /api/approvals/pending should return pending approvals with auth', async () => {
+      const res = await request(app)
+        .get('/api/approvals/pending')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveProperty('approvals');
+    });
+
+    it('GET /api/arena/runs should return active arena runs with auth', async () => {
+      const res = await request(app)
+        .get('/api/arena/runs')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveProperty('runs');
+    });
+
     it('POST /api/socket/token should generate a long-lived worker token', async () => {
       const res = await request(app)
         .post('/api/socket/token')

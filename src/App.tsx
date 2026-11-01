@@ -4,7 +4,7 @@ import {
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
-  Files, Zap, FileText, Flame, Workflow, History
+  Files, Zap, FileText, Flame, Workflow, History, Brain, ShieldAlert
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -19,6 +19,7 @@ import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
 import { EmergencyPanicButton } from './components/EmergencyPanicButton';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';
+import { useMissionChimes } from './hooks/useMissionChimes';
 
 const TerminalView = lazy(() => import('./TerminalView').then(m => ({ default: m.TerminalView })));
 const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ default: m.LlmServerManager })));
@@ -26,6 +27,9 @@ const CustomWidgets = lazy(() => import('./CustomWidgets'));
 const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
 const PipelineBuilder = lazy(() => import('./components/PipelineBuilder').then(m => ({ default: m.PipelineBuilder })));
 const TimeTravelPlayer = lazy(() => import('./components/TimeTravelPlayer').then(m => ({ default: m.TimeTravelPlayer })));
+const GhostOpsPanel = lazy(() => import('./components/GhostOpsPanel').then(m => ({ default: m.GhostOpsPanel })));
+const MemoryNexusPanel = lazy(() => import('./components/MemoryNexusPanel').then(m => ({ default: m.MemoryNexusPanel })));
+const MobileApprovalsView = lazy(() => import('./components/MobileApprovalsView').then(m => ({ default: m.MobileApprovalsView })));
 const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
 
 const ViewFallback = () => (
@@ -38,6 +42,7 @@ import { AntigravityCard } from './components/AntigravityCard';
 import { usePreferences, type Language } from './preferences/PreferencesContext';
 
 function App() {
+  useMissionChimes();
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [cloneRepoUrl, setCloneRepoUrl] = useState('');
   const [cloneTargetDir, setCloneTargetDir] = useState('');
@@ -195,6 +200,42 @@ function App() {
           >
             <History size={18} aria-hidden="true" />
             <span>Wehikuł Czasu</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'ghostops' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('ghostops');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'ghostops' ? 'page' : undefined}
+          >
+            <Bot size={18} aria-hidden="true" />
+            <span>Ghost Ops</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'memory' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('memory');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'memory' ? 'page' : undefined}
+          >
+            <Brain size={18} aria-hidden="true" />
+            <span>Pamięć Agentów</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'approvals' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('approvals');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'approvals' ? 'page' : undefined}
+          >
+            <ShieldAlert size={18} aria-hidden="true" />
+            <span>Zgody Mobilne</span>
           </button>
           <button 
             type="button"
@@ -563,6 +604,18 @@ function App() {
         ) : activeView === 'timetravel' ? (
           <Suspense fallback={<ViewFallback />}>
             <TimeTravelPlayer />
+          </Suspense>
+        ) : activeView === 'ghostops' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <GhostOpsPanel />
+          </Suspense>
+        ) : activeView === 'memory' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <MemoryNexusPanel />
+          </Suspense>
+        ) : activeView === 'approvals' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <MobileApprovalsView />
           </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>

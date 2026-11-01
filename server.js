@@ -89,6 +89,8 @@ import { pipelineRouter } from './src/backend/pipeline/pipelineRouter.js';
 import { timemachineRouter } from './src/backend/timemachine/timemachineRouter.js';
 import { memoryRouter } from './src/backend/memory/memoryRouter.js';
 import { ghostopsRouter } from './src/backend/ghostops/ghostopsRouter.js';
+import { approvalsRouter } from './src/backend/notifications/approvalsRouter.js';
+import { arenaRouter } from './src/backend/arena/arenaRouter.js';
 import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
@@ -490,6 +492,8 @@ app.use('/api/pipelines', authMiddleware, pipelineRouter);
 app.use('/api/timemachine', authMiddleware, timemachineRouter);
 app.use('/api/memory', authMiddleware, memoryRouter);
 app.use('/api/ghostops', authMiddleware, ghostopsRouter);
+app.use('/api/approvals', authMiddleware, approvalsRouter);
+app.use('/api/arena', authMiddleware, arenaRouter);
 
 // T7.4 — Start alert watcher and agent task scheduler (skipped in test env)
 if (process.env.NODE_ENV !== 'test') {

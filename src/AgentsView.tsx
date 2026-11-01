@@ -9,6 +9,7 @@ import { LocalWorkerModal } from './LocalWorkerModal';
 import { AntigravityCard } from './components/AntigravityCard';
 import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
 import { TaskSpeedometer } from './components/TaskSpeedometer';
+import { AgentArenaButton } from './components/AgentArenaButton';
 
 export interface Agent {
   id: number;
@@ -591,11 +592,18 @@ export function AgentsView() {
                     )}
                   </div>
 
-                  {/* Task Speedometer & Cost Telemetry */}
-                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'center' }}>
+                  {/* Task Speedometer & Cost Telemetry + Agent Arena */}
+                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                     <TaskSpeedometer
                       model={agent.llm_model}
                       maxContextTokens={agent.max_tokens || 8192}
+                    />
+                    <AgentArenaButton
+                      task={{
+                        id: `agent-run-${agent.id}`,
+                        status: 'completed',
+                        prompt: `Wykonaj zadanie dla agenta ${agent.name}`
+                      }}
                     />
                   </div>
                   
