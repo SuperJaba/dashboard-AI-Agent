@@ -81,7 +81,10 @@ export const inMemoryStore = {
     }
   ],
   agent_tasks: [],
-  agent_logs: []
+  agent_logs: [],
+  pipelines: [],
+  pipeline_runs: [],
+  pipeline_artifacts: []
 };
 
 let useInMemoryFallback = false;
@@ -498,6 +501,119 @@ export async function safeQuery(text, params = []) {
     return { rows: [newLog] };
   }
 
+  // Pipeline queries
+  if (sql.includes('DELETE FROM pipeline_artifacts')) {
+    inMemoryStore.pipeline_artifacts = [];
+    return { rows: [] };
+  }
+  if (sql.includes('DELETE FROM pipeline_runs')) {
+    inMemoryStore.pipeline_runs = [];
+    return { rows: [] };
+  }
+  if (sql.includes('DELETE FROM pipelines')) {
+    inMemoryStore.pipelines = [];
+    return { rows: [] };
+  }
+
+  if (sql.includes('FROM pipelines')) {
+    if (sql.includes('WHERE id = $1') || sql.includes('WHERE id = ?')) {
+      const p = inMemoryStore.pipelines.find(x => x.id === params[0]);
+      return { rows: p ? [{ ...p }] : [] };
+    }
+    return { rows: inMemoryStore.pipelines.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO pipelines')) {
+    const item = {
+      id: params[0],
+      name: params[1],
+      description: params[2] || '',
+      steps_json: params[3] || '[]',
+      status: params[4] || 'idle',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.pipelines.push(item);
+    return { rows: [{ ...item }] };
+  }
+
+  if (sql.includes('UPDATE pipelines')) {
+    const id = params[1];
+    const p = inMemoryStore.pipelines.find(x => x.id === id);
+    if (p) {
+      p.status = params[0];
+      return { rows: [{ ...p }] };
+    }
+    return { rows: [] };
+  }
+
+  if (sql.includes('FROM pipeline_runs')) {
+    if (sql.includes('WHERE id = $1') || sql.includes('WHERE id = ?')) {
+      const r = inMemoryStore.pipeline_runs.find(x => x.id === params[0]);
+      return { rows: r ? [{ ...r }] : [] };
+    }
+    if (sql.includes('WHERE pipeline_id = $1') || sql.includes('WHERE pipeline_id = ?')) {
+      return { rows: inMemoryStore.pipeline_runs.filter(x => x.pipeline_id === params[0]).map(x => ({ ...x })) };
+    }
+    return { rows: inMemoryStore.pipeline_runs.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO pipeline_runs')) {
+    const run = {
+      id: params[0],
+      pipeline_id: params[1],
+      status: params[2] || 'queued',
+      error: null,
+      started_at: params[3] || new Date().toISOString(),
+      finished_at: null
+    };
+    inMemoryStore.pipeline_runs.push(run);
+    return { rows: [{ ...run }] };
+  }
+
+  if (sql.includes('UPDATE pipeline_runs')) {
+    const runId = params[params.length - 1];
+    const run = inMemoryStore.pipeline_runs.find(x => x.id === runId);
+    if (run) {
+      if (sql.includes('status = $1') && sql.includes('error = $2')) {
+        run.status = params[0];
+        run.error = params[1];
+        run.finished_at = new Date().toISOString();
+      } else if (sql.includes('status = $1') || sql.includes('status = ?')) {
+        run.status = params[0];
+        if (params[0] === 'completed' || params[0] === 'failed' || params[0] === 'aborted') {
+          run.finished_at = new Date().toISOString();
+        }
+      }
+      return { rows: [{ ...run }] };
+    }
+    return { rows: [] };
+  }
+
+  if (sql.includes('FROM pipeline_artifacts')) {
+    if ((sql.includes('run_id = $1') && sql.includes('step_id = $2')) || (sql.includes('run_id = ?') && sql.includes('step_id = ?'))) {
+      const arts = inMemoryStore.pipeline_artifacts.filter(a => a.run_id === params[0] && a.step_id === params[1]);
+      return { rows: arts.map(x => ({ ...x })) };
+    }
+    if (sql.includes('WHERE run_id = $1') || sql.includes('WHERE run_id = ?')) {
+      const arts = inMemoryStore.pipeline_artifacts.filter(a => a.run_id === params[0]);
+      return { rows: arts.map(x => ({ ...x })) };
+    }
+    return { rows: inMemoryStore.pipeline_artifacts.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO pipeline_artifacts')) {
+    const art = {
+      id: params[0],
+      run_id: params[1],
+      step_id: params[2],
+      type: params[3],
+      content: params[4],
+      created_at: params[5] || new Date().toISOString()
+    };
+    inMemoryStore.pipeline_artifacts.push(art);
+    return { rows: [{ ...art }] };
+  }
+
   return { rows: [] };
 }
 
@@ -625,6 +741,30 @@ export async function migrate() {
       task_id INTEGER,
       level VARCHAR(20) DEFAULT 'info',
       message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS pipelines (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      steps_json TEXT NOT NULL,
+      status VARCHAR(50) DEFAULT 'idle',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS pipeline_runs (
+      id VARCHAR(255) PRIMARY KEY,
+      pipeline_id VARCHAR(255) NOT NULL,
+      status VARCHAR(50) DEFAULT 'queued',
+      error TEXT,
+      started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      finished_at TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS pipeline_artifacts (
+      id VARCHAR(255) PRIMARY KEY,
+      run_id VARCHAR(255) NOT NULL,
+      step_id VARCHAR(255) NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      content TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];
