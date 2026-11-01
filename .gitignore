@@ -53,3 +53,7 @@ artifacts/*.json
 pass.txt
 docs/pass.txt
 
+# Document watcher metadata
+.fresh/
+docs/.fresh/
+
