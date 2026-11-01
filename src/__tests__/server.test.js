@@ -223,6 +223,14 @@ describe('Backend API Tests', () => {
       expect(res.body.commands).toHaveProperty('node');
     });
 
+    it('GET /api/memory should return array of memories with auth', async () => {
+      const res = await request(app)
+        .get('/api/memory')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+
     it('POST /api/socket/token should generate a long-lived worker token', async () => {
       const res = await request(app)
         .post('/api/socket/token')
