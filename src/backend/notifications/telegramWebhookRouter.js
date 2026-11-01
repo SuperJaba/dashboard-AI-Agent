@@ -1,5 +1,6 @@
 import express from 'express';
 import { triggerEmergencyStop } from '../agents/emergencyService.js';
+import { approve, reject } from './approvalGateway.js';
 
 export const telegramWebhookRouter = express.Router();
 
@@ -57,6 +58,7 @@ telegramWebhookRouter.post('/telegram/webhook', async (req, res) => {
     // Handle 1-tap approvals
     if (data.startsWith('approve:')) {
       const approvalId = data.replace('approve:', '');
+      approve(approvalId);
       await answerTelegramCallback(callbackId, '✅ Akcja zatwierdzona');
       if (io) {
         io.emit('approval:decided', { approvalId, approved: true, from: from?.username || from?.id });
@@ -71,6 +73,7 @@ telegramWebhookRouter.post('/telegram/webhook', async (req, res) => {
 
     if (data.startsWith('reject:')) {
       const approvalId = data.replace('reject:', '');
+      reject(approvalId, 'Odrzucono przez Telegram');
       await answerTelegramCallback(callbackId, '❌ Akcja odrzucona');
       if (io) {
         io.emit('approval:decided', { approvalId, approved: false, from: from?.username || from?.id });

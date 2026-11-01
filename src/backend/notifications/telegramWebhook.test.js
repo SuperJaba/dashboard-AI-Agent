@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { createTelegramApprovalPayload } from './adapters/telegramAdapter.js';
 import { telegramWebhookRouter } from './telegramWebhookRouter.js';
+import { requestApproval, getPendingApprovals } from './approvalGateway.js';
 
 describe('Telegram Webhook and Interactive Approvals', () => {
   it('generates telegram payload with inline keyboard buttons for 1-tap approval', () => {
@@ -25,6 +26,8 @@ describe('Telegram Webhook and Interactive Approvals', () => {
   });
 
   it('handles approve callback query via webhook endpoint', async () => {
+    const promise = requestApproval({ id: 'approval-42', action: 'deploy', description: 'Deploy test' });
+
     const app = express();
     app.use(express.json());
     app.use('/api/notifications', telegramWebhookRouter);
@@ -47,9 +50,14 @@ describe('Telegram Webhook and Interactive Approvals', () => {
         approvalId: 'approval-42',
       })
     );
+
+    const outcome = await promise;
+    expect(outcome).toEqual({ approved: true });
   });
 
   it('handles reject callback query via webhook endpoint', async () => {
+    const promise = requestApproval({ id: 'approval-99', action: 'drop_db', description: 'Drop DB test' });
+
     const app = express();
     app.use(express.json());
     app.use('/api/notifications', telegramWebhookRouter);
@@ -59,7 +67,7 @@ describe('Telegram Webhook and Interactive Approvals', () => {
       .send({
         callback_query: {
           id: 'cb-124',
-          data: 'reject:approval-42',
+          data: 'reject:approval-99',
           from: { id: 98765, username: 'seba' },
         },
       });
@@ -69,9 +77,12 @@ describe('Telegram Webhook and Interactive Approvals', () => {
       expect.objectContaining({
         success: true,
         action: 'reject',
-        approvalId: 'approval-42',
+        approvalId: 'approval-99',
       })
     );
+
+    const outcome = await promise;
+    expect(outcome.approved).toBe(false);
   });
 
   it('handles emergency:stop callback query directly from mobile Telegram button', async () => {
