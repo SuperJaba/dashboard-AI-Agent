@@ -87,7 +87,8 @@ export const inMemoryStore = {
   pipeline_artifacts: [],
   snapshot_sessions: [],
   snapshot_events: [],
-  llm_usage: []
+  llm_usage: [],
+  agent_memories: []
 };
 
 let useInMemoryFallback = false;
@@ -754,6 +755,107 @@ export async function safeQuery(text, params = []) {
     return { rows: [{ ...item }] };
   }
 
+  // Agent Memories queries
+  if (sql.includes('DELETE FROM agent_memories')) {
+    if (/WHERE\s+id\s*=\s*(\?|\$1)/i.test(sql) || sql.includes('WHERE id=')) {
+      const id = params[0];
+      inMemoryStore.agent_memories = inMemoryStore.agent_memories.filter(m => m.id !== id);
+      return { rows: [], rowCount: 1 };
+    }
+    if (sql.includes('WHERE created_at <')) {
+      const cutoff = params[0];
+      const minAccess = params[1] !== undefined ? Number(params[1]) : 1;
+      const initialCount = inMemoryStore.agent_memories.length;
+      inMemoryStore.agent_memories = inMemoryStore.agent_memories.filter(m => !(m.created_at < cutoff && (Number(m.access_count) || 0) < minAccess));
+      return { rows: [], rowCount: initialCount - inMemoryStore.agent_memories.length };
+    }
+    inMemoryStore.agent_memories = [];
+    return { rows: [], rowCount: 0 };
+  }
+
+  if (sql.includes('FROM agent_memories')) {
+    if (/WHERE\s+id\s*=\s*(\?|\$1)/i.test(sql) || sql.includes('WHERE id=')) {
+      const id = params[0];
+      const m = inMemoryStore.agent_memories.find(x => x.id === id);
+      return { rows: m ? [{ ...m }] : [] };
+    }
+
+    if (sql.includes('WHERE created_at <') && sql.includes('access_count <')) {
+      const cutoff = params[0];
+      const minAccess = Number(params[1]) || 1;
+      const stale = inMemoryStore.agent_memories.filter(m => m.created_at < cutoff && (Number(m.access_count) || 0) < minAccess);
+      return { rows: stale.map(x => ({ ...x })) };
+    }
+
+    let items = [...inMemoryStore.agent_memories];
+
+    if (/content\s+(?:I)?LIKE/i.test(sql)) {
+      const queryParam = params[0] || '';
+      const cleanQuery = queryParam.replace(/^%/, '').replace(/%$/, '').toLowerCase();
+      items = items.filter(m => (m.content || '').toLowerCase().includes(cleanQuery));
+
+      let nextParamIdx = 1;
+      if (/agent\s*=\s*(\?|\$\d+)/i.test(sql)) {
+        const agentVal = params[nextParamIdx++];
+        if (agentVal) {
+          items = items.filter(m => m.agent === agentVal);
+        }
+      }
+      if (/project\s*=\s*(\?|\$\d+)/i.test(sql)) {
+        const projectVal = params[nextParamIdx++];
+        if (projectVal) {
+          items = items.filter(m => m.project === projectVal);
+        }
+      }
+    }
+
+    if (sql.includes('ORDER BY access_count DESC, created_at DESC')) {
+      items.sort((a, b) => {
+        const accDiff = (Number(b.access_count) || 0) - (Number(a.access_count) || 0);
+        if (accDiff !== 0) return accDiff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    } else if (sql.includes('ORDER BY created_at DESC')) {
+      items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    if (sql.includes('LIMIT')) {
+      const limitVal = Number(params[params.length - 1]);
+      if (!isNaN(limitVal) && limitVal > 0) {
+        items = items.slice(0, limitVal);
+      }
+    }
+
+    return { rows: items.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO agent_memories')) {
+    const item = {
+      id: params[0],
+      agent: params[1],
+      project: params[2] ?? 'global',
+      category: params[3] ?? 'general',
+      content: params[4],
+      tags: typeof params[5] === 'string' ? params[5] : JSON.stringify(params[5] || []),
+      created_at: params[6] || new Date().toISOString(),
+      access_count: params[7] !== undefined ? Number(params[7]) : 0
+    };
+    inMemoryStore.agent_memories.push(item);
+    return { rows: [{ ...item }] };
+  }
+
+  if (sql.includes('UPDATE agent_memories')) {
+    const id = params[params.length - 1];
+    const m = inMemoryStore.agent_memories.find(x => x.id === id);
+    if (m) {
+      if (sql.includes('access_count = access_count + 1')) {
+        m.access_count = (Number(m.access_count) || 0) + 1;
+      }
+      return { rows: [{ ...m }] };
+    }
+    return { rows: [] };
+  }
+
   return { rows: [] };
 }
 
@@ -934,6 +1036,16 @@ export async function migrate() {
       output_tokens INTEGER DEFAULT 0,
       cost_usd NUMERIC(10, 6) DEFAULT 0,
       ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS agent_memories (
+      id VARCHAR(255) PRIMARY KEY,
+      agent VARCHAR(255) NOT NULL,
+      project VARCHAR(255) DEFAULT 'global',
+      category VARCHAR(255) DEFAULT 'general',
+      content TEXT NOT NULL,
+      tags TEXT DEFAULT '[]',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      access_count INTEGER DEFAULT 0
     );`
   ];
 
