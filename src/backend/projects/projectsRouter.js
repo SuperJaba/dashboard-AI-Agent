@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { spawn, exec, execFile, execSync } from 'child_process';
+import { spawn, exec, execFile, execSync, spawnSync } from 'child_process';
 import * as projectsRepo from './projectsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import * as agentsRepo from '../agents/agentsRepository.js';
@@ -932,7 +932,7 @@ fi
     fs.chmodSync(scriptPath, '755');
       
     // Always return browserTerminal configuration when requested or running in web mode
-    const isBrowserMode = useBrowserTerminal !== false;
+    const isBrowserMode = useBrowserTerminal !== false && useBrowserTerminal !== 'false';
     if (isBrowserMode) {
       const secretEnvKeyPattern = /(KEY|TOKEN|SECRET|PASSWORD|PASS|PRIVATE|CREDENTIAL|AUTH|OPENAI|ANTHROPIC|GEMINI|AWS|AZURE|GCP|DB_|DATABASE|JWT|SESSION)/i;
       const safeEnv = Object.fromEntries(
@@ -1012,7 +1012,7 @@ fi
 
       const available = candidates.find((c) => {
         try {
-          return require('child_process').spawnSync('which', [c]).status === 0;
+          return spawnSync('which', [c]).status === 0;
         } catch {
           return false;
         }
