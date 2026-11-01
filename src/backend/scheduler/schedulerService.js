@@ -32,6 +32,13 @@ export const TASK_PRESETS = [
     defaultCron: '0 3 * * *'
   },
   {
+    type: 'ghost_ops_nightly',
+    name: 'Ghost Ops — Nocna samonaprawa CI',
+    description: 'Autonomiczne wykrywanie awarii CI, repro w git worktree i otwarcie PR z poprawką',
+    defaultCommand: 'node -e "import(\'./src/backend/ghostops/ghostopsService.js\').then(m => m.runGhostOpsCycle())"',
+    defaultCron: '0 2 * * *'
+  },
+  {
     type: 'custom_command',
     name: 'Własne zadanie AI / komenda',
     description: 'Dowolne polecenie powłoki lub skrypt agenta',
