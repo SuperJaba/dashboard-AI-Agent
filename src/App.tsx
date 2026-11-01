@@ -4,7 +4,7 @@ import {
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
-  Files, Zap, FileText, Flame
+  Files, Zap, FileText, Flame, Workflow
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -24,6 +24,7 @@ const TerminalView = lazy(() => import('./TerminalView').then(m => ({ default: m
 const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ default: m.LlmServerManager })));
 const CustomWidgets = lazy(() => import('./CustomWidgets'));
 const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
+const PipelineBuilder = lazy(() => import('./components/PipelineBuilder').then(m => ({ default: m.PipelineBuilder })));
 const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
 
 const ViewFallback = () => (
@@ -169,6 +170,18 @@ function App() {
           >
             <Bot size={18} aria-hidden="true" />
             <span>Agenci AI</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'pipelines' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('pipelines');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'pipelines' ? 'page' : undefined}
+          >
+            <Workflow size={18} aria-hidden="true" />
+            <span>Potoki (DAG)</span>
           </button>
           <button 
             type="button"
@@ -529,6 +542,10 @@ function App() {
         {activeView === 'agents' ? (
           <Suspense fallback={<ViewFallback />}>
             <AgentsView />
+          </Suspense>
+        ) : activeView === 'pipelines' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <PipelineBuilder />
           </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
