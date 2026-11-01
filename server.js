@@ -32,7 +32,7 @@ try {
 import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
-import { authMiddleware, optionalAuthMiddleware } from './src/backend/auth/authMiddleware.js';
+import { authMiddleware, optionalAuthMiddleware, sseAuthMiddleware } from './src/backend/auth/authMiddleware.js';
 import { logger, requestLogger } from './src/backend/utils/logger.js';
 import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
 
@@ -459,6 +459,9 @@ app.get('/api/socket-info', authMiddleware, (req, res) => {
 // LLM Proxy for transparent token metrics collection (passes agent API keys directly)
 app.use('/api/llm-proxy', authMiddleware, llmProxyRouter);
 
+// SSE Live Telemetry Stream (EventSource supports Bearer header or ?token= query parameter)
+app.use('/api/events', sseAuthMiddleware, sseRouter);
+
 // API Auth Middleware
 app.use('/api', authMiddleware);
 
@@ -483,7 +486,6 @@ app.use('/api', llmServersRouter);
 app.use('/api/user-settings', userSettingsRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/alerts', authMiddleware, alertsRouter);
-app.use('/api/events', authMiddleware, sseRouter);
 app.use('/api/analytics', authMiddleware, kpiRouter);
 app.use('/api/deploy', authMiddleware, deployRouter);
 app.use('/api/notifications', authMiddleware, notificationsRouter);

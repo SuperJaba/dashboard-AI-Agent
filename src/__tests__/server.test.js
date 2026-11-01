@@ -247,6 +247,12 @@ describe('Backend API Tests', () => {
       expect(res.body).toHaveProperty('runs');
     });
 
+    it('GET /api/events without token should return 401 Unauthorized', async () => {
+      const res = await request(app).get('/api/events');
+      expect(res.statusCode).toBe(401);
+      expect(res.body.error).toBe('Unauthorized');
+    });
+
     it('POST /api/socket/token should generate a long-lived worker token', async () => {
       const res = await request(app)
         .post('/api/socket/token')
