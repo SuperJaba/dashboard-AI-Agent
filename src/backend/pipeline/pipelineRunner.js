@@ -127,14 +127,14 @@ export function abortRun(runId) {
 /**
  * Executes a pipeline DAG run.
  */
-export async function runPipeline(pipelineId, { io, executor = defaultExecutor } = {}) {
+export async function runPipeline(pipelineId, { io, executor = defaultExecutor, runId } = {}) {
   const pipeline = await repo.getPipeline(pipelineId);
   if (!pipeline) {
     throw new Error(`Pipeline ${pipelineId} not found`);
   }
 
   const stepsSorted = topoSort(pipeline.steps || []);
-  const run = await repo.createRun(pipelineId);
+  const run = runId ? (await repo.getRun(runId) || { id: runId }) : await repo.createRun(pipelineId);
   await repo.updateRunStatus(run.id, 'running');
 
   const abortController = new AbortController();
