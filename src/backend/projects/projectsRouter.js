@@ -916,8 +916,7 @@ exec bash
         command: 'bash', 
         args: [scriptPath], 
         cwd: targetDir, 
-        env: safeEnv,
-        scriptContent
+        env: safeEnv
       });
     }
 
