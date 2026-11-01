@@ -126,10 +126,18 @@ Moving from a *launcher and viewer* to an *autonomous engineering fleet orchestr
 - **Q**: Should mobile notifications prioritize Telegram bot webhook or browser WebPush with service workers? (Telegram is faster to set up and works reliably on iOS/Android without certificate overhead).
 
 ## Next Steps
-- [x] Implement the **Global Emergency Kill-Switch & VRAM Purge** button in dashboard header (completed in Phase 1: `EmergencyPanicButton.tsx` + `POST /api/agents/emergency-stop`).
-- [x] Prototype the Telegram notification & 1-tap PR merge webhook (completed in Phase 1: `telegramWebhookRouter.js` + `createTelegramApprovalPayload`).
-- [x] Implement the **Task Card Speedometer & Cost Telemetry** micro-ticker (completed in Phase 1: `TaskSpeedometer.tsx`).
+- [x] Implement the **Global Emergency Kill-Switch & VRAM Purge** button in dashboard header (completed in Feature 01: `EmergencyPanicButton.tsx` + `POST /api/agents/emergency-stop`).
+- [x] Prototype the Telegram notification & 1-tap PR merge webhook (completed in Feature 01: `telegramWebhookRouter.js` + `createTelegramApprovalPayload`).
+- [x] Implement the **Task Card Speedometer & Cost Telemetry** micro-ticker (completed in Feature 01: `TaskSpeedometer.tsx`).
 - [x] Implement **Multi-Agent Pipeline Orchestrator (Agent DAGs)** with artifact context relay, approval gates and visual builder (completed in Feature 02: `PipelineBuilder.tsx`, `pipelineRunner.js`, `pipelineRepository.js`, `pipelineRouter.js`).
 - [x] Implement **Live Time-Travel Execution Player & Instant Rollback** with reverse diff patching and event stream (completed in Feature 03: `TimeTravelPlayer.tsx`, `snapshotService.js`, `snapshotRestoreService.js`, `timemachineRouter.js`).
 - [x] Implement **Hybrid Inference Router & Cost Matrix** with context size estimation, token pricing accumulator and fallback routing (completed in Feature 04: `contextEstimator.js`, `costTracker.js`, `inferenceRouter.js`, `ModelRoutingWidget.tsx`).
-- [ ] Implement Feature 05: "Ghost Ops" Nightly Autonomous Self-Healing Daemon.
+- [x] Implement **Ghost Ops Nightly Autonomous Self-Healing Daemon** with failed CI workflow monitor, isolated git worktree reproduction, automatic PR creator, and scheduler preset (completed in Feature 05: `ciMonitor.js`, `reproService.js`, `prService.js`, `ghostopsService.js`, `ghostopsRouter.js`, `GhostOpsPanel.tsx`).
+- [x] Implement **Cross-Agent Knowledge Nexus / Shared Episodic Memory** with SQLite/Postgres fulltext search, access-tracking, stale consolidation, and prompt injection (completed in Feature 06: `memoryRepository.js`, `memoryService.js`, `memoryRouter.js`, `MemoryNexusPanel.tsx`).
+- [x] Implement **Mobile PWA & 1-Tap Action Approvals** with Service Worker, manifest, push notification listener, and approval gateway (completed in Feature 07: `manifest.json`, `sw.js`, `approvalGateway.js`, `approvalsRouter.js`, `MobileApprovalsView.tsx`).
+- [x] Implement **Agent Arena Replay & Acoustic Mission Control Chimes** with parallel worktree prompt replay, unified diff viewer, Web Audio API synthesis chimes, and UI battle button (completed in Feature 08: `arenaRunner.js`, `arenaRouter.js`, `SplitDiffViewer.tsx`, `AgentArenaButton.tsx`, `useMissionChimes.ts`).
+
+---
+### Status Summary
+Wszystkie 8 zaplanowanych funkcji 10x zostały w 100% zaimplementowane w metodyce TDD (Red -> Green -> Refactor), zintegrowane w UI dashboardu i backendzie Express, z kompletną suitą testów (84 pliki testowe, 472 testy przechodzące na zielono) oraz czystym buildem produkcyjnym Vite.
+<!-- GOAL_COMPLETE -->
