@@ -12,7 +12,7 @@ import { z } from 'zod';
  * @returns An object containing all the dashboard state variables and modifier functions.
  */
 export function useDashboardState() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'agents' | 'pipelines'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'agents' | 'pipelines' | 'timetravel'>('dashboard');
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
   const [servers, setServers] = useState<ServerData[]>([]);

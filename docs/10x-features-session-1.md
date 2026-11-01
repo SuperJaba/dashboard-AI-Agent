@@ -130,4 +130,5 @@ Moving from a *launcher and viewer* to an *autonomous engineering fleet orchestr
 - [x] Prototype the Telegram notification & 1-tap PR merge webhook (completed in Phase 1: `telegramWebhookRouter.js` + `createTelegramApprovalPayload`).
 - [x] Implement the **Task Card Speedometer & Cost Telemetry** micro-ticker (completed in Phase 1: `TaskSpeedometer.tsx`).
 - [x] Implement **Multi-Agent Pipeline Orchestrator (Agent DAGs)** with artifact context relay, approval gates and visual builder (completed in Feature 02: `PipelineBuilder.tsx`, `pipelineRunner.js`, `pipelineRepository.js`, `pipelineRouter.js`).
-- [ ] Implement Feature 03: Live Time-Travel Execution Player & Instant Rollback.
+- [x] Implement **Live Time-Travel Execution Player & Instant Rollback** with reverse diff patching and event stream (completed in Feature 03: `TimeTravelPlayer.tsx`, `snapshotService.js`, `snapshotRestoreService.js`, `timemachineRouter.js`).
+- [ ] Implement Feature 04: Local-to-Cloud Dynamic Intelligence & Cost Matrix (Hybrid Inference Router).

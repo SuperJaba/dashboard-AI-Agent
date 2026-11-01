@@ -4,7 +4,7 @@ import {
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
-  Files, Zap, FileText, Flame, Workflow
+  Files, Zap, FileText, Flame, Workflow, History
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -25,6 +25,7 @@ const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ de
 const CustomWidgets = lazy(() => import('./CustomWidgets'));
 const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
 const PipelineBuilder = lazy(() => import('./components/PipelineBuilder').then(m => ({ default: m.PipelineBuilder })));
+const TimeTravelPlayer = lazy(() => import('./components/TimeTravelPlayer').then(m => ({ default: m.TimeTravelPlayer })));
 const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
 
 const ViewFallback = () => (
@@ -182,6 +183,18 @@ function App() {
           >
             <Workflow size={18} aria-hidden="true" />
             <span>Potoki (DAG)</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'timetravel' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('timetravel');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'timetravel' ? 'page' : undefined}
+          >
+            <History size={18} aria-hidden="true" />
+            <span>Wehikuł Czasu</span>
           </button>
           <button 
             type="button"
@@ -546,6 +559,10 @@ function App() {
         ) : activeView === 'pipelines' ? (
           <Suspense fallback={<ViewFallback />}>
             <PipelineBuilder />
+          </Suspense>
+        ) : activeView === 'timetravel' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <TimeTravelPlayer />
           </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
