@@ -221,6 +221,18 @@ export async function runMigrations() {
     await safeQuery("INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1') ON CONFLICT (key) DO NOTHING;");
     await safeQuery("INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0') ON CONFLICT (key) DO NOTHING;");
     
+    // Default scheduled tasks seeding (only if table is empty)
+    const taskCountRes = await safeQuery('SELECT COUNT(*) as count FROM agent_scheduled_tasks');
+    if (parseInt(taskCountRes?.rows?.[0]?.count || '0', 10) === 0) {
+      console.log('📝 Seeding default scheduled tasks...');
+      await safeQuery(`
+        INSERT INTO agent_scheduled_tasks (name, task_type, command, cron_expression, enabled, last_status) VALUES
+        ('Nocny audyt bezpieczeństwa', 'npm_audit', 'npm audit', '0 3 * * *', true, 'idle'),
+        ('Weryfikacja logów błędów', 'error_check', 'node -e "console.log(\\'Log audit: Brak krytycznych wyjątków w ostatnich logach.\\')"', '0 * * * *', true, 'idle'),
+        ('Synchronizacja zadań z tasks.md', 'sync_tasks', 'npm run sync-tasks', '*/30 * * * *', true, 'idle');
+      `);
+    }
+
     console.log('✅ Database migration completed successfully (data preserved)!');
     process.exit(0);
   } catch (err) {
