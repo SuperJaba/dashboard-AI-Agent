@@ -49,7 +49,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
     return (
       <div className="text-gray-400 p-6 flex items-center justify-center gap-3">
         <div className="antigravity-pulse-dot" />
-        <span className="text-sm font-medium tracking-wide">Ładowanie telemetryki serwera…</span>
+        <span className="text-sm font-medium tracking-wide">Ładowanie statystyk serwera...</span>
       </div>
     );
   }
@@ -96,7 +96,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
               <div style={{ padding: '0.45rem', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
                 <Cpu size={20} />
               </div>
-              <span style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.01em', color: '#f8fafc' }}>CPU Usage</span>
+              <span style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.01em', color: '#f8fafc' }}>Użycie procesora</span>
             </div>
             <span style={{
               fontSize: '0.75rem',
@@ -107,7 +107,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
               border: '1px solid rgba(56, 189, 248, 0.2)',
               fontWeight: 600
             }}>
-              {stats.cpu.cores ?? '?'} Cores
+              {stats.cpu.cores ?? '?'} rdzeni
             </span>
           </div>
 
@@ -120,7 +120,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
               {(stats.cpu.load1 ?? 0).toFixed(2)}
             </span>
             <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.6rem', textTransform: 'uppercase', fontWeight: 600 }}>
-              Load Avg (1m) &bull; {cpuLoadPercent}%
+              Obciążenie (1m) &bull; {cpuLoadPercent}%
             </span>
           </div>
 
@@ -152,7 +152,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
               <div style={{ padding: '0.45rem', borderRadius: '10px', background: 'rgba(52, 211, 153, 0.12)', border: '1px solid rgba(52, 211, 153, 0.25)' }}>
                 <Server size={20} />
               </div>
-              <span style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.01em', color: '#f8fafc' }}>Memory</span>
+              <span style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.01em', color: '#f8fafc' }}>Pamięć RAM</span>
             </div>
             <span style={{
               fontSize: '0.75rem',
@@ -163,7 +163,7 @@ export function ServerStats({ serverId }: { serverId?: number }) {
               border: `1px solid ${memUsagePercent > 80 ? 'rgba(244, 63, 94, 0.25)' : 'rgba(52, 211, 153, 0.2)'}`,
               fontWeight: 600
             }}>
-              {memUsagePercent}% Used
+              {memUsagePercent}% Zajęte
             </span>
           </div>
 

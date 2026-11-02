@@ -92,6 +92,7 @@
     "node-pty": "^1.1.0"
   },
   "allowScripts": {
-    "node-pty": true
+    "node-pty": true,
+    "fsevents@2.3.3": true
   }
 }

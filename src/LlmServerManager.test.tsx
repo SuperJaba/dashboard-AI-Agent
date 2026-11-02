@@ -65,5 +65,9 @@ describe('LlmServerManager Component', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText(/Nowy Serwer LLM/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/LM Studio Local lub NVIDIA NIM/i)).toBeInTheDocument();
+
+    // Close on Escape key
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

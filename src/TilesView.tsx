@@ -76,10 +76,10 @@ export function DashboardTiles({
                 alignItems: 'center',
                 gap: '0.5rem'
               }}>
-                SYSTEM_INDEX
+                Obszary robocze
               </h1>
-              <div style={{ fontSize: '0.78rem', marginTop: '0.25rem', color: '#94a3b8', fontFamily: 'monospace' }}>
-                // OPERATIONAL WORKSPACES &bull; {projects.length} INSTANCES_
+              <div style={{ fontSize: '0.78rem', marginTop: '0.25rem', color: '#94a3b8' }}>
+                Aktywne obszary robocze &bull; {projects.length} projektów
               </div>
             </div>
           </div>
@@ -96,7 +96,7 @@ export function DashboardTiles({
               aria-label="Filtruj obszary robocze"
               autoComplete="off"
               spellCheck={false}
-              placeholder="QUERY_DB…"
+              placeholder="Szukaj obszaru..."
               value={filter}
               onChange={e => setFilter(e.target.value)}
               style={{
@@ -109,8 +109,7 @@ export function DashboardTiles({
                 fontSize: '0.825rem',
                 width: '180px',
                 outline: 'none',
-                transition: 'border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                fontFamily: 'monospace'
+                transition: 'border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
               onFocus={(e) => {
                 e.currentTarget.style.borderColor = 'rgba(52, 211, 153, 0.5)';
@@ -180,7 +179,7 @@ export function DashboardTiles({
                 title="Rzut izometryczny (Isometric Snapping)"
               >
                 <Box size={14} />
-                <span>Isometric</span>
+                <span>Rzut izometryczny</span>
               </button>
             </div>
           )}
@@ -217,7 +216,7 @@ export function DashboardTiles({
               }}
             >
               <Plus size={16} />
-              <span>+ NEW_WORKSPACE</span>
+              <span>+ Nowy projekt</span>
             </button>
           )}
         </div>
@@ -227,7 +226,7 @@ export function DashboardTiles({
         <AntigravityCard elevation="low" style={{ padding: '3.5rem 2rem', textAlign: 'center', color: '#94a3b8' }}>
           <Folder size={42} style={{ color: '#475569', margin: '0 auto 1rem auto' }} />
           <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc', marginBottom: '0.5rem' }}>Brak skonfigurowanych projektów</h3>
-          <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Kliknij "+ NEW_WORKSPACE", aby dodać pierwszy katalog roboczy.</p>
+          <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Kliknij "+ Nowy projekt", aby dodać pierwszy katalog roboczy.</p>
         </AntigravityCard>
       ) : (
         /* Perspective / Isometric Wrapper */

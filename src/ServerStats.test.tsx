@@ -18,7 +18,7 @@ describe('ServerStats', () => {
   it('renders loading state initially', () => {
     vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {})); // Never resolves
     render(<ServerStats serverId={1} />);
-    expect(screen.getByText(/Ładowanie telemetryki serwera/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ładowanie statystyk serwera/i)).toBeInTheDocument();
   });
 
   it('renders error state when stats API returns error or empty', async () => {
@@ -79,13 +79,13 @@ describe('ServerStats', () => {
     render(<ServerStats serverId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText('CPU Usage')).toBeInTheDocument();
-      expect(screen.getByText('Memory')).toBeInTheDocument();
+      expect(screen.getByText('Użycie procesora')).toBeInTheDocument();
+      expect(screen.getByText('Pamięć RAM')).toBeInTheDocument();
       expect(screen.getByText('System Info')).toBeInTheDocument();
     });
 
     // Check CPU values
-    expect(screen.getByText('12 Cores')).toBeInTheDocument();
+    expect(screen.getByText('12 rdzeni')).toBeInTheDocument();
     expect(screen.getByText('1.45')).toBeInTheDocument();
 
     // Check RAM values
