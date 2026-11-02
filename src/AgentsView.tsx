@@ -82,6 +82,19 @@ export function AgentsView() {
     }
   }, [notification]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isAdding) setIsAdding(false);
+        if (showLLMModal) setShowLLMModal(false);
+      }
+    };
+    if (isAdding || showLLMModal) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isAdding, showLLMModal]);
+
   const fetchAgents = useCallback(async () => {
     try {
       const res = await apiFetch('/api/agents');
@@ -105,7 +118,7 @@ export function AgentsView() {
       const res = await apiFetch('/api/agents/scan', { method: 'POST' });
       await res.json();
       await fetchAgents();
-      setNotification('System scan completed');
+      setNotification('Skanowanie systemu zakończone');
     } catch (e) {
       console.error('Failed to scan agents', e);
     } finally {
@@ -366,7 +379,13 @@ export function AgentsView() {
 
         {/* Add Agent Modal Overlay */}
         {isAdding && (
-          <div className="modal-overlay">
+          <div
+            className="modal-overlay"
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
+            onKeyDown={(e) => e.key === 'Escape' && setIsAdding(false)}
+          >
             <div className="modal-content" style={{ maxWidth: '600px' }}>
               <button 
                 onClick={() => setIsAdding(false)} 
@@ -463,11 +482,11 @@ export function AgentsView() {
                             {agent.installed ? (
                               <span className="agent-badge agent-badge-active" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                                 <span className="antigravity-pulse-dot" style={{ width: 5, height: 5 }} />
-                                Active
+                                Aktywny
                               </span>
                             ) : (
                               <span className="agent-badge agent-badge-missing">
-                                Missing
+                                Brak instalacji
                               </span>
                             )}
                           </h3>
@@ -481,7 +500,7 @@ export function AgentsView() {
                           onClick={() => handleAutoTuneAgent(agent.id)}
                           disabled={isTuning}
                           className={`p-2 rounded-lg transition text-slate-400 hover:text-purple-400 bg-purple-500/5 border border-purple-500/10 hover:bg-purple-500/10 ${isTuning ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title="Auto-Tune Agent Parameters"
+                          title="Automatyczne strojenie parametrów"
                           style={{ cursor: 'pointer' }}
                         >
                           <Sparkles className={`w-4 h-4 ${isTuning ? 'animate-bounce text-purple-400' : ''}`} />
@@ -605,7 +624,13 @@ export function AgentsView() {
       </div>
 
       {showLLMModal && (
-        <div className="modal-overlay">
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+          onKeyDown={(e) => e.key === 'Escape' && setShowLLMModal(false)}
+        >
           <div className="modal-content">
             <button 
               onClick={() => setShowLLMModal(false)} 

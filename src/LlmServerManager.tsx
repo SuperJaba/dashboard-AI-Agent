@@ -54,6 +54,18 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
     }
   }, [notification]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showModal) {
+        setShowModal(false);
+      }
+    };
+    if (showModal) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showModal]);
+
   const activeServer = servers.find(s => s.is_active) || (servers.length > 0 ? servers[0] : null);
 
   const handleSelectServer = async (id: number) => {
@@ -315,6 +327,8 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
         <div
           role="dialog"
           aria-modal="true"
+          tabIndex={-1}
+          onKeyDown={(e) => e.key === 'Escape' && setShowModal(false)}
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, overscrollBehavior: 'contain' }}
         >
           <div className="glass-card animate-in" style={{ width: '480px', maxWidth: '92vw', padding: '1.5rem', position: 'relative' }}>

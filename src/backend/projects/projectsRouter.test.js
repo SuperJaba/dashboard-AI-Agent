@@ -205,8 +205,10 @@ describe('projectsRouter - deploy agent handling', () => {
   it('returns 400 when useBrowserTerminal is false and no graphical display/terminal is available', async () => {
     const origDisplay = process.env.DISPLAY;
     const origWayland = process.env.WAYLAND_DISPLAY;
+    const origPlatform = process.platform;
     delete process.env.DISPLAY;
     delete process.env.WAYLAND_DISPLAY;
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
 
     try {
       const res = await request(app)
@@ -222,6 +224,7 @@ describe('projectsRouter - deploy agent handling', () => {
     } finally {
       if (origDisplay !== undefined) process.env.DISPLAY = origDisplay;
       if (origWayland !== undefined) process.env.WAYLAND_DISPLAY = origWayland;
+      Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
     }
   });
 });

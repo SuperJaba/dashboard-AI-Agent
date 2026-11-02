@@ -228,7 +228,7 @@ export async function runMigrations() {
       await safeQuery(`
         INSERT INTO agent_scheduled_tasks (name, task_type, command, cron_expression, enabled, last_status) VALUES
         ('Nocny audyt bezpieczeństwa', 'npm_audit', 'npm audit', '0 3 * * *', true, 'idle'),
-        ('Weryfikacja logów błędów', 'error_check', 'node -e "console.log(\\'Log audit: Brak krytycznych wyjątków w ostatnich logach.\\')"', '0 * * * *', true, 'idle'),
+        ('Weryfikacja logów błędów', 'error_check', $$node -e "console.log('Log audit: Brak krytycznych wyjątków w ostatnich logach.')"$$, '0 * * * *', true, 'idle'),
         ('Synchronizacja zadań z tasks.md', 'sync_tasks', 'npm run sync-tasks', '*/30 * * * *', true, 'idle');
       `);
     }

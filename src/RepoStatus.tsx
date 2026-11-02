@@ -992,7 +992,8 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
           role="dialog"
           aria-modal="true"
           aria-label="Wdrożenie na serwer"
-          onKeyDown={(e) => { if (e.key === 'Escape') setDeployModal(null); }}
+          tabIndex={-1}
+          onKeyDown={(e) => e.key === 'Escape' && setDeployModal(null)}
           onClick={(e) => { if (e.target === e.currentTarget) setDeployModal(null); }}
           style={{
             position: 'fixed', inset: 0,

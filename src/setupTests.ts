@@ -1,53 +1,41 @@
 import '@testing-library/jest-dom';
 
-const mockStorage = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => (key in store ? store[key] : null),
-    setItem: (key: string, value: string) => { store[key] = String(value); },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
-    key: (index: number) => Object.keys(store)[index] || null,
-    get length() { return Object.keys(store).length; }
+// In Node 22+, globalThis.localStorage is undefined by default and shadows jsdom's window.localStorage.
+// Also jsdom Storage throws brand checks if instantiated via Object.create.
+if (typeof Storage !== 'undefined') {
+  const memoryStore: Record<string, string> = {};
+  Storage.prototype.getItem = function (k: string) {
+    return memoryStore[k] ?? null;
   };
-})();
+  Storage.prototype.setItem = function (k: string, v: string) {
+    memoryStore[k] = String(v);
+  };
+  Storage.prototype.removeItem = function (k: string) {
+    delete memoryStore[k];
+  };
+  Storage.prototype.clear = function () {
+    for (const k of Object.keys(memoryStore)) {
+      delete memoryStore[k];
+    }
+  };
 
-try {
-  delete (globalThis as any).localStorage;
-} catch  {}
-
-Object.defineProperty(globalThis, 'localStorage', {
-  value: mockStorage,
-  writable: true,
-  configurable: true,
-  enumerable: true
-});
-
-if (typeof window !== 'undefined') {
-  try {
-    delete (window as any).localStorage;
-  } catch  {}
-  Object.defineProperty(window, 'localStorage', {
+  const mockStorage = Object.create(Storage.prototype);
+  Object.defineProperty(globalThis, 'localStorage', {
     value: mockStorage,
-    writable: true,
     configurable: true,
-    enumerable: true
+    writable: true,
   });
-  window.HTMLCanvasElement.prototype.getContext = () => null as any;
 
-  if (!window.localStorage) {
-    const store: Record<string, string> = {};
-    const storageMock = {
-      getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, value: string) => { store[key] = String(value); },
-      removeItem: (key: string) => { delete store[key]; },
-      clear: () => { Object.keys(store).forEach(k => delete store[k]); },
-      key: (i: number) => Object.keys(store)[i] ?? null,
-      get length() { return Object.keys(store).length; }
-    };
+  if (typeof window !== 'undefined') {
     Object.defineProperty(window, 'localStorage', {
-      value: storageMock,
-      writable: true
+      value: mockStorage,
+      configurable: true,
+      writable: true,
     });
   }
+}
+
+// Mock canvas for xterm.js
+if (typeof window !== 'undefined') {
+  window.HTMLCanvasElement.prototype.getContext = () => null as any;
 }
