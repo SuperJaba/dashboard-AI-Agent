@@ -47,6 +47,11 @@ export default defineConfig({
     pool: 'forks',
     fileParallelism: false,
     environment: 'jsdom',
+    environmentOptions: {
+      jsdom: {
+        url: 'http://localhost:3000'
+      }
+    },
     environmentMatchGlobs: [
       ['src/backend/**', 'node'],
       ['server.test.js', 'node'],
