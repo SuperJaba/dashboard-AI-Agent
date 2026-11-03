@@ -124,8 +124,6 @@ describe('resolveDashboardUrl(req)', () => {
 
     const result = resolveDashboardUrl(req);
 
-    expect(result).toContain('192.168.1.100'); // LAN IP
-    expect(result).toContain('3001'); // Default PORT from process.env.PORT || 3001
     expect(result).toBe('http://192.168.1.100:3001');
   });
 
@@ -151,8 +149,6 @@ describe('resolveDashboardUrl(req)', () => {
 
     const result = resolveDashboardUrl(req);
 
-    expect(result).toContain('192.168.1.100'); // LAN IP
-    expect(result).toContain('3001'); // Default PORT from process.env.PORT || 3001
     expect(result).toBe('http://192.168.1.100:3001');
   });
 
@@ -171,7 +167,6 @@ describe('resolveDashboardUrl(req)', () => {
 
     const result = resolveDashboardUrl(null);
 
-    expect(result).toContain('192.168.1.100'); // LAN IP from getLocalLanIp()
     expect(result).toBe('http://192.168.1.100:3001');
   });
 
@@ -190,7 +185,6 @@ describe('resolveDashboardUrl(req)', () => {
 
     const result = resolveDashboardUrl(undefined);
 
-    expect(result).toContain('192.168.1.100'); // LAN IP from getLocalLanIp()
     expect(result).toBe('http://192.168.1.100:3001');
   });
 
