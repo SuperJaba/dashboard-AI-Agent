@@ -4,6 +4,19 @@ set -e
 # ============================================================
 #  Dashboard - Deployment Script for CT8.pl (Phusion Passenger)
 #  Target: dashboard.jagger2.ct8.pl @ s1.ct8.pl
+#
+#  Usage: npm run deploy:ct8 [-- [options] [environment]]
+#
+#  Options:
+#    --skip-build      Skip local Vite build (requires existing dist/)
+#    --run-tests       Run unit tests prior to deployment
+#    --force-install   Force remote npm install even if package-lock hash matches
+#    --force-migrate   Run destructive migrate.js database migration
+#    --kill            Stop targeted dashboard Node.js processes on CT8
+#    --health-check    Check active processes and HTTP health endpoint
+#    -h, --help        Show this help message
+#
+#  Environments: production (default), staging, dev
 # ============================================================
 
 REMOTE_USER="${CT8_USER:-jagger2}"
@@ -12,7 +25,10 @@ REMOTE_HOST="${CT8_HOST:-dashboard.jagger2.ct8.pl}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../ && pwd)"
 PASS_FILE="$PROJECT_DIR/docs/pass.txt"
 
-# Locate SSH Key (search for antigravity / antygravity key or user override)
+# ============================================================
+#  SSH Key Discovery
+#  Searches for antigravity/antygravity key or uses user override
+# ============================================================
 ACTIVE_KEY=""
 if [ -n "$SSH_KEY" ] && [ -f "$SSH_KEY" ]; then
   ACTIVE_KEY="$SSH_KEY"
@@ -27,6 +43,10 @@ else
   done
 fi
 
+# ============================================================
+#  Authentication Method Selection
+#  Priority: env var > SSH key > ssh_config > pass.txt > shared pass.txt
+# ============================================================
 PASS=""
 AUTH_METHOD=""
 
@@ -45,6 +65,9 @@ elif [ -f "$PROJECT_DIR/../invoice-splitter/docs/pass.txt" ]; then
   AUTH_METHOD="password"
 fi
 
+# ============================================================
+#  Remote Paths Configuration
+# ============================================================
 REMOTE_BASE="domains/$REMOTE_HOST"
 REMOTE_APP="$REMOTE_BASE/public_nodejs"
 REMOTE_PUBLIC="$REMOTE_APP/public"
@@ -52,7 +75,9 @@ REMOTE_LOGS="$REMOTE_BASE/logs"
 
 ENVIRONMENT="production"
 
-# Colors for terminal output
+# ============================================================
+#  Terminal Output Colors
+# ============================================================
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -60,13 +85,19 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# ============================================================
+#  Logging Functions
+# ============================================================
 log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step()    { echo -e "\n${CYAN}========================================${NC}\n${CYAN}  STEP $1: $2${NC}\n${CYAN}========================================${NC}"; }
 
-# SSH and SCP command helpers
+# ============================================================
+#  SSH/SCP Command Helpers
+#  Configures connection based on auth method
+# ============================================================
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=15"
 
 run_remote() {
@@ -98,6 +129,10 @@ copy_file() {
   fi
 }
 
+# ============================================================
+#  Pre-deployment Environment Validation
+#  Verifies authentication, required tools, and project files
+# ============================================================
 validate_environment() {
   log_step 0 "Pre-deployment Validation"
 
@@ -141,6 +176,9 @@ validate_environment() {
   log_success "Pre-deployment validation passed"
 }
 
+# ============================================================
+#  Kill Node.js Processes on Remote Server
+# ============================================================
 kill_node_processes() {
   log_step "KILL" "Stopping Dashboard Node.js Processes"
   log_info "Stopping application processes on $REMOTE_HOST..."
@@ -149,6 +187,9 @@ kill_node_processes() {
   log_success "Targeted dashboard processes stopped"
 }
 
+# ============================================================
+#  Check Active Node.js Processes on Remote Server
+# ============================================================
 check_node_processes() {
   log_step "HEALTH" "Checking Remote Node.js Processes"
   log_info "Active Node.js processes for $REMOTE_USER on $REM_HOST:"
@@ -157,10 +198,14 @@ check_node_processes() {
   echo -e "${CYAN}========================${NC}\n"
 }
 
+# ============================================================
+#  Prepare Remote Server Structure and Database Schema
+#  Creates directories and ensures dashboard schema exists with isolated tables
+# ============================================================
 prepare_remote() {
   log_step 1 "Preparing Remote Server Structure & Database Schema"
   run_remote "mkdir -p \$HOME/$REMOTE_APP \$HOME/$REMOTE_PUBLIC \$HOME/$REMOTE_LOGS \$HOME/$REMOTE_APP/tmp \$HOME/$REMOTE_APP/dist \$HOME/$REMOTE_APP/src/backend \$HOME/$REMOTE_APP/scripts"
-  
+
   # Ensure dashboard schema exists on remote PostgreSQL and public tables are isolated
   run_remote "
     set -a
@@ -193,6 +238,10 @@ EOF_SCHEMA
   log_success "Remote directories and database schema verified"
 }
 
+# ============================================================
+#  Build Frontend Application with Vite
+#  Optionally runs tests before build
+# ============================================================
 build_frontend() {
   log_step 2 "Building Frontend (Vite)"
   cd "$PROJECT_DIR"
@@ -212,13 +261,17 @@ build_frontend() {
   log_success "Frontend built successfully"
 }
 
+# ============================================================
+#  Package and Copy Backend Files to Remote Server
+#  Creates tar.gz archive excluding tests, dev files, and deployment scripts
+# ============================================================
 copy_backend() {
   log_step 3 "Packaging and Copying Backend Files"
   local tmp_tar="/tmp/dashboard-backend-$$.tar.gz"
 
   cd "$PROJECT_DIR"
 
-  # Ensure app.js entry point exists locally
+  # Ensure app.js entry point exists locally (Phusion Passenger entry point)
   if [ ! -f "$PROJECT_DIR/app.js" ]; then
     cat << 'EOF_APP' > "$PROJECT_DIR/app.js"
 // Phusion Passenger entry point for CT8 / production
@@ -261,6 +314,10 @@ EOF_APP
   log_success "Backend files uploaded and extracted"
 }
 
+# ============================================================
+#  Package and Copy Frontend Files to Remote Server
+#  Deploys built frontend assets to public and dist directories
+# ============================================================
 copy_frontend() {
   log_step 4 "Packaging and Copying Frontend Files"
   local tmp_tar="/tmp/dashboard-frontend-$$.tar.gz"
@@ -292,6 +349,10 @@ copy_frontend() {
   log_success "Frontend files deployed"
 }
 
+# ============================================================
+#  Configure Remote Environment Variables (.env)
+#  Ensures required security keys and schema are present
+# ============================================================
 configure_remote_env() {
   log_step 5 "Verifying Remote Environment Configuration (.env)"
   # Ensure remote .env exists and has required security keys and schema without overwriting DB credentials
@@ -309,6 +370,10 @@ configure_remote_env() {
   log_success "Remote .env verified"
 }
 
+# ============================================================
+#  Install Remote Node.js Dependencies
+#  Uses package-lock.json hash to detect and skip unnecessary installs
+# ============================================================
 install_dependencies() {
   log_step 6 "Installing Remote Dependencies"
   local lock_file=""
@@ -355,6 +420,10 @@ install_dependencies() {
   fi
 }
 
+# ============================================================
+#  Run Database Migrations (Optional, destructive by default)
+#  Only runs if --force-migrate flag is set
+# ============================================================
 run_migrations() {
   if [ "$FORCE_MIGRATE" = true ]; then
     log_step 7 "Running Database Migrations (--force-migrate)"
@@ -366,6 +435,9 @@ run_migrations() {
   fi
 }
 
+# ============================================================
+#  Set File Permissions on Remote Server
+# ============================================================
 set_permissions() {
   log_step 8 "Setting Permissions"
   run_remote "chmod -R 755 \$HOME/$REMOTE_APP"
@@ -374,6 +446,10 @@ set_permissions() {
   log_success "Permissions applied"
 }
 
+# ============================================================
+#  Restart Application via Phusion Passenger
+#  Sends restart signal by creating tmp/restart.txt marker file
+# ============================================================
 restart_application() {
   log_step 9 "Restarting Application via Passenger"
   run_remote "mkdir -p \$HOME/$REMOTE_APP/tmp && touch \$HOME/$REMOTE_APP/tmp/restart.txt"
@@ -381,6 +457,10 @@ restart_application() {
   log_success "Application restart signal dispatched"
 }
 
+# ============================================================
+#  Verify Deployment Success
+#  Checks health endpoint, metrics, and main web page
+# ============================================================
 verify_deployment() {
   log_step 10 "Verifying Deployment"
   log_info "Waiting 8 seconds for Passenger worker to spin up..."
@@ -430,6 +510,10 @@ verify_deployment() {
   log_info "Deployment verification completed"
 }
 
+# ============================================================
+#  Main Deployment Workflow
+#  Orchestrates all deployment steps with optional flags
+# ============================================================
 main() {
   local do_kill=false
   local do_health=false
@@ -472,6 +556,7 @@ main() {
     skip_build=true
   fi
 
+  # Handle special command modes
   if [ "$do_kill" = true ] && [ "$do_health" = false ]; then
     echo -e "${BLUE}\n  Dashboard - Stop Node.js Processes\n  Target: $REMOTE_HOST\n${NC}"
     validate_environment

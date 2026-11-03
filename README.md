@@ -153,6 +153,28 @@ npm run dev:frontend     # Start Vite frontend only (port 5173)
 npm run dev:backend      # Start Express backend only (port 3001)
 ```
 
+### Deployment
+```bash
+# Deploy to CT8.pl (Production)
+npm run deploy:ct8              # Standard deployment
+npm run deploy:ct8 -- staging   # Deploy to staging environment
+npm run deploy:ct8 -- dev       # Deploy to development environment
+
+# Deployment options
+npm run deploy:ct8 -- --skip-build        # Skip frontend build (requires existing dist/)
+npm run deploy:ct8 -- --run-tests         # Run unit tests before deployment
+npm run deploy:ct8 -- --force-install     # Force remote npm install
+npm run deploy:ct8 -- --force-migrate     # Run destructive database migrations
+npm run deploy:ct8 -- --kill              # Stop Node.js processes on CT8
+npm run deploy:ct8 -- --health-check      # Check health endpoint only
+
+# Multi-deploy (via API)
+curl -X POST http://localhost:3001/api/deploy/start \
+  -H "x-admin-role: true" \
+  -H "Content-Type: application/json" \
+  -d '{"environment":"production","targets":["ct8","omv"]}'
+```
+
 ### Building & Production
 ```bash
 npm run build            # Compile TypeScript and bundle with Vite
@@ -175,6 +197,62 @@ npm run db:migrate       # Run database migrations
 npm run lint             # Run Oxlint & ESLint
 npm run format           # Format code with Prettier
 ```
+
+---
+
+## 🚀 Deployment Scripts
+
+### Deploy to CT8.pl (Production)
+
+Skrypt automatyzuje cały proces deploymentu na serwer Phusion Passenger w chmurze CT8.pl:
+
+```bash
+# Standardowy deployment do środowiska production
+npm run deploy:ct8
+
+# Deployment do staging
+npm run deploy:ct8 -- staging
+
+# Deployment do dev
+npm run deploy:ct8 -- dev
+
+# Z wyłączeniem buildu frontendu (wymaga istniejącego dist/)
+npm run deploy:ct8 -- --skip-build
+
+# Uruchomienie testów przed deploymentem
+npm run deploy:ct8 -- --run-tests
+
+# Przymusowe instalowanie zależności na serwerze
+npm run deploy:ct8 -- --force-install
+
+# Przymusowe uruchomienie migracji bazy danych (reset tabel)
+npm run deploy:ct8 -- --force-migrate
+
+# Zatrzymanie procesów Node.js na serwerze
+npm run deploy:ct8 -- --kill
+
+# Sprawdzenie zdrowia procesu i endpointu /health
+npm run deploy:ct8 -- --health-check
+
+# Pełny komendy z kill i health check
+npm run deploy:ct8 -- --kill --health-check
+```
+
+**Wymagane środowiskowe zmienne:**
+- `CT8_USER` - Użytkownik SSH na serwerze (domyślnie: `jagger2`)
+- `CT8_REM_HOST` - Host SSH (domyślnie: `s1.ct8.pl`)
+- `CT8_HOST` - Domena hosta (domyślnie: `dashboard.jagger2.ct8.pl`)
+
+**Alternatywne metody uwierzytelnienia:**
+- Ustawienie zmiennej środowiskowej `CT8_PASSWORD`
+- Umieszczenie hasła w pliku `docs/pass.txt`
+- Użytkowanie SSH key z katalogu `~/.ssh/*antigravity*`
+
+**Uwagi:**
+- Skrypt automatycznie tworzy strukturę katalogów i schemat bazy danych
+- Wyklucza testy i skrypty CI/CD z archiwum backendu
+- Używa Phusion Passenger do restartowania aplikacji (nie Node.js pkill)
+- Waliduje połączenie SSH przed każdym krokiem deploymentu
 
 ---
 
@@ -225,7 +303,6 @@ This project includes comprehensive test coverage:
 - **Unit Tests**: Vitest for component and utility testing
 - **Integration Tests**: Supertest for API endpoint testing  
 - **E2E Tests**: Playwright for browser-based end-to-end testing
-- **Python Tests**: Full end-to-end test suite in `tests/full_test_suite.js`
 
 ### Running Tests
 ```bash
@@ -235,19 +312,6 @@ npm run test:e2e
 
 # With coverage report
 npm test -- --coverage
-```
-
-### Test Structure
-```
-tests/
-├── frontend/
-│   ├── components/
-│   │   ├── TerminalView.test.tsx
-│   │   ├── LlmServerManager.test.tsx
-│   │   └── App.test.tsx
-│   └── utils/
-└── e2e/
-    └── full_test_suite.js
 ```
 
 ---
@@ -347,6 +411,6 @@ For questions or issues:
 
 ---
 
-**Last Updated**: 2026-08-12  
+**Last Updated**: 2026-11-03  
 **Version**: 1.0.0  
 **Status**: Production Ready ✅

@@ -10,6 +10,16 @@
 - [x] NPM Script: test:sys (diagnostyka systemowa node --test)
 - [x] NPM Script: test:e2e (testy end-to-end Playwright)
 - [x] NPM Script: deploy:ct8 (optymalizacja i wdrożenie na serwer zdalny CT8)
+  - ✅ Dodał validację środowiska przed deploymentem
+  - ✅ Automatyczne wykrywanie klucza SSH lub hasła
+  - ✅ Walidacja połączenia SSH do hostu docelowego
+  - ✅ Pakowanie backendu z wykluczeniem testów i skryptów CI/CD
+  - ✅ Walidacja lockfile hash przed instalacją zależności
+  - ✅ Automatyczne konfigurowanie .env na serwerze
+  - ✅ Restart aplikacji przez Phusion Passenger
+  - ✅ Weryfikacja deploymentu (health check, metrics, main URL)
+
+## Funkcjonalności i Architektura
 
 ## Funkcjonalności i Architektura
 - [x] Dodać autoryzację do API (JWT i ochrona endpointów)
