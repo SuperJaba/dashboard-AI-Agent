@@ -318,7 +318,7 @@ export function AgentsView() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#f8fafc', letterSpacing: '-0.01em' }}>
-                  Lokalny Worker (Socket.IO)
+                  Lokalny Worker / Tunel (Socket.IO)
                 </span>
                 <span style={{
                   fontSize: '0.72rem',
@@ -344,8 +344,8 @@ export function AgentsView() {
               </div>
               <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
                 {workersCount > 0
-                  ? 'Twój komputer jest podłączony do Socket.IO. Agenci CLI wykonują się w lokalnym środowisku.'
-                  : 'Podłącz swój komputer komendą Socket, aby agenci CLI uruchamiali się bezpośrednio na Twoim PC.'}
+                  ? `Aktywne połączenia Socket (${workersCount}). Agenci CLI mogą wykonywać się lokalnie na PC lub zdalnie na serwerach.`
+                  : 'Podłącz swój komputer lub zdalny serwer komendą Socket, aby agenci CLI uruchamiali się w wybranym środowisku.'}
               </p>
             </div>
           </div>

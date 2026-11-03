@@ -12,7 +12,8 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
 import { WebhookSettingsModal } from './components/WebhookSettingsModal';
-import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
+import { ModelRoutingSettings } from './components/ModelRoutingSettings';
+import { KpiDashboardPanel } from "./kpi/KpiDashboardPanel";
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
 import { DeployCt8Widget } from './components/deploy-ct8-widget';
 import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
@@ -23,6 +24,7 @@ const TerminalView = lazy(() => import('./TerminalView').then(m => ({ default: m
 const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ default: m.LlmServerManager })));
 const CustomWidgets = lazy(() => import('./CustomWidgets'));
 const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
+const OpsRampView = lazy(() => import('./OpsRampView').then(m => ({ default: m.OpsRampView })));
 const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
 
 const ViewFallback = () => (
@@ -92,7 +94,11 @@ function App() {
     projectFolderInputRef,
     handleCloneProject,
     setupSshKey,
-    agents
+    agents,
+    setupTunnel,
+    setSetupTunnel,
+    settingUpTunnel,
+    setupTunnelOnServer
   } = useDashboardState();
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
@@ -101,8 +107,20 @@ function App() {
   const [workersCount, setWorkersCount] = useState(0);
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [tunnelFeedback, setTunnelFeedback] = useState<string | null>(null);
   const [isDeployingApp, setIsDeployingApp] = useState(false);
   const { connected: isSseConnected } = useLiveTelemetry();
+
+  const handleTriggerTunnel = async (serverId: number) => {
+    setTunnelFeedback('Konfigurowanie i uruchamianie tunelu...');
+    const res = await setupTunnelOnServer(serverId);
+    if (res?.success) {
+      setTunnelFeedback(res.message || 'Tunel został pomyślnie uruchomiony!');
+    } else {
+      setTunnelFeedback(`Błąd tunelu: ${res?.error || 'Nieznany błąd'}`);
+    }
+    setTimeout(() => setTunnelFeedback(null), 6000);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -168,6 +186,18 @@ function App() {
           >
             <Bot size={18} aria-hidden="true" />
             <span>Agenci AI</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'opsramp' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('opsramp');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'opsramp' ? 'page' : undefined}
+          >
+            <Activity size={18} aria-hidden="true" />
+            <span>OpsRamp AIOps</span>
           </button>
           <button 
             type="button"
@@ -395,7 +425,8 @@ function App() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overscrollBehavior: 'contain' }}
         >
           <div
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '360px', maxWidth: '90vw', maxHeight: '85vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '460px', maxWidth: '92vw', maxHeight: '88vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{t('settings.title')}</h2>
@@ -446,6 +477,9 @@ function App() {
             </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+            {/* Konfiguracja routingu modeli */}
+            <ModelRoutingSettings />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Domyślny Serwer LLM</span>
@@ -526,6 +560,10 @@ function App() {
           <Suspense fallback={<ViewFallback />}>
             <AgentsView />
           </Suspense>
+        ) : activeView === 'opsramp' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <OpsRampView />
+          </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
             <Suspense fallback={<ViewFallback />}>
@@ -543,7 +581,7 @@ function App() {
               </div>
             </header>
             
-            <ServerStats serverId={activeServer.id} />
+            <ServerStats serverId={activeServer.id} serverName={activeServer.name} />
             
             <Suspense fallback={<ViewFallback />}>
               <CustomWidgets 
@@ -594,9 +632,46 @@ function App() {
                     <Flame size={14} aria-hidden="true" />
                     <span>Deploy Grafana Stack</span>
                   </button>
+                  <button 
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)' }}
+                    onClick={() => handleTriggerTunnel(activeServer.id)}
+                    disabled={settingUpTunnel}
+                    title="Zainstaluj i uruchom tunel Socket.IO workera na tym serwerze przez SSH"
+                  >
+                    <Laptop size={13} />
+                    {settingUpTunnel ? 'Uruchamianie...' : 'Tunel'}
+                  </button>
                 </div>
 
-                <label htmlFor="remote-prompt-input" className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Polecenie dla Agenta</label>
+                {tunnelFeedback && (
+                  <div style={{ 
+                    padding: '0.5rem 0.75rem', 
+                    marginBottom: '1rem', 
+                    borderRadius: '6px', 
+                    fontSize: '0.8rem', 
+                    background: tunnelFeedback.includes('Błąd') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
+                    color: tunnelFeedback.includes('Błąd') ? '#ef4444' : '#10b981', 
+                    border: `1px solid ${tunnelFeedback.includes('Błąd') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}` 
+                  }}>
+                    {tunnelFeedback}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <label htmlFor="remote-prompt-input" className="info-label" style={{ display: 'block', marginBottom: 0 }}>Polecenie dla Agenta</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#93c5fd', cursor: 'pointer', userSelect: 'none' }} title="Automatycznie skonfiguruj i uruchom tunel Socket.IO workera na serwerze przed rozpoczęciem pracy">
+                    <input 
+                      type="checkbox" 
+                      checked={setupTunnel} 
+                      onChange={e => setSetupTunnel(e.target.checked)} 
+                      style={{ cursor: 'pointer', accentColor: 'var(--primary)' }} 
+                    />
+                    <Laptop size={13} color="#38bdf8" />
+                    <span style={{ fontWeight: 600 }}>Tunel</span>
+                  </label>
+                </div>
                 <textarea 
                   id="remote-prompt-input"
                   value={remotePrompt}

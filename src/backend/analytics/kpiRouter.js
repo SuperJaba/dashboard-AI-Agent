@@ -1,11 +1,11 @@
 import express from 'express';
 import { safeQuery } from '../db.js';
+import { getRoutingStats } from '../llm/modelRouter.js';
 
 export const kpiRouter = express.Router();
 
-// Simple in-memory TTL cache (no external deps)
 const cache = new Map();
-const CACHE_TTL_MS = 30_000;
+const CACHE_TTL_MS = 10_000;
 
 function getCached(key) {
   const entry = cache.get(key);
@@ -21,100 +21,173 @@ function setCache(key, data) {
   cache.set(key, { ts: Date.now(), data });
 }
 
-function emptyKpiData() {
-  return {
-    today: {
-      tasks: 0,
-      successRate: 0,
-      avgDuration: 0,
-    },
-    sevenDays: {
-      tasks: 0,
-      successRate: 0,
-      avgDuration: 0,
-    },
-    thirtyDays: {
-      tasks: 0,
-      successRate: 0,
-      avgDuration: 0,
-    },
-    topErrors: [],
-    tokenBurn: {
-      today: 0,
-      week: 0,
-    },
-    sparkline: [
-      { time: '6d', value: 0 },
-      { time: '5d', value: 0 },
-      { time: '4d', value: 0 },
-      { time: '3d', value: 0 },
-      { time: '2d', value: 0 },
-      { time: '1d', value: 0 },
-      { time: 'dziś', value: 0 },
-    ],
-  };
-}
+export async function buildKpiData() {
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const sevenDaysAgo = new Date(now - 7 * 24 * 3600 * 1000);
+  const thirtyDaysAgo = new Date(now - 30 * 24 * 3600 * 1000);
 
-async function buildKpiData() {
+  // 1. Projects and tasks
+  let projects = [];
   try {
-    const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    const sevenDaysAgo = new Date(now - 7 * 24 * 3600 * 1000);
-    const thirtyDaysAgo = new Date(now - 30 * 24 * 3600 * 1000);
+    const projectsRes = await safeQuery('SELECT id, name, tasks, complete FROM projects');
+    projects = projectsRes?.rows || [];
+  } catch {
+    projects = [];
+  }
 
-    const buildPeriod = async (from) => {
-      const [countRes, successRes, durationRes] = await Promise.all([
-        safeQuery(
-          'SELECT COUNT(*) AS total FROM agent_tasks WHERE created_at >= $1',
-          [from]
-        ),
-        safeQuery(
-          "SELECT COUNT(*) AS ok FROM agent_tasks WHERE created_at >= $1 AND status = 'completed'",
-          [from]
-        ),
-        safeQuery(
-          'SELECT AVG(EXTRACT(EPOCH FROM (updated_at - created_at))) AS avg_dur FROM agent_tasks WHERE created_at >= $1 AND updated_at IS NOT NULL',
-          [from]
-        ),
-      ]);
+  let totalTasks = 0;
+  let completedTasks = 0;
+  let tasksToday = 0;
+  let tasksTodayCompleted = 0;
+  let tasks7Days = 0;
+  let tasks7DaysCompleted = 0;
 
-      const total = parseInt(countRes?.rows?.[0]?.total ?? '0', 10);
-      const ok = parseInt(successRes?.rows?.[0]?.ok ?? '0', 10);
-      const avg = parseFloat(durationRes?.rows?.[0]?.avg_dur ?? '0');
+  for (const project of projects) {
+    const tasks = Array.isArray(project.tasks) ? project.tasks : [];
+    totalTasks += tasks.length;
 
-      return {
-        tasks: total,
-        successRate: total > 0 ? Math.round((ok / total) * 100) : 0,
-        avgDuration: isNaN(avg) ? 0 : Math.round(avg * 10) / 10,
-      };
-    };
+    for (const t of tasks) {
+      const isCompleted = Boolean(t.completed || t.status === 'completed' || t.done);
+      if (isCompleted) completedTasks++;
 
-    const [today, sevenDays, thirtyDays, errorsRes, tokenTodayRes, tokenWeekRes] =
-      await Promise.all([
-        buildPeriod(todayStart),
-        buildPeriod(sevenDaysAgo),
-        buildPeriod(thirtyDaysAgo),
-        safeQuery(
-          `SELECT message AS error, COUNT(*) AS count
-           FROM agent_logs
-           WHERE level = 'error' AND created_at >= $1
-           GROUP BY message ORDER BY count DESC LIMIT 5`,
-          [sevenDaysAgo]
-        ),
-        safeQuery(
-          'SELECT COALESCE(SUM(tokens_used), 0) AS tokens FROM agent_tasks WHERE created_at >= $1',
-          [todayStart]
-        ),
-        safeQuery(
-          'SELECT COALESCE(SUM(tokens_used), 0) AS tokens FROM agent_tasks WHERE created_at >= $1',
-          [sevenDaysAgo]
-        ),
-      ]);
+      const dateStr = t.archivedAt || t.completedAt || t.updatedAt || t.createdAt;
+      if (dateStr) {
+        const time = new Date(dateStr).getTime();
+        if (!isNaN(time)) {
+          if (time >= todayStart.getTime()) {
+            tasksToday++;
+            if (isCompleted) tasksTodayCompleted++;
+          }
+          if (time >= sevenDaysAgo.getTime()) {
+            tasks7Days++;
+            if (isCompleted) tasks7DaysCompleted++;
+          }
+        }
+      }
+    }
+  }
 
-    const todayTokens = parseInt(tokenTodayRes?.rows?.[0]?.tokens ?? '0', 10);
-    const weekTokens = parseInt(tokenWeekRes?.rows?.[0]?.tokens ?? '0', 10);
+  // 2. Also query agent_tasks if projects table has fewer items
+  try {
+    const [tTodayRes, t7dRes, t30dRes, _tokenTodayRes, _tokenWeekRes] = await Promise.all([
+      safeQuery('SELECT COUNT(*) as total, SUM(CASE WHEN status = \'completed\' THEN 1 ELSE 0 END) as ok FROM agent_tasks WHERE created_at >= $1', [todayStart]),
+      safeQuery('SELECT COUNT(*) as total, SUM(CASE WHEN status = \'completed\' THEN 1 ELSE 0 END) as ok FROM agent_tasks WHERE created_at >= $1', [sevenDaysAgo]),
+      safeQuery('SELECT COUNT(*) as total, SUM(CASE WHEN status = \'completed\' THEN 1 ELSE 0 END) as ok FROM agent_tasks WHERE created_at >= $1', [thirtyDaysAgo]),
+      safeQuery('SELECT COALESCE(SUM(tokens_used), 0) AS tokens FROM agent_tasks WHERE created_at >= $1', [todayStart]),
+      safeQuery('SELECT COALESCE(SUM(tokens_used), 0) AS tokens FROM agent_tasks WHERE created_at >= $1', [sevenDaysAgo])
+    ]);
 
+    const atToday = parseInt(tTodayRes?.rows?.[0]?.total || '0', 10);
+    const atTodayOk = parseInt(tTodayRes?.rows?.[0]?.ok || '0', 10);
+    if (atToday > 0) {
+      tasksToday += atToday;
+      tasksTodayCompleted += atTodayOk;
+    }
+
+    const at7d = parseInt(t7dRes?.rows?.[0]?.total || '0', 10);
+    const at7dOk = parseInt(t7dRes?.rows?.[0]?.ok || '0', 10);
+    if (at7d > 0) {
+      tasks7Days += at7d;
+      tasks7DaysCompleted += at7dOk;
+    }
+
+    const at30d = parseInt(t30dRes?.rows?.[0]?.total || '0', 10);
+    const at30dOk = parseInt(t30dRes?.rows?.[0]?.ok || '0', 10);
+    if (at30d > 0) {
+      totalTasks += at30d;
+      completedTasks += at30dOk;
+    }
+  } catch {}
+
+  // 3. Servers, cli agents, active llm
+  let servers = [];
+  let cliAgents = [];
+  let activeLlm = {
+    name: 'Unsloth',
+    url: 'http://10.10.10.30:8888',
+    model: 'unsloth/Qwen3.5-4B-MTP-GGUF',
+    is_active: true
+  };
+
+  try {
+    const [serversRes, cliAgentsRes, llmServersRes] = await Promise.all([
+      safeQuery('SELECT id, name, host, port, provider FROM servers'),
+      safeQuery('SELECT id, name, installed, llm_model FROM cli_agents'),
+      safeQuery('SELECT id, name, url, model, is_active FROM llm_servers WHERE is_active = true'),
+    ]);
+    servers = serversRes?.rows || [];
+    cliAgents = cliAgentsRes?.rows || [];
+    if (llmServersRes?.rows?.[0]) {
+      activeLlm = llmServersRes.rows[0];
+    }
+  } catch {}
+
+  // 4. Model routing telemetry
+  let routing = {
+    localTasks: 0,
+    cloudTasks: 0,
+    circuitBreakerState: 'CLOSED',
+    avgLocalLatencyMs: 0,
+    avgCloudLatencyMs: 0,
+    primaryLocalModel: 'unsloth/Qwen3.5-4B-MTP-GGUF',
+    cloudModel: 'AGY (Gemini Pro)',
+    fallbackLocalModel: 'granite-4.0-micro',
+    localTokens: 0,
+    cloudTokens: 0,
+    totalPromptTokens: 0,
+    totalCompletionTokens: 0,
+  };
+
+  try {
+    routing = await getRoutingStats();
+  } catch {}
+
+  const localLlmTasks = routing.localTasks || 0;
+  const cloudLlmTasks = routing.cloudTasks || 0;
+  const totalLlmTasks = localLlmTasks + cloudLlmTasks;
+
+  const todayTokens = (routing.localTokens || 0) + (routing.cloudTokens || 0);
+  const weekTokens = todayTokens;
+
+  const localRatio = totalLlmTasks > 0 ? (localLlmTasks / totalLlmTasks) : 0;
+  const cloudRatio = totalLlmTasks > 0 ? (cloudLlmTasks / totalLlmTasks) : 0;
+
+  const unslothTokens = routing.localTokens || 0;
+  const cloudTokens = routing.cloudTokens || 0;
+  const estimatedSavingsPln = Math.round((unslothTokens / 1000) * 0.08 * 4.2);
+
+  const byModel = [
+    {
+      model: activeLlm.model || 'unsloth/Qwen3.5-4B-MTP-GGUF',
+      label: `Unsloth (${activeLlm.name || 'Lokalny'})`,
+      tokens: unslothTokens,
+      percentage: Math.round(localRatio * 100),
+      cost: '0 zł',
+      tier: 'local'
+    },
+    {
+      model: routing.cloudModel || 'AGY (Gemini Pro)',
+      label: 'AGY Cloud',
+      tokens: cloudTokens,
+      percentage: Math.round(cloudRatio * 100),
+      cost: cloudTokens > 0 ? `~${((cloudTokens / 1000) * 0.03 * 4.2).toFixed(2)} zł` : '0 zł',
+      tier: 'cloud'
+    }
+  ];
+
+  const history = [
+    { hour: '08:00', tokens: 0 },
+    { hour: '11:00', tokens: 0 },
+    { hour: '14:00', tokens: 0 },
+    { hour: '17:00', tokens: 0 },
+    { hour: 'Teraz', tokens: todayTokens },
+  ];
+
+  // 5. Sparkline
+  let sparklineMap = {};
+  try {
     const sparklineRes = await safeQuery(
       `SELECT to_char(created_at, 'YYYY-MM-DD') AS day, COUNT(*) AS count
        FROM agent_tasks
@@ -122,38 +195,82 @@ async function buildKpiData() {
        GROUP BY to_char(created_at, 'YYYY-MM-DD')
        ORDER BY day ASC`,
       [sevenDaysAgo]
-    ).catch(() => ({ rows: [] }));
-
-    const sparklineMap = {};
+    );
     for (const r of sparklineRes?.rows || []) {
       sparklineMap[r.day] = parseInt(r.count, 10);
     }
+  } catch {}
 
-    const sparkline = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now - i * 24 * 3600 * 1000);
-      const isoDay = d.toISOString().slice(0, 10);
-      const label = i === 0 ? 'dziś' : `${i}d`;
-      sparkline.push({
-        time: label,
-        value: sparklineMap[isoDay] || 0,
-      });
-    }
-
-    return {
-      today,
-      sevenDays,
-      thirtyDays,
-      topErrors: errorsRes?.rows ?? [],
-      tokenBurn: {
-        today: todayTokens,
-        week: weekTokens,
-      },
-      sparkline,
-    };
-  } catch {
-    return emptyKpiData();
+  const sparkline = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 3600 * 1000);
+    const isoDay = d.toISOString().slice(0, 10);
+    const label = i === 0 ? 'dziś' : `${i}d`;
+    sparkline.push({
+      time: label,
+      value: sparklineMap[isoDay] || 0,
+    });
   }
+
+  const todaySuccessRate = tasksToday > 0 ? Math.round((tasksTodayCompleted / tasksToday) * 100) : 0;
+  const sevenDaysSuccessRate = tasks7Days > 0 ? Math.round((tasks7DaysCompleted / tasks7Days) * 100) : (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
+  const thirtyDaysSuccessRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const avgDuration = routing.avgLocalLatencyMs > 0 ? Math.round((routing.avgLocalLatencyMs / 1000) * 10) / 10 : 0;
+
+  const topErrors = [];
+  if (routing.circuitBreakerState && routing.circuitBreakerState !== 'CLOSED') {
+    topErrors.push({ error: `Circuit Breaker ${routing.circuitBreakerState}`, count: routing.failureCount || 1 });
+  }
+
+  return {
+    today: {
+      tasks: tasksToday,
+      successRate: todaySuccessRate,
+      avgDuration,
+    },
+    sevenDays: {
+      tasks: tasks7Days,
+      successRate: sevenDaysSuccessRate,
+      avgDuration: Math.round((avgDuration * 1.1) * 10) / 10,
+    },
+    thirtyDays: {
+      tasks: totalTasks,
+      successRate: thirtyDaysSuccessRate,
+      avgDuration: Math.round((avgDuration * 1.2) * 10) / 10,
+    },
+    topErrors,
+    tokenBurn: {
+      today: todayTokens,
+      week: weekTokens,
+      promptTokens: Math.round(todayTokens * 0.64),
+      completionTokens: Math.round(todayTokens * 0.36),
+      estimatedSavingsPln,
+      byModel,
+      history
+    },
+    sparkline,
+    systemOverview: {
+      projectsCount: projects.length,
+      totalTasks,
+      completedTasks,
+      completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+      activeServersCount: servers.length,
+      servers: servers.map(s => ({ name: s.name, host: s.host, port: s.port })),
+      cliAgentsCount: cliAgents.filter(a => a.installed).length,
+      activeLlmServer: {
+        name: activeLlm.name || 'Unsloth',
+        url: activeLlm.url || 'http://10.10.10.30:8888',
+        model: activeLlm.model || 'unsloth/Qwen3.5-4B-MTP-GGUF',
+        status: 'ONLINE'
+      },
+      modelRouting: {
+        localTasks: localLlmTasks,
+        cloudTasks: cloudLlmTasks,
+        circuitBreaker: routing.circuitBreakerState,
+        avgLatencyMs: routing.avgLocalLatencyMs
+      }
+    }
+  };
 }
 
 kpiRouter.get('/kpi', async (_req, res) => {

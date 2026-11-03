@@ -12,7 +12,7 @@ import { z } from 'zod';
  * @returns An object containing all the dashboard state variables and modifier functions.
  */
 export function useDashboardState() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'agents'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'agents' | 'opsramp'>('dashboard');
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
   const [servers, setServers] = useState<ServerData[]>([]);
@@ -47,6 +47,8 @@ export function useDashboardState() {
   const [terminalConfig, setTerminalConfig] = useState<any>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [deploying, setDeploying] = useState<string | null>(null);
+  const [setupTunnel, setSetupTunnel] = useState(true);
+  const [settingUpTunnel, setSettingUpTunnel] = useState(false);
   const [customLlmUrl, setCustomLlmUrl] = useState('');
   const [customApiKey, setCustomApiKey] = useState('');
   const [customLlmName, setCustomLlmName] = useState('AtomicChat');
@@ -179,6 +181,7 @@ export function useDashboardState() {
           args: data.args,
           cwd: data.cwd,
           env: data.env,
+          scriptContent: data.scriptContent,
           taskId: data.taskId
         });
       }
@@ -198,7 +201,8 @@ export function useDashboardState() {
         apiKey: customApiKey,
         remoteServer: server,
         remotePrompt,
-        useBrowserTerminal
+        useBrowserTerminal,
+        setupTunnel
       });
       if (data.browserTerminal) {
         setTerminalConfig({
@@ -206,6 +210,7 @@ export function useDashboardState() {
           args: data.args,
           cwd: data.cwd,
           env: data.env,
+          scriptContent: data.scriptContent,
           taskId: data.taskId
         });
       }
@@ -600,6 +605,19 @@ export function useDashboardState() {
     }
   };
 
+  const setupTunnelOnServer = async (serverId: number) => {
+    setSettingUpTunnel(true);
+    try {
+      const data = await apiClient.post<any>(`/api/servers/${serverId}/setup-tunnel`);
+      return data;
+    } catch (err: any) {
+      console.error(`Błąd konfiguracji tunelu: ${err.message}`);
+      return { success: false, error: err.message };
+    } finally {
+      setSettingUpTunnel(false);
+    }
+  };
+
   return {
     activeView, setActiveView,
     projects, setProjects,
@@ -620,6 +638,9 @@ export function useDashboardState() {
     terminalConfig, setTerminalConfig,
     selectedTaskIds, setSelectedTaskIds,
     deploying, setDeploying,
+    setupTunnel, setSetupTunnel,
+    settingUpTunnel,
+    setupTunnelOnServer,
     customLlmUrl, setCustomLlmUrl,
     customApiKey, setCustomApiKey,
     customLlmName, setCustomLlmName,

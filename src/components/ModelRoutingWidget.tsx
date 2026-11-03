@@ -1,18 +1,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Cpu, Cloud, Zap, ArrowRight, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Cpu, Cloud, Zap, ArrowRight, ShieldCheck, RefreshCw, AlertTriangle, Play, CheckCircle, ExternalLink, Activity } from 'lucide-react';
 import { useDashboardSocket } from '../hooks/useDashboardSocket';
+
+interface CallRecord {
+  id: string;
+  timestamp: string;
+  tier: 'low' | 'medium' | 'high';
+  provider: string;
+  model: string;
+  durationMs: number;
+  success: boolean;
+  promptPreview: string;
+}
 
 interface ModelRoutingStats {
   localTasks: number;
   cloudTasks: number;
+  fallbackTasks?: number;
   circuitBreakerState: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+  failureCount?: number;
   primaryLocalModel: string;
   fallbackLocalModel: string;
   cloudModel: string;
+  localServerName?: string;
+  localUrl?: string;
+  localEndpoint?: string;
   avgLocalLatencyMs: number;
   avgCloudLatencyMs: number;
-  localEndpoint?: string;
   fallbackCount?: number;
+  recentCalls?: CallRecord[];
 }
 
 const DEFAULT_STATS: ModelRoutingStats = {
@@ -25,6 +41,7 @@ const DEFAULT_STATS: ModelRoutingStats = {
   avgLocalLatencyMs: 380,
   avgCloudLatencyMs: 1450,
   localEndpoint: 'http://10.10.10.30:1234/v1',
+  localServerName: 'Unsloth',
   fallbackCount: 0,
 };
 
@@ -32,6 +49,8 @@ export function ModelRoutingWidget() {
   const [stats, setStats] = useState<ModelRoutingStats>(DEFAULT_STATS);
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
@@ -41,7 +60,13 @@ export function ModelRoutingWidget() {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      const res = await fetch('/api/llm/routing/stats', { headers });
+      
+      // Try /api/llm/routing/stats first, then /api/llm/routing-stats
+      let res = await fetch('/api/llm/routing/stats', { headers });
+      if (!res.ok && res.status === 404) {
+        res = await fetch('/api/llm/routing-stats', { headers });
+      }
+
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -49,7 +74,6 @@ export function ModelRoutingWidget() {
       setStats(data);
       setError(null);
     } catch (err: unknown) {
-      // Keep baseline/previous state and display subtle error notice
       setError(err instanceof Error ? err.message : 'Błąd synchronizacji');
     }
   }, []);
@@ -76,6 +100,48 @@ export function ModelRoutingWidget() {
       console.error('Failed to reset circuit breaker:', err);
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleSimulatePrompt = async (type: 'local' | 'cloud') => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('dashboard_token') || localStorage.getItem('auth_token')) : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const prompt = type === 'local'
+        ? 'Formatuj ten tekst json i przygotuj raport'
+        : 'Zaprojektuj rozproszoną architekturę mikroserwisów i usuń deadlock transakcji bazodanowych';
+
+      const res = await fetch('/api/llm/route-prompt', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ prompt, dryRun: false }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const resData = await res.json();
+      if (resData.stats) {
+        setStats(resData.stats);
+      } else {
+        await fetchStats();
+      }
+
+      const durationStr = resData.result?.durationMs ? ` (~${resData.result.durationMs}ms)` : '';
+      const localName = stats.localServerName || 'Unsloth';
+      setTestResult(`Skierowano do: ${type === 'local' ? `${localName} (Lokalny)` : 'AGY Cloud'}${durationStr}`);
+      setTimeout(() => setTestResult(null), 3000);
+    } catch {
+      setTestResult('Błąd podczas testu routingu');
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -109,11 +175,15 @@ export function ModelRoutingWidget() {
 
   return (
     <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+      {/* Nagłówek */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Zap size={18} color="var(--primary, #38bdf8)" />
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
-            Inteligentny Routing Modeli (T5)
+            Inteligentny Routing Modeli (Live T5)
+          </span>
+          <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 600 }}>
+            Aktywny
           </span>
           {error && (
             <span style={{ fontSize: '0.7rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.2rem' }} title={error}>
@@ -137,10 +207,10 @@ export function ModelRoutingWidget() {
             }}
             title={
               stats.circuitBreakerState === 'CLOSED'
-                ? 'Obwód zamknięty (stan prawidłowy: zapytania płyną bezpośrednio do lokalnego LLM)'
+                ? 'Obwód: SPRAWNY (CLOSED)'
                 : isCircuitOpen
-                ? 'Obwód otwarty (awaryjny: zapytania są przekierowywane do chmury)'
-                : 'Obwód w fazie testowej (sprawdzanie dostępności lokalnego LLM)'
+                ? 'Obwód: ROZŁĄCZONY (OPEN)'
+                : 'Obwód: TEST (HALF-OPEN)'
             }
           >
             <ShieldCheck size={14} />
@@ -176,6 +246,19 @@ export function ModelRoutingWidget() {
             </button>
           )}
 
+          <a
+            href="http://10.10.10.30:8888/api-monitor"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#10b981', textDecoration: 'none' }}
+            title="Otwórz Unsloth Live Traffic Monitor"
+          >
+            <Activity size={12} />
+            <span>Unsloth</span>
+            <ExternalLink size={10} />
+          </a>
+
           <button
             onClick={() => {
               setLoading(true);
@@ -199,11 +282,14 @@ export function ModelRoutingWidget() {
         </div>
       </div>
 
+      {/* Karty Tierów */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
         {/* Local Tier */}
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tier Low / Medium (Local)</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Tier Low / Medium ({stats.localServerName || 'Unsloth'} Local)
+            </span>
             <Cpu size={14} color="#10b981" />
           </div>
           <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981' }}>
@@ -215,8 +301,8 @@ export function ModelRoutingWidget() {
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
             Fallback: <code>{stats.fallbackLocalModel}</code>
           </span>
-          <span style={{ fontSize: '0.7rem', color: '#10b981' }}>
-            Śr. czas: ~{stats.avgLocalLatencyMs}ms (0 zł)
+          <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>
+            {stats.avgLocalLatencyMs > 0 ? `Śr. czas: ~${stats.avgLocalLatencyMs}ms (0 zł)` : 'Śr. czas: brak wywołań (0 zł)'}
           </span>
         </div>
 
@@ -235,19 +321,54 @@ export function ModelRoutingWidget() {
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
             Złożone: Refactoring, Architektura
           </span>
-          <span style={{ fontSize: '0.7rem', color: '#818cf8' }}>
-            Śr. czas: ~{stats.avgCloudLatencyMs}ms
+          <span style={{ fontSize: '0.7rem', color: '#818cf8', fontWeight: 600 }}>
+            {stats.avgCloudLatencyMs > 0 ? `Śr. czas: ~${stats.avgCloudLatencyMs}ms` : 'Śr. czas: brak wywołań'}
           </span>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', paddingTop: '0.25rem' }}>
+      {/* Interaktywny panel testowy na żywo */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', background: 'rgba(0,0,0,0.2)', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Test na żywo:</span>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={testing}
+            onClick={() => handleSimulatePrompt('local')}
+            style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+          >
+            <Play size={10} color="#10b981" />
+            <span>Test Local ({stats.localServerName || 'Unsloth'})</span>
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={testing}
+            onClick={() => handleSimulatePrompt('cloud')}
+            style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+          >
+            <Play size={10} color="#818cf8" />
+            <span>Test Cloud</span>
+          </button>
+        </div>
+
+        {testResult && (
+          <span style={{ fontSize: '0.72rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <CheckCircle size={12} />
+            <span>{testResult}</span>
+          </span>
+        )}
+      </div>
+
+      {/* Wizualizacja przepływu */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
         <span>Przepływ:</span>
         <code>Zapytanie</code>
         <ArrowRight size={12} />
         <code>Scorer (low/med/high)</code>
         <ArrowRight size={12} />
-        <code>{stats.localEndpoint ? `${stats.localEndpoint.replace(/^https?:\/\//, '').replace(/\/v1\/?$/, '')} (LM Studio)` : '10.10.10.30:1234 (LM Studio)'} / AGY</code>
+        <code>{stats.localEndpoint ? `${stats.localEndpoint.replace(/^https?:\/\//, '').replace(/\/v1\/?$/, '')} (${stats.localServerName || 'Unsloth'})` : '10.10.10.30:8888 (Unsloth)'} / AGY</code>
       </div>
     </div>
   );

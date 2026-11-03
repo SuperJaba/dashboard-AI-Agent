@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { AntigravityCard } from '../AntigravityCard';
+import { AntigravityCard } from '../components/AntigravityCard';
 
 interface MetricSummaryCardProps {
   title: string;

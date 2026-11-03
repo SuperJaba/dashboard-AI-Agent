@@ -15,6 +15,16 @@ If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is 
 
 ## Key Subsystem Architectures
 
+### Domain-Driven Backend (`src/backend/<domain>/`)
+- Each domain contains its repository and router (e.g., `projectsRepository.js`, `projectsRouter.js`).
+- Database access uses `safeQuery()` via shared pool in `src/backend/db.js` with automatic in-memory fallback.
+- Express router registration occurs in `server.js`.
+
+### Frontend State Management
+- `useDashboardState` (`src/hooks/useDashboardState.ts`) is the single source of truth for dashboard state.
+- Components destructure state and handlers from this hook; avoid creating parallel global state.
+- UI strings are in Polish across dashboard components.
+
 ### Real-Time Terminal (Socket.io)
 - **Bidirectional events:**
   - Client → Server: `spawn_terminal`, `terminal_input`, `terminal_resize`

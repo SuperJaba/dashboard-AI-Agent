@@ -10,8 +10,8 @@ describe('ModelRoutingWidget', () => {
 
   it('renders with baseline stats initially', () => {
     render(<ModelRoutingWidget />);
-    expect(screen.getByText(/Inteligentny Routing Modeli \(T5\)/i)).toBeDefined();
-    expect(screen.getByText(/Tier Low \/ Medium \(Local\)/i)).toBeDefined();
+    expect(screen.getByText(/Inteligentny Routing Modeli/i)).toBeDefined();
+    expect(screen.getByText(/Tier Low \/ Medium/i)).toBeDefined();
     expect(screen.getByText(/Tier High \(Cloud \/ AGY\)/i)).toBeDefined();
     expect(screen.getByText(/Obwód: SPRAWNY \(CLOSED\)/i)).toBeDefined();
   });
@@ -53,36 +53,41 @@ describe('ModelRoutingWidget', () => {
       primaryLocalModel: 'openai/gpt-oss-20b',
       fallbackLocalModel: 'granite-4.0-micro',
       cloudModel: 'AGY (Gemini Pro)',
-      avgLocalLatencyMs: 400,
-      avgCloudLatencyMs: 1500,
+      avgLocalLatencyMs: 350,
+      avgCloudLatencyMs: 1400,
       localEndpoint: 'http://10.10.10.30:1234/v1',
       fallbackCount: 5,
     };
 
-    global.fetch = vi.fn()
-      .mockResolvedValueOnce({
+    const resetStats = {
+      ...openBreakerStats,
+      circuitBreakerState: 'CLOSED',
+      fallbackCount: 0,
+    };
+
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      if (url === '/api/llm/routing/circuit/reset' && opts?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, stats: resetStats }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({
         ok: true,
         status: 200,
         json: async () => openBreakerStats,
-      } as unknown as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          success: true,
-          stats: { ...openBreakerStats, circuitBreakerState: 'CLOSED' },
-        }),
       } as unknown as Response);
+    });
 
     render(<ModelRoutingWidget />);
 
     await waitFor(() => {
-      expect(screen.getByText(/ROZŁĄCZONY \(OPEN\)/i)).toBeDefined();
+      expect(screen.getByText(/Obwód: ROZŁĄCZONY \(OPEN\)/i)).toBeDefined();
+      expect(screen.getByRole('button', { name: /Reset/i })).toBeDefined();
     });
 
     const resetBtn = screen.getByRole('button', { name: /Reset/i });
-    expect(resetBtn).toBeDefined();
-
     fireEvent.click(resetBtn);
 
     await waitFor(() => {
@@ -90,33 +95,43 @@ describe('ModelRoutingWidget', () => {
     });
   });
 
-  it('renders 0% for both tiers when total tasks is 0', async () => {
-    const zeroStats = {
-      localTasks: 0,
-      cloudTasks: 0,
+  it('allows triggering live test prompt simulation', async () => {
+    const mockStats = {
+      localTasks: 10,
+      cloudTasks: 2,
       circuitBreakerState: 'CLOSED',
-      primaryLocalModel: 'unsloth/Qwen3.5-4B-MTP-GGUF',
+      primaryLocalModel: 'openai/gpt-oss-20b',
       fallbackLocalModel: 'granite-4.0-micro',
       cloudModel: 'AGY (Gemini Pro)',
-      avgLocalLatencyMs: 0,
-      avgCloudLatencyMs: 0,
-      localEndpoint: 'http://10.10.10.30:8888/v1',
-      fallbackCount: 0,
+      avgLocalLatencyMs: 300,
+      avgCloudLatencyMs: 1200,
+      localServerName: 'Unsloth',
     };
 
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => zeroStats,
-    } as unknown as Response);
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      if (url === '/api/llm/route-prompt' && opts?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            result: { durationMs: 280, model: 'unsloth/Qwen3.5-4B-MTP-GGUF', provider: 'lm-studio' },
+            stats: mockStats,
+          }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => mockStats,
+      } as unknown as Response);
+    });
 
     render(<ModelRoutingWidget />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/10.10.10.30:8888 \(LM Studio\)/i)).toBeDefined();
-      expect(screen.queryByText(/100% \(0 zadań\)/i)).toBeNull();
-      const zeroMatches = screen.getAllByText(/^0%/);
-      expect(zeroMatches.length).toBe(2);
-    });
+    const testLocalBtn = await screen.findByRole('button', { name: /Test Local/i });
+    fireEvent.click(testLocalBtn);
+
+    expect(await screen.findByText(/Skierowano do: Unsloth \(Lokalny\)/i)).toBeDefined();
   });
 });

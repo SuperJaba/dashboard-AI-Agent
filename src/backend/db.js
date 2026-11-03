@@ -93,7 +93,16 @@ export async function safeQuery(text, params = []) {
     try {
       return await rawPoolQuery(text, params);
     } catch (err) {
-      if (err.code === 'ECONNREFUSED' || err.code === '57P01' || err.message?.includes('connect ECONNREFUSED')) {
+      if (
+        err.code === 'ECONNREFUSED' ||
+        err.code === '57P01' ||
+        err.code === '28P01' ||
+        err.code === '3D000' ||
+        err.message?.includes('connect ECONNREFUSED') ||
+        err.message?.includes('SASL:') ||
+        err.message?.includes('password') ||
+        err.message?.includes('authentication')
+      ) {
         console.warn('PostgreSQL connection unavailable, using fallback store:', err.message);
         useInMemoryFallback = true;
       } else {

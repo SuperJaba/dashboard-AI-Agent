@@ -80,9 +80,56 @@ widgetsRouter.get('/:id/run', async (req, res) => {
     if (widget.server_id) {
       const server = await serversRepo.getServerById(widget.server_id);
       if (server) {
+        // Check if widget is for "Local Docker Containers" and needs rebuild
+        const isDockerContainers = widget.command.includes('docker ps -a');
+
         try {
-          const result = await sshCmd(server, widget.command);
-          return res.json({ result: result.trim() });
+          let result;
+          if (isDockerContainers) {
+            // For docker containers: build chart first, wait 10s, then check status
+            const sshCmdStr = sshCmd(server, widget.command);
+
+            // Step 1: Build the chart (docker-compose up -d or similar)
+            result = await new Promise((resolve, reject) => {
+              exec(`ssh -t ${sshCmdStr} "docker compose build"`, (err, stdout, stderr) => {
+                if (err) {
+                  console.error('Docker build error:', err);
+                  reject(new Error(stderr || err.message));
+                } else {
+                  resolve(stdout.trim());
+                }
+              });
+            });
+
+            // Step 2: Wait 10 seconds for containers to start
+            await new Promise(resolve => setTimeout(resolve, 10000));
+
+            // Step 3: Get container status
+            result = await new Promise((resolve, reject) => {
+              exec(`ssh -t ${sshCmdStr} "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'"`, (err, stdout, stderr) => {
+                if (err) {
+                  console.error('Docker status error:', err);
+                  reject(new Error(stderr || err.message));
+                } else {
+                  resolve(stdout.trim());
+                }
+              });
+            });
+          } else {
+            // Standard command execution via SSH
+            result = await new Promise((resolve, reject) => {
+              exec(`ssh -t ${sshCmdStr}`, (err, stdout, stderr) => {
+                if (err) {
+                  console.error('SSH widget error:', err);
+                  reject(new Error(stderr || err.message));
+                } else {
+                  resolve(stdout.trim());
+                }
+              });
+            });
+          }
+
+          return res.json({ result });
         } catch (sshErr) {
           console.error('SSH widget error:', sshErr);
           return res.json({ result: 'Error' });

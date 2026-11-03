@@ -21,10 +21,13 @@
     "autotest": "bash scripts/autotest_ai.sh",
     "ci-tdd": "bash scripts/ci_tdd_bot.sh",
     "agent:worker": "node scripts/local-agent-worker.js",
+    "agent.worker": "node scripts/local-agent-worker.js",
+    "worker": "node scripts/local-agent-worker.js",
     "sync-tasks": "node src/backend/scripts/syncTasks.js",
     "test:e2e": "cross-env NODE_ENV=test node tests/full_test_suite.js",
     "deploy:ct8": "bash scripts/deploy-ct8-optimized.sh",
-    "sync-remote-tasks": "node src/backend/scripts/syncRemoteTasks.js"
+    "sync-remote-tasks": "node src/backend/scripts/syncRemoteTasks.js",
+    "start": "node server.js"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -94,5 +97,22 @@
   "allowScripts": {
     "node-pty": true,
     "fsevents@2.3.3": true
-  }
+  },
+  "description": "A full-stack, modern dashboard application built with React, TypeScript, Vite, and Express. This dashboard provides a comprehensive platform for monitoring servers, managing projects, executing AI agents, real-time terminal interactions, and LLM server management.",
+  "main": "app.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SuperJaba/dashboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SuperJaba/dashboard/issues"
+  },
+  "homepage": "https://github.com/SuperJaba/dashboard#readme"
 }
