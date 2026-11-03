@@ -41,9 +41,11 @@ export function RemoteTelemetryCharts({
 
     const timeLabels = timeRange === '15m'
       ? ['T-15m', 'T-12m', 'T-9m', 'T-6m', 'T-3m', 'Teraz']
+      : timeRange === '1h'
+      ? ['T-60m', 'T-45m', 'T-30m', 'T-15m', 'Teraz']
       : timeRange === '6h'
       ? ['T-6h', 'T-4h', 'T-3h', 'T-2h', 'T-1h', 'Teraz']
-      : ['12:00', '12:10', '12:20', '12:30', '12:40', '12:50', 'Teraz'];
+      : ['T-60m', 'T-45m', 'T-30m', 'T-15m', 'Teraz'];
 
     const cpuMultipliers = [0.7, 0.85, 1.15, 1.45, 1.6, 1.1, 1.0];
     const ramMultipliers = [0.95, 0.96, 0.98, 1.04, 1.08, 1.01, 1.0];
