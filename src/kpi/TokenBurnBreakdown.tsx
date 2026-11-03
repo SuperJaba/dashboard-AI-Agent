@@ -21,10 +21,30 @@ const BAR_COLORS = [
 export function TokenBurnBreakdown({ data }: TokenBurnBreakdownProps) {
   const total = data.reduce((s, d) => s + d.tokens, 0);
 
+  // Gdy total === 0, wyrenderuj czysty pusty stan
+  if (total === 0) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '64px',
+        color: 'var(--text-muted)',
+        fontSize: '0.75rem',
+        textAlign: 'center',
+        background: 'rgba(255, 255, 255, 0.02)',
+        borderRadius: '8px',
+        border: '1px dashed var(--glass-border, rgba(255, 255, 255, 0.1))'
+      }}>
+        Brak zarejestrowanego zużycia tokenów dzisiaj
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
       {data.map((entry, index) => {
-        const pct = total > 0 ? Math.round((entry.tokens / total) * 100) : 0;
+        const pct = Math.round((entry.tokens / total) * 100);
         const color = BAR_COLORS[index % BAR_COLORS.length];
         return (
           <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
