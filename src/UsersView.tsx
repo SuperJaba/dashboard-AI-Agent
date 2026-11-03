@@ -193,9 +193,10 @@ export function UsersView() {
             disabled={loading}
             className="btn btn-secondary"
             title="Odśwież listę"
+            aria-label="Odśwież listę"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <RefreshCw size={16} className={loading ? 'spin' : ''} />
+            <RefreshCw size={16} className={loading ? 'spin' : ''} aria-hidden="true" />
             <span>Odśwież</span>
           </button>
           <button
@@ -205,9 +206,10 @@ export function UsersView() {
               setShowAddModal(true);
             }}
             className="btn btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary)' }}
+            aria-label="Dodaj użytkownika"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <UserPlus size={16} />
+            <UserPlus size={16} aria-hidden="true" />
             <span>Dodaj użytkownika</span>
           </button>
         </div>
@@ -219,9 +221,9 @@ export function UsersView() {
           marginBottom: '1rem',
           padding: '0.75rem 1rem',
           backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          border: '1px solid #10b981',
+          border: `1px solid var(--success)`,
           borderRadius: '8px',
-          color: '#10b981',
+          color: 'var(--success)',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem'
@@ -236,9 +238,9 @@ export function UsersView() {
           marginBottom: '1rem',
           padding: '0.75rem 1rem',
           backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid #ef4444',
+          border: `1px solid var(--danger)`,
           borderRadius: '8px',
-          color: '#ef4444',
+          color: 'var(--danger)',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem'
@@ -262,7 +264,7 @@ export function UsersView() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                <tr style={{ borderBottom: `1px solid var(--border-color)`, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>ID</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Użytkownik</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Rola</th>
@@ -273,11 +275,11 @@ export function UsersView() {
                 {users.map(u => {
                   const isCurrent = currentUser?.id === u.id || currentUser?.username === u.username;
                   return (
-                    <tr 
+                    <tr
                       key={u.id}
-                      style={{ 
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                        backgroundColor: isCurrent ? 'rgba(168, 85, 247, 0.04)' : undefined
+                      style={{
+                        borderBottom: `1px solid rgba(255, 255, 255, 0.05)`,
+                        backgroundColor: isCurrent ? 'var(--role-admin-bg)' : undefined
                       }}
                     >
                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -289,8 +291,8 @@ export function UsersView() {
                             width: '28px',
                             height: '28px',
                             borderRadius: '50%',
-                            backgroundColor: u.role === 'admin' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(56, 189, 248, 0.2)',
-                            color: u.role === 'admin' ? '#c084fc' : '#38bdf8',
+                            backgroundColor: u.role === 'admin' ? 'var(--role-admin-bg)' : 'rgba(56, 189, 248, 0.2)',
+                            color: u.role === 'admin' ? 'var(--role-admin-text)' : '#38bdf8',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -317,8 +319,8 @@ export function UsersView() {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.3rem',
-                            backgroundColor: u.role === 'admin' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(148, 163, 184, 0.15)',
-                            color: u.role === 'admin' ? '#c084fc' : '#94a3b8',
+                            backgroundColor: u.role === 'admin' ? 'var(--role-admin-bg)' : 'var(--role-user-bg)',
+                            color: u.role === 'admin' ? 'var(--role-admin-text)' : 'var(--role-user-text)',
                             border: `1px solid ${u.role === 'admin' ? 'rgba(168, 85, 247, 0.4)' : 'rgba(148, 163, 184, 0.3)'}`
                           }}>
                             {u.role === 'admin' ? <Shield size={12} /> : null}
@@ -332,16 +334,17 @@ export function UsersView() {
                               onChange={(e) => handleChangeRole(u, e.target.value as 'admin' | 'user')}
                               style={{
                                 background: 'transparent',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                border: `1px solid rgba(255, 255, 255, 0.1)`,
                                 color: 'var(--text-muted)',
                                 fontSize: '0.75rem',
                                 borderRadius: '4px',
                                 padding: '0.1rem 0.3rem'
                               }}
                               title="Zmień rolę"
+                              aria-label={`Zmień rolę dla ${u.username}`}
                             >
-                              <option value="user" style={{ background: '#1e293b', color: '#fff' }}>Użytkownik</option>
-                              <option value="admin" style={{ background: '#1e293b', color: '#fff' }}>Administrator</option>
+                              <option value="user" style={{ background: 'var(--bg-surface)', color: '#fff' }}>Użytkownik</option>
+                              <option value="admin" style={{ background: 'var(--role-admin-bg)', color: '#fff' }}>Administrator</option>
                             </select>
                           )}
                         </div>
@@ -358,8 +361,9 @@ export function UsersView() {
                             className="btn btn-secondary"
                             style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                             title="Zmień hasło"
+                            aria-label={`Zmień hasło dla ${u.username}`}
                           >
-                            <Key size={14} />
+                            <Key size={14} aria-hidden="true" />
                             <span>Hasło</span>
                           </button>
                           <button
@@ -373,15 +377,16 @@ export function UsersView() {
                             style={{
                               padding: '0.35rem 0.6rem',
                               fontSize: '0.8rem',
-                              color: isCurrent ? 'var(--text-muted)' : '#ef4444',
+                              color: isCurrent ? 'var(--text-muted)' : 'var(--danger)',
                               opacity: isCurrent ? 0.4 : 1,
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.3rem'
                             }}
                             title={isCurrent ? 'Nie możesz usunąć własnego konta' : 'Usuń użytkownika'}
+                            aria-label={`Usuń użytkownika ${u.username}`}
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={14} aria-hidden="true" />
                             <span>Usuń</span>
                           </button>
                         </div>
@@ -397,43 +402,50 @@ export function UsersView() {
 
       {/* Modal: Dodawanie użytkownika */}
       {showAddModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '1rem'
-        }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-user-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }}
+        >
           <div className="glass-card animate-in" style={{ width: '100%', maxWidth: '420px', padding: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <UserPlus size={20} color="var(--primary)" />
+              <h2 id="add-user-modal-title" style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <UserPlus size={20} color="var(--primary)" aria-hidden="true" />
                 Nowy użytkownik
               </h2>
-              <button 
+              <button
                 type="button"
+                aria-label="Zamknij"
                 onClick={() => setShowAddModal(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
               >
-                <X size={20} />
+                <X size={20} aria-hidden="true" />
               </button>
             </div>
 
             {addError && (
-              <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '4px', fontSize: '0.85rem' }}>
+              <div role="alert" style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderRadius: '4px', fontSize: '0.85rem' }}>
                 {addError}
               </div>
             )}
 
             <form onSubmit={handleAddUser}>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                <label htmlFor="new-username" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
                   Nazwa użytkownika (login)
                 </label>
                 <input
+                  id="new-username"
                   type="text"
                   required
                   value={newUsername}
@@ -445,11 +457,12 @@ export function UsersView() {
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                <label htmlFor="new-password" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
                   Hasło (min. 8 znaków)
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
+                    id="new-password"
                     type={showNewPassword ? 'text' : 'password'}
                     required
                     value={newPassword}
@@ -460,6 +473,7 @@ export function UsersView() {
                   />
                   <button
                     type="button"
+                    aria-label={showNewPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
                     onClick={() => setShowNewPassword(!showNewPassword)}
                     style={{
                       position: 'absolute',
@@ -472,20 +486,21 @@ export function UsersView() {
                       cursor: 'pointer'
                     }}
                   >
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showNewPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                   </button>
                 </div>
               </div>
 
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                <label htmlFor="new-role" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
                   Rola w systemie
                 </label>
                 <select
+                  id="new-role"
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as 'admin' | 'user')}
                   className="input-field"
-                  style={{ width: '100%', padding: '0.6rem 0.8rem', background: '#0f172a' }}
+                  style={{ width: '100%', padding: '0.6rem 0.8rem', background: 'var(--bg-surface)' }}
                 >
                   <option value="user">Użytkownik (standardowy dostęp)</option>
                   <option value="admin">Administrator (pełne uprawnienia)</option>
@@ -498,6 +513,7 @@ export function UsersView() {
                   onClick={() => setShowAddModal(false)}
                   className="btn btn-secondary"
                   disabled={addLoading}
+                  aria-label="Anuluj"
                 >
                   Anuluj
                 </button>
@@ -506,6 +522,7 @@ export function UsersView() {
                   disabled={addLoading}
                   className="btn btn-primary"
                   style={{ background: 'var(--primary)' }}
+                  aria-label="Utwórz konto"
                 >
                   {addLoading ? 'Zapisywanie...' : 'Utwórz konto'}
                 </button>
@@ -517,44 +534,51 @@ export function UsersView() {
 
       {/* Modal: Zmiana hasła */}
       {passwordTargetUser && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '1rem'
-        }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="change-password-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }}
+        >
           <div className="glass-card animate-in" style={{ width: '100%', maxWidth: '400px', padding: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Key size={20} color="var(--primary)" />
+              <h2 id="change-password-modal-title" style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Key size={20} color="var(--primary)" aria-hidden="true" />
                 Zmiana hasła: {passwordTargetUser.username}
               </h2>
-              <button 
+              <button
                 type="button"
+                aria-label="Zamknij"
                 onClick={() => setPasswordTargetUser(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
               >
-                <X size={20} />
+                <X size={20} aria-hidden="true" />
               </button>
             </div>
 
             {passwordError && (
-              <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '4px', fontSize: '0.85rem' }}>
+              <div role="alert" style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderRadius: '4px', fontSize: '0.85rem' }}>
                 {passwordError}
               </div>
             )}
 
             <form onSubmit={handleChangePassword}>
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                <label htmlFor="change-password-val" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
                   Nowe hasło (min. 8 znaków)
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
+                    id="change-password-val"
                     type={showChangePassword ? 'text' : 'password'}
                     required
                     value={changePasswordVal}
@@ -565,6 +589,7 @@ export function UsersView() {
                   />
                   <button
                     type="button"
+                    aria-label={showChangePassword ? 'Ukryj hasło' : 'Pokaż hasło'}
                     onClick={() => setShowChangePassword(!showChangePassword)}
                     style={{
                       position: 'absolute',
@@ -577,7 +602,7 @@ export function UsersView() {
                       cursor: 'pointer'
                     }}
                   >
-                    {showChangePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showChangePassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                   </button>
                 </div>
               </div>
@@ -588,6 +613,7 @@ export function UsersView() {
                   onClick={() => setPasswordTargetUser(null)}
                   className="btn btn-secondary"
                   disabled={passwordLoading}
+                  aria-label="Anuluj"
                 >
                   Anuluj
                 </button>
@@ -596,6 +622,7 @@ export function UsersView() {
                   disabled={passwordLoading}
                   className="btn btn-primary"
                   style={{ background: 'var(--primary)' }}
+                  aria-label="Zmień hasło"
                 >
                   {passwordLoading ? 'Zapisywanie...' : 'Zmień hasło'}
                 </button>
@@ -607,20 +634,25 @@ export function UsersView() {
 
       {/* Modal: Potwierdzenie usunięcia */}
       {deleteTargetUser && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '1rem'
-        }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-user-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }}
+        >
           <div className="glass-card animate-in" style={{ width: '100%', maxWidth: '400px', padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', color: '#ef4444' }}>
-              <ShieldAlert size={28} />
-              <h2 style={{ margin: 0, fontSize: '1.2rem', color: '#fff' }}>Usuń użytkownika</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', color: 'var(--danger)' }}>
+              <ShieldAlert size={28} aria-hidden="true" />
+              <h2 id="delete-user-modal-title" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-main)' }}>Usuń użytkownika</h2>
             </div>
 
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
@@ -628,7 +660,7 @@ export function UsersView() {
             </p>
 
             {deleteError && (
-              <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '4px', fontSize: '0.85rem' }}>
+              <div role="alert" style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderRadius: '4px', fontSize: '0.85rem' }}>
                 {deleteError}
               </div>
             )}
@@ -639,6 +671,7 @@ export function UsersView() {
                 onClick={() => setDeleteTargetUser(null)}
                 className="btn btn-secondary"
                 disabled={deleteLoading}
+                aria-label="Anuluj"
               >
                 Anuluj
               </button>
@@ -647,7 +680,8 @@ export function UsersView() {
                 onClick={handleDeleteUser}
                 disabled={deleteLoading}
                 className="btn btn-danger"
-                style={{ backgroundColor: '#ef4444', color: '#fff' }}
+                style={{ backgroundColor: 'var(--danger)', color: 'var(--text-main)' }}
+                aria-label="Usuń konto"
               >
                 {deleteLoading ? 'Usuwanie...' : 'Usuń konto'}
               </button>
