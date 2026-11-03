@@ -224,11 +224,11 @@ Before delivering any UI code, verify:
 
 - [x] No emojis used as icons (use SVG instead)
 - [x] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+- [x] `cursor-pointer` on all clickable elements
+- [x] Hover states with smooth transitions (150-300ms)
+- [x] Light mode: text contrast 4.5:1 minimum
+- [x] Focus states visible for keyboard navigation
+- [x] `prefers-reduced-motion` respected
+- [x] Responsive: 375px, 768px, 1024px, 1440px
+- [x] No content hidden behind fixed navbars
+- [x] No horizontal scroll on mobile

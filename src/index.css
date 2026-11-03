@@ -41,7 +41,7 @@
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-color);
-  background-image: 
+  background-image:
     radial-gradient(ellipse 70% 35% at 50% 0%, rgba(79, 70, 229, 0.12), transparent 70%),
     radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.05), transparent 40%);
   color: var(--text-main);
@@ -51,6 +51,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   position: relative;
+}
+
+/* Smooth transitions for all interactive elements (150-300ms) */
+button, a, .glass-card, input, select, textarea {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Additional interactive elements */
+.cursor-pointer, [role="button"], .task-item, .status-badge, .tasks-header {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Secure against horizontal scroll on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Prefers-reduced-motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body::before {
