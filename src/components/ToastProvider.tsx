@@ -1,28 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { ToastContext, type ToastType, type ToastItem, type ToastApi } from './ToastContext';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
-
-interface ToastItem {
-  id: string;
-  type: ToastType;
-  message: string;
-  duration: number;
-}
-
-interface ToastApi {
-  success: (message: string, duration?: number) => void;
-  error: (message: string, duration?: number) => void;
-  warning: (message: string, duration?: number) => void;
-  info: (message: string, duration?: number) => void;
-}
-
-interface ToastContextValue {
-  toast: ToastApi;
-}
+export type { ToastType, ToastApi } from './ToastContext';
 
 const DEFAULT_DURATION = 4000;
 
@@ -39,8 +22,6 @@ const ACCENTS: Record<ToastType, string> = {
   warning: 'var(--warning)',
   info: 'var(--primary)',
 };
-
-const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -145,12 +126,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   );
-}
-
-export function useToast(): ToastApi {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast musi być użyty wewnątrz ToastProvider');
-  }
-  return context.toast;
 }
