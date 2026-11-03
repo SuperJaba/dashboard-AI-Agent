@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { apiClient } from './shared/api-client';
 import { Activity, Cpu, Server, HardDrive, PowerOff, ShieldCheck, Zap } from 'lucide-react';
 import { AntigravityCard } from './components/AntigravityCard';
+import { RemoteTelemetryCharts } from './components/RemoteTelemetryCharts';
 
-export function ServerStats({ serverId }: { serverId?: number }) {
+export function ServerStats({ serverId, serverName }: { serverId?: number; serverName?: string }) {
   const [stats, setStats] = useState<any>(null);
   const [apps, setApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -236,6 +237,16 @@ export function ServerStats({ serverId }: { serverId?: number }) {
           </div>
         </AntigravityCard>
       </div>
+
+      {/* Natywna Telemetria Zdalna & Wykresy Systemowe */}
+      <RemoteTelemetryCharts
+        cpuLoadPercent={Math.min(100, ((stats.cpu?.load1 ?? 0) / (stats.cpu?.cores || 1)) * 100)}
+        memoryUsagePercent={stats.memory?.usagePercent ?? 50}
+        cores={stats.cpu?.cores ?? 4}
+        serverName={serverName}
+        appsCount={apps.length}
+        uptimeHours={(stats.os?.uptime ?? 36000) / 3600}
+      />
 
       {/* Discovered Apps - Spatial Grid */}
       <div className="animate-in delay-4" style={{ perspective: '1200px' }}>

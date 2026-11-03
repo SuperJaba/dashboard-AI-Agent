@@ -23,7 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+*.env
+*.env.*
+!.env.example
 .agent/
+LITELLM-TEST/
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml

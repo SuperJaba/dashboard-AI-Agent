@@ -26,6 +26,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const termInstance = useRef<Terminal | null>(null);
   const fitAddonInstance = useRef<FitAddon | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const hasSpawnedRef = useRef(false);
 
   const [isMinimized, setIsMinimized] = useState(false);
   // Default to a size that comfortably fits smaller/laptop-class screens
@@ -109,7 +110,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
     const socket = io('/pty', {
       auth: { token },
-      transports: ['polling', 'websocket']
+      transports: ['websocket', 'polling']
     });
     socketRef.current = socket;
 
@@ -128,17 +129,20 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
       term.write('\x1b[32m[Connected to Backend]\x1b[0m\r\n');
       term.focus();
       
-      // Spawn pty on backend or local worker
-      socket.emit('spawn_terminal', {
-        command: config.command,
-        args: config.args,
-        cwd: config.cwd,
-        env: config.env,
-        executionTarget: execTarget,
-        targetWorkerId: config.targetWorkerId,
-        scriptContent: config.scriptContent,
-        taskId: config.taskId
-      });
+      // Spawn pty on backend or local worker (guarded against duplicate emits on reconnect)
+      if (!hasSpawnedRef.current) {
+        hasSpawnedRef.current = true;
+        socket.emit('spawn_terminal', {
+          command: config.command,
+          args: config.args,
+          cwd: config.cwd,
+          env: config.env,
+          executionTarget: execTarget,
+          targetWorkerId: config.targetWorkerId,
+          scriptContent: config.scriptContent,
+          taskId: config.taskId
+        });
+      }
       
       // Resize to current xterm size
       socket.emit('terminal_resize', { cols: term.cols, rows: term.rows });
@@ -188,6 +192,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      hasSpawnedRef.current = false;
       socket.disconnect();
       term.dispose();
     };
@@ -324,11 +329,17 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
                 cursor: 'pointer'
               }}
             >
-              <option value="auto">Auto ({workers.length > 0 ? 'Local Worker' : 'Remote'})</option>
-              <option value="worker" disabled={workers.length === 0}>
-                Local Worker ({workers.length > 0 ? `${workers.length} online` : 'offline - kliknij Tunel PC'})
+              <option value="auto">
+                ⚡ Auto ({workers.length > 0 ? (workers.some(w => w.type === 'remote') ? 'Socket Worker' : 'Local Worker') : 'Remote'})
               </option>
-              <option value="remote">Remote Server</option>
+              <option value="worker" disabled={workers.length === 0}>
+                {workers.length > 0
+                  ? (workers.some(w => w.type === 'remote')
+                      ? `🌐/💻 Worker Socket (${workers.length} online)`
+                      : `💻 Local Worker (${workers.length} online)`)
+                  : 'Local Worker (offline - kliknij Tunel PC)'}
+              </option>
+              <option value="remote">🌐 Remote Server</option>
             </select>
           </div>
           <button

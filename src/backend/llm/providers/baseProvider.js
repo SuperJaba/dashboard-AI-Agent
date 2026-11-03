@@ -36,4 +36,11 @@ export class BaseProvider {
   async complete(prompt, opts = {}) { // eslint-disable-line no-unused-vars
     throw new Error(`complete() not implemented in provider '${this.name}'`);
   }
+
+  /**
+   * Alias for complete() to support generate() calling convention.
+   */
+  async generate(prompt, opts = {}) {
+    return this.complete(prompt, opts);
+  }
 }

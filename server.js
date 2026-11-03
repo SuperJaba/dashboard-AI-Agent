@@ -80,6 +80,8 @@ import { alertsRouter } from './src/backend/alerts/alertsRouter.js';
 import { startAlertWatcher } from './src/backend/alerts/alertWatcher.js';
 import { sseRouter } from './src/backend/events/sseRouter.js';
 import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
+import { opsrampRouter } from './src/backend/opsramp/opsrampRouter.js';
+import { modelRouterApi } from './src/backend/llm/modelRouterApi.js';
 import { deployRouter } from './src/backend/deploy/deployRouter.js';
 import { deployService } from './src/backend/deploy/deployService.js';
 import { notificationsRouter } from './src/backend/notifications/notificationsRouter.js';
@@ -89,6 +91,7 @@ import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
+import { classifyWorkerSocket } from './src/backend/socket/workerClassification.js';
 
 import { llmProxyRouter } from './src/backend/llm/llmProxyRouter.js';
 import { securityHeadersMiddleware } from './src/backend/utils/securityHeaders.js';
@@ -152,22 +155,36 @@ io.on('connection', (socket) => {
   const isWorker = socket.handshake.auth?.isWorker;
 
   if (isWorker) {
+    const classification = classifyWorkerSocket(socket);
     const workerInfo = {
       id: socket.id,
-      name: socket.handshake.auth?.workerName || 'Local Worker',
+      name: socket.handshake.auth?.workerName || (classification.type === 'remote' ? 'Remote-Worker' : 'Local-Worker'),
+      type: classification.type,
+      ip: classification.ip,
+      serverId: classification.serverId,
+      serverName: classification.serverName,
       hostname: socket.handshake.auth?.hostname || 'unknown',
       platform: socket.handshake.auth?.platform || 'unknown',
+      arch: socket.handshake.auth?.arch || 'unknown',
       connectedAt: new Date().toISOString(),
       socket
     };
     activeWorkers.set(socket.id, workerInfo);
     activeAgentWorkers.set(activeWorkers.size);
-    logger.info({ workerId: socket.id, name: workerInfo.name }, '🤖 Registered Local Agent Worker');
+    logger.info({ workerId: socket.id, name: workerInfo.name, type: workerInfo.type, ip: workerInfo.ip }, '🤖 Registered Agent Worker');
 
     socket.on('register_worker', (data) => {
       if (activeWorkers.has(socket.id)) {
         const existing = activeWorkers.get(socket.id);
         Object.assign(existing, data);
+        if (data.type) existing.type = data.type;
+        if (data.workerType) existing.type = data.workerType;
+        if (data.serverId) existing.serverId = Number(data.serverId);
+        if (data.serverName) existing.serverName = data.serverName;
+        if (data.name?.toLowerCase().includes('omv') || data.hostname?.toLowerCase().includes('omv')) {
+          existing.type = 'remote';
+          if (!existing.serverName) existing.serverName = 'OMV';
+        }
       }
     });
 
@@ -209,8 +226,15 @@ io.on('connection', (socket) => {
     let workerToUse = null;
     if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
       workerToUse = activeWorkers.get(targetWorkerId);
-    } else if (executionTarget === 'worker' || (executionTarget !== 'remote' && activeWorkers.size > 0)) {
+    } else if (executionTarget === 'worker') {
       workerToUse = Array.from(activeWorkers.values())[0];
+    } else if (executionTarget !== 'remote' && activeWorkers.size > 0) {
+      // Auto mode: prefer a local worker if one is connected.
+      // If only remote workers exist (e.g. OMV), do NOT hijack local terminal sessions with remote workers!
+      const localWorker = Array.from(activeWorkers.values()).find(w => w.type === 'local');
+      if (localWorker) {
+        workerToUse = localWorker;
+      }
     }
 
     if (workerToUse) {
@@ -397,16 +421,159 @@ app.get('/v1/metrics', async (req, res) => {
 // --- Auth Routes ---
 app.use('/api/auth', authRouter);
 
+// Public Worker Script Download
+app.get('/api/worker/script', (req, res) => {
+  const scriptPath = path.join(__dirname, 'scripts', 'local-agent-worker.js');
+  if (fs.existsSync(scriptPath)) {
+    res.setHeader('Content-Type', 'text/javascript');
+    return res.sendFile(scriptPath);
+  }
+  res.status(404).json({ error: 'Worker script not found' });
+});
+
+// Public Sync Tasks Script Download
+app.get(['/api/scripts/syncTasks.js', '/api/scripts/sync-tasks.js', '/api/scripts/sync-tasks', '/scripts/syncTasks.js'], (req, res) => {
+  const scriptPath = path.join(__dirname, 'src', 'backend', 'scripts', 'syncTasks.js');
+  if (fs.existsSync(scriptPath)) {
+    res.setHeader('Content-Type', 'text/javascript');
+    return res.sendFile(scriptPath);
+  }
+  res.status(404).json({ error: 'Sync tasks script not found' });
+});
+
+// Public Worker Bootstrap / Auto-installer
+app.get(['/api/worker/run', '/api/worker/install'], (req, res) => {
+  const serverUrl = req.query.serverUrl || `${req.protocol}://${req.get('host')}`;
+  res.setHeader('Content-Type', 'text/x-shellscript');
+  res.send(`#!/usr/bin/env bash
+set -e
+SERVER_URL="\${1:-\${DASHBOARD_SERVER_URL:-${serverUrl}}}"
+TOKEN="\${2:-\${DASHBOARD_TOKEN:-}}"
+WORKER_NAME="\${3:-\${WORKER_NAME:-$(hostname)}}"
+WORK_DIR="$HOME/dashboard-worker"
+
+echo "🚀 Inicjalizacja Local Agenta Worker w $WORK_DIR..."
+mkdir -p "$WORK_DIR" && cd "$WORK_DIR"
+
+if [ ! -f package.json ]; then
+  npm init -y >/dev/null 2>&1
+fi
+
+node -e '
+const fs = require("fs");
+try {
+  const p = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  p.type = "module";
+  p.scripts = p.scripts || {};
+  p.scripts["agent:worker"] = "node local-agent-worker.js";
+  p.scripts["agent.worker"] = "node local-agent-worker.js";
+  p.scripts["worker"] = "node local-agent-worker.js";
+  fs.writeFileSync("package.json", JSON.stringify(p, null, 2));
+} catch(e) {}
+'
+
+if [ ! -d "node_modules/socket.io-client" ] || [ ! -d "node_modules/node-pty" ]; then
+  echo "📦 Instalacja zależności workera (socket.io-client, node-pty)..."
+  npm install --no-audit --no-fund socket.io-client node-pty
+fi
+
+echo "📥 Pobieranie najnowszego skryptu workera z $SERVER_URL..."
+curl -sSL "\${SERVER_URL}/api/worker/script" -o local-agent-worker.js
+
+echo "🔌 Uruchamianie workera ($WORKER_NAME)..."
+exec env DASHBOARD_SERVER_URL="$SERVER_URL" DASHBOARD_TOKEN="$TOKEN" WORKER_NAME="$WORKER_NAME" node local-agent-worker.js
+`);
+});
+
 // Public / Token-optional Socket Endpoints
 app.get('/api/agents/workers', optionalAuthMiddleware, (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
+    type: w.type || (w.ip && w.ip !== '127.0.0.1' && w.ip !== '::1' ? 'remote' : 'local'),
+    ip: w.ip,
+    serverId: w.serverId || null,
+    serverName: w.serverName || null,
     hostname: w.hostname,
     platform: w.platform,
+    arch: w.arch,
     connectedAt: w.connectedAt
   }));
   res.json(workers);
+});
+
+// Terminate / Kill single worker socket
+app.delete('/api/agents/workers/:id', authMiddleware, (req, res) => {
+  const workerId = req.params.id;
+  const worker = activeWorkers.get(workerId);
+  if (!worker) {
+    return res.status(404).json({ error: 'Worker o podanym ID nie został znaleziony' });
+  }
+
+  try {
+    if (worker.socket) {
+      worker.socket.emit('worker_terminate', { reason: 'Ubij z poziomu dashboardu' });
+      setTimeout(() => {
+        try { worker.socket.disconnect(true); } catch {}
+      }, 150);
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Błąd podczas wysyłania worker_terminate');
+  }
+
+  activeWorkers.delete(workerId);
+  activeAgentWorkers.set(activeWorkers.size);
+  logger.info({ workerId, name: worker.name }, '🛑 Ubito workera i rozłączono socket');
+
+  res.json({
+    success: true,
+    message: `Worker "${worker.name}" (${worker.type === 'remote' ? 'Zdalny' : 'Lokalny'}) został pomyślnie ubity i rozłączony.`
+  });
+});
+
+app.post('/api/agents/workers/:id/kill', authMiddleware, (req, res) => {
+  const workerId = req.params.id;
+  const worker = activeWorkers.get(workerId);
+  if (!worker) {
+    return res.status(404).json({ error: 'Worker o podanym ID nie został znaleziony' });
+  }
+
+  try {
+    if (worker.socket) {
+      worker.socket.emit('worker_terminate', { reason: 'Ubij z poziomu dashboardu' });
+      setTimeout(() => {
+        try { worker.socket.disconnect(true); } catch {}
+      }, 150);
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Błąd podczas wysyłania worker_terminate');
+  }
+
+  activeWorkers.delete(workerId);
+  activeAgentWorkers.set(activeWorkers.size);
+  logger.info({ workerId, name: worker.name }, '🛑 Ubito workera i rozłączono socket');
+
+  res.json({
+    success: true,
+    message: `Worker "${worker.name}" (${worker.type === 'remote' ? 'Zdalny' : 'Lokalny'}) został pomyślnie ubity i rozłączony.`
+  });
+});
+
+// Terminate / Kill all worker sockets
+app.delete('/api/agents/workers', authMiddleware, (req, res) => {
+  const count = activeWorkers.size;
+  for (const worker of activeWorkers.values()) {
+    try {
+      if (worker.socket) {
+        worker.socket.emit('worker_terminate', { reason: 'Masowe ubicie workerów z dashboardu' });
+        worker.socket.disconnect(true);
+      }
+    } catch {}
+  }
+  activeWorkers.clear();
+  activeAgentWorkers.set(0);
+  logger.info({ count }, '🛑 Ubito wszystkie aktywne workery');
+  res.json({ success: true, message: `Ubito wszystkie aktywne połączenia (${count}).` });
 });
 
 app.get('/api/socket-info', authMiddleware, (req, res) => {
@@ -431,8 +598,13 @@ app.get('/api/socket-info', authMiddleware, (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
+    type: w.type || (w.ip && w.ip !== '127.0.0.1' && w.ip !== '::1' ? 'remote' : 'local'),
+    ip: w.ip,
+    serverId: w.serverId || null,
+    serverName: w.serverName || null,
     hostname: w.hostname,
     platform: w.platform,
+    arch: w.arch,
     connectedAt: w.connectedAt
   }));
 
@@ -442,6 +614,7 @@ app.get('/api/socket-info', authMiddleware, (req, res) => {
     workers,
     workersCount: workers.length,
     commands: {
+      curl: `curl -sSL "${serverUrl}/api/worker/run" | bash -s -- "${serverUrl}" "${token}" "Moj-PC"`,
       npm: `DASHBOARD_SERVER_URL="${serverUrl}" DASHBOARD_TOKEN="${token}" npm run agent:worker`,
       node: `node scripts/local-agent-worker.js ${serverUrl} "${token}" "Moj-PC"`,
       bash: `export DASHBOARD_SERVER_URL="${serverUrl}"\nexport DASHBOARD_TOKEN="${token}"\nnpm run agent:worker`,
@@ -482,6 +655,8 @@ app.use('/api/analytics', authMiddleware, kpiRouter);
 app.use('/api/deploy', authMiddleware, deployRouter);
 app.use('/api/notifications', authMiddleware, notificationsRouter);
 app.use('/api/scheduler', authMiddleware, schedulerRouter);
+app.use('/api/opsramp', opsrampRouter);
+app.use('/api/llm', authMiddleware, modelRouterApi);
 
 // T7.4 — Start alert watcher and agent task scheduler (skipped in test env)
 if (process.env.NODE_ENV !== 'test') {

@@ -1,5 +1,7 @@
 import express from 'express';
 import os from 'os';
+import fs from 'fs';
+import path from 'path';
 import { execSync } from 'child_process';
 import * as settingsRepo from './settingsRepository.js';
 import { z } from 'zod';
@@ -218,24 +220,7 @@ settingsRouter.post('/llm/tune', async (req, res) => {
     }
 
     // 2. Fetch system resources (CPU, RAM, GPU/VRAM)
-    let gpuInfo = 'Brak GPU NVIDIA / brak sterowników';
-    try {
-      const smi = execSync('nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free --format=csv,noheader,nounits', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-      if (smi) {
-        gpuInfo = smi.trim().split('\n').map(line => {
-          const parts = line.split(',');
-          if (parts.length >= 3) {
-            const name = parts[0].trim();
-            const total = parseInt(parts[1].trim());
-            const used = parseInt(parts[2].trim());
-            return `${name} (${used}/${total} MB VRAM)`;
-          }
-          return line.trim();
-        }).join(', ');
-      }
-    } catch  {
-      // No nvidia-smi
-    }
+    const gpuInfo = detectGpuInfo();
 
     const systemResources = {
       cpu: `${os.cpus().length}x Cores (${os.cpus()[0]?.model || 'Unknown CPU'})`,
@@ -259,3 +244,113 @@ settingsRouter.post('/llm/tune', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+export function detectGpuInfo() {
+  // 1. Try NVIDIA SMI
+  try {
+    const smi = execSync('nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free --format=csv,noheader,nounits', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 2000
+    });
+    if (smi && smi.trim()) {
+      const parsed = smi.trim().split('\n').map(line => {
+        const parts = line.split(',');
+        if (parts.length >= 3) {
+          const name = parts[0].trim();
+          const total = parseInt(parts[1].trim(), 10);
+          const used = parseInt(parts[2].trim(), 10);
+          return `${name} (${used}/${total} MB VRAM)`;
+        }
+        return line.trim();
+      }).join(', ');
+      if (parsed) return parsed;
+    }
+  } catch {
+    // No nvidia-smi
+  }
+
+  // 2. Try ROCm SMI (AMD)
+  try {
+    const rocm = execSync('rocm-smi --showmeminfo vram --showid --json', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 2000
+    });
+    if (rocm && rocm.trim()) {
+      const data = JSON.parse(rocm.trim());
+      const gpus = [];
+      for (const key of Object.keys(data)) {
+        const card = data[key];
+        const name = card['Device Name'] || 'AMD Radeon';
+        const totalB = parseInt(card['VRAM Total Memory (B)'] || '0', 10);
+        const usedB = parseInt(card['VRAM Total Used Memory (B)'] || '0', 10);
+        if (totalB > 0) {
+          const totalMb = Math.round(totalB / (1024 * 1024));
+          const usedMb = Math.round(usedB / (1024 * 1024));
+          gpus.push(`${name} (${usedMb}/${totalMb} MB VRAM)`);
+        } else {
+          gpus.push(name);
+        }
+      }
+      if (gpus.length > 0) return gpus.join(', ');
+    }
+  } catch {
+    // No rocm-smi
+  }
+
+  // 3. Fallback: Linux sysfs /sys/class/drm/ + lspci
+  try {
+    const drmPath = '/sys/class/drm';
+    if (fs.existsSync(drmPath)) {
+      const entries = fs.readdirSync(drmPath);
+      const cardDirs = entries.filter(e => /^card\d+$/.test(e));
+      for (const card of cardDirs) {
+        const totalPath = path.join(drmPath, card, 'device', 'mem_info_vram_total');
+        const usedPath = path.join(drmPath, card, 'device', 'mem_info_vram_used');
+        if (fs.existsSync(totalPath)) {
+          const totalB = parseInt(fs.readFileSync(totalPath, 'utf8').trim(), 10);
+          const usedB = fs.existsSync(usedPath) ? parseInt(fs.readFileSync(usedPath, 'utf8').trim(), 10) : 0;
+          let name = 'AMD Radeon GPU';
+          try {
+            const lspciOut = execSync('lspci | grep -i -E "vga|3d|display"', {
+              encoding: 'utf8',
+              stdio: ['ignore', 'pipe', 'ignore'],
+              timeout: 2000
+            });
+            const match = lspciOut.match(/controller:\s*([^(\n]+)/i);
+            if (match) name = match[1].trim();
+          } catch {
+            // Ignore lspci error
+          }
+          const totalMb = Math.round(totalB / (1024 * 1024));
+          const usedMb = Math.round(usedB / (1024 * 1024));
+          return `${name} (${usedMb}/${totalMb} MB VRAM)`;
+        }
+      }
+    }
+  } catch {
+    // sysfs read error
+  }
+
+  // 4. Fallback: lspci (without VRAM details)
+  try {
+    const lspci = execSync('lspci | grep -i -E "vga|3d|display"', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 2000
+    });
+    if (lspci && lspci.trim()) {
+      const lines = lspci.trim().split('\n');
+      return lines.map(line => {
+        const parts = line.split(':');
+        return parts.length > 2 ? parts.slice(2).join(':').trim() : line.trim();
+      }).join(', ');
+    }
+  } catch {
+    // lspci not found
+  }
+
+  return 'Brak dedykowanego GPU / brak sterowników';
+}
+
