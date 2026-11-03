@@ -1,3 +1,9 @@
+/**
+ * T5.4 — LLM Proxy Router with SSRF Protection
+ * Handles upstream LLM requests with security validation against SSRF attacks.
+ * Routes traffic to local LM Studio (10.10.10.x) or cloud providers based on headers/settings.
+ */
+
 import express from 'express';
 import fetch from 'node-fetch';
 import net from 'net';
@@ -10,31 +16,33 @@ export const llmProxyRouter = express.Router();
 
 /**
  * Checks if an IP address belongs to RFC 1918 private ranges, link-local, or cloud metadata.
- * @param {string} ip
- * @returns {boolean}
+ * Prevents internal network access from external LLM proxy requests.
+ *
+ * @param {string} ip - IPv4 or IPv6 address to validate
+ * @returns {boolean} True if the IP is private/reserved, false otherwise
  */
 export function isPrivateOrReservedIp(ip) {
   if (net.isIPv4(ip)) {
     const parts = ip.split('.').map(Number);
-    // 0.0.0.0/8
+    // 0.0.0.0/8 - Reserved address block
     if (parts[0] === 0) return true;
-    // 10.0.0.0/8 (RFC 1918)
+    // 10.0.0.0/8 (RFC 1918 Private Network)
     if (parts[0] === 10) return true;
-    // 100.64.0.0/10 (Shared Address Space)
+    // 100.64.0.0/10 (Shared Address Space / Carrier-grade NAT)
     if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
     // 169.254.0.0/16 (Link-local / Cloud metadata RFC 3927)
     if (parts[0] === 169 && parts[1] === 254) return true;
-    // 172.16.0.0/12 (RFC 1918)
+    // 172.16.0.0/12 (RFC 1918 Private Network)
     if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-    // 192.168.0.0/16 (RFC 1918)
+    // 192.168.0.0/16 (RFC 1918 Private Network)
     if (parts[0] === 192 && parts[1] === 168) return true;
-    // Multicast & Reserved
+    // Multicast & Reserved addresses
     if (parts[0] >= 224) return true;
     return false;
   }
   if (net.isIPv6(ip)) {
     const normalized = ip.toLowerCase();
-    // IPv6 link-local fe80::/10
+    // IPv6 link-local fe80::/10, fe90::/16, fea0::/16, feb0::/48
     if (normalized.startsWith('fe8') || normalized.startsWith('fe9') || normalized.startsWith('fea') || normalized.startsWith('feb')) return true;
     // IPv6 unique local fc00::/7 (RFC 4193)
     if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
@@ -44,9 +52,11 @@ export function isPrivateOrReservedIp(ip) {
 }
 
 /**
- * Validates upstream target URL against SSRF attacks (RFC1918, link-local, metadata).
- * @param {string} urlStr
- * @returns {{ valid: boolean, error?: string }}
+ * Validates upstream target URL against SSRF attacks (SEC-03).
+ * Blocks access to private networks, link-local addresses, and cloud metadata endpoints.
+ *
+ * @param {string} urlStr - Target URL to validate
+ * @returns {{ valid: boolean, error?: string }} Validation result with optional error message
  */
 export function validateTargetUrl(urlStr) {
   let parsed;
@@ -62,7 +72,7 @@ export function validateTargetUrl(urlStr) {
 
   const hostname = parsed.hostname.toLowerCase();
 
-  // Cloud metadata endpoints
+  // Cloud metadata endpoints - prevent cloud instance data leakage
   if (
     hostname === '169.254.169.254' ||
     hostname === 'metadata.google.internal' ||
@@ -71,6 +81,7 @@ export function validateTargetUrl(urlStr) {
     return { valid: false, error: 'Dostęp do endpointów metadanych chmury jest zabroniony' };
   }
 
+  // Block access to private/internal networks (SSRF prevention)
   if (isPrivateOrReservedIp(hostname)) {
     return { valid: false, error: 'Dostęp do prywatnych adresów sieciowych (RFC1918 / link-local) jest zablokowany' };
   }
@@ -79,9 +90,14 @@ export function validateTargetUrl(urlStr) {
 }
 
 /**
- * Resolves upstream LLM URL from headers or dashboard settings.
+ * Resolves upstream LLM URL from request headers or dashboard settings.
+ * Supports dynamic target configuration via X-Target-Url header for testing.
+ *
+ * @param {object} req - Express request object
+ * @returns {Promise<string>} Resolved upstream base URL
  */
 async function resolveUpstreamBaseUrl(req) {
+  // Priority: Request header > Database settings > Environment variable > Default
   if (req.headers['x-target-url']) {
     const rawUrl = String(req.headers['x-target-url']).trim().replace(/\/+$/, '');
     const validation = validateTargetUrl(rawUrl);
@@ -100,16 +116,25 @@ async function resolveUpstreamBaseUrl(req) {
   } catch (err) {
     logger.warn({ err: err.message }, 'Failed to query llmUrl from settings for proxy');
   }
+  // Default fallback URL for local development
   return (process.env.LLM_LOCAL_URL || 'http://127.0.0.1:1234/v1').replace(/\/+$/, '');
 }
 
 /**
- * Persists token usage in agent_tasks.
+ * Persists token usage metrics to agent_tasks table for billing/analytics.
+ * Handles both task-specific attribution and automatic attribution to latest task.
+ *
+ * @param {object} opts - Token usage options
+ * @param {number} opts.totalTokens - Total tokens consumed
+ * @param {number} [opts.promptTokens] - Prompt tokens (optional)
+ * @param {number} [opts.completionTokens] - Completion tokens (optional)
+ * @param {number | null} [opts.taskId] - Task ID for attribution (optional)
  */
 async function recordTokenUsage({ totalTokens, promptTokens, completionTokens, taskId }) {
   if (!totalTokens || totalTokens <= 0) return;
   try {
     if (taskId) {
+      // Attribute to specific task
       await safeQuery(
         `UPDATE agent_tasks
          SET tokens_used = tokens_used + $1,
@@ -140,6 +165,7 @@ async function recordTokenUsage({ totalTokens, promptTokens, completionTokens, t
 
 /**
  * Catch-all proxy handler for OpenAI and Anthropic format completions.
+ * Handles request forwarding, SSRF protection, token tracking, and streaming responses.
  */
 llmProxyRouter.use(async (req, res) => {
   let upstreamBase;
@@ -173,16 +199,18 @@ llmProxyRouter.use(async (req, res) => {
 
     const upstreamResponse = await fetch(targetUrl, options);
     const durationMs = Date.now() - startTime;
-    const isLocal = upstreamBase.includes('10.10.10.') || 
-                    upstreamBase.includes('localhost') || 
-                    upstreamBase.includes('127.0.0.1') || 
+
+    // Record task execution with tier based on upstream location (local vs cloud)
+    const isLocal = upstreamBase.includes('10.10.10.') ||
+                    upstreamBase.includes('localhost') ||
+                    upstreamBase.includes('127.0.0.1') ||
                     upstreamBase.includes('192.168.');
     try {
       recordTaskExecution({ tier: isLocal ? 'low' : 'high', durationMs });
       broadcastRoutingStats();
     } catch {}
 
-    // Forward status and headers
+    // Forward status and headers from upstream response
     res.status(upstreamResponse.status);
     for (const [key, val] of upstreamResponse.headers.entries()) {
       if (key.toLowerCase() !== 'transfer-encoding') {
@@ -192,7 +220,7 @@ llmProxyRouter.use(async (req, res) => {
 
     const contentType = upstreamResponse.headers.get('content-type') || '';
 
-    // Handle streaming Server-Sent Events (SSE)
+    // Handle streaming Server-Sent Events (SSE) responses
     if (contentType.includes('text/event-stream')) {
       let accumulatedTokens = 0;
       try {
@@ -218,7 +246,7 @@ llmProxyRouter.use(async (req, res) => {
       return;
     }
 
-    // Handle standard JSON response
+    // Handle standard JSON response with token tracking
     const rawBody = await upstreamResponse.text();
     try {
       const data = JSON.parse(rawBody);

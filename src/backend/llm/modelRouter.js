@@ -2,6 +2,9 @@
  * T5.2, T5.3 & T5.5 — Model Router with Fallback & Circuit Breaker
  * Routes low/medium tasks to local LM Studio (10.10.10.30:1234)
  * and high complexity tasks to AGY / Cloud.
+ *
+ * Architecture Pattern: Circuit breaker for graceful degradation from local fallback
+ * to cloud provider when local services are unavailable.
  */
 
 import { scoreComplexity } from './complexityScorer.js';
@@ -9,15 +12,24 @@ import { getProvider } from './providers/index.js';
 import { logger } from '../utils/logger.js';
 import { safeQuery } from '../db.js';
 
+// ============================================================
+// Configuration Constants
+// ============================================================
 const LOCAL_URL = process.env.LLM_LOCAL_URL || 'http://10.10.10.30:1234/v1';
 const LOCAL_PRIMARY = process.env.LLM_LOCAL_MODEL || 'openai/gpt-oss-20b';
 const LOCAL_FALLBACK = process.env.LLM_FALLBACK_MODEL || 'granite-4.0-micro';
 const CLOUD_MODEL = process.env.LLM_CLOUD_MODEL || 'agy-gemini-pro';
 
+/**
+ * CircuitBreaker pattern implementation for local model reliability.
+ *
+ * State machine: CLOSED (normal) → OPEN (failures exceeded threshold) → HALF_OPEN (testing recovery)
+ * Prevents cascading failures when local LM Studio is down.
+ */
 class CircuitBreaker {
   constructor(threshold = 3, resetTimeoutMs = 60_000) {
-    this.threshold = threshold;
-    this.resetTimeoutMs = resetTimeoutMs;
+    this.threshold = threshold; // Number of failures before opening circuit
+    this.resetTimeoutMs = resetTimeoutMs; // Wait time before retrying
     this.failureCount = 0;
     this.state = 'CLOSED'; // 'CLOSED' | 'OPEN' | 'HALF_OPEN'
     this.nextAttempt = Date.now();
@@ -52,13 +64,17 @@ class CircuitBreaker {
       }
       return false;
     }
-    return true; // HALF_OPEN
+    return true; // HALF_OPEN state allows testing
   }
 }
 
+// Global circuit breaker instance for local LM Studio reliability
 export const localCircuitBreaker = new CircuitBreaker(3, 60_000);
 
-// In-memory telemetry metrics for model routing
+/**
+ * In-memory telemetry metrics for model routing statistics.
+ * Tracks task distribution between local and cloud providers.
+ */
 const statsState = {
   localTasks: 0,
   cloudTasks: 0,
@@ -67,6 +83,14 @@ const statsState = {
   fallbackCount: 0,
 };
 
+/**
+ * Records task execution metrics for telemetry and billing.
+ *
+ * @param {object} opts - Task execution options
+ * @param {'low'|'medium'|'high'} opts.tier - Task complexity tier
+ * @param {number} opts.durationMs - Execution duration in milliseconds
+ * @param {boolean} [opts.fallback=false] - Whether fallback was triggered
+ */
 export function recordTaskExecution({ tier, durationMs, fallback = false }) {
   if (tier === 'high' || tier === 'cloud') {
     statsState.cloudTasks += 1;
@@ -80,6 +104,11 @@ export function recordTaskExecution({ tier, durationMs, fallback = false }) {
   }
 }
 
+/**
+ * Gets in-memory router statistics for real-time monitoring.
+ *
+ * @returns {object} Router telemetry metrics
+ */
 export function getRouterStats() {
   const avgLocalLatencyMs = statsState.localTasks > 0
     ? Math.round(statsState.totalLocalLatencyMs / statsState.localTasks)
@@ -102,6 +131,15 @@ export function getRouterStats() {
   };
 }
 
+/**
+ * Aggregates router statistics from database with real-time metrics.
+ * Combines historical task data from agent_tasks table with live telemetry.
+ *
+ * @param {object} [opts] - Optional overrides for active models/endpoint
+ * @param {string} [opts.activeLocalModel] - Override for local model name
+ * @param {string} [opts.activeEndpoint] - Override for local endpoint URL
+ * @returns {Promise<object>} Combined database and real-time router stats
+ */
 export async function getAggregatedRouterStats({ activeLocalModel, activeEndpoint } = {}) {
   let dbLocalTasks = 0;
   let dbCloudTasks = 0;
@@ -110,8 +148,8 @@ export async function getAggregatedRouterStats({ activeLocalModel, activeEndpoin
 
   try {
     const res = await safeQuery(
-      `SELECT model, agent_name, duration_ms, created_at, updated_at, status 
-       FROM agent_tasks 
+      `SELECT model, agent_name, duration_ms, created_at, updated_at, status
+       FROM agent_tasks
        ORDER BY id DESC LIMIT 500`
     );
 
@@ -121,6 +159,7 @@ export async function getAggregatedRouterStats({ activeLocalModel, activeEndpoin
         const rawAgent = (row.agent_name || '').toLowerCase();
         const activeModelLower = (activeLocalModel || '').toLowerCase();
 
+        // Determine if task used local or cloud model based on model/agent name
         const isExplicitLocal = (activeModelLower && rawModel === activeModelLower) ||
           rawModel.includes('qwen') ||
           rawModel.includes('llama') ||
@@ -143,6 +182,7 @@ export async function getAggregatedRouterStats({ activeLocalModel, activeEndpoin
 
         const isLocal = isExplicitLocal || (!isExplicitCloud && rawModel.length > 0 && !rawAgent.includes('claude'));
 
+        // Calculate duration from database timestamps if not present
         let duration = row.duration_ms || 0;
         if (!duration && row.created_at && row.updated_at) {
           const diff = new Date(row.updated_at).getTime() - new Date(row.created_at).getTime();
@@ -164,6 +204,7 @@ export async function getAggregatedRouterStats({ activeLocalModel, activeEndpoin
     logger.warn({ err: err.message }, 'Failed to aggregate router stats from agent_tasks');
   }
 
+  // Combine database and real-time metrics
   const totalLocal = dbLocalTasks + statsState.localTasks;
   const totalCloud = dbCloudTasks + statsState.cloudTasks;
   const totalLocalLatency = dbTotalLocalLatency + statsState.totalLocalLatencyMs;
@@ -190,6 +231,12 @@ export async function getAggregatedRouterStats({ activeLocalModel, activeEndpoin
   };
 }
 
+/**
+ * Resets the circuit breaker and returns current router statistics.
+ * Useful for testing or after successful recovery from failure.
+ *
+ * @returns {object} Router statistics after reset
+ */
 export function resetRouterCircuitBreaker() {
   localCircuitBreaker.reset();
   return getRouterStats();
@@ -197,15 +244,16 @@ export function resetRouterCircuitBreaker() {
 
 /**
  * Selects the optimal model routing tier based on prompt complexity and health.
+ * Uses T5 scoring algorithm to determine if task should run locally or in cloud.
  *
- * @param {string} prompt
- * @param {object} [context]
- * @returns {object}
+ * @param {string} prompt - The task prompt to evaluate
+ * @param {object} [context] - Additional context (e.g., file count, complexity hints)
+ * @returns {object} Routing decision with tier, provider, model, and endpoint details
  */
 export function selectModelRoute(prompt, context = {}) {
   const complexity = scoreComplexity(prompt, context);
 
-  // If high complexity -> direct to AGY / Cloud
+  // High complexity tasks always route to AGY / Cloud provider
   if (complexity === 'high') {
     return {
       tier: 'high',
@@ -216,8 +264,8 @@ export function selectModelRoute(prompt, context = {}) {
     };
   }
 
-  // Low or medium complexity -> route to local LM Studio
-  // Check if circuit breaker allows local
+  // Low or medium complexity tasks route to local LM Studio
+  // Check if circuit breaker allows local (respects reliability guarantees)
   if (!localCircuitBreaker.canAttempt()) {
     logger.warn('Local LM Studio circuit breaker is OPEN, falling back to AGY');
     return {
@@ -242,10 +290,11 @@ export function selectModelRoute(prompt, context = {}) {
 
 /**
  * Executes prompt completion using the routed provider with automatic fallback.
+ * Implements cascading failure recovery: local primary → local fallback → cloud AGY.
  *
- * @param {string} prompt
- * @param {object} [context]
- * @param {object} [opts]
+ * @param {string} prompt - The task prompt to complete
+ * @param {object} [context] - Additional context for routing decisions
+ * @param {object} [opts] - Optional completion options (temperature, max_tokens, etc.)
  * @returns {Promise<{
  *   text: string,
  *   usage: object,
@@ -254,7 +303,7 @@ export function selectModelRoute(prompt, context = {}) {
  *   durationMs: number,
  *   route: object,
  *   fallbackOccurred: boolean
- * }>}
+ * }>} - Completion result with routing metadata and fallback status
  */
 export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
   const route = selectModelRoute(prompt, context);
@@ -263,6 +312,7 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
   if (route.provider === 'lm-studio') {
     const localProvider = getProvider('lm-studio');
     try {
+      // Attempt primary local model first
       const result = await localProvider.complete(prompt, {
         ...opts,
         model: route.model,
@@ -279,7 +329,7 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
       logger.warn({ err: primaryErr.message, model: route.model }, 'Primary local model failed, trying fallback model');
       localCircuitBreaker.recordFailure();
 
-      // Try local fallback model if configured
+      // Try local fallback model if configured (graceful degradation)
       if (route.fallbackModel) {
         try {
           const fallbackResult = await localProvider.complete(prompt, {
@@ -301,7 +351,7 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
         }
       }
 
-      // Escalate to AGY cloud
+      // Escalate to AGY cloud when all local providers fail
       const agyProvider = getProvider('agy');
       const agyResult = await agyProvider.complete(prompt, {
         ...opts,
@@ -318,7 +368,7 @@ export async function executeRoutedPrompt(prompt, context = {}, opts = {}) {
     }
   }
 
-  // AGY Cloud Route
+  // AGY Cloud Route (direct cloud execution)
   const agyProvider = getProvider('agy');
   const result = await agyProvider.complete(prompt, {
     ...opts,
