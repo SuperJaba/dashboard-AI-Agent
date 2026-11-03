@@ -58,6 +58,18 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
     }
   }, [notification]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showModal) {
+        setShowModal(false);
+      }
+    };
+    if (showModal) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showModal]);
+
   const activeServer = servers.find(s => s.is_active) || (servers.length > 0 ? servers[0] : null);
 
   const handleSelectServer = async (id: number) => {
@@ -360,7 +372,9 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
         <div
           role="dialog"
           aria-modal="true"
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+          tabIndex={-1}
+          onKeyDown={(e) => e.key === 'Escape' && setShowModal(false)}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, overscrollBehavior: 'contain' }}
         >
           <div className="glass-card animate-in" style={{ width: '480px', maxWidth: '92vw', padding: '1.5rem', position: 'relative' }}>
             <button
@@ -379,6 +393,8 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Nazwa serwera</label>
                 <input
                   type="text"
+                  name="serverName"
+                  autoComplete="off"
                   required
                   placeholder="np. LM Studio Local lub NVIDIA NIM"
                   value={formData.name}
@@ -416,6 +432,9 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 </div>
                 <input
                   type="text"
+                  name="serverUrl"
+                  autoComplete="off"
+                  spellCheck={false}
                   required
                   placeholder="http://10.10.10.30:8888 lub http://localhost:8888"
                   value={formData.url}
@@ -450,6 +469,7 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
 
                 {discoveredModels.length > 0 && !useCustomModel ? (
                   <select
+                    name="serverModelSelect"
                     value={formData.model}
                     onChange={e => setFormData({ ...formData, model: e.target.value })}
                     style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--primary, #38bdf8)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'white', outline: 'none' }}
@@ -463,6 +483,9 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 ) : (
                   <input
                     type="text"
+                    name="serverModel"
+                    autoComplete="off"
+                    spellCheck={false}
                     placeholder="np. unsloth/Qwen3.5-4B-MTP-GGUF lub gpt-oss-20b"
                     value={formData.model}
                     onChange={e => setFormData({ ...formData, model: e.target.value })}
@@ -479,6 +502,9 @@ export function LlmServerManager({ onServerSelected }: LlmServerManagerProps) {
                 <label className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>Klucz API (API Key / Token)</label>
                 <input
                   type="password"
+                  name="apiKey"
+                  autoComplete="off"
+                  spellCheck={false}
                   placeholder="Opcjonalne dla serwerów lokalnych"
                   value={formData.api_key}
                   onChange={e => setFormData({ ...formData, api_key: e.target.value })}

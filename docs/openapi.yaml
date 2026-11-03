@@ -90,3 +90,172 @@ paths:
       responses:
         '200':
           description: Agent launched
+  /deploy/targets:
+    get:
+      summary: List available deployment targets
+      responses:
+        '200':
+          description: Array of deployment targets
+  /deploy/status:
+    get:
+      summary: Get current deployment status and last deploy record
+      responses:
+        '200':
+          description: Current deployment state
+  /deploy/health:
+    get:
+      summary: Health check remote CT8 host
+      responses:
+        '200':
+          description: Remote host health metrics
+  /deploy/start:
+    post:
+      summary: Trigger deployment to one or more remote targets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                environment:
+                  type: string
+                targets:
+                  type: array
+                  items:
+                    type: string
+                confirm:
+                  type: string
+      responses:
+        '200':
+          description: Deployment initiated
+  /deploy/abort:
+    post:
+      summary: Abort active deployment process
+      responses:
+        '200':
+          description: Deployment process aborted
+  /deploy/kill-remote:
+    post:
+      summary: Kill hung remote processes and restart domain
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target:
+                  type: string
+      responses:
+        '200':
+          description: Remote processes terminated and domain restarted
+  /deploy/logs:
+    get:
+      summary: Get buffered deployment log entries
+      responses:
+        '200':
+          description: Array of logs
+  /scheduler/tasks:
+    get:
+      summary: Get all scheduled background tasks
+      responses:
+        '200':
+          description: List of scheduled tasks
+    post:
+      summary: Create a new scheduled task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                command:
+                  type: string
+                cron_expression:
+                  type: string
+                enabled:
+                  type: boolean
+      responses:
+        '201':
+          description: Task created
+  /scheduler/tasks/{id}:
+    get:
+      summary: Get single task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task details
+    put:
+      summary: Update scheduled task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                command:
+                  type: string
+                cron_expression:
+                  type: string
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Task updated
+    delete:
+      summary: Delete scheduled task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task deleted
+  /scheduler/tasks/{id}/toggle:
+    patch:
+      summary: Toggle task active/inactive status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task status toggled
+  /scheduler/tasks/{id}/run:
+    post:
+      summary: Run scheduled task immediately
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task execution started
+  /scheduler/presets:
+    get:
+      summary: Get predefined task presets
+      responses:
+        '200':
+          description: List of task presets

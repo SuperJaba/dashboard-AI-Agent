@@ -6,15 +6,17 @@ set -e
 #  Target: dashboard.jagger2.ct8.pl @ s1.ct8.pl
 # ============================================================
 
-REMOTE_USER="jagger2"
-REM_HOST="s1.ct8.pl"
-REMOTE_HOST="dashboard.jagger2.ct8.pl"
+REMOTE_USER="${CT8_USER:-jagger2}"
+REM_HOST="${CT8_REM_HOST:-s1.ct8.pl}"
+REMOTE_HOST="${CT8_HOST:-dashboard.jagger2.ct8.pl}"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../ && pwd)"
+PASS_FILE="$PROJECT_DIR/docs/pass.txt"
 
 # Locate SSH Key (search for antigravity / antygravity key or user override)
+ACTIVE_KEY=""
 if [ -n "$SSH_KEY" ] && [ -f "$SSH_KEY" ]; then
   ACTIVE_KEY="$SSH_KEY"
 else
-  ACTIVE_KEY=""
   for candidate in "$HOME/.ssh/id_ed25519_antigravity" "$HOME/.ssh/"*antygravity* "$HOME/.ssh/"*antigravity*; do
     for f in $candidate; do
       if [ -f "$f" ] && [[ ! "$f" =~ \.pub$ ]]; then
@@ -25,12 +27,28 @@ else
   done
 fi
 
+PASS=""
+AUTH_METHOD=""
+
+if [ -n "$CT8_PASSWORD" ]; then
+  PASS="$CT8_PASSWORD"
+  AUTH_METHOD="password"
+elif [ -n "$ACTIVE_KEY" ] && [ -f "$ACTIVE_KEY" ]; then
+  AUTH_METHOD="key"
+elif ssh -q -o BatchMode=yes -o ConnectTimeout=5 jagger2 true 2>/dev/null; then
+  AUTH_METHOD="ssh_config"
+elif [ -f "$PASS_FILE" ]; then
+  PASS=$(cat "$PASS_FILE")
+  AUTH_METHOD="password"
+elif [ -f "$PROJECT_DIR/../invoice-splitter/docs/pass.txt" ]; then
+  PASS=$(cat "$PROJECT_DIR/../invoice-splitter/docs/pass.txt")
+  AUTH_METHOD="password"
+fi
+
 REMOTE_BASE="domains/$REMOTE_HOST"
 REMOTE_APP="$REMOTE_BASE/public_nodejs"
 REMOTE_PUBLIC="$REMOTE_APP/public"
 REMOTE_LOGS="$REMOTE_BASE/logs"
-
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../ && pwd)"
 
 ENVIRONMENT="production"
 
@@ -48,35 +66,60 @@ log_warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step()    { echo -e "\n${CYAN}========================================${NC}\n${CYAN}  STEP $1: $2${NC}\n${CYAN}========================================${NC}"; }
 
-# SSH and SCP command helpers using key authentication
+# SSH and SCP command helpers
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=15"
 
 run_remote() {
-  if [ -n "$ACTIVE_KEY" ]; then
+  if [ "$AUTH_METHOD" = "password" ]; then
+    sshpass -p "$PASS" ssh $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
+  elif [ "$AUTH_METHOD" = "key" ] && [ -n "$ACTIVE_KEY" ]; then
     ssh -i "$ACTIVE_KEY" $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
+  elif [ "$AUTH_METHOD" = "ssh_config" ]; then
+    ssh $SSH_OPTS jagger2 "$@"
   else
     ssh $SSH_OPTS "$REMOTE_USER@$REM_HOST" "$@"
   fi
 }
 
 copy_file() {
-  if [ -n "$ACTIVE_KEY" ]; then
-    scp -i "$ACTIVE_KEY" $SSH_OPTS "$1" "$2"
+  local src="$1"
+  local dest="$2"
+  local remote_path="${dest#*s1.ct8.pl:}"
+  remote_path="${remote_path#*jagger2:}"
+
+  if [ "$AUTH_METHOD" = "ssh_config" ]; then
+    scp $SSH_OPTS "$src" "jagger2:$remote_path"
+  elif [ "$AUTH_METHOD" = "key" ] && [ -n "$ACTIVE_KEY" ]; then
+    scp -i "$ACTIVE_KEY" $SSH_OPTS "$src" "$REMOTE_USER@$REM_HOST:$remote_path"
+  elif [ "$AUTH_METHOD" = "password" ]; then
+    sshpass -p "$PASS" scp $SSH_OPTS "$src" "$REMOTE_USER@$REM_HOST:$remote_path"
   else
-    scp $SSH_OPTS "$1" "$2"
+    scp $SSH_OPTS "$src" "$REMOTE_USER@$REM_HOST:$remote_path"
   fi
 }
 
 validate_environment() {
   log_step 0 "Pre-deployment Validation"
 
-  if [ -z "$ACTIVE_KEY" ] || [ ! -f "$ACTIVE_KEY" ]; then
-    log_error "SSH key not found in ~/.ssh/*antigravity*. Please set SSH_KEY environment variable."
+  if [ -z "$AUTH_METHOD" ]; then
+    log_error "No authentication method available! Set CT8_PASSWORD env var, place password in docs/pass.txt, or place SSH key in ~/.ssh/*antigravity* (or set SSH_KEY)."
     exit 1
   fi
-  log_info "Using SSH Key: $ACTIVE_KEY"
 
-  for cmd in ssh scp tar npm; do
+  if [ "$AUTH_METHOD" = "key" ]; then
+    log_info "Using SSH Key: $ACTIVE_KEY"
+  elif [ "$AUTH_METHOD" = "ssh_config" ]; then
+    log_info "Using SSH Config Host alias: jagger2"
+  else
+    log_info "Using Password authentication via sshpass"
+  fi
+
+  local required_cmds="ssh scp tar npm"
+  if [ "$AUTH_METHOD" = "password" ]; then
+    required_cmds="sshpass $required_cmds"
+  fi
+
+  for cmd in $required_cmds; do
     if ! command -v "$cmd" &>/dev/null; then
       log_error "Required local command '$cmd' is not installed"
       exit 1
@@ -186,12 +229,27 @@ EOF_APP
   fi
 
   local include_list=(
-    package.json package-lock.json server.js app.js
+    package.json server.js app.js
     src/backend scripts
   )
+  if [ -f "$PROJECT_DIR/package-lock.json" ]; then
+    include_list+=(package-lock.json)
+  fi
 
-  log_info "Creating backend archive..."
-  tar -czf "$tmp_tar" --exclude="scripts/deploy*" "${include_list[@]}"
+  log_info "Creating backend archive (excluding tests, test scripts, and dev artifacts)..."
+  tar -czf "$tmp_tar" \
+    --exclude="scripts/deploy*" \
+    --exclude="*.test.js" \
+    --exclude="*.test.ts" \
+    --exclude="*.test.tsx" \
+    --exclude="*.spec.js" \
+    --exclude="__tests__" \
+    --exclude="scripts/test-*" \
+    --exclude="scripts/autotest_*" \
+    --exclude="scripts/ci_*" \
+    --exclude="*.log" \
+    --exclude="*.map" \
+    "${include_list[@]}"
 
   log_info "Uploading backend archive to $REMOTE_HOST..."
   copy_file "$tmp_tar" "$REMOTE_USER@$REM_HOST:$REMOTE_APP/backend.tar.gz"
@@ -245,6 +303,7 @@ configure_remote_env() {
     grep -q 'DB_SCHEMA' \"\$ENV_FILE\" || echo 'DB_SCHEMA=dashboard' >> \"\$ENV_FILE\"
     grep -q 'JWT_SECRET' \"\$ENV_FILE\" || echo 'JWT_SECRET=super-secret-jwt-key-dashboard-production-ct8' >> \"\$ENV_FILE\"
     grep -q 'ENCRYPTION_KEY' \"\$ENV_FILE\" || echo 'ENCRYPTION_KEY=32_character_long_secret_encryption_key_123' >> \"\$ENV_FILE\"
+    grep -q 'ALLOWED_ORIGINS' \"\$ENV_FILE\" || echo 'ALLOWED_ORIGINS=https://dashboard.jagger2.ct8.pl,http://dashboard.jagger2.ct8.pl' >> \"\$ENV_FILE\"
     grep -q 'NODE_ENV' \"\$ENV_FILE\" || echo 'NODE_ENV=production' >> \"\$ENV_FILE\"
   "
   log_success "Remote .env verified"
@@ -252,9 +311,48 @@ configure_remote_env() {
 
 install_dependencies() {
   log_step 6 "Installing Remote Dependencies"
-  log_info "Running npm install (--omit=dev) with node24 runtime on remote..."
-  run_remote "cd \$HOME/$REMOTE_APP && (command -v /usr/local/bin/npm24 &>/dev/null && /usr/local/bin/npm24 install --omit=dev || npm install --omit=dev)"
-  log_success "Remote dependencies installed successfully"
+  local lock_file=""
+  if [ -f "$PROJECT_DIR/package-lock.json" ]; then
+    lock_file="$PROJECT_DIR/package-lock.json"
+  elif [ -f "$PROJECT_DIR/package.json" ]; then
+    lock_file="$PROJECT_DIR/package.json"
+  fi
+
+  local lock_hash=""
+  if [ -n "$lock_file" ]; then
+    if command -v sha256sum &>/dev/null; then
+      lock_hash=$(sha256sum "$lock_file" | awk '{print $1}')
+    elif command -v shasum &>/dev/null; then
+      lock_hash=$(shasum -a 256 "$lock_file" | awk '{print $1}')
+    fi
+  fi
+
+  local cache_hit=false
+  if [ "$FORCE_INSTALL" != true ] && [ -n "$lock_hash" ]; then
+    local remote_check
+    remote_check=$(run_remote "
+      cd \$HOME/$REMOTE_APP 2>/dev/null || exit 1
+      if [ -f .deps.hash ] && [ \"\$(cat .deps.hash 2>/dev/null)\" = \"$lock_hash\" ] && [ -d node_modules ]; then
+        echo 'MATCH'
+      else
+        echo 'NO_MATCH'
+      fi
+    " 2>/dev/null || echo "NO_MATCH")
+    if [[ "$remote_check" =~ "MATCH" ]]; then
+      cache_hit=true
+    fi
+  fi
+
+  if [ "$cache_hit" = true ]; then
+    log_success "Remote dependencies up-to-date (lockfile hash: ${lock_hash:0:12}..., skipping npm install)"
+  else
+    log_info "Running npm install (--omit=dev --omit=optional) with Passenger node runtime on remote..."
+    run_remote "cd \$HOME/$REMOTE_APP && npm install --omit=dev --omit=optional"
+    if [ -n "$lock_hash" ]; then
+      run_remote "echo '$lock_hash' > \$HOME/$REMOTE_APP/.deps.hash"
+    fi
+    log_success "Remote dependencies installed successfully"
+  fi
 }
 
 run_migrations() {
@@ -338,6 +436,7 @@ main() {
   local skip_build=false
   DO_RUN_TESTS=false
   FORCE_MIGRATE=false
+  FORCE_INSTALL=false
 
   for arg in "$@"; do
     case "$arg" in
@@ -345,10 +444,33 @@ main() {
       --health-check) do_health=true ;;
       --skip-build) skip_build=true ;;
       --run-tests) DO_RUN_TESTS=true ;;
+      --force-install) FORCE_INSTALL=true ;;
       --force-migrate) FORCE_MIGRATE=true ;;
+      -h|--help)
+        echo -e "${CYAN}============================================================${NC}"
+        echo -e "${CYAN}  Dashboard - Deployment Script for CT8.pl${NC}"
+        echo -e "${CYAN}============================================================${NC}"
+        echo "Usage: npm run deploy:ct8 [-- [options] [environment]]"
+        echo ""
+        echo "Options:"
+        echo "  --skip-build      Skip local Vite build (requires existing dist/)"
+        echo "  --run-tests       Run unit tests prior to deployment"
+        echo "  --force-install   Force remote npm install even if package-lock hash matches"
+        echo "  --force-migrate   Run destructive migrate.js database migration"
+        echo "  --kill            Stop targeted dashboard Node.js processes on CT8"
+        echo "  --health-check    Check active processes and HTTP health endpoint"
+        echo "  -h, --help        Show this help message"
+        echo ""
+        echo "Environments: production (default), staging, dev"
+        exit 0
+        ;;
       production|staging|dev) ENVIRONMENT="$arg" ;;
     esac
   done
+
+  if [ "$SKIP_FRONTEND_BUILD" = "true" ] || [ "$SKIP_FRONTEND_BUILD" = "1" ]; then
+    skip_build=true
+  fi
 
   if [ "$do_kill" = true ] && [ "$do_health" = false ]; then
     echo -e "${BLUE}\n  Dashboard - Stop Node.js Processes\n  Target: $REMOTE_HOST\n${NC}"
@@ -378,7 +500,13 @@ main() {
   echo "  Dashboard - Deployment to CT8.pl"
   echo "  Environment: $ENVIRONMENT"
   echo "  Target Host: $REMOTE_HOST ($REM_HOST)"
-  echo "  SSH Key:     ${ACTIVE_KEY:-default}"
+  if [ "$AUTH_METHOD" = "key" ]; then
+    echo "  Auth Method: SSH Key ($ACTIVE_KEY)"
+  elif [ "$AUTH_METHOD" = "password" ]; then
+    echo "  Auth Method: Password (sshpass)"
+  else
+    echo "  Auth Method: None (missing credentials)"
+  fi
   echo "============================================================"
   echo -e "${NC}"
 
@@ -387,7 +515,11 @@ main() {
   if [ "$skip_build" = false ]; then
     build_frontend
   else
-    log_info "Skipping frontend build (--skip-build requested)"
+    log_info "Skipping frontend build (requested via --skip-build or SKIP_FRONTEND_BUILD)"
+    if [ ! -d "$PROJECT_DIR/dist" ] || [ ! -f "$PROJECT_DIR/dist/index.html" ]; then
+      log_error "Frontend dist/index.html not found! Build is required when dist is missing."
+      exit 1
+    fi
   fi
   copy_backend
   copy_frontend
@@ -408,10 +540,17 @@ main() {
   echo "  Metrics:     http://$REMOTE_HOST/metrics"
   echo ""
   echo "  To inspect remote logs:"
-  echo "    ssh -i $ACTIVE_KEY $REMOTE_USER@$REM_HOST 'tail -f domains/$REMOTE_HOST/logs/error.log'"
-  echo ""
-  echo "  To restart remote application:"
-  echo "    ssh -i $ACTIVE_KEY $REMOTE_USER@$REM_HOST 'devil www restart $REMOTE_HOST'"
+  if [ "$AUTH_METHOD" = "key" ]; then
+    echo "    ssh -i $ACTIVE_KEY $REMOTE_USER@$REM_HOST 'tail -f domains/$REMOTE_HOST/logs/error.log'"
+    echo ""
+    echo "  To restart remote application:"
+    echo "    ssh -i $ACTIVE_KEY $REMOTE_USER@$REM_HOST 'devil www restart $REMOTE_HOST'"
+  else
+    echo "    ssh $REMOTE_USER@$REM_HOST 'tail -f domains/$REMOTE_HOST/logs/error.log'"
+    echo ""
+    echo "  To restart remote application:"
+    echo "    ssh $REMOTE_USER@$REM_HOST 'devil www restart $REMOTE_HOST'"
+  fi
   echo "============================================================"
   echo -e "${NC}"
 }

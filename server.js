@@ -6,18 +6,33 @@ if (typeof PhusionPassenger !== 'undefined') {
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 import fetch from 'node-fetch';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import { corsOptions, corsOriginDelegate } from './src/backend/utils/corsConfig.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import pty from 'node-pty';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+let pty = null;
+try {
+  pty = require('node-pty');
+} catch {
+  // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
+}
 
 import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
-import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+import { authMiddleware, optionalAuthMiddleware } from './src/backend/auth/authMiddleware.js';
 import { logger, requestLogger } from './src/backend/utils/logger.js';
 import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
 
@@ -67,24 +82,28 @@ import { sseRouter } from './src/backend/events/sseRouter.js';
 import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
 import { opsrampRouter } from './src/backend/opsramp/opsrampRouter.js';
 import { modelRouterApi } from './src/backend/llm/modelRouterApi.js';
+import { deployRouter } from './src/backend/deploy/deployRouter.js';
+import { deployService } from './src/backend/deploy/deployService.js';
+import { notificationsRouter } from './src/backend/notifications/notificationsRouter.js';
+import { schedulerRouter } from './src/backend/scheduler/schedulerRouter.js';
+import { schedulerService } from './src/backend/scheduler/schedulerService.js';
 import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 import { classifyWorkerSocket } from './src/backend/socket/workerClassification.js';
 
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { llmProxyRouter } from './src/backend/llm/llmProxyRouter.js';
+import { securityHeadersMiddleware } from './src/backend/utils/securityHeaders.js';
 
 const isTestEnvironment = process.env.NODE_ENV === 'test';
-dotenv.config();
 if (isTestEnvironment) {
   process.env.NODE_ENV = 'test';
 }
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
 
 const port = process.env.PORT || 3001;
 
@@ -94,8 +113,9 @@ const port = process.env.PORT || 3001;
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: corsOriginDelegate,
+    methods: ['GET', 'POST'],
+    credentials: true
   },
   transports: ['polling', 'websocket']
 });
@@ -231,6 +251,12 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (!pty) {
+      socket.emit('terminal_data', '\r\n\x1b[33m[Warning] Local terminal is not supported on this host environment (FreeBSD / CT8). Please connect an Agent Worker (Local PC) to execute terminal commands.\x1b[0m\r\n');
+      socket.emit('terminal_exit', { exitCode: 1 });
+      return;
+    }
+
     // Default remote execution
     try {
       const shellCmd = findShellExecutable(command);
@@ -330,10 +356,14 @@ dashNsp.use(socketAuthMiddleware);
 
 registerPtyNamespace(ptyNsp, activeWorkers);
 registerDashboardNamespace(dashNsp, activeWorkers);
+deployService.setSocketServer(io);
+schedulerService.setSocketServer(io);
 
 
-app.use(cors());
-app.use(express.json());
+app.use(securityHeadersMiddleware);
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(requestLogger);
 app.use(metricsMiddleware);
 // Serve static assets from the public directory
@@ -455,10 +485,8 @@ exec env DASHBOARD_SERVER_URL="$SERVER_URL" DASHBOARD_TOKEN="$TOKEN" WORKER_NAME
 `);
 });
 
-// API Auth Middleware
-app.use('/api', authMiddleware);
-
-app.get('/api/agents/workers', (req, res) => {
+// Public / Token-optional Socket Endpoints
+app.get('/api/agents/workers', optionalAuthMiddleware, (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
@@ -475,7 +503,7 @@ app.get('/api/agents/workers', (req, res) => {
 });
 
 // Terminate / Kill single worker socket
-app.delete('/api/agents/workers/:id', (req, res) => {
+app.delete('/api/agents/workers/:id', authMiddleware, (req, res) => {
   const workerId = req.params.id;
   const worker = activeWorkers.get(workerId);
   if (!worker) {
@@ -503,7 +531,7 @@ app.delete('/api/agents/workers/:id', (req, res) => {
   });
 });
 
-app.post('/api/agents/workers/:id/kill', (req, res) => {
+app.post('/api/agents/workers/:id/kill', authMiddleware, (req, res) => {
   const workerId = req.params.id;
   const worker = activeWorkers.get(workerId);
   if (!worker) {
@@ -532,7 +560,7 @@ app.post('/api/agents/workers/:id/kill', (req, res) => {
 });
 
 // Terminate / Kill all worker sockets
-app.delete('/api/agents/workers', (req, res) => {
+app.delete('/api/agents/workers', authMiddleware, (req, res) => {
   const count = activeWorkers.size;
   for (const worker of activeWorkers.values()) {
     try {
@@ -548,7 +576,7 @@ app.delete('/api/agents/workers', (req, res) => {
   res.json({ success: true, message: `Ubito wszystkie aktywne połączenia (${count}).` });
 });
 
-app.get('/api/socket-info', (req, res) => {
+app.get('/api/socket-info', authMiddleware, (req, res) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${port}`;
   const serverUrl = `${protocol}://${host}`;
@@ -557,13 +585,11 @@ app.get('/api/socket-info', (req, res) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.query.token) {
-    token = req.query.token;
   }
 
-  if (!token) {
+  if (!token && req.user) {
     token = jwt.sign(
-      { id: req.user?.id || 1, username: req.user?.username || 'worker-client', isWorker: true },
+      { id: req.user.id || 1, username: req.user.username || 'worker-client', isWorker: true },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -597,6 +623,12 @@ app.get('/api/socket-info', (req, res) => {
   });
 });
 
+// LLM Proxy for transparent token metrics collection (passes agent API keys directly)
+app.use('/api/llm-proxy', authMiddleware, llmProxyRouter);
+
+// API Auth Middleware
+app.use('/api', authMiddleware);
+
 app.post('/api/socket/token', (req, res) => {
   const user = req.user || { id: 1, username: 'worker-client' };
   const workerToken = jwt.sign(
@@ -620,12 +652,16 @@ app.use('/api/webhooks', webhooksRouter);
 app.use('/api/alerts', authMiddleware, alertsRouter);
 app.use('/api/events', authMiddleware, sseRouter);
 app.use('/api/analytics', authMiddleware, kpiRouter);
+app.use('/api/deploy', authMiddleware, deployRouter);
+app.use('/api/notifications', authMiddleware, notificationsRouter);
+app.use('/api/scheduler', authMiddleware, schedulerRouter);
 app.use('/api/opsramp', opsrampRouter);
 app.use('/api/llm', authMiddleware, modelRouterApi);
 
-// T7.4 — Start alert watcher (skipped in test env)
+// T7.4 — Start alert watcher and agent task scheduler (skipped in test env)
 if (process.env.NODE_ENV !== 'test') {
   startAlertWatcher();
+  schedulerService.initScheduler().catch(err => console.error('Błąd startu schedulera:', err.message));
 }
 
 
@@ -643,6 +679,18 @@ if (staticPath) {
     next();
   });
 }
+
+// Centralized security error handler to prevent internal stack trace leakage
+app.use((err, req, res, next) => {
+  logger.error({ err: err.message, stack: err.stack, path: req.path }, 'Unhandled server error');
+  if (res.headersSent) {
+    return next(err);
+  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.status(err.status || 500).json({
+    error: isProduction ? 'Wystąpił wewnętrzny błąd serwera' : (err.message || 'Internal Server Error')
+  });
+});
 
 // Init DB
 async function initDB() {
@@ -723,6 +771,18 @@ async function initDB() {
         description TEXT,
         server_id INTEGER REFERENCES servers(id),
         status VARCHAR(50) DEFAULT 'stopped',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS agent_scheduled_tasks (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        task_type VARCHAR(100) NOT NULL,
+        command TEXT,
+        cron_expression VARCHAR(100) NOT NULL,
+        enabled BOOLEAN DEFAULT true,
+        last_run TIMESTAMP,
+        last_status VARCHAR(50) DEFAULT 'idle',
+        last_output TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;

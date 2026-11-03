@@ -21,9 +21,25 @@ Executes in <50ms with zero extra npm dependencies. Returns compact, structured 
 | `node scripts/sys-info.js --disk` | Mount point, capacity, used, and available space. |
 | `node scripts/sys-info.js --proc` | Top 5 processes sorted by memory utilization. |
 
-### 2. Remote CT8 Administration (`scripts/ssh-ct8.js`)
-Executes over SSH using `~/.ssh/id_ed25519_antigravity` with non-blocking `BatchMode=yes` and 20s timeout.
+### 2. Remote CT8 Administration (`jagger2` / `scripts/ssh-ct8.js`)
+Host alias `jagger2` is configured in `~/.ssh/config` (mapping to `s1.ct8.pl:22`, user `jagger2`, key `~/.ssh/id_ed25519_antigravity`, BatchMode).
 
+Direct invocation via SSH config alias:
+```bash
+ssh jagger2 "<command>"
+```
+
+Explicit batch mode invocation:
+```bash
+ssh -i ~/.ssh/id_ed25519_antigravity -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p 22 jagger2 "<command>"
+```
+
+Safe log cleanup (npm logs & domain logs):
+```bash
+ssh jagger2 "rm -rf ~/.npm/_logs/* ~/domains/*/logs/* 2>/dev/null || true"
+```
+
+Wrapper script commands:
 | Command | Action |
 |---|---|
 | `node scripts/ssh-ct8.js status` | Host uptime, CPU/RAM stats, and `devil www list` status. |

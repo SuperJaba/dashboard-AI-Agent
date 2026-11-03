@@ -181,7 +181,8 @@ export function useDashboardState() {
           args: data.args,
           cwd: data.cwd,
           env: data.env,
-          scriptContent: data.scriptContent
+          scriptContent: data.scriptContent,
+          taskId: data.taskId
         });
       }
     } catch (err) {
@@ -209,7 +210,8 @@ export function useDashboardState() {
           args: data.args,
           cwd: data.cwd,
           env: data.env,
-          scriptContent: data.scriptContent
+          scriptContent: data.scriptContent,
+          taskId: data.taskId
         });
       }
     } catch (err) {

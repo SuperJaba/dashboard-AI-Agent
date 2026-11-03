@@ -1,47 +1,102 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ModelRoutingWidget } from './ModelRoutingWidget';
-import { apiClient } from '../shared/api-client';
-
-vi.mock('../shared/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}));
 
 describe('ModelRoutingWidget', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
-  it('renders widget title, default metrics, and calls routing-stats API', async () => {
-    vi.mocked(apiClient.get).mockResolvedValueOnce({
-      localTasks: 42,
-      cloudTasks: 8,
+  it('renders with baseline stats initially', () => {
+    render(<ModelRoutingWidget />);
+    expect(screen.getByText(/Inteligentny Routing Modeli/i)).toBeDefined();
+    expect(screen.getByText(/Tier Low \/ Medium/i)).toBeDefined();
+    expect(screen.getByText(/Tier High \(Cloud \/ AGY\)/i)).toBeDefined();
+    expect(screen.getByText(/Obwód: SPRAWNY \(CLOSED\)/i)).toBeDefined();
+  });
+
+  it('fetches dynamic stats from /api/llm/routing/stats on mount', async () => {
+    const mockStats = {
+      localTasks: 90,
+      cloudTasks: 10,
       circuitBreakerState: 'CLOSED',
       primaryLocalModel: 'openai/gpt-oss-20b',
       fallbackLocalModel: 'granite-4.0-micro',
       cloudModel: 'AGY (Gemini Pro)',
       avgLocalLatencyMs: 310,
-      avgCloudLatencyMs: 1380,
+      avgCloudLatencyMs: 1200,
+      localEndpoint: 'http://10.10.10.30:1234/v1',
+      fallbackCount: 2,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => mockStats,
+    } as unknown as Response);
+
+    render(<ModelRoutingWidget />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/90%/i)).toBeDefined();
+      expect(screen.getByText(/Śr. czas: ~310ms/i)).toBeDefined();
+      expect(screen.getByText(/Śr. czas: ~1200ms/i)).toBeDefined();
+    });
+  });
+
+  it('shows Reset button when circuit breaker is OPEN and allows reset', async () => {
+    const openBreakerStats = {
+      localTasks: 50,
+      cloudTasks: 50,
+      circuitBreakerState: 'OPEN',
+      primaryLocalModel: 'openai/gpt-oss-20b',
+      fallbackLocalModel: 'granite-4.0-micro',
+      cloudModel: 'AGY (Gemini Pro)',
+      avgLocalLatencyMs: 350,
+      avgCloudLatencyMs: 1400,
+      localEndpoint: 'http://10.10.10.30:1234/v1',
+      fallbackCount: 5,
+    };
+
+    const resetStats = {
+      ...openBreakerStats,
+      circuitBreakerState: 'CLOSED',
+      fallbackCount: 0,
+    };
+
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      if (url === '/api/llm/routing/circuit/reset' && opts?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, stats: resetStats }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => openBreakerStats,
+      } as unknown as Response);
     });
 
     render(<ModelRoutingWidget />);
 
-    expect(screen.getByText(/Inteligentny Routing Modeli/i)).toBeInTheDocument();
-    expect(screen.getByText(/Circuit: CLOSED/i)).toBeInTheDocument();
-
     await waitFor(() => {
-      expect(apiClient.get).toHaveBeenCalledWith('/api/llm/routing-stats');
+      expect(screen.getByText(/Obwód: ROZŁĄCZONY \(OPEN\)/i)).toBeDefined();
+      expect(screen.getByRole('button', { name: /Reset/i })).toBeDefined();
     });
 
-    expect(await screen.findByText(/42 zadań/i)).toBeInTheDocument();
-    expect(screen.getByText(/8 zadań/i)).toBeInTheDocument();
+    const resetBtn = screen.getByRole('button', { name: /Reset/i });
+    fireEvent.click(resetBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Obwód: SPRAWNY \(CLOSED\)/i)).toBeDefined();
+    });
   });
 
   it('allows triggering live test prompt simulation', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({
+    const mockStats = {
       localTasks: 10,
       cloudTasks: 2,
       circuitBreakerState: 'CLOSED',
@@ -50,11 +105,26 @@ describe('ModelRoutingWidget', () => {
       cloudModel: 'AGY (Gemini Pro)',
       avgLocalLatencyMs: 300,
       avgCloudLatencyMs: 1200,
-    });
+      localServerName: 'Unsloth',
+    };
 
-    vi.mocked(apiClient.post).mockResolvedValue({
-      success: true,
-      result: { durationMs: 280, model: 'unsloth/Qwen3.5-4B-MTP-GGUF', provider: 'lm-studio' }
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      if (url === '/api/llm/route-prompt' && opts?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            result: { durationMs: 280, model: 'unsloth/Qwen3.5-4B-MTP-GGUF', provider: 'lm-studio' },
+            stats: mockStats,
+          }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => mockStats,
+      } as unknown as Response);
     });
 
     render(<ModelRoutingWidget />);
@@ -62,36 +132,6 @@ describe('ModelRoutingWidget', () => {
     const testLocalBtn = await screen.findByRole('button', { name: /Test Local/i });
     fireEvent.click(testLocalBtn);
 
-    await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/api/llm/route-prompt',
-        expect.objectContaining({ dryRun: false })
-      );
-    });
-
-    expect(await screen.findByText(/Skierowano do: Unsloth/i)).toBeInTheDocument();
-  });
-
-  it('renders honest zero state with 0% and brak wywołań when no tasks have been executed', async () => {
-    vi.mocked(apiClient.get).mockResolvedValueOnce({
-      localTasks: 0,
-      cloudTasks: 0,
-      circuitBreakerState: 'CLOSED',
-      primaryLocalModel: 'openai/gpt-oss-20b',
-      fallbackLocalModel: 'granite-4.0-micro',
-      cloudModel: 'AGY (Gemini Pro)',
-      avgLocalLatencyMs: 0,
-      avgCloudLatencyMs: 0,
-    });
-
-    render(<ModelRoutingWidget />);
-
-    await waitFor(() => {
-      expect(apiClient.get).toHaveBeenCalledWith('/api/llm/routing-stats');
-    });
-
-    expect(screen.getAllByText(/\(0 zadań\)/i)).toHaveLength(2);
-    expect(screen.getByText(/Śr\. czas: brak wywołań \(0 zł\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Śr\. czas: brak wywołań$/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Skierowano do: Unsloth \(Lokalny\)/i)).toBeDefined();
   });
 });

@@ -203,6 +203,12 @@ describe('Backend API Tests', () => {
   });
 
   describe('Socket Info API Endpoints', () => {
+    it('GET /api/socket-info without token should return 401 Unauthorized (SEC-01)', async () => {
+      const res = await request(app).get('/api/socket-info');
+      expect(res.statusCode).toBe(401);
+      expect(res.body.error).toBe('Unauthorized');
+    });
+
     it('GET /api/socket-info should return serverUrl, token, and ready commands', async () => {
       const res = await request(app)
         .get('/api/socket-info')

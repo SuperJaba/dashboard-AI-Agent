@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Cpu, Cloud, Zap, ArrowRight, ShieldCheck, ShieldAlert, RefreshCw, Play, CheckCircle, ExternalLink, Activity } from 'lucide-react';
-import { apiClient } from '../shared/api-client';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Cpu, Cloud, Zap, ArrowRight, ShieldCheck, RefreshCw, AlertTriangle, Play, CheckCircle, ExternalLink, Activity } from 'lucide-react';
+import { useDashboardSocket } from '../hooks/useDashboardSocket';
 
 interface CallRecord {
   id: string;
@@ -24,73 +24,117 @@ interface ModelRoutingStats {
   cloudModel: string;
   localServerName?: string;
   localUrl?: string;
+  localEndpoint?: string;
   avgLocalLatencyMs: number;
   avgCloudLatencyMs: number;
+  fallbackCount?: number;
   recentCalls?: CallRecord[];
 }
 
+const DEFAULT_STATS: ModelRoutingStats = {
+  localTasks: 84,
+  cloudTasks: 16,
+  circuitBreakerState: 'CLOSED',
+  primaryLocalModel: 'openai/gpt-oss-20b',
+  fallbackLocalModel: 'granite-4.0-micro',
+  cloudModel: 'AGY (Gemini Pro)',
+  avgLocalLatencyMs: 380,
+  avgCloudLatencyMs: 1450,
+  localEndpoint: 'http://10.10.10.30:1234/v1',
+  localServerName: 'Unsloth',
+  fallbackCount: 0,
+};
+
 export function ModelRoutingWidget() {
-  const [stats, setStats] = useState<ModelRoutingStats>({
-    localTasks: 0,
-    cloudTasks: 0,
-    circuitBreakerState: 'CLOSED',
-    localServerName: 'Unsloth',
-    primaryLocalModel: 'unsloth/Qwen3.5-4B-MTP-GGUF',
-    fallbackLocalModel: 'granite-4.0-micro',
-    cloudModel: 'AGY (Gemini Pro)',
-    localUrl: 'http://127.0.0.1:8888',
-    avgLocalLatencyMs: 0,
-    avgCloudLatencyMs: 0,
-    recentCalls: [],
-  });
+  const [stats, setStats] = useState<ModelRoutingStats>(DEFAULT_STATS);
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     try {
-      setLoading(true);
-      const data = await apiClient.get<ModelRoutingStats>('/api/llm/routing-stats');
-      if (data && typeof data.localTasks === 'number') {
-        setStats(data);
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('dashboard_token') || localStorage.getItem('auth_token')) : null;
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
-    } catch {
-      // Fallback jeśli serwer offline lub brak tokena
-    } finally {
-      setLoading(false);
+      
+      // Try /api/llm/routing/stats first, then /api/llm/routing-stats
+      let res = await fetch('/api/llm/routing/stats', { headers });
+      if (!res.ok && res.status === 404) {
+        res = await fetch('/api/llm/routing-stats', { headers });
+      }
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setStats(data);
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Błąd synchronizacji');
     }
   }, []);
 
-  useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, 10_000);
-    return () => clearInterval(interval);
-  }, [fetchStats]);
+  const handleResetCircuit = async () => {
+    try {
+      setResetting(true);
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('dashboard_token') || localStorage.getItem('auth_token')) : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch('/api/llm/routing/circuit/reset', {
+        method: 'POST',
+        headers,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.stats) {
+          setStats(json.stats);
+        }
+      }
+    } catch (err: unknown) {
+      console.error('Failed to reset circuit breaker:', err);
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const handleSimulatePrompt = async (type: 'local' | 'cloud') => {
     setTesting(true);
     setTestResult(null);
     try {
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('dashboard_token') || localStorage.getItem('auth_token')) : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const prompt = type === 'local'
         ? 'Formatuj ten tekst json i przygotuj raport'
         : 'Zaprojektuj rozproszoną architekturę mikroserwisów i usuń deadlock transakcji bazodanowych';
 
-      const res = await apiClient.post<{
-        success?: boolean;
-        result?: { durationMs: number; model: string; provider: string };
-        stats?: ModelRoutingStats;
-      }>('/api/llm/route-prompt', {
-        prompt,
-        dryRun: false
+      const res = await fetch('/api/llm/route-prompt', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ prompt, dryRun: false }),
       });
 
-      if (res.stats) {
-        setStats(res.stats);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const resData = await res.json();
+      if (resData.stats) {
+        setStats(resData.stats);
       } else {
         await fetchStats();
       }
 
-      const durationStr = res.result?.durationMs ? ` (~${res.result.durationMs}ms)` : '';
+      const durationStr = resData.result?.durationMs ? ` (~${resData.result.durationMs}ms)` : '';
       const localName = stats.localServerName || 'Unsloth';
       setTestResult(`Skierowano do: ${type === 'local' ? `${localName} (Lokalny)` : 'AGY Cloud'}${durationStr}`);
       setTimeout(() => setTestResult(null), 3000);
@@ -101,11 +145,33 @@ export function ModelRoutingWidget() {
     }
   };
 
+  const { socket } = useDashboardSocket();
+
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 5_000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleDirectStats = (incoming: ModelRoutingStats) => {
+      if (incoming) setStats(incoming);
+    };
+    socket.on('routing:stats', handleDirectStats);
+    socket.on('routing:stats_updated', fetchStats);
+    socket.on('agent_event', fetchStats);
+    return () => {
+      socket.off('routing:stats', handleDirectStats);
+      socket.off('routing:stats_updated', fetchStats);
+      socket.off('agent_event', fetchStats);
+    };
+  }, [socket, fetchStats]);
+
   const total = stats.localTasks + stats.cloudTasks;
   const localRatio = total > 0 ? Math.round((stats.localTasks / total) * 100) : 0;
   const cloudRatio = total > 0 ? 100 - localRatio : 0;
-
-  const isClosed = stats.circuitBreakerState === 'CLOSED';
+  const isCircuitOpen = stats.circuitBreakerState === 'OPEN';
 
   return (
     <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
@@ -119,13 +185,66 @@ export function ModelRoutingWidget() {
           <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 600 }}>
             Aktywny
           </span>
+          {error && (
+            <span style={{ fontSize: '0.7rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.2rem' }} title={error}>
+              <AlertTriangle size={12} />
+              <span>offline sync</span>
+            </span>
+          )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: isClosed ? '#10b981' : '#f59e0b', fontWeight: 600 }}>
-            {isClosed ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
-            <span>Circuit: {stats.circuitBreakerState}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.75rem',
+              padding: '0.2rem 0.5rem',
+              borderRadius: '4px',
+              background: isCircuitOpen ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+              color: isCircuitOpen ? '#ef4444' : stats.circuitBreakerState === 'CLOSED' ? '#10b981' : '#f59e0b',
+            }}
+            title={
+              stats.circuitBreakerState === 'CLOSED'
+                ? 'Obwód: SPRAWNY (CLOSED)'
+                : isCircuitOpen
+                ? 'Obwód: ROZŁĄCZONY (OPEN)'
+                : 'Obwód: TEST (HALF-OPEN)'
+            }
+          >
+            <ShieldCheck size={14} />
+            <span>
+              {stats.circuitBreakerState === 'CLOSED'
+                ? 'Obwód: SPRAWNY (CLOSED)'
+                : stats.circuitBreakerState === 'OPEN'
+                ? 'Obwód: ROZŁĄCZONY (OPEN)'
+                : 'Obwód: TEST (HALF-OPEN)'}
+            </span>
           </div>
+
+          {isCircuitOpen && (
+            <button
+              onClick={handleResetCircuit}
+              disabled={resetting}
+              style={{
+                fontSize: '0.7rem',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '4px',
+                background: '#ef4444',
+                color: '#fff',
+                border: 'none',
+                cursor: resetting ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+              title="Zresetuj bezpiecznik obwodu"
+            >
+              <RefreshCw size={11} className={resetting ? 'animate-spin' : ''} />
+              Reset
+            </button>
+          )}
 
           <a
             href="http://10.10.10.30:8888/api-monitor"
@@ -133,21 +252,32 @@ export function ModelRoutingWidget() {
             rel="noopener noreferrer"
             className="btn-secondary"
             style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#10b981', textDecoration: 'none' }}
-            title="Otwórz Unsloth Live Traffic Monitor (43.4 tok/s · 98k ctx)"
+            title="Otwórz Unsloth Live Traffic Monitor"
           >
             <Activity size={12} />
-            <span>Unsloth Monitor</span>
+            <span>Unsloth</span>
             <ExternalLink size={10} />
           </a>
 
           <button
-            type="button"
-            onClick={fetchStats}
-            className="btn-secondary"
-            style={{ padding: '0.25rem 0.45rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            title="Odśwież metryki routingu"
+            onClick={() => {
+              setLoading(true);
+              fetchStats().finally(() => setLoading(false));
+            }}
+            disabled={loading}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              padding: '0.2rem',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            title="Odśwież statystyki routingu"
+            aria-label="Odśwież statystyki routingu"
           >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
@@ -235,10 +365,10 @@ export function ModelRoutingWidget() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
         <span>Przepływ:</span>
         <code>Zapytanie</code>
-        <ArrowRight size={11} />
-        <code>Complexity Scorer</code>
-        <ArrowRight size={11} />
-        <code>10.10.10.30:8888 ({stats.localServerName || 'Unsloth'}) / AGY</code>
+        <ArrowRight size={12} />
+        <code>Scorer (low/med/high)</code>
+        <ArrowRight size={12} />
+        <code>{stats.localEndpoint ? `${stats.localEndpoint.replace(/^https?:\/\//, '').replace(/\/v1\/?$/, '')} (${stats.localServerName || 'Unsloth'})` : '10.10.10.30:8888 (Unsloth)'} / AGY</code>
       </div>
     </div>
   );

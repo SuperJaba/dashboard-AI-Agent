@@ -4,7 +4,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { io, Socket } from 'socket.io-client';
-import { X, Minus, Maximize2, Laptop } from 'lucide-react';
+import { X, Minus, Maximize2, Laptop, Copy, Check } from 'lucide-react';
 import { LocalWorkerModal } from './LocalWorkerModal';
 
 interface TerminalViewProps {
@@ -16,6 +16,7 @@ interface TerminalViewProps {
     executionTarget?: 'remote' | 'worker' | 'auto';
     targetWorkerId?: string;
     scriptContent?: string;
+    taskId?: number | null;
   } | null;
   onClose: () => void;
 }
@@ -44,27 +45,38 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const [execTarget, setExecTarget] = useState<'remote' | 'worker' | 'auto'>(config?.executionTarget || 'auto');
   const [workers, setWorkers] = useState<any[]>([]);
   const [showWorkerModal, setShowWorkerModal] = useState(false);
+  const [copiedTunnelCmd, setCopiedTunnelCmd] = useState(false);
+
+  const activeToken = typeof window !== 'undefined'
+    ? (localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '')
+    : '';
 
   const dragStartPos = useRef({ x: 0, y: 0 });
   const initialPos = useRef({ x: 0, y: 0 });
   const initialSize = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
-    // Fetch active workers list
+    // Fetch active workers list periodically so the dropdown stays up-to-date
     let isMounted = true;
-    const token = localStorage.getItem('dashboard_token');
-    fetch('/api/agents/workers', {
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-    })
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        if (isMounted) setWorkers(Array.isArray(data) ? data : []);
+    const fetchWorkers = () => {
+      const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
+      fetch('/api/agents/workers', {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
       })
-      .catch(() => {
-        if (isMounted) setWorkers([]);
-      });
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          if (isMounted) setWorkers(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {
+          if (isMounted) setWorkers([]);
+        });
+    };
+
+    fetchWorkers();
+    const interval = setInterval(fetchWorkers, 3000);
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
   }, []);
 
@@ -95,12 +107,23 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     fitAddonInstance.current = fitAddon;
 
     // Connect to WebSocket /pty namespace with token authentication and fallback transports
-    const token = localStorage.getItem('dashboard_token');
+    const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
     const socket = io('/pty', {
       auth: { token },
       transports: ['websocket', 'polling']
     });
     socketRef.current = socket;
+
+    socket.on('connect_error', (err) => {
+      term.write(`\r\n\x1b[31m[Błąd połączenia z terminalem /pty: ${err.message || 'Brak autoryzacji lub niedostępny backend'}]\x1b[0m\r\n`);
+      if (err.message?.toLowerCase().includes('unauthorized')) {
+        term.write('\x1b[33m[Wskazówka: Zaloguj się ponownie w dashboardzie, aby odświeżyć token sesji.]\x1b[0m\r\n');
+      }
+    });
+
+    socket.on('disconnect', (reason) => {
+      term.write(`\r\n\x1b[33m[Połączenie z terminalem zostało przerwane: ${reason}]\x1b[0m\r\n`);
+    });
 
     socket.on('connect', () => {
       term.write('\x1b[32m[Connected to Backend]\x1b[0m\r\n');
@@ -116,7 +139,8 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
           env: config.env,
           executionTarget: execTarget,
           targetWorkerId: config.targetWorkerId,
-          scriptContent: config.scriptContent
+          scriptContent: config.scriptContent,
+          taskId: config.taskId
         });
       }
       
@@ -294,6 +318,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
             <select
               value={execTarget}
               onChange={(e) => setExecTarget(e.target.value as 'remote' | 'worker' | 'auto')}
+              aria-label="Wybór celu wykonania (Target)"
               style={{
                 background: 'transparent',
                 color: execTarget === 'worker' ? '#38bdf8' : execTarget === 'remote' ? '#a855f7' : '#10b981',
@@ -308,9 +333,11 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
                 ⚡ Auto ({workers.length > 0 ? (workers.some(w => w.type === 'remote') ? 'Socket Worker' : 'Local Worker') : 'Remote'})
               </option>
               <option value="worker" disabled={workers.length === 0}>
-                {workers.some(w => w.type === 'remote')
-                  ? `🌐/💻 Worker Socket (${workers.length})`
-                  : `💻 Local Worker (${workers.length})`}
+                {workers.length > 0
+                  ? (workers.some(w => w.type === 'remote')
+                      ? `🌐/💻 Worker Socket (${workers.length} online)`
+                      : `💻 Local Worker (${workers.length} online)`)
+                  : 'Local Worker (offline - kliknij Tunel PC)'}
               </option>
               <option value="remote">🌐 Remote Server</option>
             </select>
@@ -335,20 +362,58 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
             <Laptop size={12} />
             <span>Tunel PC</span>
           </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const serverTarget = typeof window !== 'undefined'
+                ? (window.location.port === '5173' ? 'http://localhost:3001' : window.location.origin)
+                : 'https://dashboard.jagger2.ct8.pl';
+              const tokenVal = activeToken || 'twój_token_socket';
+              const cmd = `DASHBOARD_SERVER_URL="${serverTarget}" DASHBOARD_TOKEN="${tokenVal}" WORKER_NAME="Moj-PC" npm run agent:worker`;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(cmd);
+              }
+              setCopiedTunnelCmd(true);
+              setTimeout(() => setCopiedTunnelCmd(false), 2500);
+            }}
+            title="Kopiuj gotową komendę połączenia workera ze schowka (z automatycznym URL i tokenem)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              background: copiedTunnelCmd ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${copiedTunnelCmd ? 'rgba(16, 185, 129, 0.4)' : '#334155'}`,
+              borderRadius: '4px',
+              padding: '2px 6px',
+              color: copiedTunnelCmd ? '#34d399' : '#94a3b8',
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            {copiedTunnelCmd ? <Check size={12} /> : <Copy size={12} />}
+            <span>{copiedTunnelCmd ? 'Skopiowano!' : 'Kopiuj komendę'}</span>
+          </button>
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }} 
-            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            title={isMinimized ? 'Rozwiń terminal' : 'Zminimalizuj terminal'}
+            aria-label={isMinimized ? 'Rozwiń terminal' : 'Zminimalizuj terminal'}
+            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '4px' }}
           >
-            {isMinimized ? <Maximize2 size={16} /> : <Minus size={16} />}
+            {isMinimized ? <Maximize2 size={16} aria-hidden="true" /> : <Minus size={16} aria-hidden="true" />}
           </button>
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); onClose(); }} 
-            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            title="Zamknij terminal"
+            aria-label="Zamknij terminal"
+            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '4px' }}
           >
-            <X size={16} />
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -377,7 +442,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
           </svg>
         </div>
       )}
-      <LocalWorkerModal isOpen={showWorkerModal} onClose={() => setShowWorkerModal(false)} />
+      <LocalWorkerModal isOpen={showWorkerModal} onClose={() => setShowWorkerModal(false)} token={activeToken} />
     </div>,
     document.body
   );

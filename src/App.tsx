@@ -3,7 +3,8 @@ import {
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
-  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
+  Files, Zap, FileText, Flame
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -14,6 +15,8 @@ import { WebhookSettingsModal } from './components/WebhookSettingsModal';
 import { ModelRoutingSettings } from './components/ModelRoutingSettings';
 import { KpiDashboardPanel } from "./kpi/KpiDashboardPanel";
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
+import { DeployCt8Widget } from './components/deploy-ct8-widget';
+import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';
 
@@ -30,6 +33,7 @@ const ViewFallback = () => (
   </div>
 );
 import { DashboardTiles } from './TilesView';
+import { AntigravityCard } from './components/AntigravityCard';
 import { usePreferences, type Language } from './preferences/PreferencesContext';
 
 function App() {
@@ -104,6 +108,7 @@ function App() {
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [tunnelFeedback, setTunnelFeedback] = useState<string | null>(null);
+  const [isDeployingApp, setIsDeployingApp] = useState(false);
   const { connected: isSseConnected } = useLiveTelemetry();
 
   const handleTriggerTunnel = async (serverId: number) => {
@@ -313,8 +318,12 @@ function App() {
             {servers.map(server => (
               <div 
                 key={server.id} 
+                role="button"
+                tabIndex={0}
+                aria-selected={activeProjectId === `server-${server.id}`}
                 className={`project-item ${activeProjectId === `server-${server.id}` ? 'active' : ''}`}
                 onClick={() => setActiveProjectId(`server-${server.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveProjectId(`server-${server.id}`); } }}
                 style={{ justifyContent: 'space-between' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -356,51 +365,6 @@ function App() {
         )}
 
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
-          <input 
-            id="custom-llm-name"
-            type="text" 
-            placeholder="np. AtomicChat" 
-            value={customLlmName}
-            onChange={(e) => setCustomLlmName(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
-          <input 
-            id="custom-llm-url"
-            type="text" 
-            placeholder="http://localhost:1337/v1" 
-            value={customLlmUrl}
-            onChange={(e) => setCustomLlmUrl(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
-          <input 
-            id="custom-llm-model"
-            type="text" 
-            placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
-            value={customLlmModel}
-            onChange={(e) => setCustomLlmModel(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
-          <input 
-            id="custom-api-key"
-            type="password" 
-            placeholder="Brak" 
-            value={customApiKey}
-            onChange={(e) => setCustomApiKey(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <button 
-            type="button"
-            onClick={saveSettings}
-            aria-live="polite"
-            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
-          >
-            {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
-            {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
-          </button>
           <button 
             type="button"
             onClick={() => setShowWorkerModal(true)}
@@ -457,8 +421,8 @@ function App() {
           role="dialog"
           aria-modal="true"
           aria-label={t('settings.title')}
-          onClick={() => setShowSettings(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overscrollBehavior: 'contain' }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -516,6 +480,66 @@ function App() {
 
             {/* Konfiguracja routingu modeli */}
             <ModelRoutingSettings />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Domyślny Serwer LLM</span>
+              <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
+              <input 
+                id="custom-llm-name"
+                name="customLlmName"
+                autoComplete="off"
+                type="text" 
+                placeholder="np. AtomicChat" 
+                value={customLlmName}
+                onChange={(e) => setCustomLlmName(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontSize: '0.8rem' }}
+              />
+              <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
+              <input 
+                id="custom-llm-url"
+                name="customLlmUrl"
+                autoComplete="off"
+                spellCheck={false}
+                type="text" 
+                placeholder="http://localhost:1337/v1" 
+                value={customLlmUrl}
+                onChange={(e) => setCustomLlmUrl(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+              />
+              <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
+              <input 
+                id="custom-llm-model"
+                name="customLlmModel"
+                autoComplete="off"
+                spellCheck={false}
+                type="text" 
+                placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
+                value={customLlmModel}
+                onChange={(e) => setCustomLlmModel(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+              />
+              <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
+              <input 
+                id="custom-api-key"
+                name="customApiKey"
+                autoComplete="off"
+                spellCheck={false}
+                type="password" 
+                placeholder="Brak" 
+                value={customApiKey}
+                onChange={(e) => setCustomApiKey(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+              />
+              <button 
+                type="button"
+                onClick={saveSettings}
+                aria-live="polite"
+                style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
+              >
+                {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
+                {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
+              </button>
+            </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
 
@@ -575,34 +599,38 @@ function App() {
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Skopiuj wybrane pliki i foldery do określonej ścieżki na tym serwerze.')}
                   >
-                    📂 Copy Files
+                    <Files size={14} aria-hidden="true" />
+                    <span>Copy Files</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Uruchom skrypt aktualizacji na tym serwerze i zaraportuj wyniki.')}
                   >
-                    ⚡ Run Script
+                    <Zap size={14} aria-hidden="true" />
+                    <span>Run Script</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.')}
                   >
-                    📋 Analyze Logs
+                    <FileText size={14} aria-hidden="true" />
+                    <span>Analyze Logs</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236,72,153,0.2)' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236,72,153,0.2)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Użyj skilla grafana-dashboards, aby przygotować pliki konfiguracyjne. Następnie połącz się przez SSH z tym serwerem, zainstaluj Dockera (jeśli nie ma) i uruchom stos Prometheus + Grafana za pomocą docker-compose z wygenerowanymi dashboardami na porcie 3000.')}
                   >
-                    🔥 Deploy Grafana Stack
+                    <Flame size={14} aria-hidden="true" />
+                    <span>Deploy Grafana Stack</span>
                   </button>
                   <button 
                     type="button"
@@ -648,7 +676,7 @@ function App() {
                   id="remote-prompt-input"
                   value={remotePrompt}
                   onChange={e => setRemotePrompt(e.target.value)}
-                  placeholder="e.g., Check PHP logs for errors, update packages, or install Grafana..."
+                  placeholder="e.g., Check PHP logs for errors, update packages, or install Grafana…"
                   style={{ 
                     width: '100%', minHeight: '100px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', 
                     borderRadius: '6px', padding: '0.75rem', color: 'var(--text-main)', marginBottom: '1rem', resize: 'vertical'
@@ -671,7 +699,7 @@ function App() {
                       }}
                     >
                       <Rocket size={18} aria-hidden="true" />
-                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
+                      {deploying === agent.name.toLowerCase() ? 'Deploying…' : `Deploy ${agent.name}`}
                     </button>
                   ))}
                 </div>
@@ -732,7 +760,7 @@ function App() {
                         }}
                       >
                         <Rocket size={20} aria-hidden="true" />
-                        {deploying === activeAgentName ? 'Deploying...' : 'Deploy'}
+                        {deploying === activeAgentName ? 'Deploying…' : 'Deploy'}
                       </button>
                     </>
                   )}
@@ -770,60 +798,95 @@ function App() {
             )}
 
             <div>
-              <AnalyticsPanel projects={projects} />
-              <div className="grid-top" style={{ marginBottom: '2rem' }}>
-                <div className="glass-card animate-in delay-2">
-                  <span className="info-label">Implementation Status</span>
-                  <div className="info-value">
-                    <Activity size={24} color="var(--secondary)" aria-hidden="true" />
-                    {activeProject.complete}% Complete
+              {!terminalConfig && !isDeployingApp && projects.length > 0 && <AnalyticsPanel projects={projects} />}
+              <div className="grid-top" style={{ marginBottom: '2rem', perspective: '1200px' }}>
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(236, 72, 153, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}
+                >
+                  <div className="antigravity-depth-pop">
+                    <span className="info-label">Implementation Status</span>
+                    <div className="info-value">
+                      <Activity size={24} color="var(--secondary)" aria-hidden="true" />
+                      {activeProject.complete}% Complete
+                    </div>
                   </div>
-                  <div style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.1)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ background: 'linear-gradient(90deg, var(--primary), var(--secondary))', width: `${activeProject.complete}%`, height: '100%', transition: 'width 0.5s ease-out' }}></div>
+                  <div className="antigravity-depth-sub" style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.08)', height: '7px', borderRadius: '9999px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div className="antigravity-progress-glow" style={{ background: 'linear-gradient(90deg, var(--primary), var(--secondary))', width: `${activeProject.complete}%`, height: '100%', transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '9999px' }} />
+                    </div>
                   </div>
-                </div>
+                </AntigravityCard>
 
-                <div className="glass-card animate-in delay-2" style={{ animationDelay: '0.25s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(79, 70, 229, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                >
+                  <div className="antigravity-depth-pop">
                     <span className="info-label">Technology Stack</span>
                     <div className="info-value">
                       <TerminalSquare size={24} color="var(--primary)" aria-hidden="true" />
                       {activeProject.tech}
                     </div>
                   </div>
-                  <button 
-                    type="button"
-                    className="btn-add-project" 
-                    style={{ marginTop: '1rem', width: 'fit-content', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
-                    onClick={analyzeProject}
-                    disabled={deploying === 'analyze'}
-                  >
-                    {deploying === 'analyze' ? 'Analyzing...' : 'Analyze Workspace'}
-                  </button>
-                </div>
+                  <div className="antigravity-depth-sub">
+                    <button 
+                      type="button"
+                      className="btn-add-project" 
+                      style={{ marginTop: '1rem', width: 'fit-content', padding: '0.45rem 0.9rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px' }} 
+                      onClick={analyzeProject}
+                      disabled={deploying === 'analyze'}
+                    >
+                      {deploying === 'analyze' && <RefreshCw size={14} className="animate-spin" />}
+                      {deploying === 'analyze' ? 'Analyzing…' : 'Analyze Workspace'}
+                    </button>
+                  </div>
+                </AntigravityCard>
 
-                <div className="glass-card animate-in delay-2" style={{ animationDelay: '0.3s' }}>
-                  <span className="info-label">Project Path</span>
-                  <div className="info-value" style={{ fontSize: '1rem' }}>
-                    <Folder size={20} color="#10B981" aria-hidden="true" />
-                    {activeProject.path}
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(16, 185, 129, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}
+                >
+                  <div className="antigravity-depth-pop">
+                    <span className="info-label">Project Path</span>
+                    <div className="info-value" style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={activeProject.path}>
+                      <Folder size={18} color="#10B981" aria-hidden="true" style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeProject.path}</span>
+                    </div>
                   </div>
-                  <div className="info-value" style={{ fontSize: '1rem', marginTop: '0.5rem' }}>
-                    <GitBranch size={20} color="#F59E0B" aria-hidden="true" />
-                    {activeProject.branch ? (
-                      activeProject.branch
-                    ) : (
-                      <button type="button" className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={initGit}>
-                        Create Git
-                      </button>
-                    )}
+                  <div className="antigravity-depth-sub" style={{ marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="info-value" style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <GitBranch size={18} color="#F59E0B" aria-hidden="true" />
+                      {activeProject.branch ? (
+                        <span style={{ fontFamily: 'monospace', color: '#fcd34d', fontWeight: 600 }}>{activeProject.branch}</span>
+                      ) : (
+                        <button type="button" className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.25rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px' }} onClick={initGit}>
+                          Create Git
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </AntigravityCard>
               </div>
 
               <RepoStatus directory={activeProject.path || ''} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
-              <section className="glass-card animate-in delay-3" style={{ maxWidth: '100%' }}>
+              <AntigravityCard
+                elevation="medium"
+                maxTilt={3}
+                glowColor="rgba(79, 70, 229, 0.14)"
+                className="animate-in delay-3"
+                style={{ maxWidth: '100%', padding: '1.25rem', marginTop: '1.5rem', marginBottom: '2rem' }}
+              >
                 <div 
                   className="sidebar-title-btn tasks-header" 
                   onClick={() => setShowTasks(!showTasks)}
@@ -980,6 +1043,19 @@ function App() {
                       <div 
                         className="task-item" 
                         key={task.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-selected={selectedTaskIds.includes(task.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            if (selectedTaskIds.includes(task.id)) {
+                              setSelectedTaskIds(selectedTaskIds.filter(id => id !== task.id));
+                            } else {
+                              setSelectedTaskIds([...selectedTaskIds, task.id]);
+                            }
+                          }
+                        }}
                         onClick={() => {
                           if (selectedTaskIds.includes(task.id)) {
                             setSelectedTaskIds(selectedTaskIds.filter(id => id !== task.id));
@@ -1083,10 +1159,12 @@ function App() {
                     <form onSubmit={addTask} style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', padding: '0 0.5rem' }}>
                       <input 
                         id="new-task-input"
+                        name="newTaskTitle"
+                        autoComplete="off"
                         type="text" 
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
-                        placeholder="Add a new custom task..." 
+                        placeholder="Add a new custom task…" 
                         aria-label="Add a new custom task"
                         style={{ 
                           flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', 
@@ -1190,15 +1268,19 @@ function App() {
                     )}
                   </div>
                 )}
-              </section>
+              </AntigravityCard>
             </div>
           </>
         ) : (
           <div>
             <div style={{ padding: '1.25rem 1.25rem 0 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <KpiDashboardPanel />
-              <ModelRoutingWidget />
-              <AnalyticsPanel projects={projects} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1rem' }}>
+                <ModelRoutingWidget />
+                <DeployCt8Widget onDeployStateChange={setIsDeployingApp} />
+                <AgentSchedulerWidget />
+              </div>
+              {!isDeployingApp && projects.length > 0 && <AnalyticsPanel projects={projects} />}
             </div>
             <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
           </div>
@@ -1222,6 +1304,8 @@ function App() {
                 <label htmlFor="new-server-name" className="info-label">Name</label>
                 <input 
                   id="new-server-name"
+                  name="serverName"
+                  autoComplete="off"
                   type="text" 
                   value={newServer.name}
                   onChange={e => setNewServer({...newServer, name: e.target.value})}
@@ -1234,6 +1318,9 @@ function App() {
                 <label htmlFor="new-server-host" className="info-label">Host (IP or Domain)</label>
                 <input 
                   id="new-server-host"
+                  name="serverHost"
+                  autoComplete="off"
+                  spellCheck={false}
                   type="text" 
                   value={newServer.host}
                   onChange={e => setNewServer({...newServer, host: e.target.value})}
@@ -1247,6 +1334,9 @@ function App() {
                   <label htmlFor="new-server-username" className="info-label">Username</label>
                   <input 
                     id="new-server-username"
+                    name="serverUsername"
+                    autoComplete="off"
+                    spellCheck={false}
                     type="text" 
                     value={newServer.username}
                     onChange={e => setNewServer({...newServer, username: e.target.value})}
@@ -1259,6 +1349,8 @@ function App() {
                   <label htmlFor="new-server-port" className="info-label">Port</label>
                   <input 
                     id="new-server-port"
+                    name="serverPort"
+                    autoComplete="off"
                     type="number" 
                     value={newServer.port}
                     onChange={e => setNewServer({...newServer, port: parseInt(e.target.value)})}
@@ -1290,6 +1382,9 @@ function App() {
                 <div style={{ position: 'relative' }}>
                   <input
                     id="new-server-ssh-password"
+                    name="serverSshPassword"
+                    autoComplete="current-password"
+                    spellCheck={false}
                     type={showPassword ? 'text' : 'password'}
                     value={newServer.ssh_password}
                     onChange={e => setNewServer({...newServer, ssh_password: e.target.value})}
@@ -1300,11 +1395,11 @@ function App() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(p => !p)}
-                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '0.2rem 0.3rem', lineHeight: 1 }}
+                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.2rem 0.3rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     title={showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
                     aria-label={showPassword ? 'Ukryj hasło SSH' : 'Pokaż hasło SSH'}
                   >
-                    {showPassword ? '🙈' : '👁️'}
+                    {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                   </button>
                 </div>
               </div>
@@ -1329,8 +1424,16 @@ function App() {
 
       {/* Clone Git Repository Modal */}
       {showCloneModal && (
-        <div className="modal-overlay" onClick={() => !cloneLoading && setShowCloneModal(false)}>
-          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+        <div 
+          className="modal-overlay" 
+          role="dialog"
+          aria-modal="true"
+          aria-label="Klonuj repozytorium Git"
+          onKeyDown={(e) => { if (e.key === 'Escape' && !cloneLoading) setShowCloneModal(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget && !cloneLoading) setShowCloneModal(false); }}
+          style={{ overscrollBehavior: 'contain' }}
+        >
+          <div className="modal-content glass-card" style={{ maxWidth: '520px', width: '100%', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
             <h3 className="section-title" style={{ color: '#38bdf8' }}>
               <DownloadCloud size={20} />
               Clone Git Repository
@@ -1347,6 +1450,9 @@ function App() {
                 <label htmlFor="clone-repo-url" className="info-label">Repository URL (HTTPS or SSH)</label>
                 <input
                   id="clone-repo-url"
+                  name="cloneRepoUrl"
+                  autoComplete="off"
+                  spellCheck={false}
                   type="text"
                   value={cloneRepoUrl}
                   onChange={e => {
@@ -1367,6 +1473,9 @@ function App() {
                 <label htmlFor="clone-target-dir" className="info-label">Target Directory</label>
                 <input
                   id="clone-target-dir"
+                  name="cloneTargetDir"
+                  autoComplete="off"
+                  spellCheck={false}
                   type="text"
                   value={cloneTargetDir}
                   onChange={e => setCloneTargetDir(e.target.value)}
@@ -1380,6 +1489,8 @@ function App() {
                 <label htmlFor="clone-project-name" className="info-label">Project Name in Dashboard (optional)</label>
                 <input
                   id="clone-project-name"
+                  name="cloneProjectName"
+                  autoComplete="off"
                   type="text"
                   value={cloneProjectName}
                   onChange={e => setCloneProjectName(e.target.value)}
@@ -1420,7 +1531,7 @@ function App() {
                     }
                   }}
                 >
-                  {cloneLoading ? 'Cloning...' : 'Clone Repository'}
+                  {cloneLoading ? 'Cloning…' : 'Clone Repository'}
                 </button>
               </div>
             </div>
@@ -1453,7 +1564,7 @@ function App() {
           }}
         >
           <WifiOff size={14} aria-hidden="true" />
-          <span>Brak połączenia z serwerem — ponawiam...</span>
+          <span>Brak połączenia z serwerem — ponawiam…</span>
         </div>
       )}
 

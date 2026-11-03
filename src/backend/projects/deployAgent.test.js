@@ -54,6 +54,7 @@ describe('POST /deploy agent resolution', () => {
   it('deploys Codex with local OSS Unsloth model and bypass flag', async () => {
     const res = await request(app)
       .post('/deploy')
+      .set('x-admin-role', 'true')
       .send({
         agent: 'Codex',
         llmUrl: 'http://localhost:8888/v1',

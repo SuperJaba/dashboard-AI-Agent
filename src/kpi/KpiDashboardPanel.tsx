@@ -155,34 +155,49 @@ export function KpiDashboardPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+      {data.today.tasks === 0 && (data.tokenBurn?.today ?? 0) === 0 && (
+        <div style={{
+          padding: '0.6rem 0.8rem',
+          background: 'rgba(56, 189, 248, 0.08)',
+          borderRadius: '8px',
+          fontSize: '0.8rem',
+          color: 'var(--text-muted, #94a3b8)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.6rem',
+          borderLeft: '3px solid var(--primary, #38bdf8)'
+        }}>
+          <span>Brak aktywności agentów w ostatnim okresie. Uruchom agenta, aby zebrać rzeczywiste dane telemetrii i zużycia tokenów.</span>
+        </div>
+      )}
 
       {/* Górne kafelki KPI — 100% realne metryki */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.6rem' }}>
         <MetricSummaryCard
-          title="Zadania w projektach"
-          value={`${completedTasks} / ${totalTasks}`}
+          title="Zadania dziś"
+          value={data.today.tasks > 0 ? `${data.today.tasks}` : `${completedTasks} / ${totalTasks}`}
           subtitle={`${projectsCount} repozytoria · ${data.today.tasks} ukończone`}
           trend="up"
           icon={CheckCircle2}
         />
         <MetricSummaryCard
           title="Skuteczność realizacji"
-          value={`${completionRate}%`}
-          subtitle={`Ukończono w projektach`}
+          value={data.today.tasks > 0 ? `${data.today.successRate}%` : `${completionRate}%`}
+          subtitle="Ukończono w projektach"
           trend={completionRate >= 50 ? 'up' : 'flat'}
           icon={Activity}
         />
         <MetricSummaryCard
           title="Śr. latencja inferencji"
-          value={`${data.today.avgDuration.toFixed(1)}s`}
+          value={data.today.avgDuration > 0 ? `${data.today.avgDuration.toFixed(1)}s` : `${data.today.avgDuration}s`}
           subtitle={`Circuit: ${data.systemOverview?.modelRouting?.circuitBreaker || 'CLOSED'}`}
           trend="flat"
           icon={Clock}
         />
         <MetricSummaryCard
           title="Tokeny dziś"
-          value={data.tokenBurn.today.toLocaleString()}
-          subtitle={`Tydzień: ${data.tokenBurn.week.toLocaleString()}`}
+          value={data.tokenBurn.today.toLocaleString('en-US')}
+          subtitle={`Tydzień: ${data.tokenBurn.week.toLocaleString('en-US')}`}
           trend="up"
           icon={Zap}
         />

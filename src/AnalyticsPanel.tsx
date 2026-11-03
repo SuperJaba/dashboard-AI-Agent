@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BarChart3, Database, CheckCircle2 } from 'lucide-react';
 import { apiClient } from './shared/api-client/client';
+import { AntigravityCard } from './components/AntigravityCard';
 
 interface ProjectLike {
   id?: number | string;
@@ -83,65 +84,81 @@ export const AnalyticsPanel = ({ projects }: { projects?: ProjectLike[] }) => {
   return (
     <div className="analytics-panel animate-in delay-1" style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: '1rem',
-      marginBottom: '2rem'
+      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+      gap: '1.25rem',
+      marginBottom: '2rem',
+      perspective: '1200px'
     }}>
-      <div className="stat-card" style={{
-        background: 'var(--glass-bg)',
-        border: '1px solid var(--glass-border)',
-        borderRadius: '12px',
-        padding: '1.2rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem'
-      }}>
-        <div style={{ padding: '0.8rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '50%', color: '#3b82f6' }}>
+      {/* Total Projects Pod */}
+      <AntigravityCard
+        elevation="medium"
+        maxTilt={6}
+        glowColor="rgba(56, 189, 248, 0.2)"
+        style={{ padding: '1.2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}
+      >
+        <div className="antigravity-depth-pop" style={{
+          padding: '0.75rem',
+          background: 'rgba(56, 189, 248, 0.12)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          borderRadius: '12px',
+          color: '#38bdf8',
+          boxShadow: '0 0 16px -2px rgba(56, 189, 248, 0.3)'
+        }}>
           <Database size={24} />
         </div>
-        <div>
-          <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Total Projects</h4>
-          <p style={{ margin: '0.2rem 0 0 0', fontSize: '1.5rem', fontWeight: 600 }}>{liveStats.totalProjects}</p>
+        <div className="antigravity-depth-sub">
+          <h4 style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Total Projects</h4>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '1.75rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1 }}>{liveStats.totalProjects}</p>
         </div>
-      </div>
+      </AntigravityCard>
 
-      <div className="stat-card" style={{
-        background: 'var(--glass-bg)',
-        border: '1px solid var(--glass-border)',
-        borderRadius: '12px',
-        padding: '1.2rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem'
-      }}>
-        <div style={{ padding: '0.8rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '50%', color: '#10b981' }}>
+      {/* Global Progress Pod */}
+      <AntigravityCard
+        elevation="medium"
+        maxTilt={6}
+        glowColor="rgba(52, 211, 153, 0.2)"
+        style={{ padding: '1.2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}
+      >
+        <div className="antigravity-depth-pop" style={{
+          padding: '0.75rem',
+          background: 'rgba(52, 211, 153, 0.12)',
+          border: '1px solid rgba(52, 211, 153, 0.25)',
+          borderRadius: '12px',
+          color: '#34d399',
+          boxShadow: '0 0 16px -2px rgba(52, 211, 153, 0.3)'
+        }}>
           <CheckCircle2 size={24} />
         </div>
-        <div>
-          <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Global Progress</h4>
-          <p style={{ margin: '0.2rem 0 0 0', fontSize: '1.5rem', fontWeight: 600 }}>{liveStats.avgComplete}%</p>
+        <div className="antigravity-depth-sub">
+          <h4 style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Global Progress</h4>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '1.75rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1 }}>{liveStats.avgComplete}%</p>
         </div>
-      </div>
+      </AntigravityCard>
 
-      <div className="stat-card" style={{
-        background: 'var(--glass-bg)',
-        border: '1px solid var(--glass-border)',
-        borderRadius: '12px',
-        padding: '1.2rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem'
-      }}>
-        <div style={{ padding: '0.8rem', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '50%', color: '#8b5cf6' }}>
+      {/* Top Technology Pod */}
+      <AntigravityCard
+        elevation="medium"
+        maxTilt={6}
+        glowColor="rgba(168, 85, 247, 0.2)"
+        style={{ padding: '1.2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}
+      >
+        <div className="antigravity-depth-pop" style={{
+          padding: '0.75rem',
+          background: 'rgba(168, 85, 247, 0.12)',
+          border: '1px solid rgba(168, 85, 247, 0.25)',
+          borderRadius: '12px',
+          color: '#c084fc',
+          boxShadow: '0 0 16px -2px rgba(168, 85, 247, 0.3)'
+        }}>
           <BarChart3 size={24} />
         </div>
-        <div>
-          <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Top Technology</h4>
-          <p style={{ margin: '0.2rem 0 0 0', fontSize: '1.2rem', fontWeight: 600 }}>
+        <div className="antigravity-depth-sub">
+          <h4 style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Top Technology</h4>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '1.2rem', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {liveStats.topTechnology}
           </p>
         </div>
-      </div>
+      </AntigravityCard>
     </div>
   );
 };

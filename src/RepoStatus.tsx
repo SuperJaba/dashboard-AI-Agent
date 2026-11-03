@@ -6,6 +6,7 @@ import {
   DownloadCloud, FileText, Plus, Check
 } from 'lucide-react';
 import { apiClient } from './shared/api-client';
+import { AntigravityCard } from './components/AntigravityCard';
 import './index.css';
 
 interface RepoStatusProps {
@@ -255,7 +256,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
   }
 
   return (
-    <div className="glass-card animate-in delay-3" style={{ maxWidth: '100%', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <AntigravityCard 
+      elevation="medium" 
+      maxTilt={3} 
+      glowColor="rgba(99, 102, 241, 0.14)" 
+      className="animate-in delay-3" 
+      style={{ maxWidth: '100%', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem' }}
+    >
       
       {/* Top Toolbar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -350,12 +357,16 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                         width: '100%'
                       }}
                     >
-                      <Plus size={14} /> New Branch...
+                      <Plus size={14} /> New Branch…
                     </button>
                   ) : (
                     <div style={{ display: 'flex', gap: '0.3rem' }}>
                       <input
                         type="text"
+                        name="newBranchName"
+                        aria-label="Nazwa nowej gałęzi Git"
+                        autoComplete="off"
+                        spellCheck={false}
                         placeholder="branch-name"
                         value={newBranchInput}
                         onChange={e => setNewBranchInput(e.target.value)}
@@ -495,9 +506,12 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <div 
+                role="button"
+                tabIndex={0}
                 className="info-label"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', userSelect: 'none' }}
                 onClick={() => setShowChanges(!showChanges)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowChanges(!showChanges); } }}
               >
                 <span>Uncommitted Changes ({gitStatus?.changes?.length || 0})</span>
                 {showChanges ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -546,9 +560,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                       const statusType = c.substring(0, 2).trim();
                       const fileName = c.substring(3).trim();
                       return (
-                        <div 
+                        <button 
+                          type="button"
                           key={i} 
                           style={{ 
+                            width: '100%',
+                            textAlign: 'left',
+                            border: 'none',
                             display: 'flex', 
                             justifyContent: 'space-between', 
                             alignItems: 'center', 
@@ -564,7 +582,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                             {c}
                           </span>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>view diff</span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -579,9 +597,12 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
             {/* Commits Section */}
             <div>
               <div 
+                role="button"
+                tabIndex={0}
                 className="info-label" 
-                style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                style={{ width: '100%', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 onClick={() => setShowCommits(!showCommits)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowCommits(!showCommits); } }}
               >
                 Recent Commits
                 {showCommits ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -608,8 +629,11 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
           {/* GitHub PRs & CI */}
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div 
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', cursor: 'pointer' }} 
+              role="button"
+              tabIndex={0}
+              style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', cursor: 'pointer' }} 
               onClick={() => setShowPRs(!showPRs)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowPRs(!showPRs); } }}
             >
               <h3 style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <GitPullRequest size={18} />
@@ -700,7 +724,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 }}
               >
                 <UploadCloud size={18} />
-                {loading ? 'Deploying...' : 'Sync & Deploy Remote'}
+                {loading ? 'Deploying…' : 'Sync & Deploy Remote'}
               </button>
             </div>
           </div>
@@ -710,6 +734,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       {/* Diff Viewer Modal */}
       {diffModal && diffModal.show && ReactDOM.createPortal(
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Podgląd zmian Git Diff"
+          onKeyDown={(e) => { if (e.key === 'Escape') setDiffModal(null); }}
           onClick={(e) => { if (e.target === e.currentTarget) setDiffModal(null); }}
           style={{
             position: 'fixed', inset: 0,
@@ -845,6 +873,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       {/* Commit Modal */}
       {commitModal && ReactDOM.createPortal(
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Zatwierdź zmiany Git"
+          onKeyDown={(e) => { if (e.key === 'Escape') setCommitModal(false); }}
           onClick={(e) => { if (e.target === e.currentTarget) setCommitModal(false); }}
           style={{
             position: 'fixed', inset: 0,
@@ -895,7 +927,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
               <textarea
                 value={commitMessage}
                 onChange={e => setCommitMessage(e.target.value)}
-                placeholder="feat(core): add new feature..."
+                placeholder="feat(core): add new feature…"
                 rows={4}
                 style={{
                   width: '100%',
@@ -945,7 +977,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                   style={{ padding: '0.5rem 1.5rem', background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}
                   disabled={!commitMessage.trim() || actionLoading === 'commit'}
                 >
-                  {actionLoading === 'commit' ? 'Committing...' : 'Commit'}
+                  {actionLoading === 'commit' ? 'Committing…' : 'Commit'}
                 </button>
               </div>
             </div>
@@ -957,6 +989,11 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       {/* Deploy Modal */}
       {deployModal && deployModal.show && ReactDOM.createPortal(
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Wdrożenie na serwer"
+          tabIndex={-1}
+          onKeyDown={(e) => e.key === 'Escape' && setDeployModal(null)}
           onClick={(e) => { if (e.target === e.currentTarget) setDeployModal(null); }}
           style={{
             position: 'fixed', inset: 0,
@@ -1074,6 +1111,6 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
         </div>,
         document.body
       )}
-    </div>
+    </AntigravityCard>
   );
 };

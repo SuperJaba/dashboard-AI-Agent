@@ -22,7 +22,13 @@ function setCache(key, data) {
 }
 
 export async function buildKpiData() {
-  // 1. Pobierz prawdziwe projekty i zadania z PostgreSQL
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const sevenDaysAgo = new Date(now - 7 * 24 * 3600 * 1000);
+  const thirtyDaysAgo = new Date(now - 30 * 24 * 3600 * 1000);
+
+  // 1. Projects and tasks
   let projects = [];
   try {
     const projectsRes = await safeQuery('SELECT id, name, tasks, complete FROM projects');
@@ -38,10 +44,6 @@ export async function buildKpiData() {
   let tasks7Days = 0;
   let tasks7DaysCompleted = 0;
 
-  const now = Date.now();
-  const oneDayAgo = now - 24 * 3600 * 1000;
-  const sevenDaysAgo = now - 7 * 24 * 3600 * 1000;
-
   for (const project of projects) {
     const tasks = Array.isArray(project.tasks) ? project.tasks : [];
     totalTasks += tasks.length;
@@ -54,11 +56,11 @@ export async function buildKpiData() {
       if (dateStr) {
         const time = new Date(dateStr).getTime();
         if (!isNaN(time)) {
-          if (time >= oneDayAgo) {
+          if (time >= todayStart.getTime()) {
             tasksToday++;
             if (isCompleted) tasksTodayCompleted++;
           }
-          if (time >= sevenDaysAgo) {
+          if (time >= sevenDaysAgo.getTime()) {
             tasks7Days++;
             if (isCompleted) tasks7DaysCompleted++;
           }
@@ -67,11 +69,43 @@ export async function buildKpiData() {
     }
   }
 
-  // 2. Pobierz serwery SSH, agentów CLI i aktywny serwer Unsloth
+  // 2. Also query agent_tasks if projects table has fewer items
+  try {
+    const [tTodayRes, t7dRes, t30dRes, _tokenTodayRes, _tokenWeekRes] = await Promise.all([
+      safeQuery('SELECT COUNT(*) as total, SUM(CASE WHEN status = \'completed\' THEN 1 ELSE 0 END) as ok FROM agent_tasks WHERE created_at >= $1', [todayStart]),
+      safeQuery('SELECT COUNT(*) as total, SUM(CASE WHEN status = \'completed\' THEN 1 ELSE 0 END) as ok FROM agent_tasks WHERE created_at >= $1', [sevenDaysAgo]),
+      safeQuery('SELECT COUNT(*) as total, SUM(CASE WHEN status = \'completed\' THEN 1 ELSE 0 END) as ok FROM agent_tasks WHERE created_at >= $1', [thirtyDaysAgo]),
+      safeQuery('SELECT COALESCE(SUM(tokens_used), 0) AS tokens FROM agent_tasks WHERE created_at >= $1', [todayStart]),
+      safeQuery('SELECT COALESCE(SUM(tokens_used), 0) AS tokens FROM agent_tasks WHERE created_at >= $1', [sevenDaysAgo])
+    ]);
+
+    const atToday = parseInt(tTodayRes?.rows?.[0]?.total || '0', 10);
+    const atTodayOk = parseInt(tTodayRes?.rows?.[0]?.ok || '0', 10);
+    if (atToday > 0) {
+      tasksToday += atToday;
+      tasksTodayCompleted += atTodayOk;
+    }
+
+    const at7d = parseInt(t7dRes?.rows?.[0]?.total || '0', 10);
+    const at7dOk = parseInt(t7dRes?.rows?.[0]?.ok || '0', 10);
+    if (at7d > 0) {
+      tasks7Days += at7d;
+      tasks7DaysCompleted += at7dOk;
+    }
+
+    const at30d = parseInt(t30dRes?.rows?.[0]?.total || '0', 10);
+    const at30dOk = parseInt(t30dRes?.rows?.[0]?.ok || '0', 10);
+    if (at30d > 0) {
+      totalTasks += at30d;
+      completedTasks += at30dOk;
+    }
+  } catch {}
+
+  // 3. Servers, cli agents, active llm
   let servers = [];
   let cliAgents = [];
   let activeLlm = {
-    name: 'Unslo',
+    name: 'Unsloth',
     url: 'http://10.10.10.30:8888',
     model: 'unsloth/Qwen3.5-4B-MTP-GGUF',
     is_active: true
@@ -88,11 +122,9 @@ export async function buildKpiData() {
     if (llmServersRes?.rows?.[0]) {
       activeLlm = llmServersRes.rows[0];
     }
-  } catch {
-    // Zachowaj wartości domyślne w przypadku problemu z bazą
-  }
+  } catch {}
 
-  // 3. Telemetria routingu modeli i realne tokeny
+  // 4. Model routing telemetry
   let routing = {
     localTasks: 0,
     cloudTasks: 0,
@@ -109,27 +141,21 @@ export async function buildKpiData() {
   };
 
   try {
-    routing = getRoutingStats();
-  } catch {
-    // fallback
-  }
+    routing = await getRoutingStats();
+  } catch {}
 
   const localLlmTasks = routing.localTasks || 0;
   const cloudLlmTasks = routing.cloudTasks || 0;
   const totalLlmTasks = localLlmTasks + cloudLlmTasks;
 
-  // Realne tokeny z wykonanych wywołań modeli
   const todayTokens = (routing.localTokens || 0) + (routing.cloudTokens || 0);
   const weekTokens = todayTokens;
 
-  // Proporcje modeli (Unsloth vs AGY Cloud)
   const localRatio = totalLlmTasks > 0 ? (localLlmTasks / totalLlmTasks) : 0;
   const cloudRatio = totalLlmTasks > 0 ? (cloudLlmTasks / totalLlmTasks) : 0;
 
   const unslothTokens = routing.localTokens || 0;
   const cloudTokens = routing.cloudTokens || 0;
-
-  // Oszczędności w PLN z lokalnej inferencji Unsloth (0.08 USD / 1k tokenów * 4.2 PLN)
   const estimatedSavingsPln = Math.round((unslothTokens / 1000) * 0.08 * 4.2);
 
   const byModel = [
@@ -159,10 +185,36 @@ export async function buildKpiData() {
     { hour: 'Teraz', tokens: todayTokens },
   ];
 
+  // 5. Sparkline
+  let sparklineMap = {};
+  try {
+    const sparklineRes = await safeQuery(
+      `SELECT to_char(created_at, 'YYYY-MM-DD') AS day, COUNT(*) AS count
+       FROM agent_tasks
+       WHERE created_at >= $1
+       GROUP BY to_char(created_at, 'YYYY-MM-DD')
+       ORDER BY day ASC`,
+      [sevenDaysAgo]
+    );
+    for (const r of sparklineRes?.rows || []) {
+      sparklineMap[r.day] = parseInt(r.count, 10);
+    }
+  } catch {}
+
+  const sparkline = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 3600 * 1000);
+    const isoDay = d.toISOString().slice(0, 10);
+    const label = i === 0 ? 'dziś' : `${i}d`;
+    sparkline.push({
+      time: label,
+      value: sparklineMap[isoDay] || 0,
+    });
+  }
+
   const todaySuccessRate = tasksToday > 0 ? Math.round((tasksTodayCompleted / tasksToday) * 100) : 0;
   const sevenDaysSuccessRate = tasks7Days > 0 ? Math.round((tasks7DaysCompleted / tasks7Days) * 100) : (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
   const thirtyDaysSuccessRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
   const avgDuration = routing.avgLocalLatencyMs > 0 ? Math.round((routing.avgLocalLatencyMs / 1000) * 10) / 10 : 0;
 
   const topErrors = [];
@@ -196,6 +248,7 @@ export async function buildKpiData() {
       byModel,
       history
     },
+    sparkline,
     systemOverview: {
       projectsCount: projects.length,
       totalTasks,
@@ -205,7 +258,7 @@ export async function buildKpiData() {
       servers: servers.map(s => ({ name: s.name, host: s.host, port: s.port })),
       cliAgentsCount: cliAgents.filter(a => a.installed).length,
       activeLlmServer: {
-        name: activeLlm.name || 'Unslo',
+        name: activeLlm.name || 'Unsloth',
         url: activeLlm.url || 'http://10.10.10.30:8888',
         model: activeLlm.model || 'unsloth/Qwen3.5-4B-MTP-GGUF',
         status: 'ONLINE'

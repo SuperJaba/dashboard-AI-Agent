@@ -1,3 +1,5 @@
+[![CI/CD](https://github.com/SuperJaba/dashboard-AI-Agent/actions/workflows/ci.yml/badge.svg?branch=master&event=deployment)](https://github.com/SuperJaba/dashboard-AI-Agent/actions/workflows/ci.yml)
+
 # Dashboard 📊
 
 A full-stack, modern dashboard application built with React, TypeScript, Vite, and Express. This dashboard provides a comprehensive platform for monitoring servers, managing projects, executing AI agents, real-time terminal interactions, and LLM server management.
@@ -7,10 +9,12 @@ A full-stack, modern dashboard application built with React, TypeScript, Vite, a
 ## 🎯 Key Features
 
 ### **Core Functionality**
-- ✅ **Authentication & Security**: JWT-based authentication with bcrypt password hashing
+- ✅ **Authentication & Security**: JWT-based authentication with bcryptjs password hashing and role validation
+- ✅ **Multi-Server Deployment**: Live deployment orchestration to CT8.pl, OMV, and custom Linux servers with real-time log streaming and emergency process killing
+- ✅ **Background Task Scheduler**: Automated cron jobs for periodic repository synchronization, maintenance, and custom commands with full task editing and toggle support
 - ✅ **Real-time Terminal**: Interactive terminal shells powered by Socket.io with process control
 - ✅ **Server Management**: Monitor server statistics and perform remote operations via SSH
-- ✅ **Project Management**: Organize and manage local projects, branches, and tasks (Git integration)
+- ✅ **Project & Workspace Management**: Organize projects with Git integration and smart folder picker memory
 - ✅ **LLM Server Configuration**: Manage LLM server configurations, API keys, and model settings
 - ✅ **AI Agents Deployment**: Deploy and manage autonomous AI agents with terminal capabilities
 - ✅ **Real-time Monitoring**: Prometheus metrics collection with Grafana visualization
@@ -276,6 +280,7 @@ The LLM Server management expects the API key field as **`apiKey`** (camelCase) 
 | **[docs/ARCHITECTURE_DOCUMENTATION.md](./docs/ARCHITECTURE_DOCUMENTATION.md)** | System architecture overview and subsystem details |
 | **[docs/API_DOCUMENTATION.md](./docs/API_DOCUMENTATION.md)** | REST API and WebSocket specifications |
 | **[docs/TUTORIAL_ADD_WIDGET.md](./docs/TUTORIAL_ADD_WIDGET.md)** | Step-by-step guide for adding new Custom Widgets |
+| **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** | CT8.pl production deployment, Passenger configuration, and CI/CD pipeline |
 | **[docs/DESIGN.md](./docs/DESIGN.md)** | Architecture decisions and design patterns |
 | **[docs/DEVELOPER_ONBOARDING.md](./docs/DEVELOPER_ONBOARDING.md)** | Detailed onboarding guide for new developers |
 | **[docs/CONTEXT_MANAGEMENT.md](./docs/CONTEXT_MANAGEMENT.md)** | Context management strategy |

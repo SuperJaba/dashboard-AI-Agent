@@ -9,9 +9,6 @@ export const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.query.token) {
-    // Keep fallback for quick tests if needed, but validate it as JWT
-    token = req.query.token;
   }
 
   if (!token) {
@@ -25,4 +22,27 @@ export const authMiddleware = (req, res, next) => {
   } catch  {
     return res.status(401).json({ error: 'Invalid token' });
   }
+};
+
+/**
+ * Optional authentication middleware: extracts and verifies JWT token if present,
+ * but does not block requests when unauthenticated.
+ */
+export const optionalAuthMiddleware = (req, res, next) => {
+  if (req.method === 'OPTIONS') {return next();}
+  
+  let token;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.user = decoded;
+    } catch {}
+  }
+
+  next();
 };
