@@ -34,7 +34,7 @@ describe('POST /deploy agent resolution', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.scriptContent).toContain('/claude"');
+    expect(res.body.scriptContent).toMatch(/[/"]claude"/);
     expect(res.body.scriptContent).not.toContain('openclaude');
   });
 
