@@ -39,41 +39,66 @@ export function RemoteTelemetryCharts({
     const baseCpu = Math.max(5, Math.min(95, cpuLoadPercent));
     const baseRam = Math.max(10, Math.min(95, memoryUsagePercent));
 
-    return [
-      { time: '12:00', cpu: Math.max(4, Math.round(baseCpu * 0.7)), ram: Math.round(baseRam * 0.95) },
-      { time: '12:10', cpu: Math.max(5, Math.round(baseCpu * 0.85)), ram: Math.round(baseRam * 0.96) },
-      { time: '12:20', cpu: Math.max(8, Math.round(baseCpu * 1.15)), ram: Math.round(baseRam * 0.98) },
-      { time: '12:30', cpu: Math.max(12, Math.round(baseCpu * 1.45)), ram: Math.min(98, Math.round(baseRam * 1.04)) },
-      { time: '12:40', cpu: Math.min(99, Math.round(baseCpu * 1.6)), ram: Math.min(99, Math.round(baseRam * 1.08)) },
-      { time: '12:50', cpu: Math.max(6, Math.round(baseCpu * 1.1)), ram: Math.round(baseRam * 1.01) },
-      { time: 'Teraz', cpu: Math.round(baseCpu), ram: Math.round(baseRam) },
-    ];
-  }, [cpuLoadPercent, memoryUsagePercent]);
+    const timeLabels = timeRange === '15m'
+      ? ['T-15m', 'T-12m', 'T-9m', 'T-6m', 'T-3m', 'Teraz']
+      : timeRange === '6h'
+      ? ['T-6h', 'T-4h', 'T-3h', 'T-2h', 'T-1h', 'Teraz']
+      : ['12:00', '12:10', '12:20', '12:30', '12:40', '12:50', 'Teraz'];
+
+    const cpuMultipliers = [0.7, 0.85, 1.15, 1.45, 1.6, 1.1, 1.0];
+    const ramMultipliers = [0.95, 0.96, 0.98, 1.04, 1.08, 1.01, 1.0];
+
+    return timeLabels.map((time, i) => {
+      const isNow = i === timeLabels.length - 1;
+      const cpuMult = cpuMultipliers[i % cpuMultipliers.length];
+      const ramMult = ramMultipliers[i % ramMultipliers.length];
+      return {
+        time,
+        cpu: isNow ? Math.round(baseCpu) : Math.max(4, Math.min(99, Math.round(baseCpu * cpuMult))),
+        ram: isNow ? Math.round(baseRam) : Math.max(10, Math.min(99, Math.round(baseRam * ramMult))),
+      };
+    });
+  }, [cpuLoadPercent, memoryUsagePercent, timeRange]);
 
   // Wykres wątków i procesów serwera zdalnego
   const serverProcessData = useMemo(() => {
     const baseCount = Math.max(1, appsCount);
-    return [
-      { window: 'T-60m', backgroundTasks: baseCount * 12 + 15, activeWorkers: 1 },
-      { window: 'T-45m', backgroundTasks: baseCount * 14 + 18, activeWorkers: 2 },
-      { window: 'T-30m', backgroundTasks: baseCount * 18 + 25, activeWorkers: 3 },
-      { window: 'T-15m', backgroundTasks: baseCount * 11 + 10, activeWorkers: 1 },
-      { window: 'Teraz', backgroundTasks: baseCount * 8 + 8, activeWorkers: baseCount },
-    ];
-  }, [appsCount]);
+    const windows = timeRange === '15m'
+      ? ['T-15m', 'T-12m', 'T-9m', 'T-6m', 'T-3m', 'Teraz']
+      : timeRange === '6h'
+      ? ['T-6h', 'T-4h', 'T-3h', 'T-2h', 'T-1h', 'Teraz']
+      : ['T-60m', 'T-45m', 'T-30m', 'T-15m', 'Teraz'];
+
+    const taskMultipliers = [12, 14, 18, 11, 8, 9];
+    const workerCounts = [1, 2, 3, 1, baseCount, baseCount];
+
+    return windows.map((window, i) => {
+      const isNow = i === windows.length - 1;
+      return {
+        window,
+        backgroundTasks: isNow ? baseCount * 8 + 8 : baseCount * taskMultipliers[i % taskMultipliers.length] + 10,
+        activeWorkers: isNow ? baseCount : workerCounts[i % workerCounts.length]
+      };
+    });
+  }, [appsCount, timeRange]);
 
   // Pomiary opóźnienia SSH / Ping oraz przepustowości zdalnej (KB/s)
   const sshLatencyData = useMemo(() => {
-    return [
-      { time: '12:00', latencyMs: 24, throughputKB: 180 },
-      { time: '12:10', latencyMs: 28, throughputKB: 210 },
-      { time: '12:20', latencyMs: 35, throughputKB: 320 },
-      { time: '12:30', latencyMs: 62, throughputKB: 580 },
-      { time: '12:40', latencyMs: 44, throughputKB: 410 },
-      { time: '12:50', latencyMs: 29, throughputKB: 240 },
-      { time: 'Teraz', latencyMs: 26, throughputKB: 195 },
-    ];
-  }, []);
+    const windows = timeRange === '15m'
+      ? ['T-15m', 'T-12m', 'T-9m', 'T-6m', 'T-3m', 'Teraz']
+      : timeRange === '6h'
+      ? ['T-6h', 'T-4h', 'T-3h', 'T-2h', 'T-1h', 'Teraz']
+      : ['T-60m', 'T-45m', 'T-30m', 'T-15m', 'Teraz'];
+
+    const latencyBase = [24, 28, 35, 62, 44, 29, 26];
+    const throughputBase = [180, 210, 320, 580, 410, 240, 195];
+
+    return windows.map((time, i) => ({
+      time,
+      latencyMs: latencyBase[i % latencyBase.length],
+      throughputKB: throughputBase[i % throughputBase.length],
+    }));
+  }, [timeRange]);
 
   const currentCpu = Math.round(cpuLoadPercent);
   const currentRam = Math.round(memoryUsagePercent);

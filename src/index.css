@@ -82,6 +82,10 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 4px;
 }
 
+a, button, input, select, textarea, [role="button"], .cursor-pointer {
+  cursor: pointer;
+}
+
 .skip-link {
   position: absolute;
   top: -100px;
@@ -382,6 +386,10 @@ button.project-item {
   border: 1px solid rgba(148, 163, 184, 0.3);
 }
 
+.status-badge {
+  cursor: pointer;
+}
+
 /* Info bits */
 .info-label {
   font-size: 0.875rem;
@@ -481,6 +489,10 @@ button.project-item {
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-add-project, .btn-add-project:hover {
+  cursor: pointer;
 }
 
 .btn-tune {

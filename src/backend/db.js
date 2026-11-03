@@ -81,7 +81,8 @@ export const inMemoryStore = {
     }
   ],
   agent_tasks: [],
-  agent_logs: []
+  agent_logs: [],
+  routing_calls: []
 };
 
 let useInMemoryFallback = false;
@@ -507,6 +508,35 @@ export async function safeQuery(text, params = []) {
     return { rows: [newLog] };
   }
 
+  // Routing Calls queries
+  if (sql.includes('FROM routing_calls')) {
+    if (sql.includes('COUNT(*)')) {
+      return { rows: [{ count: inMemoryStore.routing_calls.length.toString() }] };
+    }
+    const sorted = [...inMemoryStore.routing_calls].reverse();
+    return { rows: sorted.slice(0, 50) };
+  }
+
+  if (sql.includes('INSERT INTO routing_calls')) {
+    const newCall = {
+      id: params[0] || `call_${Date.now()}`,
+      tier: params[1] || 'low',
+      provider: params[2] || 'lm-studio',
+      model: params[3] || 'unknown',
+      duration_ms: parseInt(params[4], 10) || 0,
+      prompt_tokens: parseInt(params[5], 10) || 0,
+      completion_tokens: parseInt(params[6], 10) || 0,
+      total_tokens: parseInt(params[7], 10) || 0,
+      success: params[8] !== false && params[8] !== 'false',
+      fallback_occurred: params[9] === true || params[9] === 'true',
+      fallback_reason: params[10] || null,
+      prompt_preview: params[11] || '',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.routing_calls.push(newCall);
+    return { rows: [newCall] };
+  }
+
   return { rows: [] };
 }
 
@@ -634,6 +664,21 @@ export async function migrate() {
       task_id INTEGER,
       level VARCHAR(20) DEFAULT 'info',
       message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS routing_calls (
+      id VARCHAR(64) PRIMARY KEY,
+      tier VARCHAR(20) NOT NULL,
+      provider VARCHAR(50) NOT NULL,
+      model VARCHAR(255) NOT NULL,
+      duration_ms INTEGER DEFAULT 0,
+      prompt_tokens INTEGER DEFAULT 0,
+      completion_tokens INTEGER DEFAULT 0,
+      total_tokens INTEGER DEFAULT 0,
+      success BOOLEAN DEFAULT TRUE,
+      fallback_occurred BOOLEAN DEFAULT FALSE,
+      fallback_reason TEXT,
+      prompt_preview TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];
