@@ -36,6 +36,7 @@ export const inMemoryStore = {
     llmUrl: 'http://127.0.0.1:1337/v1',
     llmModel: 'AtomicChat/qwen35-4b-Q8_0',
   },
+  usersWithRoles: [], // Wersja z rolami dla auth
   projects: [],
   servers: [],
   cli_agents: [],
@@ -119,15 +120,56 @@ export async function safeQuery(text, params = []) {
     return { rows: [{ count: inMemoryStore.users.length.toString() }] };
   }
 
+  if (sql.includes('SELECT id, username, role FROM users')) {
+    return { rows: inMemoryStore.users.map(u => ({ id: u.id, username: u.username, role: u.role || 'user' })) };
+  }
+
   if (sql.includes('FROM users WHERE username')) {
     const user = inMemoryStore.users.find(u => u.username === params[0]);
     return { rows: user ? [user] : [] };
   }
 
+  if (sql.includes('FROM users WHERE id = $1') || (sql.includes('FROM users') && sql.includes('WHERE id'))) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[0]));
+    return { rows: user ? [user] : [] };
+  }
+
+  if (sql.includes('UPDATE users SET role')) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[1]));
+    if (user) {
+      user.role = params[0];
+      return { rows: [{ id: user.id, username: user.username, role: user.role }] };
+    }
+    return { rows: [] };
+  }
+
+  if (sql.includes('UPDATE users SET password_hash')) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[1]));
+    if (user) {
+      user.password_hash = params[0];
+      return { rows: [{ id: user.id, username: user.username }] };
+    }
+    return { rows: [] };
+  }
+
   if (sql.includes('INSERT INTO users')) {
-    const newUser = { id: inMemoryStore.users.length + 1, username: params[0], password_hash: params[1] };
+    const newUser = {
+      id: inMemoryStore.users.length + 1,
+      username: params[0],
+      password_hash: params[1],
+      role: params[2] || 'user'
+    };
     inMemoryStore.users.push(newUser);
     return { rows: [newUser] };
+  }
+
+  if (sql.includes('DELETE FROM users WHERE id')) {
+    const idx = inMemoryStore.users.findIndex(u => u.id === Number(params[0]));
+    if (idx !== -1) {
+      const removed = inMemoryStore.users.splice(idx, 1);
+      return { rows: removed };
+    }
+    return { rows: [] };
   }
 
   if (sql.includes('DELETE FROM users')) {
@@ -609,8 +651,10 @@ export async function migrate() {
     `CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       username VARCHAR(255) UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL
+      password_hash TEXT NOT NULL,
+      role VARCHAR(50) DEFAULT 'user'
     );`,
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT \'user\';',
     `CREATE TABLE IF NOT EXISTS agents (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL UNIQUE,

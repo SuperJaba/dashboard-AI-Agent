@@ -56,11 +56,11 @@ authRouter.post('/setup', setupLimiter, validate(setupSchema), async (req, res) 
 
     const hash = await bcrypt.hash(password, 12);
     const insertRes = await safeQuery(
-      'INSERT INTO users (username, password_hash) VALUES ($1, $2)',
-      [username, hash]
+      'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)',
+      [username, hash, 'admin']
     );
     const userId = insertRes.rows[0]?.id || 1;
-    const token = signToken({ id: userId, username });
+    const token = signToken({ id: userId, username, role: 'admin' });
 
     res.json({ success: true, message: 'Konto administratora utworzone pomyślnie', token });
   } catch (err) {
@@ -74,7 +74,7 @@ authRouter.post('/login', loginLimiter, validate(loginSchema), async (req, res) 
     const { username, password } = req.body;
 
     const result = await safeQuery(
-      'SELECT id, password_hash FROM users WHERE username = $1',
+      'SELECT id, password_hash, role FROM users WHERE username = $1',
       [username]
     );
     if (result.rows.length === 0) {
@@ -87,7 +87,7 @@ authRouter.post('/login', loginLimiter, validate(loginSchema), async (req, res) 
       return res.status(401).json({ error: 'Nieprawidłowa nazwa użytkownika lub hasło' });
     }
 
-    const token = signToken({ id: user.id, username });
+    const token = signToken({ id: user.id, username, role: user.role });
     res.json({ success: true, token });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Błąd logowania' });
@@ -125,12 +125,12 @@ authRouter.post('/refresh', refreshLimiter, validate(refreshSchema), async (req,
     try {
       const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
 
-      const result = await safeQuery('SELECT id FROM users WHERE username = $1', [decoded.username]);
+      const result = await safeQuery('SELECT id, role FROM users WHERE username = $1', [decoded.username]);
       if (result.rows.length === 0) {
         return res.status(401).json({ error: 'Użytkownik nie istnieje' });
       }
 
-      const newToken = signToken({ id: decoded.id, username: decoded.username });
+      const newToken = signToken({ id: decoded.id, username: decoded.username, role: result.rows[0].role });
       res.json({ success: true, token: newToken });
     } catch {
       return res.status(401).json({ error: 'Nieprawidłowy token' });

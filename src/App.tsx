@@ -4,7 +4,7 @@ import {
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
-  Files, Zap, FileText, Flame
+  Files, Zap, FileText, Flame, Users
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -25,6 +25,7 @@ const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ de
 const CustomWidgets = lazy(() => import('./CustomWidgets'));
 const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
 const OpsRampView = lazy(() => import('./OpsRampView').then(m => ({ default: m.OpsRampView })));
+const UsersView = lazy(() => import('./UsersView').then(m => ({ default: m.UsersView })));
 const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
 
 const ViewFallback = () => (
@@ -198,6 +199,18 @@ function App() {
           >
             <Activity size={18} aria-hidden="true" />
             <span>OpsRamp AIOps</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'users' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('users');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'users' ? 'page' : undefined}
+          >
+            <Users size={18} aria-hidden="true" />
+            <span>Użytkownicy</span>
           </button>
           <button 
             type="button"
@@ -563,6 +576,10 @@ function App() {
         ) : activeView === 'opsramp' ? (
           <Suspense fallback={<ViewFallback />}>
             <OpsRampView />
+          </Suspense>
+        ) : activeView === 'users' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <UsersView />
           </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
