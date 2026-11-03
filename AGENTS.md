@@ -15,6 +15,7 @@
 - **Widget Creation**: [`docs/TUTORIAL_ADD_WIDGET.md`](docs/TUTORIAL_ADD_WIDGET.md) (registration & layout integration)
 - **Remote SSH Administration**: [`docs/agent-ssh-con.md`](docs/agent-ssh-con.md) (CT8 & OMV execution commands & keys)
 - **Deployment & CI/CD**: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (CT8 host architecture, deploy scripts, and GitHub CI pipeline)
+- **Deployment Scripts**: [`scripts/deploy-ct8-optimized.sh`](scripts/deploy-ct8-optimized.sh) (automated production deployment with validation)
 
 
 ## Coding & Architectural Conventions

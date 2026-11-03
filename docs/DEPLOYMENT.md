@@ -1,8 +1,68 @@
 # Deployment & Infrastructure (CT8.pl & Multi-Deploy)
 
-Deploy target architecture, automated delivery pipeline, multi-server deployment, and process lifecycle management for the Dashboard application.
+Automated deployment system for the Dashboard application with support for:
+- **Single Server Deployment**: CT8.pl production server via Phusion Passenger
+- **Multi-SERVER Deployment**: Simultaneous deployment to multiple targets (CT8, OMV, custom servers)
+- **Process Lifecycle Management**: Automatic kill/restart of hung processes during deployment
+- **Real-time Monitoring**: WebSocket-based progress tracking and log streaming
+
+**Deployment Architecture Overview:**
+```
+┌─────────────────┐     Deploy Script     ┌──────────────────────┐
+│  Local Dev      │────────────────────→ │ Remote Server         │
+│  Environment    │                       │ (CT8.pl / OMV)        │
+└─────────────────┘                       └──────────────────────┘
+       │                                       │
+       │ Build & Package                      │ Deploy via SSH
+       ↓                                       ↓
+   ┌─────────┐                         ┌──────────────┐
+   │ dist/   │                         │ Passenger     │
+   │ backend │                         │ Node.js App   │
+   └─────────┘                         └──────────────┘
+```
+
+**Deployment Flow:**
+1. Pre-deployment validation (SSH, auth, tools)
+2. Remote server preparation (directories, database schema)
+3. Frontend build (Vite) + optional tests
+4. Backend packaging & upload (tar.gz)
+5. Frontend asset deployment
+6. Remote .env configuration
+7. Dependency installation with caching
+8. Database migrations (optional, destructive by default)
+9. File permissions setup
+10. Application restart via Phusion Passenger
+11. Deployment verification (health checks)
 
 ## Target Environment (CT8.pl Production)
+
+**Deployment Architecture Overview:**
+```
+┌─────────────────┐     Deploy Script     ┌──────────────────────┐
+│  Local Dev      │────────────────────→ │ Remote Server         │
+│  Environment    │                       │ (CT8.pl / OMV)        │
+└─────────────────┘                       └──────────────────────┘
+       │                                       │
+       │ Build & Package                      │ Deploy via SSH
+       ↓                                       ↓
+   ┌─────────┐                         ┌──────────────┐
+   │ dist/   │                         │ Passenger     │
+   │ backend │                         │ Node.js App   │
+   └─────────┘                         └──────────────┘
+```
+
+**Deployment Flow:**
+1. Pre-deployment validation (SSH, auth, tools)
+2. Remote server preparation (directories, database schema)
+3. Frontend build (Vite) + optional tests
+4. Backend packaging & upload (tar.gz)
+5. Frontend asset deployment
+6. Remote .env configuration
+7. Dependency installation with caching
+8. Database migrations (optional, destructive by default)
+9. File permissions setup
+10. Application restart via Phusion Passenger
+11. Deployment verification (health checks)
 
 | Parameter | Value |
 | :--- | :--- |
@@ -13,6 +73,8 @@ Deploy target architecture, automated delivery pipeline, multi-server deployment
 | **Public Assets** | `domains/dashboard.jagger2.ct8.pl/public_nodejs/public` (served directly by Nginx) |
 | **Runtime** | Node.js 22 LTS under Phusion Passenger (configured via Devil) |
 | **Process Control** | `touch tmp/restart.txt && devil www restart dashboard.jagger2.ct8.pl` |
+
+---
 
 ## SSH Configuration (`~/.ssh/config`)
 
@@ -99,12 +161,56 @@ During deployment or server operation, processes may become unresponsive due to 
 
 ## Deployment Scripts
 
-- **Optimized Deploy (CI & Manual)**: [`scripts/deploy-ct8-optimized.sh`](../scripts/deploy-ct8-optimized.sh)
-  - Packages and uploads production backend files.
-  - Skips redundant remote builds when `SKIP_FRONTEND_BUILD="true"` and pre-built `dist/` is present.
-  - Runs `npm install --omit=dev --omit=optional` on remote host.
-  - Runs database migrations via `scripts/migrate.js`.
-  - Touches `tmp/restart.txt` and performs health check on `https://dashboard.jagger2.ct8.pl/health`.
+### deploy-ct8-optimized.sh (Main Production Script)
+
+The primary deployment script for CT8.pl production environment. It handles the complete deployment lifecycle from validation to verification:
+
+**Deployment Flow:**
+```
+1. Pre-deployment Validation → 2. Prepare Remote Server → 3. Build Frontend → 
+4. Package Backend → 5. Deploy Frontend → 6. Configure .env → 7. Install Dependencies → 
+8. Run Migrations (optional) → 9. Set Permissions → 10. Restart App → 11. Verify Deployment
+```
+
+**Features:**
+- ✅ Pre-deployment validation (SSH connectivity, authentication, required tools)
+- ✅ Automatic SSH key discovery or password fallback
+- ✅ Backend archive creation (excludes tests, CI scripts, dev artifacts)
+- ✅ Package-lock.json hash-based dependency caching
+- ✅ Remote .env configuration with security defaults
+- ✅ Phusion Passenger restart via `tmp/restart.txt` marker
+- ✅ Comprehensive deployment verification (health, metrics, main URL)
+
+**Available Options:**
+| Option | Description |
+|--------|-------------|
+| `--skip-build` | Skip local Vite build (requires existing dist/) |
+| `--run-tests` | Run unit tests before deployment |
+| `--force-install` | Force remote npm install even if package-lock hash matches |
+| `--force-migrate` | Run destructive migrate.js database migration |
+| `--kill` | Stop targeted dashboard Node.js processes on CT8 |
+| `--health-check` | Check active processes and HTTP health endpoint |
+
+**Authentication Methods:**
+1. **SSH Key** (recommended): Place key in `~/.ssh/*antigravity*` or set `SSH_KEY` env var
+2. **Password**: Set `CT8_PASSWORD` env var or place password in `docs/pass.txt`
+3. **SSH Config**: Use SSH alias `jagger2` from `~/.ssh/config`
+
+**Deployment Architecture:**
+```
+┌─────────────────┐     Deploy Script     ┌──────────────────────┐
+│  Local Dev      │────────────────────→ │ Remote Server         │
+│  Environment    │                       │ (CT8.pl / OMV)        │
+└─────────────────┘                       └──────────────────────┘
+       │                                       │
+       │ Build & Package                      │ Deploy via SSH
+       ↓                                       ↓
+   ┌─────────┐                         ┌──────────────┐
+   │ dist/   │                         │ Passenger     │
+   │ backend │                         │ Node.js App   │
+   └─────────┘                         └──────────────┘
+```
+
 - **OpenMediaVault Deploy**: [`scripts/deploy-omv.sh`](../scripts/deploy-omv.sh)
 - **Legacy Deploy**: [`scripts/deploy-dashboard.sh`](../scripts/deploy-dashboard.sh)
 
@@ -121,6 +227,36 @@ curl -X POST http://localhost:3001/api/deploy/start \
   -H "Content-Type: application/json" \
   -d '{"environment":"production","targets":["ct8","omv"]}'
 ```
+
+### Available Options
+
+| Option | Description |
+|--------|-------------|
+| `--skip-build` | Skip local Vite build (requires existing dist/) |
+| `--run-tests` | Run unit tests before deployment |
+| `--force-install` | Force remote npm install even if package-lock hash matches |
+| `--force-migrate` | Run destructive migrate.js database migration |
+| `--kill` | Stop targeted dashboard Node.js processes on CT8 |
+| `--health-check` | Check active processes and HTTP health endpoint |
+
+### Authentication Methods
+
+The script supports multiple authentication methods:
+1. **SSH Key** (recommended): Place key in `~/.ssh/*antigravity*` or set `SSH_KEY` env var
+2. **Password**: Set `CT8_PASSWORD` env var or place password in `docs/pass.txt`
+3. **SSH Config**: Use SSH alias `jagger2` from `~/.ssh/config`
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CT8_USER` | `jagger2` | Remote SSH user |
+| `CT8_REM_HOST` | `s1.ct8.pl` | Remote host (SSH) |
+| `CT8_HOST` | `dashboard.jagger2.ct8.pl` | Target domain |
+
+---
+
+## Automated CI/CD Pipeline
 
 ## Automated CI/CD Pipeline
 
