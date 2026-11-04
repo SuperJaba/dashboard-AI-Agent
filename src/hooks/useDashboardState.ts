@@ -185,10 +185,13 @@ export function useDashboardState() {
           taskId: data.taskId
         });
       }
-    } catch (err) {
+      setDeploying(null);
+      return { success: true, data };
+    } catch (err: any) {
       console.error(err);
+      setDeploying(null);
+      return { success: false, error: err?.message || 'Błąd wdrażania agenta' };
     }
-    setDeploying(null);
   };
 
   const deployRemoteAgent = async (agent: string, server: any) => {
@@ -202,7 +205,8 @@ export function useDashboardState() {
         remoteServer: server,
         remotePrompt,
         useBrowserTerminal,
-        setupTunnel
+        setupTunnel,
+        dangerouslySkipPermissions
       });
       if (data.browserTerminal) {
         setTerminalConfig({
@@ -214,10 +218,13 @@ export function useDashboardState() {
           taskId: data.taskId
         });
       }
-    } catch (err) {
+      setDeploying(null);
+      return { success: true, data };
+    } catch (err: any) {
       console.error(err);
+      setDeploying(null);
+      return { success: false, error: err?.message || 'Błąd wdrażania agenta zdalnego' };
     }
-    setDeploying(null);
   };
 
   const analyzeProject = async () => {

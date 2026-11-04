@@ -956,7 +956,7 @@ projectsRouter.post('/deploy', async (req, res) => {
     const containsPromptInjection = (text) => {
       if (!text) return false;
       const normalized = String(text).toLowerCase();
-      const promptInjectionRegex = /(ignore\s+(all|any|previous|prior)\s+(instructions|rules)|disregard\s+(system|developer)\s+instructions|system\s*:\s*|assistant\s*:\s*|developer\s*:\s*|jailbreak|prompt\s*injection|reveal\s+(system|hidden)\s+prompt|exfiltrat|printenv|cat\s+\/etc\/|curl\s+http|wget\s+http|rm\s+-rf|sudo\s+|ssh\s+)/i;
+      const promptInjectionRegex = /(ignore\s+(all|any|previous|prior)\s+(instructions|rules)|disregard\s+(system|developer)\s+instructions|system\s*:\s*|assistant\s*:\s*|developer\s*:\s*|jailbreak|prompt\s*injection|reveal\s+(system|hidden)\s+prompt|exfiltrat|printenv|cat\s+\/etc\/|curl\s+http|wget\s+http|rm\s+-rf|sudo\s+)/i;
       return promptInjectionRegex.test(normalized);
     };
     

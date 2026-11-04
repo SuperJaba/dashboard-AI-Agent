@@ -21,6 +21,7 @@ import { DeployCt8Widget } from './components/deploy-ct8-widget';
 import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';
+import { useToast } from './hooks/useToast';
 
 const TerminalView = lazy(() => import('./TerminalView').then(m => ({ default: m.TerminalView })));
 const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ default: m.LlmServerManager })));
@@ -105,6 +106,7 @@ function App() {
   } = useDashboardState();
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
+  const toast = useToast();
   const [showSettings, setShowSettings] = useState(false);
   const [showWorkerModal, setShowWorkerModal] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -128,6 +130,24 @@ function App() {
       setTunnelFeedback(`Błąd tunelu: ${res?.error || 'Nieznany błąd'}`);
     }
     setTimeout(() => setTunnelFeedback(null), 6000);
+  };
+
+  const handleDeployRemote = async (agentName: string) => {
+    const res: any = await deployRemoteAgent(agentName, activeServer);
+    if (res && !res.success) {
+      toast.error(res.error || 'Nie udało się wdrożyć agenta zdalnego');
+    } else if (res?.success) {
+      toast.success(`Agent ${agentName.toUpperCase()} został pomyślnie uruchomiony`);
+    }
+  };
+
+  const handleDeployLocal = async (agentName: string) => {
+    const res: any = await deployAgent(agentName);
+    if (res && !res.success) {
+      toast.error(res.error || 'Nie udało się wdrożyć agenta');
+    } else if (res?.success) {
+      toast.success(`Agent ${agentName.toUpperCase()} został pomyślnie uruchomiony`);
+    }
   };
 
   useEffect(() => {
@@ -741,7 +761,7 @@ function App() {
                       key={agent.id}
                       type="button"
                       className="btn btn-primary" 
-                      onClick={() => deployRemoteAgent(agent.name.toLowerCase(), activeServer)}
+                      onClick={() => handleDeployRemote(agent.name.toLowerCase())}
                       disabled={deploying !== null || !remotePrompt.trim()}
                       style={{ 
                         opacity: (deploying === agent.name.toLowerCase() || !remotePrompt.trim()) ? 0.7 : 1,
@@ -802,7 +822,7 @@ function App() {
                       <button
                         type="button"
                         className="btn btn-primary"
-                        onClick={() => activeAgentName && deployAgent(activeAgentName)}
+                        onClick={() => activeAgentName && handleDeployLocal(activeAgentName)}
                         disabled={deploying !== null || !activeAgentName}
                         style={{
                           opacity: (deploying === activeAgentName || !activeAgentName) ? 0.7 : 1,

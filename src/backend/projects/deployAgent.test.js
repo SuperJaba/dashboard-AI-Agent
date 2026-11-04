@@ -136,4 +136,19 @@ describe('POST /deploy agent resolution', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
+
+  it('allows remote prompt containing ssh and log analysis without prompt-injection false-positive', async () => {
+    const res = await request(app)
+      .post('/deploy')
+      .send({
+        agent: 'agy',
+        remoteServer: { id: 2, name: 'CT8', host: 's1.ct8.pl', username: 'jagger2', port: 22 },
+        remotePrompt: "Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.\nssh -i /home/seba/.ssh/id_ed25519_antigravity jagger2@s1.ct8.pl 'devil www restart dashboard.jagger2.ct8.pl'",
+        useBrowserTerminal: true
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.scriptContent).toContain('Przeanalizuj logi systemowe');
+    expect(res.body.scriptContent).toContain('devil www restart');
+  });
 });
