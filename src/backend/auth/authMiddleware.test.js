@@ -78,6 +78,34 @@ describe('authMiddleware (SEC-08)', () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it('allows unauthenticated GET to /api/projects/dashboard for CLI agents', () => {
+    const req = {
+      method: 'GET',
+      originalUrl: '/api/projects/dashboard',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('allows unauthenticated GET to /api/projects for CLI agents', () => {
+    const req = {
+      method: 'GET',
+      originalUrl: '/api/projects',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it('still blocks unauthenticated POST to other project routes like /api/projects', () => {
     const req = {
       method: 'POST',

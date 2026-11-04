@@ -18,9 +18,12 @@ export const authMiddleware = (req, res, next) => {
   // Allow OPTIONS requests for CORS
   if (req.method === 'OPTIONS') return next();
 
-  // Allow CLI agents and scripts to synchronize tasks without requiring a user JWT
+  // Allow CLI agents and scripts to synchronize tasks and read project info without requiring a user JWT
   const url = req.originalUrl || req.url || '';
-  if (req.method === 'POST' && /\/projects(\/[^/]+)?\/sync-tasks(\/|\?|$)/.test(url)) {
+  if (
+    (req.method === 'POST' && /\/projects(\/[^/]+)?\/sync-tasks(\/|\?|$)/.test(url)) ||
+    (req.method === 'GET' && /\/projects(\/[^/]+)?(\/|\?|$)/.test(url))
+  ) {
     return optionalAuthMiddleware(req, res, next);
   }
 

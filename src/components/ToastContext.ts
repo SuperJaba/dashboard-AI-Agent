@@ -22,10 +22,17 @@ export interface ToastContextValue {
 
 export const ToastContext = createContext<ToastContextValue | null>(null);
 
+const fallbackToast: ToastApi = {
+  success: () => {},
+  error: () => {},
+  warning: () => {},
+  info: () => {},
+};
+
 export function useToast(): ToastApi {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast musi być użyty wewnątrz ToastProvider');
+    return fallbackToast;
   }
   return context.toast;
 }

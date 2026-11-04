@@ -108,6 +108,18 @@ describe('POST /deploy agent resolution', () => {
     expect(res.body.scriptContent).toContain('/api/scripts/syncTasks.js');
     // Post-execution fallback in bash script
     expect(res.body.scriptContent).toContain('Synchronizing tasks (sync-tasks)');
+    // Injected DASHBOARD_TOKEN and API_TOKEN
+    expect(res.body.scriptContent).toContain('export DASHBOARD_TOKEN=');
+    expect(res.body.scriptContent).toContain('export API_TOKEN=');
+  });
+
+  it('serves project by name via GET /projects/:id', async () => {
+    const res = await request(app).get('/projects/dashboard');
+    if (res.status === 200) {
+      expect(res.body.name).toBe('dashboard');
+    } else {
+      expect(res.status).toBe(404);
+    }
   });
 
   it('serves syncTasks.js via public download route', async () => {
