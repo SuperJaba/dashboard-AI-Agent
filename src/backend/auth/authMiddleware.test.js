@@ -49,4 +49,47 @@ describe('authMiddleware (SEC-08)', () => {
     expect(next).toHaveBeenCalledOnce();
     expect(req.user).toBeUndefined();
   });
+
+  it('allows unauthenticated POST to /api/projects/sync-tasks for CLI agents', () => {
+    const req = {
+      method: 'POST',
+      originalUrl: '/api/projects/sync-tasks',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('allows unauthenticated POST to /api/projects/:id/sync-tasks for CLI agents', () => {
+    const req = {
+      method: 'POST',
+      originalUrl: '/api/projects/42/sync-tasks',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('still blocks unauthenticated POST to other project routes like /api/projects', () => {
+    const req = {
+      method: 'POST',
+      originalUrl: '/api/projects',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+    expect(next).not.toHaveBeenCalled();
+  });
 });

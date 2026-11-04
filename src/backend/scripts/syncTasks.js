@@ -43,9 +43,15 @@ async function main() {
         clearCompleted
       };
 
+      const token = process.env.DASHBOARD_TOKEN || process.env.API_TOKEN;
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${dashboardUrl}/api/projects/sync-tasks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload)
       });
 

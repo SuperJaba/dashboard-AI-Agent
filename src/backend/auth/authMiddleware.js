@@ -18,6 +18,12 @@ export const authMiddleware = (req, res, next) => {
   // Allow OPTIONS requests for CORS
   if (req.method === 'OPTIONS') return next();
 
+  // Allow CLI agents and scripts to synchronize tasks without requiring a user JWT
+  const url = req.originalUrl || req.url || '';
+  if (req.method === 'POST' && /\/projects(\/[^/]+)?\/sync-tasks(\/|\?|$)/.test(url)) {
+    return optionalAuthMiddleware(req, res, next);
+  }
+
   let token;
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {

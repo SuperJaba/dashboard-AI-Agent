@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useToast } from './hooks/useToast';
 import { 
   Users, 
   UserPlus, 
@@ -7,7 +8,6 @@ import {
   Key, 
   Trash2, 
   RefreshCw, 
-  Check, 
   X, 
   AlertCircle,
   Eye,
@@ -42,10 +42,10 @@ function parseJwtUser(): { id?: number; username?: string; role?: string } | nul
 }
 
 export function UsersView() {
+  const toast = useToast();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   // Aktualny zalogowany użytkownik
   const currentUser = parseJwtUser();
@@ -110,8 +110,7 @@ export function UsersView() {
       setNewUsername('');
       setNewPassword('');
       setNewRole('user');
-      setActionSuccess('Użytkownik został pomyślnie utworzony.');
-      setTimeout(() => setActionSuccess(null), 4000);
+      toast.success('Użytkownik został pomyślnie utworzony.');
       await fetchUsers();
     } catch (err: any) {
       setAddError(err?.message || 'Błąd podczas tworzenia użytkownika');
@@ -124,8 +123,7 @@ export function UsersView() {
     if (user.role === newTargetRole) return;
     try {
       await apiClient.put(`/api/users/${user.id}/role`, { role: newTargetRole });
-      setActionSuccess(`Zmieniono rolę dla ${user.username} na ${newTargetRole === 'admin' ? 'Administrator' : 'Użytkownik'}.`);
-      setTimeout(() => setActionSuccess(null), 4000);
+      toast.success(`Zmieniono rolę dla ${user.username} na ${newTargetRole === 'admin' ? 'Administrator' : 'Użytkownik'}.`);
       await fetchUsers();
     } catch (err: any) {
       setError(err?.message || 'Błąd podczas zmiany roli użytkownika');
@@ -146,8 +144,7 @@ export function UsersView() {
       });
       setPasswordTargetUser(null);
       setChangePasswordVal('');
-      setActionSuccess(`Hasło użytkownika ${passwordTargetUser.username} zostało zaktualizowane.`);
-      setTimeout(() => setActionSuccess(null), 4000);
+      toast.success(`Hasło użytkownika ${passwordTargetUser.username} zostało zaktualizowane.`);
     } catch (err: any) {
       setPasswordError(err?.message || 'Błąd podczas zmiany hasła');
     } finally {
@@ -162,8 +159,7 @@ export function UsersView() {
     try {
       await apiClient.delete(`/api/users/${deleteTargetUser.id}`);
       setDeleteTargetUser(null);
-      setActionSuccess(`Użytkownik ${deleteTargetUser.username} został usunięty.`);
-      setTimeout(() => setActionSuccess(null), 4000);
+      toast.success(`Użytkownik ${deleteTargetUser.username} został usunięty.`);
       await fetchUsers();
     } catch (err: any) {
       setDeleteError(err?.message || 'Błąd podczas usuwania użytkownika');
@@ -214,24 +210,6 @@ export function UsersView() {
           </button>
         </div>
       </header>
-
-      {/* Komunikaty akcji */}
-      {actionSuccess && (
-        <div style={{
-          marginBottom: '1rem',
-          padding: '0.75rem 1rem',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          border: `1px solid var(--success)`,
-          borderRadius: '8px',
-          color: 'var(--success)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}>
-          <Check size={18} />
-          <span>{actionSuccess}</span>
-        </div>
-      )}
 
       {error && (
         <div style={{

@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { apiClient } from './shared/api-client';
 import { UsersView } from './UsersView';
+import { ToastProvider } from './components/ToastProvider';
+
+const renderComponent = () => render(
+  <ToastProvider>
+    <UsersView />
+  </ToastProvider>
+);
 
 vi.mock('./shared/api-client', () => ({
   apiClient: {
@@ -28,7 +35,7 @@ describe('UsersView Component', () => {
   });
 
   it('renderuje nagłówek i listę użytkowników', async () => {
-    render(<UsersView />);
+    renderComponent();
 
     expect(screen.getByText('Zarządzanie Użytkownikami')).toBeInTheDocument();
 
@@ -44,7 +51,7 @@ describe('UsersView Component', () => {
   });
 
   it('pozwala otworzyć modal dodawania użytkownika i anulować go', async () => {
-    render(<UsersView />);
+    renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('admin')).toBeInTheDocument();
@@ -65,7 +72,7 @@ describe('UsersView Component', () => {
   it('tworzy nowego użytkownika przez formularz', async () => {
     vi.mocked(apiClient.post).mockResolvedValue({ success: true, user: { id: 3, username: 'nowy', role: 'user' } });
 
-    render(<UsersView />);
+    renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('admin')).toBeInTheDocument();
@@ -92,7 +99,7 @@ describe('UsersView Component', () => {
   });
 
   it('otwiera modal zmiany hasła dla wybranego użytkownika', async () => {
-    render(<UsersView />);
+    renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('tester')).toBeInTheDocument();
@@ -105,7 +112,7 @@ describe('UsersView Component', () => {
   });
 
   it('blokuje usunięcie samego siebie (disabled przycisk)', async () => {
-    render(<UsersView />);
+    renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('admin')).toBeInTheDocument();
@@ -121,7 +128,7 @@ describe('UsersView Component', () => {
   it('obsługuje błąd pobierania listy użytkowników', async () => {
     vi.mocked(apiClient.get).mockRejectedValue(new Error('Brak uprawnień'));
 
-    render(<UsersView />);
+    renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('Brak uprawnień')).toBeInTheDocument();
