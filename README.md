@@ -256,6 +256,67 @@ npm run deploy:ct8 -- --kill --health-check
 
 ---
 
+## 🤖 Agent Worker & Reverse Tunnel Architecture
+
+Architektura agentów w Dashboardzie wspiera hybrydowe środowiska wykonawcze (chmura, serwery VPS bez PTY, maszyny lokalne).
+
+```
+┌─────────────────────────────────┐           ┌──────────────────────────────────────┐
+│  Dashboard Server (CT8 / VPS)   │   WSS     │     Local / Remote Agent Worker      │
+│  - Phusion Passenger / Node.js  │ ◄───────► │  - scripts/local-agent-worker.js     │
+│  - REST API & Socket.IO server  │ (Reverse) │  - node-pty (interactive terminal)   │
+│  - Browser Terminal Streamer    │           │  - CLI Agents (agy, claude, codex)   │
+└─────────────────────────────────┘           └──────────────────────────────────────┘
+```
+
+### 1. Dlaczego Worker / Reverse Tunnel?
+Na środowiskach hostingowych ze współdzielonym jądrem lub jailami (np. FreeBSD na CT8.pl) bezpośrednie tworzenie pseudoterminali (`node-pty`) wewnątrz procesu Passenger bywa ograniczone lub niedostępne. Wzorzec **Agent Worker** odwraca kierunek połączenia:
+- Worker łączy się **wychodząco** przez WebSocket/WSS (`https://dashboard...`) do Dashboardu.
+- Sesje terminalowe uruchamiane w przeglądarce są transparentnie przekazywane do podłączonego workera.
+- Nie wymaga to otwierania żadnych portów przychodzących na maszynie dewelopera ani w sieci lokalnej.
+
+### 2. Szybki start: Jednolinijkowy instalator Workera
+Każda maszyna z Node.js może stać się workerem za pomocą jednego polecenia:
+```bash
+curl -sSL "https://dashboard.jagger2.ct8.pl/api/worker/run" | bash -s -- \
+  "https://dashboard.jagger2.ct8.pl" \
+  "<TWÓJ_JWT_TOKEN>" \
+  "Nazwa-Workera"
+```
+- **Zero dodatkowych zależności:** Skrypt `local-agent-worker.js` używa natywnego ładowania zmiennych środowiskowych (`process.loadEnvFile()` z fallbackiem), eliminując błędy braku pakietu `dotenv`.
+- **Wymagane pakiety workera:** Automatycznie instalowane są tylko `socket.io-client` i `node-pty`.
+
+### 3. Zdalne uruchomienie tunelu przez SSH (`setup-tunnel`)
+Dashboard pozwala z poziomu UI (kafelek serwera) uruchomić tunel workera na zdalnym hoście (np. OMV lub innym VPS):
+- **API Endpoint:** `POST /api/servers/:id/setup-tunnel`
+- **Kluczowe odkrycie w tle SSH:** Uruchamianie procesów w tle przez nieinteraktywne SSH (`exec`) wymaga jawnego odpięcia standardowego wejścia:
+  ```bash
+  nohup node local-agent-worker.js "$DASHBOARD_URL" "$TOKEN" "$NAME" remote </dev/null > worker.log 2>&1 &
+  ```
+  Brak `</dev/null` powoduje, że klient SSH oczekuje w nieskończoność na EOF na pipe stdin, co po 35 sekundach skutkowało timeoutem i błędem HTTP 500.
+
+### 4. Odporność transportu Socket.IO (Passenger / Nginx)
+Na hostach z buforującymi proxy rewersyjnymi (Phusion Passenger / Nginx) bezpośrednie uaktualnienie do WebSocket może zostać zerwane. Komponent `TerminalView.tsx` oraz worker używają sekwencji fallbacku:
+```ts
+transports: ['polling', 'websocket']
+```
+Zapewnia to natychmiastowe nawiązanie sesji HTTP long-polling z płynnym podniesieniem do WebSocket w miarę dostępności.
+
+### 5. Synchronizacja Zadań i Autoryzacja Agentów CLI
+Agenci CLI (np. Antigravity, Claude Code, Codex, Quinn, Luna, Mason) po wdrożeniu komunikują się bezpośrednio z API Dashboardu:
+- **Wstrzykiwane zmienne środowiskowe:** Każda sesja agenta otrzymuje zmienne `DASHBOARD_URL`, `DASHBOARD_TOKEN` oraz `API_TOKEN`.
+- **Dostęp bez logowania w UI:** Endpointy projektowe dopuszczają agentów CLI bez wymogu tokena administratora:
+  - `GET /api/projects/:id` – pobranie metadanych projektu
+  - `POST /api/projects/:id/sync-tasks` – synchronizacja tasków z plików markdown
+  - `PUT /api/projects/:id/tasks` oraz `PATCH /api/projects/:id/tasks/:taskId` – bezpośrednia modyfikacja stanu tasków
+- **Identyfikacja po ID lub Nazwie:** Endpointy projektów akceptują zarówno identyfikator liczbowy (`/api/projects/1`), jak i nazwę tekstową (`/api/projects/dashboard`). Zapobiega to błędom PostgreSQL `invalid input syntax for type integer`.
+
+### 6. Bezpieczeństwo i Server-Sent Events (SSE)
+- Zgodnie z audytem **SEC-08**, REST API Dashboardu bezwzględnie odrzuca przekazywanie tokenów JWT w query stringu (`?token=...`) w celu ochrony przed logowaniem poufnych danych w logach serwera.
+- **Wyjątek dla SSE:** Ponieważ natywne przeglądarkowe API `EventSource` nie obsługuje niestandardowych nagłówków HTTP, endpoint `/api/events` posiada dedykowany, bezpieczny wyjątek akceptujący `?token=` wyłącznie przy `Accept: text/event-stream`.
+
+---
+
 ## 🔐 Authentication Flow
 
 The application uses **JWT (JSON Web Token)** authentication:
