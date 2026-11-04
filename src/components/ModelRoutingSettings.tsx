@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Zap, Save, CheckCircle2, RotateCcw, ShieldCheck, ShieldAlert, Cpu, Cloud } from 'lucide-react';
 import { apiClient } from '../shared/api-client';
+import { useToast } from '../hooks/useToast';
+import { Badge } from './Badge';
+import { FormField } from './FormField';
 
 interface ModelRoutingConfig {
   localUrl: string;
@@ -13,6 +16,7 @@ interface ModelRoutingConfig {
 }
 
 export function ModelRoutingSettings() {
+  const toast = useToast();
   const [config, setConfig] = useState<ModelRoutingConfig>({
     localUrl: 'http://10.10.10.30:8888/v1',
     localServerName: 'Unsloth',
@@ -25,7 +29,6 @@ export function ModelRoutingSettings() {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadConfig() {
@@ -63,13 +66,10 @@ export function ModelRoutingSettings() {
         llmModel: config.primaryLocalModel,
       });
       setSaved(true);
-      setMessage('Ustawienia routingu modeli zapisane!');
-      setTimeout(() => {
-        setSaved(false);
-        setMessage(null);
-      }, 3000);
+      toast.success('Ustawienia routingu modeli zostały pomyślnie zapisane.');
+      setTimeout(() => setSaved(false), 3000);
     } catch {
-      setMessage('Błąd zapisu ustawień');
+      toast.error('Błąd zapisu ustawień routingu modeli.');
     } finally {
       setLoading(false);
     }
@@ -84,10 +84,9 @@ export function ModelRoutingSettings() {
         circuitBreakerState: 'CLOSED',
         failureCount: 0
       }));
-      setMessage('Zresetowano obwód Circuit Breaker i telemetrię!');
-      setTimeout(() => setMessage(null), 3000);
+      toast.success('Zresetowano obwód Circuit Breaker i telemetrię!');
     } catch {
-      setMessage('Błąd resetowania obwodu');
+      toast.error('Błąd resetowania obwodu Circuit Breaker.');
     } finally {
       setResetting(false);
     }
@@ -97,85 +96,130 @@ export function ModelRoutingSettings() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', width: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border, rgba(255,255,255,0.1))', paddingBottom: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Zap size={16} color="var(--primary, #38bdf8)" />
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
             Routing Modeli LLM
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: isClosed ? '#10b981' : '#f59e0b', fontWeight: 600 }}>
-          {isClosed ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
-          <span>Obwód: {config.circuitBreakerState}</span>
-        </div>
+        <Badge
+          variant={isClosed ? 'success' : 'warning'}
+          size="sm"
+          icon={isClosed ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+        >
+          Obwód: {config.circuitBreakerState}
+        </Badge>
       </div>
 
-      {message && (
-        <div style={{ fontSize: '0.75rem', padding: '0.4rem 0.6rem', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-          {message}
-        </div>
-      )}
-
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-        <div>
-          <label className="info-label" style={{ fontSize: '0.72rem', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <Cpu size={12} color="#10b981" />
-            <span>Adres lokalnego serwera (Unsloth / LM Studio URL)</span>
-          </label>
-          <input
-            type="text"
-            required
-            value={config.localUrl}
-            onChange={e => setConfig({ ...config, localUrl: e.target.value })}
-            placeholder="http://10.10.10.30:8888/v1"
-            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.6rem', color: 'white', fontSize: '0.78rem', outline: 'none' }}
-          />
-        </div>
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <FormField
+          label="Adres lokalnego serwera (Unsloth / LM Studio URL)"
+          htmlFor="model-local-url"
+          required
+        >
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Cpu size={14} style={{ position: 'absolute', left: '0.6rem', color: '#10b981', pointerEvents: 'none' }} />
+            <input
+              id="model-local-url"
+              type="text"
+              required
+              value={config.localUrl}
+              onChange={e => setConfig({ ...config, localUrl: e.target.value })}
+              placeholder="http://10.10.10.30:8888/v1"
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
+                borderRadius: '6px',
+                padding: '0.4rem 0.6rem 0.4rem 2rem',
+                color: 'var(--text-main)',
+                fontSize: '0.78rem',
+                outline: 'none'
+              }}
+            />
+          </div>
+        </FormField>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-          <div>
-            <label className="info-label" style={{ fontSize: '0.72rem', marginBottom: '0.2rem', display: 'block' }}>
-              Model lokalny (Low/Med Tier)
-            </label>
+          <FormField
+            label="Model lokalny (Low/Med Tier)"
+            htmlFor="model-primary-local"
+            required
+          >
             <input
+              id="model-primary-local"
               type="text"
               required
               value={config.primaryLocalModel}
               onChange={e => setConfig({ ...config, primaryLocalModel: e.target.value })}
               placeholder="unsloth/Qwen3.5-4B-MTP-GGUF"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.6rem', color: 'white', fontSize: '0.78rem', outline: 'none' }}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
+                borderRadius: '6px',
+                padding: '0.4rem 0.6rem',
+                color: 'var(--text-main)',
+                fontSize: '0.78rem',
+                outline: 'none'
+              }}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className="info-label" style={{ fontSize: '0.72rem', marginBottom: '0.2rem', display: 'block' }}>
-              Model Fallback (Rezerwowy)
-            </label>
+          <FormField
+            label="Model Fallback (Rezerwowy)"
+            htmlFor="model-fallback-local"
+            required
+          >
             <input
+              id="model-fallback-local"
               type="text"
               required
               value={config.fallbackLocalModel}
               onChange={e => setConfig({ ...config, fallbackLocalModel: e.target.value })}
               placeholder="granite-4.0-micro"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.6rem', color: 'white', fontSize: '0.78rem', outline: 'none' }}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
+                borderRadius: '6px',
+                padding: '0.4rem 0.6rem',
+                color: 'var(--text-main)',
+                fontSize: '0.78rem',
+                outline: 'none'
+              }}
             />
-          </div>
+          </FormField>
         </div>
 
-        <div>
-          <label className="info-label" style={{ fontSize: '0.72rem', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <Cloud size={12} color="#818cf8" />
-            <span>Model Cloud (High Tier / Architektura)</span>
-          </label>
-          <input
-            type="text"
-            required
-            value={config.cloudModel}
-            onChange={e => setConfig({ ...config, cloudModel: e.target.value })}
-            placeholder="AGY (Gemini Pro)"
-            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.6rem', color: 'white', fontSize: '0.78rem', outline: 'none' }}
-          />
-        </div>
+        <FormField
+          label="Model Cloud (High Tier / Architektura)"
+          htmlFor="model-cloud"
+          required
+        >
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Cloud size={14} style={{ position: 'absolute', left: '0.6rem', color: '#818cf8', pointerEvents: 'none' }} />
+            <input
+              id="model-cloud"
+              type="text"
+              required
+              value={config.cloudModel}
+              onChange={e => setConfig({ ...config, cloudModel: e.target.value })}
+              placeholder="AGY (Gemini Pro)"
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
+                borderRadius: '6px',
+                padding: '0.4rem 0.6rem 0.4rem 2rem',
+                color: 'var(--text-main)',
+                fontSize: '0.78rem',
+                outline: 'none'
+              }}
+            />
+          </div>
+        </FormField>
 
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem' }}>
           <button

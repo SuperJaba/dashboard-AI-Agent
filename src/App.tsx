@@ -2,12 +2,14 @@ import { startTransition, useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings,
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
   Files, Zap, FileText, Flame, Users
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
+import { Modal } from './components/Modal';
+import { FormField } from './components/FormField';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
@@ -428,138 +430,120 @@ function App() {
         </div>
       </aside>
 
-      {showSettings && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('settings.title')}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overscrollBehavior: 'contain' }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '460px', maxWidth: '92vw', maxHeight: '88vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{t('settings.title')}</h2>
+      <Modal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        title={t('settings.title')}
+        icon={<Settings size={18} className="text-sky-400" />}
+        maxWidth="480px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.theme')}</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 type="button"
-                onClick={() => setShowSettings(false)}
-                aria-label={t('settings.close')}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                onClick={() => setTheme('dark')}
+                aria-pressed={theme === 'dark'}
+                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'dark' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'dark' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: theme === 'dark' ? 'white' : 'var(--text-main)', cursor: 'pointer' }}
               >
-                <X size={18} aria-hidden="true" />
+                {t('settings.theme.dark')}
               </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.theme')}</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setTheme('dark')}
-                  aria-pressed={theme === 'dark'}
-                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'dark' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'dark' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer' }}
-                >
-                  {t('settings.theme.dark')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTheme('light')}
-                  aria-pressed={theme === 'light'}
-                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'light' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'light' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer' }}
-                >
-                  {t('settings.theme.light')}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label htmlFor="language-select" className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.language')}</label>
-              <select
-                id="language-select"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as Language)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
-              >
-                <option value="pl">Polski</option>
-                <option value="en">English</option>
-                <option value="hi">हिन्दी (Hindi)</option>
-              </select>
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
-
-            {/* Konfiguracja routingu modeli */}
-            <ModelRoutingSettings />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Domyślny Serwer LLM</span>
-              <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
-              <input 
-                id="custom-llm-name"
-                name="customLlmName"
-                autoComplete="off"
-                type="text" 
-                placeholder="np. AtomicChat" 
-                value={customLlmName}
-                onChange={(e) => setCustomLlmName(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontSize: '0.8rem' }}
-              />
-              <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
-              <input 
-                id="custom-llm-url"
-                name="customLlmUrl"
-                autoComplete="off"
-                spellCheck={false}
-                type="text" 
-                placeholder="http://localhost:1337/v1" 
-                value={customLlmUrl}
-                onChange={(e) => setCustomLlmUrl(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-              />
-              <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
-              <input 
-                id="custom-llm-model"
-                name="customLlmModel"
-                autoComplete="off"
-                spellCheck={false}
-                type="text" 
-                placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
-                value={customLlmModel}
-                onChange={(e) => setCustomLlmModel(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-              />
-              <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
-              <input 
-                id="custom-api-key"
-                name="customApiKey"
-                autoComplete="off"
-                spellCheck={false}
-                type="password" 
-                placeholder="Brak" 
-                value={customApiKey}
-                onChange={(e) => setCustomApiKey(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-              />
-              <button 
+              <button
                 type="button"
-                onClick={saveSettings}
-                aria-live="polite"
-                style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
+                onClick={() => setTheme('light')}
+                aria-pressed={theme === 'light'}
+                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'light' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'light' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: theme === 'light' ? 'white' : 'var(--text-main)', cursor: 'pointer' }}
               >
-                {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
-                {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
+                {t('settings.theme.light')}
               </button>
             </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
-
-            <WebhookSettingsModal token={token} />
           </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label htmlFor="language-select" className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.language')}</label>
+            <select
+              id="language-select"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as Language)}
+              style={{ background: 'var(--bg-surface, rgba(255,255,255,0.05))', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+            >
+              <option value="pl" style={{ background: 'var(--bg-surface)', color: 'var(--text-main)' }}>Polski</option>
+              <option value="en" style={{ background: 'var(--bg-surface)', color: 'var(--text-main)' }}>English</option>
+              <option value="hi" style={{ background: 'var(--bg-surface)', color: 'var(--text-main)' }}>हिन्दी (Hindi)</option>
+            </select>
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+          {/* Konfiguracja routingu modeli */}
+          <ModelRoutingSettings />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>Domyślny Serwer LLM</span>
+            <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
+            <input 
+              id="custom-llm-name"
+              name="customLlmName"
+              autoComplete="off"
+              type="text" 
+              placeholder="np. AtomicChat" 
+              value={customLlmName}
+              onChange={(e) => setCustomLlmName(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontSize: '0.8rem' }}
+            />
+            <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
+            <input 
+              id="custom-llm-url"
+              name="customLlmUrl"
+              autoComplete="off"
+              spellCheck={false}
+              type="text" 
+              placeholder="http://localhost:1337/v1" 
+              value={customLlmUrl}
+              onChange={(e) => setCustomLlmUrl(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+            />
+            <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
+            <input 
+              id="custom-llm-model"
+              name="customLlmModel"
+              autoComplete="off"
+              spellCheck={false}
+              type="text" 
+              placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
+              value={customLlmModel}
+              onChange={(e) => setCustomLlmModel(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+            />
+            <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
+            <input 
+              id="custom-api-key"
+              name="customApiKey"
+              autoComplete="off"
+              spellCheck={false}
+              type="password" 
+              placeholder="Brak" 
+              value={customApiKey}
+              onChange={(e) => setCustomApiKey(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+            />
+            <button 
+              type="button"
+              onClick={saveSettings}
+              aria-live="polite"
+              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
+            >
+              {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
+              {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
+            </button>
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+          <WebhookSettingsModal token={token} />
         </div>
-      )}
+      </Modal>
 
       <LocalWorkerModal 
         isOpen={showWorkerModal} 
@@ -1440,121 +1424,118 @@ function App() {
       )}
 
       {/* Clone Git Repository Modal */}
-      {showCloneModal && (
-        <div 
-          className="modal-overlay" 
-          role="dialog"
-          aria-modal="true"
-          aria-label="Klonuj repozytorium Git"
-          onKeyDown={(e) => { if (e.key === 'Escape' && !cloneLoading) setShowCloneModal(false); }}
-          onClick={(e) => { if (e.target === e.currentTarget && !cloneLoading) setShowCloneModal(false); }}
-          style={{ overscrollBehavior: 'contain' }}
-        >
-          <div className="modal-content glass-card" style={{ maxWidth: '520px', width: '100%', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-            <h3 className="section-title" style={{ color: '#38bdf8' }}>
-              <DownloadCloud size={20} />
-              Clone Git Repository
-            </h3>
+      <Modal
+        isOpen={showCloneModal}
+        onClose={() => { if (!cloneLoading) setShowCloneModal(false); }}
+        title="Klonuj repozytorium Git"
+        icon={<DownloadCloud size={20} className="text-sky-400" />}
+        maxWidth="520px"
+      >
+        {cloneError && (
+          <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
+            {cloneError}
+          </div>
+        )}
 
-            {cloneError && (
-              <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                {cloneError}
-              </div>
-            )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <FormField
+            label="Adres URL repozytorium (HTTPS lub SSH)"
+            htmlFor="clone-repo-url"
+            required
+          >
+            <input
+              id="clone-repo-url"
+              name="cloneRepoUrl"
+              autoComplete="off"
+              spellCheck={false}
+              type="text"
+              value={cloneRepoUrl}
+              onChange={e => {
+                setCloneRepoUrl(e.target.value);
+                if (!cloneProjectName && e.target.value) {
+                  const match = e.target.value.trim().match(/\/([^/]+?)(\.git)?$/);
+                  if (match && match[1]) setCloneProjectName(match[1]);
+                }
+              }}
+              className="config-input"
+              placeholder="https://github.com/username/repository.git"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+              autoFocus
+            />
+          </FormField>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label htmlFor="clone-repo-url" className="info-label">Repository URL (HTTPS or SSH)</label>
-                <input
-                  id="clone-repo-url"
-                  name="cloneRepoUrl"
-                  autoComplete="off"
-                  spellCheck={false}
-                  type="text"
-                  value={cloneRepoUrl}
-                  onChange={e => {
-                    setCloneRepoUrl(e.target.value);
-                    if (!cloneProjectName && e.target.value) {
-                      const match = e.target.value.trim().match(/\/([^/]+?)(\.git)?$/);
-                      if (match && match[1]) setCloneProjectName(match[1]);
-                    }
-                  }}
-                  className="config-input"
-                  placeholder="https://github.com/username/repository.git"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
-                  autoFocus
-                />
-              </div>
+          <FormField
+            label="Katalog docelowy"
+            htmlFor="clone-target-dir"
+            required
+          >
+            <input
+              id="clone-target-dir"
+              name="cloneTargetDir"
+              autoComplete="off"
+              spellCheck={false}
+              type="text"
+              value={cloneTargetDir}
+              onChange={e => setCloneTargetDir(e.target.value)}
+              className="config-input"
+              placeholder="~/projects/my-repo"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+            />
+          </FormField>
 
-              <div>
-                <label htmlFor="clone-target-dir" className="info-label">Target Directory</label>
-                <input
-                  id="clone-target-dir"
-                  name="cloneTargetDir"
-                  autoComplete="off"
-                  spellCheck={false}
-                  type="text"
-                  value={cloneTargetDir}
-                  onChange={e => setCloneTargetDir(e.target.value)}
-                  className="config-input"
-                  placeholder="C:\Projects\my-repo or ~/projects/my-repo"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
-                />
-              </div>
+          <FormField
+            label="Nazwa projektu w dashboardzie (opcjonalna)"
+            htmlFor="clone-project-name"
+          >
+            <input
+              id="clone-project-name"
+              name="cloneProjectName"
+              autoComplete="off"
+              type="text"
+              value={cloneProjectName}
+              onChange={e => setCloneProjectName(e.target.value)}
+              className="config-input"
+              placeholder="Mój Projekt"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+            />
+          </FormField>
 
-              <div>
-                <label htmlFor="clone-project-name" className="info-label">Project Name in Dashboard (optional)</label>
-                <input
-                  id="clone-project-name"
-                  name="cloneProjectName"
-                  autoComplete="off"
-                  type="text"
-                  value={cloneProjectName}
-                  onChange={e => setCloneProjectName(e.target.value)}
-                  className="config-input"
-                  placeholder="My Repo"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ flex: 1, padding: '0.5rem' }}
-                  onClick={() => setShowCloneModal(false)}
-                  disabled={cloneLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
-                  disabled={!cloneRepoUrl.trim() || !cloneTargetDir.trim() || cloneLoading}
-                  onClick={async () => {
-                    setCloneLoading(true);
-                    setCloneError(null);
-                    try {
-                      await handleCloneProject(cloneRepoUrl.trim(), cloneTargetDir.trim(), cloneProjectName.trim() || undefined);
-                      setShowCloneModal(false);
-                      setCloneRepoUrl('');
-                      setCloneTargetDir('');
-                      setCloneProjectName('');
-                    } catch (err: any) {
-                      setCloneError(err.message || 'Failed to clone repository');
-                    } finally {
-                      setCloneLoading(false);
-                    }
-                  }}
-                >
-                  {cloneLoading ? 'Cloning…' : 'Clone Repository'}
-                </button>
-              </div>
-            </div>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ flex: 1, padding: '0.5rem' }}
+              onClick={() => setShowCloneModal(false)}
+              disabled={cloneLoading}
+            >
+              Anuluj
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
+              disabled={!cloneRepoUrl.trim() || !cloneTargetDir.trim() || cloneLoading}
+              onClick={async () => {
+                setCloneLoading(true);
+                setCloneError(null);
+                try {
+                  await handleCloneProject(cloneRepoUrl.trim(), cloneTargetDir.trim(), cloneProjectName.trim() || undefined);
+                  setShowCloneModal(false);
+                  setCloneRepoUrl('');
+                  setCloneTargetDir('');
+                  setCloneProjectName('');
+                } catch (err: any) {
+                  setCloneError(err.message || 'Błąd klonowania repozytorium');
+                } finally {
+                  setCloneLoading(false);
+                }
+              }}
+            >
+              {cloneLoading ? 'Klonowanie...' : 'Klonuj repozytorium'}
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* Offline banner (T2.3) */}
       {!isSseConnected && (
