@@ -32,29 +32,29 @@ Dokument określa zakres, architekturę oraz harmonogram usprawnień wizualnych,
 ## 3. Fazy Realizacji
 
 ### Faza 1: Ujednolicenie Tokenów i Pełna Obsługa Trybu Jasnego
-- [ ] Zastąpienie twardo zakodowanych kolorów (`color: 'white'`, `background: '#1e293b'`) tokenami `var(--text-main)`, `var(--bg-surface)` i `var(--border-color)` w:
+- [x] Zastąpienie twardo zakodowanych kolorów (`color: 'white'`, `background: '#1e293b'`) tokenami `var(--text-main)`, `var(--bg-surface)` i `var(--border-color)` w:
   - `src/App.tsx` (modale ustawień, konfiguracji serwera, dodawania projektu)
   - `src/UsersView.tsx` (opcje selecta ról, modale haseł)
   - `src/components/ModelRoutingSettings.tsx`
   - `src/LocalWorkerModal.tsx`
-- [ ] Przetestowanie kontrastów tekstu w trybie `light` narzędziem do audytu a11y (WCAG AA min. 4.5:1).
-- [ ] Dopracowanie obramowań i cieni w `[data-theme="light"]` (`--glass-shadow`, `--glass-border`).
+- [x] Przetestowanie kontrastów tekstu w trybie `light` narzędziem do audytu a11y (WCAG AA min. 4.5:1).
+- [x] Dopracowanie obramowań i cieni w `[data-theme="light"]` (`--glass-shadow`, `--glass-border`).
 
 ### Faza 2: Globalny System Toastów (Notification Provider)
-- [ ] Stworzenie `src/components/ToastProvider.tsx`:
+- [x] Stworzenie `src/components/ToastProvider.tsx`:
   - Typy: `success`, `error`, `info`, `warning`.
   - Animowane wejście i wyjście za pomocą Framer Motion (`AnimatePresence`).
   - Możliwość zamykania kliknięciem, auto-dismiss (domyślnie 4s).
   - Wsparcie dla kolejkowania wielu toastów.
-- [ ] Udostępnienie hooka `useToast()` w całej aplikacji.
-- [ ] Migracja dotychczasowych komunikatów sukcesu/błędu w `UsersView`, `App`, `RepoStatus` do `useToast()`.
+- [x] Udostępnienie hooka `useToast()` w całej aplikacji.
+- [x] Migracja dotychczasowych komunikatów sukcesu/błędu w `UsersView`, `App`, `RepoStatus`, `ModelRoutingSettings` do `useToast()`.
 
 ### Faza 3: Ujednolicenie Komponentów Bazowych (UI Primitives)
-- [ ] Stworzenie spójnych komponentów bazowych lub klas pomocniczych Tailwind:
+- [x] Stworzenie spójnych komponentów bazowych lub klas pomocniczych Tailwind:
   - `Modal`: Zunifikowany szkielet okna modalnego (nagłówek z ikoną, treść, pasek akcji z przyciskami Anuluj/Zapisz).
   - `Badge`: Ustandaryzowane warianty ról i statusów (`primary`, `success`, `warning`, `danger`, `neutral`).
   - `FormField`: Kontener na etykietę, input/select oraz komunikat błędu walidacji.
-- [ ] Ujednolicenie mikrointerakcji na przyciskach (`active:scale-[0.98]`, płynny transition 150ms).
+- [x] Ujednolicenie mikrointerakcji na przyciskach (`active:scale-[0.98]`, płynny transition 150ms).
 
 ### Faza 4: Dostępność i Responsywność Mobilna
 - [ ] Weryfikacja pułapek fokusu (`focus trap`) we wszystkich modalach.
