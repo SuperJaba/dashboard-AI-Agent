@@ -110,7 +110,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
     const socket = io('/pty', {
       auth: { token },
-      transports: ['websocket', 'polling']
+      transports: ['polling', 'websocket']
     });
     socketRef.current = socket;
 

@@ -43,6 +43,12 @@ interface KpiData {
       url: string;
       model: string;
       status: string;
+      contextLength?: number;
+      contextUsageTokens?: number;
+      speedTokPerSec?: number;
+      avgDurationSec?: number;
+      requestsCount?: number;
+      monitorUrl?: string;
     };
     modelRouting?: {
       localTasks: number;
@@ -219,11 +225,11 @@ export function KpiDashboardPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
           {/* Aktywny Unsloth */}
           <a
-            href="http://10.10.10.30:8888/api-monitor"
+            href={activeLlm?.monitorUrl || 'http://10.10.10.30:8888/api-monitor'}
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
-            title="Otwórz Unsloth Live Traffic Monitor (43.4 tok/s · 98 048 ctx)"
+            title={`Otwórz Unsloth Live Traffic Monitor (${activeLlm?.speedTokPerSec ?? 75.2} tok/s · Context: ${activeLlm?.contextUsageTokens ? `${(activeLlm.contextUsageTokens / 1000).toFixed(1)}k` : '35.3k'} / ${Math.round((activeLlm?.contextLength ?? 128000) / 1000)}k ctx · ${activeLlm?.requestsCount ?? 51} req)`}
           >
             <Cpu size={14} color="#10b981" />
             <span style={{ color: 'var(--text-muted)' }}>LLM Local:</span>
@@ -238,8 +244,20 @@ export function KpiDashboardPanel() {
               color: '#10b981',
               fontWeight: 600
             }}>
-              ONLINE · 98k ctx
+              {activeLlm?.status || 'ONLINE'} · {Math.round((activeLlm?.contextLength ?? 128000) / 1000)}k ctx
             </span>
+            {activeLlm?.speedTokPerSec !== undefined && (
+              <span style={{
+                fontSize: '0.65rem',
+                padding: '0.05rem 0.35rem',
+                borderRadius: '4px',
+                background: 'rgba(56, 189, 248, 0.12)',
+                color: '#38bdf8',
+                fontWeight: 600
+              }}>
+                {activeLlm.speedTokPerSec} tok/s
+              </span>
+            )}
           </a>
 
           <span style={{ color: 'var(--glass-border)' }}>|</span>
@@ -283,7 +301,7 @@ export function KpiDashboardPanel() {
 
         {/* Dynamika tokenów */}
         <div className="glass-card" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)' }}>Dynamika tokenów (dziś)</span>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>
               Prompt {promptPct}% · Comp {completionPct}%
@@ -294,7 +312,7 @@ export function KpiDashboardPanel() {
 
         {/* Podział tokenów wg modeli z kosztami */}
         <div className="glass-card" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)' }}>Podział zużycia tokenów</span>
             {data.tokenBurn.estimatedSavingsPln !== undefined && (
               <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>

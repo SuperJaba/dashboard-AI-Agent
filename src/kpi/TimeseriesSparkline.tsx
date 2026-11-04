@@ -17,6 +17,27 @@ export function TimeseriesSparkline({ data, color = 'var(--primary, #4F46E5)', l
   const hasValues = Array.isArray(data) && data.length > 0;
   const hasNonZero = hasValues && data.some(d => (d.value || 0) > 0);
 
+  // Gdy wszystkie wartości są 0, wyrenderuj czysty kontener pustego stanu
+  if (!hasNonZero) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '64px',
+        color: 'var(--text-muted)',
+        fontSize: '0.75rem',
+        textAlign: 'center',
+        background: 'rgba(255, 255, 255, 0.02)',
+        borderRadius: '8px',
+        border: '1px dashed var(--glass-border, rgba(255, 255, 255, 0.1))'
+      }}>
+        {label && <span style={{ marginRight: '0.5rem' }}>{label}</span>}
+        Brak wywołań w bieżącym oknie (0 tokenów)
+      </div>
+    );
+  }
+
   return (
     <div className="tabular-nums" style={{ width: '100%', minHeight: '64px', fontVariantNumeric: 'tabular-nums', position: 'relative' }}>
       {label && (
@@ -53,25 +74,12 @@ export function TimeseriesSparkline({ data, color = 'var(--primary, #4F46E5)', l
             dataKey="value"
             stroke={color}
             strokeWidth={2.5}
-            dot={hasNonZero ? false : { r: 2.5, fill: color, stroke: '#ffffff', strokeWidth: 1 }}
+            dot={false}
             filter={`url(#neon-glow-${filterId})`}
             isAnimationActive={false}
           />
         </LineChart>
       </ResponsiveContainer>
-      {!hasNonZero && (
-        <div style={{
-          fontSize: '0.68rem',
-          color: 'var(--text-muted)',
-          textAlign: 'center',
-          marginTop: '-1.25rem',
-          pointerEvents: 'none',
-          position: 'relative',
-          zIndex: 1
-        }}>
-          Brak wywołań w bieżącym oknie (0 tokenów)
-        </div>
-      )}
     </div>
   );
 }

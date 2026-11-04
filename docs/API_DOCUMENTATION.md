@@ -20,6 +20,9 @@ Manage SSH server targets for remote command execution and monitoring.
 | `PUT` | `/api/servers/:id` | Update server credentials or connection details. |
 | `DELETE` | `/api/servers/:id` | Remove a server configuration. |
 | `GET` | `/api/servers/:id/stats` | Fetch real-time CPU, RAM, and Disk metrics via SSH. |
+| `POST` | `/api/servers/:id/setup-tunnel` | Sets up and runs a background Socket.IO Local Agent Worker on the remote host via detached SSH. |
+| `POST` | `/api/servers/:id/kill-tunnel` | Terminates the background Socket.IO worker on the remote host. |
+| `POST` | `/api/servers/:id/setup-ssh` | Automatically generates or configures SSH keys (`id_ed25519_antigravity`). |
 
 ## LLM Providers (`/api/llmServers`)
 Configure LLM backend providers (OpenAI, Anthropic, Ollama, LM Studio, etc.).
@@ -31,12 +34,17 @@ Configure LLM backend providers (OpenAI, Anthropic, Ollama, LM Studio, etc.).
 | `DELETE` | `/api/llmServers/:id` | Delete provider configuration. |
 
 ## Projects & Tasks (`/api/projects`)
+Projects can be resolved transparently by numeric ID (e.g. `/api/projects/1`) or by project name string (e.g. `/api/projects/dashboard`).
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/projects` | List all workspace projects with task metrics. |
+| `GET` | `/api/projects` | List all workspace projects with task metrics. (Open to CLI agents) |
 | `POST` | `/api/projects` | Register new workspace directory `{ name, path, description }`. |
-| `GET` | `/api/projects/:id` | Get project metadata, branch, and parsed tasks. |
-| `PUT` | `/api/projects/:id` | Update project parameters. |
+| `GET` | `/api/projects/:id` | Get project metadata, branch, and parsed tasks by ID or name. (Open to CLI agents) |
+| `PUT` | `/api/projects/:id` | Update project parameters by ID or name. |
+| `PUT` | `/api/projects/:id/tasks` | Replace or update tasks array `{ tasks: [...] }` by ID or name. (Open to CLI agents) |
+| `PATCH` | `/api/projects/:id/tasks/:taskId` | Update individual task status/title by ID or name. (Open to CLI agents) |
+| `POST` | `/api/projects/:id/sync-tasks` | Re-sync markdown tasks in workspace by ID or name. (Open to CLI agents) |
+| `POST` | `/api/projects/sync-tasks` | Bulk or target sync from standalone agent runner. (Open to CLI agents) |
 | `DELETE` | `/api/projects/:id` | Unregister project from dashboard. |
 | `POST` | `/api/projects/:id/analyze` | Re-scan project markdown files for tasks and update metrics. |
 
@@ -53,14 +61,19 @@ Configure LLM backend providers (OpenAI, Anthropic, Ollama, LM Studio, etc.).
 | `POST` | `/api/git/push` | Push commits to upstream `{ path, remote, branch }`. |
 | `POST` | `/api/git/pull` | Pull changes from upstream `{ path, remote, branch }`. |
 
-## AI Agents (`/api/agents`)
+## AI Agents & Workers (`/api/agents`, `/api/worker`)
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/agents` | List configured CLI agents (Antigravity, Claude Code, Aider, etc.). |
 | `POST` | `/api/agents` | Register new agent configuration `{ name, command, args, env }`. |
 | `PUT` | `/api/agents/:id` | Update agent configuration. |
 | `DELETE` | `/api/agents/:id` | Remove agent configuration. |
-| `GET` | `/api/agents/workers` | List connected local agent workers. |
+| `POST` | `/api/deploy` | Deploy an agent locally or remotely. Injects `DASHBOARD_URL` & `DASHBOARD_TOKEN`. |
+| `GET` | `/api/agents/workers` | List connected Socket.IO agent workers (both local and remote). |
+| `DELETE` | `/api/agents/workers/:id` | Terminate and disconnect worker socket. |
+| `GET` | `/api/worker/run` | Standalone auto-installer bash script for Local Agent Worker. |
+| `GET` | `/api/worker/script` | Serves the latest standalone `local-agent-worker.js` script. |
+| `GET` | `/api/events` | Server-Sent Events stream (SSE). Accepts `?token=<jwt>` query param for browsers. |
 
 ## Custom Widgets (`/api/widgets`)
 | Method | Endpoint | Description |

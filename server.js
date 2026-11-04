@@ -82,6 +82,7 @@ import { sseRouter } from './src/backend/events/sseRouter.js';
 import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
 import { opsrampRouter } from './src/backend/opsramp/opsrampRouter.js';
 import { modelRouterApi } from './src/backend/llm/modelRouterApi.js';
+import usersRouter from './src/backend/users/usersRouter.js';
 import { deployRouter } from './src/backend/deploy/deployRouter.js';
 import { deployService } from './src/backend/deploy/deployService.js';
 import { notificationsRouter } from './src/backend/notifications/notificationsRouter.js';
@@ -94,6 +95,7 @@ import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
 import { classifyWorkerSocket } from './src/backend/socket/workerClassification.js';
 
 import { llmProxyRouter } from './src/backend/llm/llmProxyRouter.js';
+import compression from 'compression';
 import { securityHeadersMiddleware } from './src/backend/utils/securityHeaders.js';
 
 const isTestEnvironment = process.env.NODE_ENV === 'test';
@@ -104,6 +106,7 @@ if (isTestEnvironment) {
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
+app.use(compression());
 
 const port = process.env.PORT || 3001;
 
@@ -657,6 +660,7 @@ app.use('/api/notifications', authMiddleware, notificationsRouter);
 app.use('/api/scheduler', authMiddleware, schedulerRouter);
 app.use('/api/opsramp', opsrampRouter);
 app.use('/api/llm', authMiddleware, modelRouterApi);
+app.use('/api/users', authMiddleware, usersRouter);
 
 // T7.4 — Start alert watcher and agent task scheduler (skipped in test env)
 if (process.env.NODE_ENV !== 'test') {
@@ -692,7 +696,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Init DB
+// Init DB - non-blocking startup
 async function initDB() {
   try {
     const schema = process.env.DB_SCHEMA || 'dashboard';
@@ -791,10 +795,13 @@ async function initDB() {
     `);
     console.log(`Database initialized in schema '${schema}'`);
   } catch (err) {
-    console.error('Failed to initialize database:', err.message);
+    logger.warn({ err: err.message }, 'Błąd initDB - kontynuuj start');
+    // Nie blokuj startu, jeśli tabele nie istnieją
   }
 }
-initDB();
+
+// Start DB initialization asynchronously (non-blocking)
+initDB().catch(err => console.error('Błąd async initDB:', err.message));
 
 const isPassenger = typeof PhusionPassenger !== 'undefined' || !!process.env.PASSENGER_APP_ENV;
 

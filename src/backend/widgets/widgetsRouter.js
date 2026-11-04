@@ -82,16 +82,15 @@ widgetsRouter.get('/:id/run', async (req, res) => {
       if (server) {
         // Check if widget is for "Local Docker Containers" and needs rebuild
         const isDockerContainers = widget.command.includes('docker ps -a');
+        const fullSshCmd = sshCmd(server, widget.command);
 
         try {
           let result;
           if (isDockerContainers) {
             // For docker containers: build chart first, wait 10s, then check status
-            const sshCmdStr = sshCmd(server, widget.command);
-
-            // Step 1: Build the chart (docker-compose up -d or similar)
-            result = await new Promise((resolve, reject) => {
-              exec(`ssh -t ${sshCmdStr} "docker compose build"`, (err, stdout, stderr) => {
+            const buildCmd = sshCmd(server, 'docker compose build');
+            await new Promise((resolve, reject) => {
+              exec(buildCmd, (err, stdout, stderr) => {
                 if (err) {
                   console.error('Docker build error:', err);
                   reject(new Error(stderr || err.message));
@@ -105,8 +104,9 @@ widgetsRouter.get('/:id/run', async (req, res) => {
             await new Promise(resolve => setTimeout(resolve, 10000));
 
             // Step 3: Get container status
+            const statusCmd = sshCmd(server, "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'");
             result = await new Promise((resolve, reject) => {
-              exec(`ssh -t ${sshCmdStr} "docker ps -a --format 'ID: {{.ID}} Image: {{.Image}} Status: {{.Status}}'"`, (err, stdout, stderr) => {
+              exec(statusCmd, (err, stdout, stderr) => {
                 if (err) {
                   console.error('Docker status error:', err);
                   reject(new Error(stderr || err.message));
@@ -118,7 +118,7 @@ widgetsRouter.get('/:id/run', async (req, res) => {
           } else {
             // Standard command execution via SSH
             result = await new Promise((resolve, reject) => {
-              exec(`ssh -t ${sshCmdStr}`, (err, stdout, stderr) => {
+              exec(fullSshCmd, (err, stdout, stderr) => {
                 if (err) {
                   console.error('SSH widget error:', err);
                   reject(new Error(stderr || err.message));

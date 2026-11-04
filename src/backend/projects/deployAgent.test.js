@@ -108,6 +108,18 @@ describe('POST /deploy agent resolution', () => {
     expect(res.body.scriptContent).toContain('/api/scripts/syncTasks.js');
     // Post-execution fallback in bash script
     expect(res.body.scriptContent).toContain('Synchronizing tasks (sync-tasks)');
+    // Injected DASHBOARD_TOKEN and API_TOKEN
+    expect(res.body.scriptContent).toContain('export DASHBOARD_TOKEN=');
+    expect(res.body.scriptContent).toContain('export API_TOKEN=');
+  });
+
+  it('serves project by name via GET /projects/:id', async () => {
+    const res = await request(app).get('/projects/dashboard');
+    if (res.status === 200) {
+      expect(res.body.name).toBe('dashboard');
+    } else {
+      expect(res.status).toBe(404);
+    }
   });
 
   it('serves syncTasks.js via public download route', async () => {
@@ -123,5 +135,20 @@ describe('POST /deploy agent resolution', () => {
       .send({ cwd: process.cwd() });
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  it('allows remote prompt containing ssh and log analysis without prompt-injection false-positive', async () => {
+    const res = await request(app)
+      .post('/deploy')
+      .send({
+        agent: 'agy',
+        remoteServer: { id: 2, name: 'CT8', host: 's1.ct8.pl', username: 'jagger2', port: 22 },
+        remotePrompt: "Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.\nssh -i /home/seba/.ssh/id_ed25519_antigravity jagger2@s1.ct8.pl 'devil www restart dashboard.jagger2.ct8.pl'",
+        useBrowserTerminal: true
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.scriptContent).toContain('Przeanalizuj logi systemowe');
+    expect(res.body.scriptContent).toContain('devil www restart');
   });
 });

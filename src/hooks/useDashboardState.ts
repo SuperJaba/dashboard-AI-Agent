@@ -12,7 +12,7 @@ import { z } from 'zod';
  * @returns An object containing all the dashboard state variables and modifier functions.
  */
 export function useDashboardState() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'agents' | 'opsramp'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'agents' | 'opsramp' | 'users'>('dashboard');
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | string | null>(null);
   const [servers, setServers] = useState<ServerData[]>([]);
@@ -185,10 +185,13 @@ export function useDashboardState() {
           taskId: data.taskId
         });
       }
-    } catch (err) {
+      setDeploying(null);
+      return { success: true, data };
+    } catch (err: any) {
       console.error(err);
+      setDeploying(null);
+      return { success: false, error: err?.message || 'Błąd wdrażania agenta' };
     }
-    setDeploying(null);
   };
 
   const deployRemoteAgent = async (agent: string, server: any) => {
@@ -202,7 +205,8 @@ export function useDashboardState() {
         remoteServer: server,
         remotePrompt,
         useBrowserTerminal,
-        setupTunnel
+        setupTunnel,
+        dangerouslySkipPermissions
       });
       if (data.browserTerminal) {
         setTerminalConfig({
@@ -214,10 +218,13 @@ export function useDashboardState() {
           taskId: data.taskId
         });
       }
-    } catch (err) {
+      setDeploying(null);
+      return { success: true, data };
+    } catch (err: any) {
       console.error(err);
+      setDeploying(null);
+      return { success: false, error: err?.message || 'Błąd wdrażania agenta zdalnego' };
     }
-    setDeploying(null);
   };
 
   const analyzeProject = async () => {
