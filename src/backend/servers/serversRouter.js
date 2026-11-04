@@ -112,16 +112,19 @@ serversRouter.post('/servers/:id/setup-tunnel', async (req, res) => {
     const workerName = s.name || s.host || 'Remote-Worker';
 
     const remoteScript = [
-      'mkdir -p ~/dashboard-worker && cd ~/dashboard-worker',
-      '[ -f package.json ] || npm init -y',
-      'node -e \'const fs=require("fs"); try{ const p=JSON.parse(fs.readFileSync("package.json")); p.type="module"; p.scripts=p.scripts||{}; p.scripts["agent:worker"]="node local-agent-worker.js"; p.scripts["agent.worker"]="node local-agent-worker.js"; p.scripts["worker"]="node local-agent-worker.js"; fs.writeFileSync("package.json",JSON.stringify(p,null,2)); }catch(e){}\'',
-      '([ -d node_modules/socket.io-client ] && [ -d node_modules/node-pty ]) || npm install socket.io-client node-pty',
+      'mkdir -p ~/dashboard-worker',
+      'cd ~/dashboard-worker',
+      '[ -f package.json ] || echo \'{"type":"module"}\' > package.json',
+      'node -e \'const f="package.json";const fs=require("fs");let p={type:"module"};try{p=JSON.parse(fs.readFileSync(f))}catch(e){};p.type="module";p.scripts=p.scripts||{};p.scripts["agent:worker"]="node local-agent-worker.js";p.scripts["worker"]="node local-agent-worker.js";fs.writeFileSync(f,JSON.stringify(p,null,2))\'',
+      '([ -d node_modules/socket.io-client ] && [ -d node_modules/node-pty ]) || npm install --no-audit --no-fund socket.io-client node-pty',
       `curl -sSL "${dashboardUrl}/api/worker/script" -o local-agent-worker.js`,
       'pkill -9 -f "local-agent-worker.js" || true',
-      `nohup node local-agent-worker.js "${dashboardUrl}" "${workerToken}" "${workerName}" remote > worker.log 2>&1 &`
-    ].join(' && ');
+      `nohup node local-agent-worker.js "${dashboardUrl}" "${workerToken}" "${workerName}" remote </dev/null > worker.log 2>&1 &`,
+      'exit 0'
+    ].join('\n');
 
-    const cmd = sshCmd(s, `"${remoteScript}"`);
+    const b64 = Buffer.from(remoteScript, 'utf8').toString('base64');
+    const cmd = sshCmd(s, `'echo "${b64}" | base64 -d | bash'`);
 
     exec(cmd, { timeout: 35000 }, (error, stdout, stderr) => {
       if (error) {

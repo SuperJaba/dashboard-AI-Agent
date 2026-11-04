@@ -13,11 +13,11 @@ const schema = process.env.DB_SCHEMA || 'dashboard';
 
 export const pool = new Pool({
   user: process.env.DB_USER || process.env.PGUSER || 'SebaP',
-  host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+  host: process.env.DB_HOST || process.env.PGHOST || 'pgsql.ct8.pl', // Default to remote DB server
   database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboarddb',
   password: process.env.DB_PASSWORD || process.env.PGPASSWORD,
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: process.env.DB_TIMEOUT ? parseInt(process.env.DB_TIMEOUT, 10) : 3000,
   options: `-c search_path=${schema},public`,
 });
 
@@ -36,6 +36,7 @@ export const inMemoryStore = {
     llmUrl: 'http://127.0.0.1:1337/v1',
     llmModel: 'AtomicChat/qwen35-4b-Q8_0',
   },
+  usersWithRoles: [], // Wersja z rolami dla auth
   projects: [],
   servers: [],
   cli_agents: [],
@@ -81,10 +82,53 @@ export const inMemoryStore = {
     }
   ],
   agent_tasks: [],
-  agent_logs: []
+  agent_logs: [],
+  routing_calls: []
 };
 
 let useInMemoryFallback = false;
+
+export function isDbConnectionOrAuthError(err) {
+  if (!err) return false;
+  const connectionCodes = [
+    'ECONNREFUSED',
+    'ENOTFOUND',
+    'ETIMEDOUT',
+    'EHOSTUNREACH',
+    'ECONNRESET',
+    'EPIPE',
+    '57P01', // admin_shutdown
+    '57P02', // crash_shutdown
+    '57P03', // cannot_connect_now
+    '28P01', // invalid_password
+    '28000', // invalid_authorization_specification / no pg_hba.conf entry
+    '3D000', // database_does_not_exist
+    '08000', // connection_exception
+    '08001', // sqlclient_unable_to_establish_sqlconnection
+    '08003', // connection_does_not_exist
+    '08004', // sqlserver_rejected_establishment_of_sqlconnection
+    '08006', // connection_failure
+    '08007'  // transaction_resolution_unknown
+  ];
+  if (err.code && connectionCodes.includes(err.code)) return true;
+  const msg = String(err.message || '').toLowerCase();
+  return (
+    msg.includes('connect') ||
+    msg.includes('econnrefused') ||
+    msg.includes('sasl:') ||
+    msg.includes('password') ||
+    msg.includes('authentication') ||
+    msg.includes('pg_hba.conf') ||
+    msg.includes('no encryption') ||
+    msg.includes('clientauthentication') ||
+    msg.includes('timeout') ||
+    msg.includes('terminated unexpectedly') ||
+    msg.includes('connection refused') ||
+    msg.includes('could not connect') ||
+    msg.includes('ssl off') ||
+    msg.includes('no pg_hba.conf')
+  );
+}
 
 const rawPoolQuery = pool.query.bind(pool);
 
@@ -93,16 +137,7 @@ export async function safeQuery(text, params = []) {
     try {
       return await rawPoolQuery(text, params);
     } catch (err) {
-      if (
-        err.code === 'ECONNREFUSED' ||
-        err.code === '57P01' ||
-        err.code === '28P01' ||
-        err.code === '3D000' ||
-        err.message?.includes('connect ECONNREFUSED') ||
-        err.message?.includes('SASL:') ||
-        err.message?.includes('password') ||
-        err.message?.includes('authentication')
-      ) {
+      if (isDbConnectionOrAuthError(err)) {
         console.warn('PostgreSQL connection unavailable, using fallback store:', err.message);
         useInMemoryFallback = true;
       } else {
@@ -118,15 +153,56 @@ export async function safeQuery(text, params = []) {
     return { rows: [{ count: inMemoryStore.users.length.toString() }] };
   }
 
+  if (sql.includes('SELECT id, username, role FROM users')) {
+    return { rows: inMemoryStore.users.map(u => ({ id: u.id, username: u.username, role: u.role || 'user' })) };
+  }
+
   if (sql.includes('FROM users WHERE username')) {
     const user = inMemoryStore.users.find(u => u.username === params[0]);
     return { rows: user ? [user] : [] };
   }
 
+  if (sql.includes('FROM users WHERE id = $1') || (sql.includes('FROM users') && sql.includes('WHERE id'))) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[0]));
+    return { rows: user ? [user] : [] };
+  }
+
+  if (sql.includes('UPDATE users SET role')) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[1]));
+    if (user) {
+      user.role = params[0];
+      return { rows: [{ id: user.id, username: user.username, role: user.role }] };
+    }
+    return { rows: [] };
+  }
+
+  if (sql.includes('UPDATE users SET password_hash')) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[1]));
+    if (user) {
+      user.password_hash = params[0];
+      return { rows: [{ id: user.id, username: user.username }] };
+    }
+    return { rows: [] };
+  }
+
   if (sql.includes('INSERT INTO users')) {
-    const newUser = { id: inMemoryStore.users.length + 1, username: params[0], password_hash: params[1] };
+    const newUser = {
+      id: inMemoryStore.users.length + 1,
+      username: params[0],
+      password_hash: params[1],
+      role: params[2] || 'user'
+    };
     inMemoryStore.users.push(newUser);
     return { rows: [newUser] };
+  }
+
+  if (sql.includes('DELETE FROM users WHERE id')) {
+    const idx = inMemoryStore.users.findIndex(u => u.id === Number(params[0]));
+    if (idx !== -1) {
+      const removed = inMemoryStore.users.splice(idx, 1);
+      return { rows: removed };
+    }
+    return { rows: [] };
   }
 
   if (sql.includes('DELETE FROM users')) {
@@ -507,6 +583,35 @@ export async function safeQuery(text, params = []) {
     return { rows: [newLog] };
   }
 
+  // Routing Calls queries
+  if (sql.includes('FROM routing_calls')) {
+    if (sql.includes('COUNT(*)')) {
+      return { rows: [{ count: inMemoryStore.routing_calls.length.toString() }] };
+    }
+    const sorted = [...inMemoryStore.routing_calls].reverse();
+    return { rows: sorted.slice(0, 50) };
+  }
+
+  if (sql.includes('INSERT INTO routing_calls')) {
+    const newCall = {
+      id: params[0] || `call_${Date.now()}`,
+      tier: params[1] || 'low',
+      provider: params[2] || 'lm-studio',
+      model: params[3] || 'unknown',
+      duration_ms: parseInt(params[4], 10) || 0,
+      prompt_tokens: parseInt(params[5], 10) || 0,
+      completion_tokens: parseInt(params[6], 10) || 0,
+      total_tokens: parseInt(params[7], 10) || 0,
+      success: params[8] !== false && params[8] !== 'false',
+      fallback_occurred: params[9] === true || params[9] === 'true',
+      fallback_reason: params[10] || null,
+      prompt_preview: params[11] || '',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.routing_calls.push(newCall);
+    return { rows: [newCall] };
+  }
+
   return { rows: [] };
 }
 
@@ -579,8 +684,10 @@ export async function migrate() {
     `CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       username VARCHAR(255) UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL
+      password_hash TEXT NOT NULL,
+      role VARCHAR(50) DEFAULT 'user'
     );`,
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT \'user\';',
     `CREATE TABLE IF NOT EXISTS agents (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL UNIQUE,
@@ -634,6 +741,21 @@ export async function migrate() {
       task_id INTEGER,
       level VARCHAR(20) DEFAULT 'info',
       message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS routing_calls (
+      id VARCHAR(64) PRIMARY KEY,
+      tier VARCHAR(20) NOT NULL,
+      provider VARCHAR(50) NOT NULL,
+      model VARCHAR(255) NOT NULL,
+      duration_ms INTEGER DEFAULT 0,
+      prompt_tokens INTEGER DEFAULT 0,
+      completion_tokens INTEGER DEFAULT 0,
+      total_tokens INTEGER DEFAULT 0,
+      success BOOLEAN DEFAULT TRUE,
+      fallback_occurred BOOLEAN DEFAULT FALSE,
+      fallback_reason TEXT,
+      prompt_preview TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];

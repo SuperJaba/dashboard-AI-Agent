@@ -370,6 +370,72 @@ export function ModelRoutingWidget() {
         <ArrowRight size={12} />
         <code>{stats.localEndpoint ? `${stats.localEndpoint.replace(/^https?:\/\//, '').replace(/\/v1\/?$/, '')} (${stats.localServerName || 'Unsloth'})` : '10.10.10.30:8888 (Unsloth)'} / AGY</code>
       </div>
+
+      {/* Historia ostatnich wywołań routingu */}
+      {stats.recentCalls && stats.recentCalls.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              Historia wywołań routingu ({stats.recentCalls.length})
+            </span>
+          </div>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.25rem',
+            maxHeight: '150px',
+            overflowY: 'auto',
+            background: 'rgba(0,0,0,0.2)',
+            padding: '0.35rem',
+            borderRadius: '6px'
+          }}>
+            {stats.recentCalls.slice(0, 10).map((call) => {
+              const isLocal = call.tier !== 'high' && !call.model.includes('gemini') && !call.model.includes('claude');
+              const dateStr = call.timestamp ? new Date(call.timestamp).toLocaleTimeString() : '';
+              return (
+                <div
+                  key={call.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '0.68rem',
+                    padding: '0.2rem 0.35rem',
+                    borderRadius: '4px',
+                    background: 'rgba(255,255,255,0.02)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+                    <span style={{
+                      padding: '0.05rem 0.3rem',
+                      borderRadius: '3px',
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      background: isLocal ? 'rgba(16,185,129,0.15)' : 'rgba(129,140,248,0.15)',
+                      color: isLocal ? '#10b981' : '#818cf8'
+                    }}>
+                      {call.tier.toUpperCase()}
+                    </span>
+                    <span style={{ color: 'var(--text-main)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }} title={call.promptPreview}>
+                      {call.promptPreview || call.model}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>{call.durationMs}ms</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{dateStr}</span>
+                    <span style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: call.success ? '#10b981' : '#ef4444'
+                    }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

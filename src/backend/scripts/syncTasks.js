@@ -21,7 +21,7 @@ async function main() {
       const { syncProjectTasks, syncAllProjects } = await import(pathToFileURL(localServicePath).href);
 
       if (targetId && !targetId.startsWith('--')) {
-        const projectId = parseInt(targetId, 10);
+        const projectId = /^\d+$/.test(targetId) ? parseInt(targetId, 10) : targetId;
         console.log(`📡 Synchronizing Project #${projectId}...`);
         const res = await syncProjectTasks(projectId, { clearCompleted });
         printProjectResult(res);
@@ -43,9 +43,15 @@ async function main() {
         clearCompleted
       };
 
+      const token = process.env.DASHBOARD_TOKEN || process.env.API_TOKEN;
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${dashboardUrl}/api/projects/sync-tasks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload)
       });
 

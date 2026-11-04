@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useToast } from './hooks/useToast';
 import ReactDOM from 'react-dom';
 import { 
   GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, 
@@ -15,12 +16,12 @@ interface RepoStatusProps {
 }
 
 export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTerminal }) => {
+  const toast = useToast();
   const [gitStatus, setGitStatus] = useState<any>(null);
   const [githubData, setGithubData] = useState<any>(null);
   const [branches, setBranches] = useState<{ current: string; local: string[]; remote: string[] }>({ current: '', local: [], remote: [] });
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCommits, setShowCommits] = useState(false);
   const [showChanges, setShowChanges] = useState(true);
@@ -36,9 +37,12 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
   const [deployModal, setDeployModal] = useState<{ show: boolean; title: string; content: string; isError: boolean } | null>(null);
 
   const showNotification = useCallback((text: string, type: 'success' | 'error' = 'success') => {
-    setActionMessage({ text, type });
-    setTimeout(() => setActionMessage(null), 4000);
-  }, []);
+    if (type === 'error') {
+      toast.error(text);
+    } else {
+      toast.success(text);
+    }
+  }, [toast]);
 
   const fetchRepoData = useCallback(async () => {
     setLoading(true);
@@ -474,22 +478,6 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       </div>
 
       {/* Notification Banner */}
-      {actionMessage && (
-        <div style={{
-          padding: '0.5rem 1rem',
-          borderRadius: '6px',
-          fontSize: '0.85rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          background: actionMessage.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-          color: actionMessage.type === 'error' ? '#f87171' : '#34d399',
-          border: `1px solid ${actionMessage.type === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
-        }}>
-          {actionMessage.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
-          {actionMessage.text}
-        </div>
-      )}
 
       {loading && !gitStatus ? (
         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
