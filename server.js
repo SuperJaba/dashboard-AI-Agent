@@ -476,8 +476,8 @@ try {
 '
 
 if [ ! -d "node_modules/socket.io-client" ] || [ ! -d "node_modules/node-pty" ]; then
-  echo "📦 Instalacja zależności workera (socket.io-client, node-pty)..."
-  npm install --no-audit --no-fund socket.io-client node-pty
+  echo "📦 Instalacja zależności workera (socket.io-client, node-pty, dotenv)..."
+  npm install --no-audit --no-fund socket.io-client node-pty dotenv
 fi
 
 echo "📥 Pobieranie najnowszego skryptu workera z $SERVER_URL..."

@@ -1,9 +1,31 @@
-import 'dotenv/config';
 import { io } from 'socket.io-client';
 import pty from 'node-pty';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
+
+// Safely load .env if present without requiring external dotenv dependency
+try {
+  if (typeof process.loadEnvFile === 'function') {
+    process.loadEnvFile();
+  } else if (fs.existsSync('.env')) {
+    const envLines = fs.readFileSync('.env', 'utf8').split('\n');
+    for (const line of envLines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim().replace(/^['"]|['"]$/g, '');
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+} catch {
+  // Ignore missing .env
+}
 
 function sanitizeToken(raw) {
   if (!raw) return raw;
