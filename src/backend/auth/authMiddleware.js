@@ -22,7 +22,7 @@ export const authMiddleware = (req, res, next) => {
   const url = req.originalUrl || req.url || '';
   if (
     (req.method === 'POST' && /\/projects(\/[^/]+)?\/sync-tasks(\/|\?|$)/.test(url)) ||
-    (req.method === 'GET' && /\/projects(\/[^/]+)?(\/|\?|$)/.test(url))
+    ((req.method === 'GET' || req.method === 'HEAD') && /\/projects(\/[^/]+)?(\/|\?|$)/.test(url))
   ) {
     return optionalAuthMiddleware(req, res, next);
   }
