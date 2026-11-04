@@ -13,7 +13,7 @@ const schema = process.env.DB_SCHEMA || 'dashboard';
 
 export const pool = new Pool({
   user: process.env.DB_USER || process.env.PGUSER || 'SebaP',
-  host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+  host: process.env.DB_HOST || process.env.PGHOST || 'pgsql.ct8.pl', // Default to remote DB server
   database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboarddb',
   password: process.env.DB_PASSWORD || process.env.PGPASSWORD,
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
