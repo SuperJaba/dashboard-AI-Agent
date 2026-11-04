@@ -4,7 +4,7 @@ import {
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings,
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
-  Files, Zap, FileText, Flame, Users
+  Files, Zap, FileText, Flame, Users, Menu, X
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -107,7 +107,12 @@ function App() {
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
   const [showSettings, setShowSettings] = useState(false);
   const [showWorkerModal, setShowWorkerModal] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [workersCount, setWorkersCount] = useState(0);
+
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [activeView, activeProjectId, activeServer?.id]);
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [tunnelFeedback, setTunnelFeedback] = useState<string | null>(null);
@@ -165,8 +170,52 @@ function App() {
 
   return (
     <div className="layout">
+      {/* Mobile Topbar */}
+      <header className="mobile-topbar" aria-label="Nawigacja mobilna">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <LayoutDashboard size={20} color="var(--primary, #4F46E5)" aria-hidden="true" />
+          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>AI Agents</span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ padding: '0.4rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          onClick={() => setIsMobileNavOpen((prev) => !prev)}
+          aria-label={isMobileNavOpen ? 'Zamknij menu' : 'Otwórz menu'}
+          aria-expanded={isMobileNavOpen}
+        >
+          {isMobileNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+          <span style={{ fontSize: '0.8rem' }}>Menu</span>
+        </button>
+      </header>
+
+      {/* Mobile Backdrop */}
+      {isMobileNavOpen && (
+        <div
+          className="mobile-sidebar-backdrop"
+          onClick={() => setIsMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isMobileNavOpen ? 'sidebar-open' : ''}`}>
+        {/* Mobile Close Button in Drawer */}
+        <div className="flex md:hidden items-center justify-between pb-2 mb-2 border-b border-[var(--border-color)]">
+          <div className="flex items-center gap-2">
+            <LayoutDashboard size={18} className="text-[var(--primary)]" aria-hidden="true" />
+            <span className="font-bold text-sm">AI Agents</span>
+          </div>
+          <button
+            type="button"
+            className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+            onClick={() => setIsMobileNavOpen(false)}
+            aria-label="Zamknij menu"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
         {/* Navigation Section */}
         <nav aria-label="Main Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
           <button 

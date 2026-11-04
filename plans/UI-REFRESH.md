@@ -57,15 +57,15 @@ Dokument określa zakres, architekturę oraz harmonogram usprawnień wizualnych,
 - [x] Ujednolicenie mikrointerakcji na przyciskach (`active:scale-[0.98]`, płynny transition 150ms).
 
 ### Faza 4: Dostępność i Responsywność Mobilna
-- [ ] Weryfikacja pułapek fokusu (`focus trap`) we wszystkich modalach.
-- [ ] Dopracowanie paska bocznego na ekranach `< 768px` (wysuwany drawer z tłem overlay).
-- [ ] Poprawa responsywności tabeli użytkowników i listy projektów na wąskich ekranach (widok siatki / kart).
+- [x] Weryfikacja pułapek fokusu (`focus trap`) we wszystkich modalach.
+- [x] Dopracowanie paska bocznego na ekranach `< 768px` (wysuwany drawer z tłem overlay).
+- [x] Poprawa responsywności tabeli użytkowników i listy projektów na wąskich ekranach (widok siatki / kart).
 
 ### Faza 5: Testy i Weryfikacja
-- [ ] Napisanie testów jednostkowych Vitest dla `ToastProvider` oraz nowych komponentów bazowych.
-- [ ] Uruchomienie pełnego audytu dostępności `npm test -- src/__tests__/a11y.test.tsx`.
-- [ ] Weryfikacja linterem `npm run lint` (0 błędów i 0 ostrzeżeń w Oxlint).
-- [ ] Test produkcyjnego buildu `npm run build`.
+- [x] Napisanie testów jednostkowych Vitest dla `ToastProvider` oraz nowych komponentów bazowych.
+- [x] Uruchomienie pełnego audytu dostępności `npm test -- src/__tests__/a11y.test.tsx`.
+- [x] Weryfikacja linterem `npm run lint` (0 błędów i 0 ostrzeżeń w Oxlint).
+- [x] Test produkcyjnego buildu `npm run build`.
 
 ---
 

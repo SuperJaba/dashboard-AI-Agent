@@ -116,4 +116,31 @@ describe('Modal', () => {
     unmount();
     expect(document.body.style.overflow).toBe('');
   });
+
+  it('obsługuje focus trap i zapętla nawigację klawiszem Tab', () => {
+    render(
+      <Modal
+        {...defaultProps}
+        footer={<button type="button">Zapisz</button>}
+      >
+        <input type="text" placeholder="Wpisz nazwę" />
+      </Modal>
+    );
+
+    const closeBtn = screen.getByRole('button', { name: 'Zamknij' });
+    const _input = screen.getByPlaceholderText('Wpisz nazwę');
+    const saveBtn = screen.getByRole('button', { name: 'Zapisz' });
+
+    // Focus na ostatnim elemencie i Tab -> powinien przeskoczyć na pierwszy
+    saveBtn.focus();
+    expect(document.activeElement).toBe(saveBtn);
+
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: false });
+    expect(document.activeElement).toBe(closeBtn);
+
+    // Focus na pierwszym elemencie i Shift+Tab -> powinien przeskoczyć na ostatni
+    closeBtn.focus();
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(saveBtn);
+  });
 });

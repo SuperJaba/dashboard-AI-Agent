@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from './hooks/useToast';
+import { Badge } from './components/Badge';
 import { 
   Users, 
   UserPlus, 
@@ -240,7 +241,7 @@ export function UsersView() {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid var(--border-color)`, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>ID</th>
@@ -289,21 +290,12 @@ export function UsersView() {
                       </td>
                       <td style={{ padding: '0.75rem 1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{
-                            padding: '0.2rem 0.6rem',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            backgroundColor: u.role === 'admin' ? 'var(--role-admin-bg)' : 'var(--role-user-bg)',
-                            color: u.role === 'admin' ? 'var(--role-admin-text)' : 'var(--role-user-text)',
-                            border: `1px solid ${u.role === 'admin' ? 'rgba(168, 85, 247, 0.4)' : 'rgba(148, 163, 184, 0.3)'}`
-                          }}>
-                            {u.role === 'admin' ? <Shield size={12} /> : null}
+                          <Badge
+                            variant={u.role === 'admin' ? 'primary' : 'neutral'}
+                            icon={u.role === 'admin' ? <Shield size={12} /> : undefined}
+                          >
                             {u.role === 'admin' ? 'Administrator' : 'Użytkownik'}
-                          </span>
+                          </Badge>
 
                           {/* Szybka zmiana roli */}
                           {!isCurrent && (
