@@ -17,7 +17,7 @@ export const pool = new Pool({
   database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboarddb',
   password: process.env.DB_PASSWORD || process.env.PGPASSWORD,
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: process.env.DB_TIMEOUT ? parseInt(process.env.DB_TIMEOUT, 10) : 3000,
   options: `-c search_path=${schema},public`,
 });
 
@@ -88,6 +88,48 @@ export const inMemoryStore = {
 
 let useInMemoryFallback = false;
 
+export function isDbConnectionOrAuthError(err) {
+  if (!err) return false;
+  const connectionCodes = [
+    'ECONNREFUSED',
+    'ENOTFOUND',
+    'ETIMEDOUT',
+    'EHOSTUNREACH',
+    'ECONNRESET',
+    'EPIPE',
+    '57P01', // admin_shutdown
+    '57P02', // crash_shutdown
+    '57P03', // cannot_connect_now
+    '28P01', // invalid_password
+    '28000', // invalid_authorization_specification / no pg_hba.conf entry
+    '3D000', // database_does_not_exist
+    '08000', // connection_exception
+    '08001', // sqlclient_unable_to_establish_sqlconnection
+    '08003', // connection_does_not_exist
+    '08004', // sqlserver_rejected_establishment_of_sqlconnection
+    '08006', // connection_failure
+    '08007'  // transaction_resolution_unknown
+  ];
+  if (err.code && connectionCodes.includes(err.code)) return true;
+  const msg = String(err.message || '').toLowerCase();
+  return (
+    msg.includes('connect') ||
+    msg.includes('econnrefused') ||
+    msg.includes('sasl:') ||
+    msg.includes('password') ||
+    msg.includes('authentication') ||
+    msg.includes('pg_hba.conf') ||
+    msg.includes('no encryption') ||
+    msg.includes('clientauthentication') ||
+    msg.includes('timeout') ||
+    msg.includes('terminated unexpectedly') ||
+    msg.includes('connection refused') ||
+    msg.includes('could not connect') ||
+    msg.includes('ssl off') ||
+    msg.includes('no pg_hba.conf')
+  );
+}
+
 const rawPoolQuery = pool.query.bind(pool);
 
 export async function safeQuery(text, params = []) {
@@ -95,16 +137,7 @@ export async function safeQuery(text, params = []) {
     try {
       return await rawPoolQuery(text, params);
     } catch (err) {
-      if (
-        err.code === 'ECONNREFUSED' ||
-        err.code === '57P01' ||
-        err.code === '28P01' ||
-        err.code === '3D000' ||
-        err.message?.includes('connect ECONNREFUSED') ||
-        err.message?.includes('SASL:') ||
-        err.message?.includes('password') ||
-        err.message?.includes('authentication')
-      ) {
+      if (isDbConnectionOrAuthError(err)) {
         console.warn('PostgreSQL connection unavailable, using fallback store:', err.message);
         useInMemoryFallback = true;
       } else {
