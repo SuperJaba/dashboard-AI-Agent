@@ -21,7 +21,7 @@ async function main() {
       const { syncProjectTasks, syncAllProjects } = await import(pathToFileURL(localServicePath).href);
 
       if (targetId && !targetId.startsWith('--')) {
-        const projectId = parseInt(targetId, 10);
+        const projectId = /^\d+$/.test(targetId) ? parseInt(targetId, 10) : targetId;
         console.log(`📡 Synchronizing Project #${projectId}...`);
         const res = await syncProjectTasks(projectId, { clearCompleted });
         printProjectResult(res);

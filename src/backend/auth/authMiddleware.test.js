@@ -36,6 +36,23 @@ describe('authMiddleware (SEC-08)', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('allows query string token for SSE endpoint /api/events', () => {
+    const req = {
+      method: 'GET',
+      originalUrl: '/api/events?token=' + validToken,
+      url: '/api/events?token=' + validToken,
+      headers: { accept: 'text/event-stream' },
+      query: { token: validToken }
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(req.user).toBeDefined();
+    expect(req.user.username).toBe('admin');
+  });
+
   it('optionalAuthMiddleware does not accept query token', () => {
     const req = {
       method: 'GET',
@@ -96,6 +113,34 @@ describe('authMiddleware (SEC-08)', () => {
     const req = {
       method: 'GET',
       originalUrl: '/api/projects',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('allows unauthenticated PUT to /api/projects/:id/tasks for CLI agents', () => {
+    const req = {
+      method: 'PUT',
+      originalUrl: '/api/projects/dashboard/tasks',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('allows unauthenticated PATCH to /api/projects/:id/tasks/:taskId for CLI agents', () => {
+    const req = {
+      method: 'PATCH',
+      originalUrl: '/api/projects/1/tasks/10',
       headers: {}
     };
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };

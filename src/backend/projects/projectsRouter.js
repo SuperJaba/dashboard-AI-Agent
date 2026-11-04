@@ -332,7 +332,17 @@ projectsRouter.post('/projects', async (req, res) => {
 // Update Project
 projectsRouter.put('/projects/:id', async (req, res) => {
   try {
-    const row = await projectsRepo.updateProject(req.params.id, req.body);
+    const projects = await projectsRepo.getProjects();
+    const isNum = /^\d+$/.test(req.params.id);
+    const targetProject = isNum
+      ? projects.find(p => p.id === parseInt(req.params.id, 10))
+      : projects.find(p => p.name.toLowerCase() === req.params.id.toLowerCase());
+
+    if (!targetProject) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const row = await projectsRepo.updateProject(targetProject.id, req.body);
     res.json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -346,11 +356,21 @@ projectsRouter.put('/projects/:id/tasks', async (req, res) => {
     if (!Array.isArray(tasks)) {
       return res.status(400).json({ error: 'Field "tasks" must be an array' });
     }
+    const projects = await projectsRepo.getProjects();
+    const isNum = /^\d+$/.test(req.params.id);
+    const targetProject = isNum
+      ? projects.find(p => p.id === parseInt(req.params.id, 10))
+      : projects.find(p => p.name.toLowerCase() === req.params.id.toLowerCase());
+
+    if (!targetProject) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
     const activeTasks = tasks.filter(t => t.status !== 'archived');
     const complete = activeTasks.length > 0
       ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
       : 0;
-    const row = await projectsRepo.updateProject(req.params.id, { tasks, complete });
+    const row = await projectsRepo.updateProject(targetProject.id, { tasks, complete });
     res.json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -363,7 +383,10 @@ projectsRouter.patch('/projects/:id/tasks/:taskId', async (req, res) => {
     const projectId = req.params.id;
     const taskId = parseInt(req.params.taskId, 10);
     const projects = await projectsRepo.getProjects();
-    const project = projects.find(p => p.id === parseInt(projectId, 10));
+    const isNum = /^\d+$/.test(projectId);
+    const project = isNum
+      ? projects.find(p => p.id === parseInt(projectId, 10))
+      : projects.find(p => p.name.toLowerCase() === projectId.toLowerCase());
 
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
@@ -382,7 +405,7 @@ projectsRouter.patch('/projects/:id/tasks/:taskId', async (req, res) => {
       ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
       : 0;
 
-    const row = await projectsRepo.updateProject(projectId, { tasks: currentTasks, complete });
+    const row = await projectsRepo.updateProject(project.id, { tasks: currentTasks, complete });
 
     // If status was changed and project has a valid workspace path, sync the markdown checklist in workspace
     let workspaceResult = { updated: false };
@@ -997,17 +1020,24 @@ projectsRouter.post('/deploy', async (req, res) => {
 Przed przystąpieniem do głównego zadania upewnij się, że na zdalnym serwerze działa tunel Local Worker (Socket.IO) do dashboardu:
 1. Przejdź do katalogu workera i upewnij się, że zależności są zainstalowane:
    mkdir -p ~/dashboard-worker && cd ~/dashboard-worker
-   [ -f package.json ] || npm init -y
-   node -e 'const fs=require("fs"); try{ const p=JSON.parse(fs.readFileSync("package.json")); p.type="module"; p.scripts=p.scripts||{}; p.scripts["agent:worker"]="node local-agent-worker.js"; p.scripts["agent.worker"]="node local-agent-worker.js"; p.scripts["worker"]="node local-agent-worker.js"; fs.writeFileSync("package.json",JSON.stringify(p,null,2)); }catch(e){}'
-   ([ -d node_modules/socket.io-client ] && [ -d node_modules/node-pty ]) || npm install socket.io-client node-pty dotenv
+   [ -f package.json ] || echo '{"type":"module"}' > package.json
+   node -e 'const f="package.json";const fs=require("fs");let p={type:"module"};try{p=JSON.parse(fs.readFileSync(f))}catch(e){};p.type="module";p.scripts=p.scripts||{};p.scripts["agent:worker"]="node local-agent-worker.js";p.scripts["worker"]="node local-agent-worker.js";fs.writeFileSync(f,JSON.stringify(p,null,2))'
+   ([ -d node_modules/socket.io-client ] && [ -d node_modules/node-pty ]) || npm install --no-audit --no-fund socket.io-client node-pty
 2. Pobierz aktualny skrypt workera:
    curl -sSL "${dashboardUrl}/api/worker/script" -o local-agent-worker.js
 3. Uruchom workera w tle (o ile nie jest już uruchomiony):
-   pgrep -f "local-agent-worker.js.*${workerName}" || nohup node local-agent-worker.js "${dashboardUrl}" "${workerToken}" "${workerName}" > worker.log 2>&1 &
+   pgrep -f "local-agent-worker.js.*${workerName}" || nohup node local-agent-worker.js "${dashboardUrl}" "${workerToken}" "${workerName}" remote </dev/null > worker.log 2>&1 &
 4. Potwierdź uruchomienie workera.
 
 [KROK 2 - ZADANIE GŁÓWNE]:
 ${sanitizedRemotePrompt}
+
+Dostępne zmienne środowiskowe do komunikacji z API Dashboardu:
+  DASHBOARD_URL="${dashboardUrl}"
+  DASHBOARD_TOKEN="${agentToken}"
+Do zapytań HTTP do API Dashboardu (np. pobieranie projektów, tasków) użyj nagłówka:
+  -H "Authorization: Bearer $DASHBOARD_TOKEN"
+lub dopisz token w parametrze: ?token=$DASHBOARD_TOKEN
 
 Po wykonaniu zadania ZAWSZE wykonaj synchronizację zadań:
   npm run sync-tasks 2>/dev/null || node src/backend/scripts/syncTasks.js 2>/dev/null || (mkdir -p src/backend/scripts && curl -sSL "${dashboardUrl}/api/scripts/syncTasks.js" -o src/backend/scripts/syncTasks.js && node src/backend/scripts/syncTasks.js)`;

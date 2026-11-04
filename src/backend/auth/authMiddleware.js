@@ -22,7 +22,8 @@ export const authMiddleware = (req, res, next) => {
   const url = req.originalUrl || req.url || '';
   if (
     (req.method === 'POST' && /\/projects(\/[^/]+)?\/sync-tasks(\/|\?|$)/.test(url)) ||
-    ((req.method === 'GET' || req.method === 'HEAD') && /\/projects(\/[^/]+)?(\/|\?|$)/.test(url))
+    ((req.method === 'GET' || req.method === 'HEAD') && /\/projects(\/[^/]+)?(\/|\?|$)/.test(url)) ||
+    ((req.method === 'PUT' || req.method === 'PATCH') && /\/projects(\/[^/]+)?\/tasks(\/[^/]+)?(\/|\?|$)/.test(url))
   ) {
     return optionalAuthMiddleware(req, res, next);
   }
@@ -31,6 +32,12 @@ export const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    // Native browser EventSource cannot send custom HTTP headers; allow query token only for SSE endpoints
+    const isSse = url.includes('/events') || req.headers?.accept === 'text/event-stream';
+    if (isSse) {
+      token = req.query.token;
+    }
   }
 
   if (!token) {
@@ -52,10 +59,17 @@ export const authMiddleware = (req, res, next) => {
 export const optionalAuthMiddleware = (req, res, next) => {
   if (req.method === 'OPTIONS') return next();
 
+  const url = req.originalUrl || req.url || '';
   let token;
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    // Native browser EventSource cannot send custom HTTP headers; allow query token only for SSE endpoints
+    const isSse = url.includes('/events') || req.headers?.accept === 'text/event-stream';
+    if (isSse) {
+      token = req.query.token;
+    }
   }
 
   if (token) {
