@@ -37,9 +37,9 @@
   },
   {
     "file": "src/UsersView.tsx",
-    "line": 112,
-    "summary": "Inefficient role filtering - creates new array on every render instead of using filter directly",
-    "failure_scenario": "The useMemo returns a number from .length instead of the filtered array, wasting computation on every users change when it should return the filtered count directly"
+    "line": 154,
+    "summary": "handleChangeRole returns early without resetting error state if role already matches",
+    "failure_scenario": "If user clicks change role button to same role, the early return leaves any existing error state displayed instead of clearing it"
   },
   {
     "file": "src/UsersView.tsx",

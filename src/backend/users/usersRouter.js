@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { requireAdmin } from '../auth/authMiddleware.js';
-import { safeQuery } from '../db.js';
+import { safeQuery, syncAndSeedUsers } from '../db.js';
 import { validate } from '../schemas/validate.js';
 
 export const usersRouter = express.Router();
@@ -25,9 +25,15 @@ const updatePasswordSchema = z.object({
 // GET /api/users - Lista użytkowników (wymaga admin)
 usersRouter.get('/', requireAdmin, async (req, res) => {
   try {
-    const result = await safeQuery(
+    let result = await safeQuery(
       'SELECT id, username, role FROM users ORDER BY id'
     );
+    if (result.rows.length <= 1 && process.env.NODE_ENV !== 'test' && typeof syncAndSeedUsers === 'function') {
+      await syncAndSeedUsers();
+      result = await safeQuery(
+        'SELECT id, username, role FROM users ORDER BY id'
+      );
+    }
     res.json({ success: true, users: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Błąd pobierania użytkowników' });
