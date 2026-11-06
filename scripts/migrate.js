@@ -123,7 +123,18 @@ export async function runMigrations() {
         installed BOOLEAN DEFAULT false,
         llm_model VARCHAR(255),
         temperature NUMERIC DEFAULT 0.7,
-        max_tokens INTEGER DEFAULT 4096
+        max_tokens INTEGER DEFAULT 4096,
+        token TEXT,
+        ip VARCHAR(512)
+      );
+
+      CREATE TABLE IF NOT EXISTS console_variables (
+        id SERIAL PRIMARY KEY,
+        token TEXT DEFAULT '',
+        model VARCHAR(255) NOT NULL DEFAULT 'unsloth/Qwen3.5-9B-MTP-GGUF',
+        ip VARCHAR(512) NOT NULL DEFAULT 'http://127.0.0.1:8888/v1',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       
       CREATE TABLE IF NOT EXISTS custom_widgets (
@@ -214,6 +225,15 @@ export async function runMigrations() {
     await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS llm_model VARCHAR(255);');
     await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS temperature NUMERIC DEFAULT 0.7;');
     await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS max_tokens INTEGER DEFAULT 4096;');
+    await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS token TEXT;');
+    await safeQuery('ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS ip VARCHAR(512);');
+
+    // Default console variables seeding (idempotent)
+    await safeQuery(`
+      INSERT INTO console_variables (id, token, model, ip)
+      VALUES (1, '', 'unsloth/Qwen3.5-9B-MTP-GGUF', 'http://127.0.0.1:8888/v1')
+      ON CONFLICT (id) DO NOTHING;
+    `);
 
     // Default settings seeding (idempotent, won't overwrite existing keys)
     console.log('📝 Seeding default settings (if not exist)...');

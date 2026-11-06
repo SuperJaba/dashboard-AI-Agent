@@ -1,14 +1,6 @@
 ---
 name: design-taste-frontend
-description: >-
-  tasteskill 2.5.0, the anti-slop frontend skill. Builds professional company websites at the level
-  of figma.com and x.ai: plain copy, one system, one section per screen, equal edges, real
-  photographs and real product UI (product renders when there are no photographs), with shader
-  effects, scenes and moments only on tech, gaming and software pages, quiet micro-interactions,
-  and a checker that enforces it in a real browser. Use this whenever you build, design, redesign,
-  restyle, polish or review a landing page, company, product, shop, cafe, hotel, studio, SaaS, AI,
-  developer-tool or game site, in any stack (HTML/CSS, React, Next.js, Vue, Svelte, Astro,
-  Tailwind), or when the user says a page looks generic, templated or "AI-made".
+description: Professional anti-slop frontend design system for landing pages, web apps, and SaaS: typography, equal edges, shader effects, photography, and micro-interactions.
 ---
 
 # tasteskill 2.5
