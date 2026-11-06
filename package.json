@@ -27,6 +27,7 @@
     "test:e2e": "cross-env NODE_ENV=test node tests/full_test_suite.js",
     "deploy:ct8": "bash scripts/deploy-ct8-optimized.sh",
     "sync-remote-tasks": "node src/backend/scripts/syncRemoteTasks.js",
+    "postinstall": "node -e \"try { const fs=require('fs'), path=require('path'); const d=path.join(path.dirname(require.resolve('node-pty/package.json')), 'prebuilds'); if(fs.existsSync(d)) fs.readdirSync(d).forEach(a => { const h=path.join(d, a, 'spawn-helper'); if(fs.existsSync(h)) fs.chmodSync(h, 0o755); }); } catch(e){}\"",
     "start": "node server.js"
   },
   "dependencies": {

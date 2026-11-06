@@ -356,6 +356,31 @@ export async function getGithubPRsAndRuns(directory) {
   return { prs, latestRun };
 }
 
+export async function mergePR({ directory, prNumber, mergeMethod = 'merge', autoDeleteBranch = true }) {
+  const resolved = resolveDirectory(directory);
+  if (!isGitRepo(resolved)) {
+    throw new Error('Not a git repository');
+  }
+
+  const methodFlag = mergeMethod === 'squash' ? '--squash' : (mergeMethod === 'rebase' ? '--rebase' : '--merge');
+  const deleteFlag = autoDeleteBranch ? '--delete-branch' : '';
+  const cmd = `gh pr merge ${prNumber} ${methodFlag} ${deleteFlag} --admin`.trim();
+
+  try {
+    const { stdout } = await execAsync(cmd, { cwd: resolved, timeout: 15000 });
+    return { success: true, log: stdout.trim(), merged: true, prNumber };
+  } catch {
+    // If --admin fails, fallback without --admin
+    try {
+      const fallbackCmd = `gh pr merge ${prNumber} ${methodFlag} ${deleteFlag}`.trim();
+      const { stdout } = await execAsync(fallbackCmd, { cwd: resolved, timeout: 15000 });
+      return { success: true, log: stdout.trim(), merged: true, prNumber };
+    } catch (err) {
+      return { success: false, error: err.message, merged: false, prNumber };
+    }
+  }
+}
+
 export function cancelCIJobs(directory) {
   const resolved = resolveDirectory(directory);
   if (!isGitRepo(resolved)) {

@@ -1,7 +1,11 @@
 import express from 'express';
 import { notificationService } from './notificationService.js';
+import { telegramWebhookRouter } from './telegramWebhookRouter.js';
 
 export const notificationsRouter = express.Router();
+
+// Mount Telegram 1-tap PR merge & approval webhook
+notificationsRouter.use('/telegram', telegramWebhookRouter);
 
 /**
  * GET /api/notifications/channels

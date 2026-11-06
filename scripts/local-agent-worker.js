@@ -51,6 +51,31 @@ console.log(`🚀 Starting Local Agent Worker...`);
 console.log(`📡 Connecting to Remote Dashboard at: ${SERVER_URL}`);
 console.log(`🏷️  Worker Name: ${WORKER_NAME} (${WORKER_TYPE})`);
 
+function ensurePtySpawnHelperPermissions() {
+  if (process.platform === 'win32') return;
+  try {
+    const nodePtyPkg = require.resolve('node-pty/package.json');
+    const nodePtyDir = path.dirname(nodePtyPkg);
+    const prebuildsDir = path.join(nodePtyDir, 'prebuilds');
+    if (fs.existsSync(prebuildsDir)) {
+      const archDirs = fs.readdirSync(prebuildsDir);
+      for (const arch of archDirs) {
+        const helper = path.join(prebuildsDir, arch, 'spawn-helper');
+        if (fs.existsSync(helper)) {
+          try {
+            const stat = fs.statSync(helper);
+            if ((stat.mode & 0o111) === 0) {
+              fs.chmodSync(helper, 0o755);
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+}
+
+ensurePtySpawnHelperPermissions();
+
 function findShellExecutable(requestedCmd) {
   if (requestedCmd && requestedCmd !== 'bash' && fs.existsSync(requestedCmd)) {
     return requestedCmd;
@@ -71,6 +96,29 @@ function findShellExecutable(requestedCmd) {
     }
 
     return process.env.COMSPEC || 'cmd.exe';
+  }
+
+  if (!requestedCmd || requestedCmd === 'bash') {
+    const unixBashCandidates = [
+      '/bin/bash',
+      '/usr/bin/bash',
+      '/usr/local/bin/bash',
+      '/opt/homebrew/bin/bash',
+      process.env.SHELL,
+      '/bin/zsh',
+      '/bin/sh',
+    ];
+    for (const p of unixBashCandidates) {
+      if (p && fs.existsSync(p)) return p;
+    }
+  }
+
+  if (requestedCmd) {
+    const candidateDirs = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+    for (const dir of candidateDirs) {
+      const full = path.join(dir, requestedCmd);
+      if (fs.existsSync(full)) return full;
+    }
   }
 
   return requestedCmd || 'bash';
@@ -165,6 +213,7 @@ socket.on('worker_spawn_pty', ({ sessionId, command, args, cwd, env, scriptConte
       }
     }
 
+    ensurePtySpawnHelperPermissions();
     const userHome = process.env.USERPROFILE || process.env.HOME || os.homedir();
     const extendedPath = process.platform === 'win32'
       ? [
@@ -179,8 +228,11 @@ socket.on('worker_spawn_pty', ({ sessionId, command, args, cwd, env, scriptConte
         path.join(userHome, '.local/bin'),
         path.join(userHome, '.cargo/bin'),
         '/usr/local/bin',
+        '/opt/homebrew/bin',
+        '/usr/bin',
+        '/bin',
         process.env.PATH || ''
-      ].join(':');
+      ].filter(Boolean).join(':');
 
     // Sanitize remote env: protect local host environment from being corrupted by remote server env
     const sanitizedRemoteEnv = { ...(env || {}) };

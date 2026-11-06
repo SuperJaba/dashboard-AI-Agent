@@ -254,4 +254,24 @@ describe('Git Service Unit Tests (SEC-04)', () => {
       expect(res.success).toBe(true);
     });
   });
+
+  describe('mergePR', () => {
+    it('throws error if directory is not a git repo', async () => {
+      mocks.existsSync.mockReturnValue(false);
+      await expect(gitService.mergePR({ directory: '/nonexistent', prNumber: 42 }))
+        .rejects.toThrow('Not a git repository');
+    });
+
+    it('merges PR successfully using gh CLI', async () => {
+      mocks.existsSync.mockReturnValue(true);
+      mocks.exec.mockImplementation((cmd, opts, cb) => {
+        cb(null, { stdout: 'Merged PR #42 successfully\n', stderr: '' });
+      });
+
+      const res = await gitService.mergePR({ directory: '/mock/repo', prNumber: 42 });
+      expect(res.success).toBe(true);
+      expect(res.merged).toBe(true);
+      expect(res.prNumber).toBe(42);
+    });
+  });
 });

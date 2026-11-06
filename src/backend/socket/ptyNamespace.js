@@ -1,14 +1,53 @@
 import { createRequire } from 'module';
+import fs from 'fs';
+import path from 'path';
 
 const require = createRequire(import.meta.url);
+
+/**
+ * Ensures spawn-helper binaries in node-pty prebuilds have executable permissions (+x) on Unix.
+ * Missing +x causes posix_spawnp to fail with "posix_spawnp failed."
+ */
+export function ensurePtySpawnHelperPermissions() {
+  if (process.platform === 'win32') return;
+  try {
+    const nodePtyPkg = require.resolve('node-pty/package.json');
+    const nodePtyDir = path.dirname(nodePtyPkg);
+    const prebuildsDir = path.join(nodePtyDir, 'prebuilds');
+    if (fs.existsSync(prebuildsDir)) {
+      const archDirs = fs.readdirSync(prebuildsDir);
+      for (const arch of archDirs) {
+        const helper = path.join(prebuildsDir, arch, 'spawn-helper');
+        if (fs.existsSync(helper)) {
+          try {
+            const stat = fs.statSync(helper);
+            if ((stat.mode & 0o111) === 0) {
+              fs.chmodSync(helper, 0o755);
+            }
+          } catch {}
+        }
+      }
+    }
+    const buildReleaseHelper = path.join(nodePtyDir, 'build', 'Release', 'spawn-helper');
+    if (fs.existsSync(buildReleaseHelper)) {
+      try {
+        const stat = fs.statSync(buildReleaseHelper);
+        if ((stat.mode & 0o111) === 0) {
+          fs.chmodSync(buildReleaseHelper, 0o755);
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
+ensurePtySpawnHelperPermissions();
+
 let pty = null;
 try {
   pty = require('node-pty');
 } catch {
   // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
 }
-import fs from 'fs';
-import path from 'path';
 import { logger } from '../utils/logger.js';
 import { safeQuery } from '../db.js';
 import { broadcastRoutingStats } from './dashboardNamespace.js';
@@ -36,6 +75,29 @@ export function findShellExecutable(requestedCmd) {
       if (fs.existsSync(bashPath)) return bashPath;
     }
     return process.env.COMSPEC || 'cmd.exe';
+  }
+
+  if (!requestedCmd || requestedCmd === 'bash') {
+    const unixBashCandidates = [
+      '/bin/bash',
+      '/usr/bin/bash',
+      '/usr/local/bin/bash',
+      '/opt/homebrew/bin/bash',
+      process.env.SHELL,
+      '/bin/zsh',
+      '/bin/sh',
+    ];
+    for (const p of unixBashCandidates) {
+      if (p && fs.existsSync(p)) return p;
+    }
+  }
+
+  if (requestedCmd) {
+    const candidateDirs = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+    for (const dir of candidateDirs) {
+      const full = path.join(dir, requestedCmd);
+      if (fs.existsSync(full)) return full;
+    }
   }
 
   return requestedCmd || 'bash';
@@ -109,6 +171,7 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
       }
 
       try {
+        ensurePtySpawnHelperPermissions();
         const shellCmd = findShellExecutable(command);
         const targetCwd = (cwd && fs.existsSync(cwd)) ? cwd : process.cwd();
         const userHome = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\picho';
@@ -121,7 +184,17 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
             'C:\\Program Files\\Git\\usr\\bin',
             process.env.PATH || '',
           ].join(';')
-          : process.env.PATH;
+          : [
+            path.join(userHome, '.local/bin'),
+            path.join(userHome, '.cargo/bin'),
+            '/usr/local/bin',
+            '/opt/homebrew/bin',
+            '/usr/bin',
+            '/bin',
+            '/usr/sbin',
+            '/sbin',
+            process.env.PATH || '',
+          ].filter(Boolean).join(':');
 
         const sanitizedEnv = { ...(env || {}) };
         delete sanitizedEnv.HOME;
