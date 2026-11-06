@@ -55,8 +55,8 @@ export function getStatus(directory) {
   } catch {}
 
   try {
-    const statusOut = execFileSync('git', ['status', '-s'], execOpts).toString().trim();
-    changes = statusOut ? statusOut.split(/\r?\n/) : [];
+    const statusOut = execFileSync('git', ['status', '-s'], execOpts).toString().replace(/[\r\n]+$/, '');
+    changes = statusOut ? statusOut.split(/\r?\n/).filter(line => line.length > 0) : [];
   } catch {}
 
   try {

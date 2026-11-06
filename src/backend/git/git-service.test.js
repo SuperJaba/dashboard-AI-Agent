@@ -86,6 +86,8 @@ describe('Git Service Unit Tests (SEC-04)', () => {
       const status = gitService.getStatus('/mock/repo');
       expect(status.branch).toBe('main');
       expect(status.changes.length).toBe(2);
+      expect(status.changes[0]).toBe(' M file1.js');
+      expect(status.changes[1]).toBe('?? file2.js');
       expect(status.commits.length).toBe(1);
       expect(status.commits[0].hash).toBe('abc1234');
     });

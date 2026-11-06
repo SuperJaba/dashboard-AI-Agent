@@ -546,9 +546,23 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 {gitStatus?.changes?.length > 0 ? (
                   <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '0.8rem', fontFamily: 'var(--mono)', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     {gitStatus.changes.map((c: string, i: number) => {
-                      const statusType = c.substring(0, 2).trim();
-                      const fileName = c.substring(3).trim();
-                      const isStaged = c[0] !== ' ' && c[0] !== '?';
+                      let status = c.substring(0, 2);
+                      let path = c.substring(2).trim();
+                      const match = c.match(/^([ MADRCU?]{1,2})\s+(.*)$/);
+                      if (match) {
+                        status = match[1];
+                        path = match[2].trim();
+                      } else if (!path) {
+                        path = c.trim();
+                      }
+                      if (path.includes(' -> ')) {
+                        const parts = path.split(' -> ');
+                        path = parts[parts.length - 1].trim();
+                      }
+                      const isStaged = status[0] !== ' ' && status[0] !== '?' && status[0] !== undefined;
+                      const statusType = status.trim();
+                      const fileName = path;
+
                       return (
                         <button 
                           type="button"
