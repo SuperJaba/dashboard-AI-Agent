@@ -82,11 +82,15 @@ function findShellExecutable(requestedCmd) {
   }
 
   if (process.platform === 'win32') {
+    const userHome = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\picho';
     const gitBashCandidates = [
       'C:\\Program Files\\Git\\bin\\bash.exe',
       'C:\\Program Files\\Git\\usr\\bin\\bash.exe',
       'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
       path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'bin', 'bash.exe'),
+      path.join(userHome, 'AppData', 'Local', 'Programs', 'Git', 'bin', 'bash.exe'),
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Git', 'bin', 'bash.exe'),
+      path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Git', 'bin', 'bash.exe'),
     ];
 
     for (const bashPath of gitBashCandidates) {
@@ -220,17 +224,22 @@ socket.on('worker_spawn_pty', ({ sessionId, command, args, cwd, env, scriptConte
         path.join(userHome, 'AppData\\Local\\agy\\bin'),
         path.join(userHome, 'AppData\\Local\\JetBrains\\Air\\node-24.13.0\\node-v24.13.0-win-x64'),
         path.join(userHome, 'AppData\\Local\\nvm\\v20.20.0'),
+        path.join(userHome, 'AppData\\Roaming\\npm'),
+        path.join(userHome, '.cargo\\bin'),
         'C:\\Program Files\\Git\\bin',
         'C:\\Program Files\\Git\\usr\\bin',
         process.env.PATH || ''
-      ].join(';')
+      ].filter(Boolean).join(';')
       : [
         path.join(userHome, '.local/bin'),
         path.join(userHome, '.cargo/bin'),
+        path.join(userHome, '.nvm/versions/node', process.version, 'bin'),
         '/usr/local/bin',
         '/opt/homebrew/bin',
         '/usr/bin',
         '/bin',
+        '/usr/sbin',
+        '/sbin',
         process.env.PATH || ''
       ].filter(Boolean).join(':');
 

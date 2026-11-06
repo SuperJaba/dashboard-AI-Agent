@@ -167,13 +167,14 @@ export function getDiff(directory, staged = false, file = null) {
   }
 
   const execOpts = { cwd: resolved, stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 10 * 1024 * 1024 };
+  const cleanFile = file ? file.trim() : null;
   const diffArgs = ['diff'];
   if (staged) diffArgs.push('--staged');
-  if (file) diffArgs.push('--', file);
+  if (cleanFile) diffArgs.push('--', cleanFile);
 
   const statArgs = ['diff', '--stat'];
   if (staged) statArgs.push('--staged');
-  if (file) statArgs.push('--', file);
+  if (cleanFile) statArgs.push('--', cleanFile);
 
   let diff = '';
   let stat = '';
@@ -188,6 +189,65 @@ export function getDiff(directory, staged = false, file = null) {
     stat = execFileSync('git', statArgs, execOpts).toString();
   } catch {
     stat = '';
+  }
+
+  // If unstaged diff is requested but is empty, check if it's staged
+  if (!diff && !staged) {
+    try {
+      const stagedArgs = ['diff', '--staged'];
+      if (cleanFile) stagedArgs.push('--', cleanFile);
+      const stagedDiff = execFileSync('git', stagedArgs, execOpts).toString();
+      if (stagedDiff) {
+        diff = stagedDiff;
+        staged = true;
+        try {
+          const stagedStatArgs = ['diff', '--staged', '--stat'];
+          if (cleanFile) stagedStatArgs.push('--', cleanFile);
+          stat = execFileSync('git', stagedStatArgs, execOpts).toString();
+        } catch {}
+      }
+    } catch (e) {
+      if (e.stdout && e.stdout.toString()) {
+        diff = e.stdout.toString();
+        staged = true;
+      }
+    }
+  }
+
+  // If staged was requested but empty, check unstaged
+  if (!diff && staged) {
+    try {
+      const unstagedArgs = ['diff'];
+      if (cleanFile) unstagedArgs.push('--', cleanFile);
+      const unstagedDiff = execFileSync('git', unstagedArgs, execOpts).toString();
+      if (unstagedDiff) {
+        diff = unstagedDiff;
+        staged = false;
+        try {
+          const unstagedStatArgs = ['diff', '--stat'];
+          if (cleanFile) unstagedStatArgs.push('--', cleanFile);
+          stat = execFileSync('git', unstagedStatArgs, execOpts).toString();
+        } catch {}
+      }
+    } catch (e) {
+      if (e.stdout && e.stdout.toString()) {
+        diff = e.stdout.toString();
+        staged = false;
+      }
+    }
+  }
+
+  // If still empty and cleanFile is specified, check if it's an untracked file
+  if (!diff && cleanFile) {
+    const filePath = path.join(resolved, cleanFile);
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      try {
+        diff = execFileSync('git', ['diff', '--no-index', '--', '/dev/null', cleanFile], execOpts).toString();
+      } catch (e) {
+        diff = e.stdout ? e.stdout.toString() : '';
+      }
+      stat = ` ${cleanFile} | (new untracked file)\n`;
+    }
   }
 
   return { diff, stat, staged: Boolean(staged) };

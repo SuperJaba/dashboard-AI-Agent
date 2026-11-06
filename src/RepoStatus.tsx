@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from './shared/api-client';
 import { AntigravityCard } from './components/AntigravityCard';
+import { SplitDiffViewer } from './components/SplitDiffViewer';
 import './index.css';
 
 interface RepoStatusProps {
@@ -547,6 +548,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                     {gitStatus.changes.map((c: string, i: number) => {
                       const statusType = c.substring(0, 2).trim();
                       const fileName = c.substring(3).trim();
+                      const isStaged = c[0] !== ' ' && c[0] !== '?';
                       return (
                         <button 
                           type="button"
@@ -563,7 +565,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                             borderRadius: '4px',
                             cursor: 'pointer'
                           }}
-                          onClick={() => handleOpenDiff(false, fileName)}
+                          onClick={() => handleOpenDiff(isStaged, fileName)}
                           title={`Click to view diff for ${fileName}`}
                         >
                           <span style={{ color: statusType === 'M' ? '#F59E0B' : statusType === '??' ? '#38bdf8' : '#10B981' }}>
@@ -743,11 +745,12 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
             border: '1px solid rgba(56, 189, 248, 0.3)',
             borderRadius: '1.25rem',
             width: '100%',
-            maxWidth: '850px',
+            maxWidth: 'min(1300px, 96vw)',
+            height: '85vh',
             padding: '1.75rem',
             position: 'relative',
             animation: 'modalIn 0.2s ease-out',
-            maxHeight: '90vh',
+            maxHeight: '92vh',
             display: 'flex',
             flexDirection: 'column'
           }}>
@@ -810,38 +813,8 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
               </div>
             )}
 
-            <div style={{
-              background: '#020617',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '0.75rem',
-              padding: '1rem',
-              overflowY: 'auto',
-              flex: 1,
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              lineHeight: '1.5',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}>
-              {diffModal.diff.split(/\r?\n/).map((line, idx) => {
-                let color = '#cbd5e1';
-                let bg = 'transparent';
-                if (line.startsWith('+') && !line.startsWith('+++')) {
-                  color = '#34d399';
-                  bg = 'rgba(16, 185, 129, 0.1)';
-                } else if (line.startsWith('-') && !line.startsWith('---')) {
-                  color = '#f87171';
-                  bg = 'rgba(239, 68, 68, 0.1)';
-                } else if (line.startsWith('@@')) {
-                  color = '#38bdf8';
-                  bg = 'rgba(56, 189, 248, 0.08)';
-                }
-                return (
-                  <div key={idx} style={{ color, background: bg, padding: '1px 4px', borderRadius: '2px' }}>
-                    {line || ' '}
-                  </div>
-                );
-              })}
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <SplitDiffViewer diff={diffModal.diff} defaultMode="split" />
             </div>
 
             <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
