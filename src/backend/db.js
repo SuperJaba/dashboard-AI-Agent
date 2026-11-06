@@ -40,6 +40,16 @@ export const inMemoryStore = {
   projects: [],
   servers: [],
   cli_agents: [],
+  console_variables: [
+    {
+      id: 1,
+      token: '',
+      model: 'unsloth/Qwen3.5-9B-MTP-GGUF',
+      ip: 'http://127.0.0.1:8888/v1',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
   custom_widgets: [],
   agents: [],
   user_settings: [],
@@ -335,6 +345,36 @@ export async function safeQuery(text, params = []) {
 
   if (sql.includes('FROM agents')) {
     return { rows: inMemoryStore.agents };
+  }
+
+  // Console variables queries
+  if (sql.includes('FROM console_variables')) {
+    if (sql.includes('WHERE id = $1')) {
+      const cv = inMemoryStore.console_variables.find(x => x.id === parseInt(params[0], 10));
+      return { rows: cv ? [{ ...cv }] : [] };
+    }
+    return { rows: inMemoryStore.console_variables.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO console_variables') || sql.includes('UPDATE console_variables')) {
+    let cv = inMemoryStore.console_variables.find(x => x.id === 1);
+    if (!cv) {
+      cv = { id: 1, token: '', model: 'unsloth/Qwen3.5-9B-MTP-GGUF', ip: 'http://127.0.0.1:8888/v1', created_at: new Date().toISOString() };
+      inMemoryStore.console_variables.push(cv);
+    }
+    if (params.length >= 3) {
+      if (params.length === 4 && typeof params[0] === 'number') {
+        cv.token = params[1] !== undefined ? params[1] : cv.token;
+        cv.model = params[2] !== undefined ? params[2] : cv.model;
+        cv.ip = params[3] !== undefined ? params[3] : cv.ip;
+      } else {
+        cv.token = params[0] !== undefined ? params[0] : cv.token;
+        cv.model = params[1] !== undefined ? params[1] : cv.model;
+        cv.ip = params[2] !== undefined ? params[2] : cv.ip;
+      }
+    }
+    cv.updated_at = new Date().toISOString();
+    return { rows: [{ ...cv }] };
   }
 
   // Custom widgets
@@ -671,7 +711,19 @@ export async function migrate() {
       installed BOOLEAN DEFAULT false,
       llm_model VARCHAR(255),
       temperature NUMERIC DEFAULT 0.7,
-      max_tokens INTEGER DEFAULT 4096
+      max_tokens INTEGER DEFAULT 4096,
+      token TEXT,
+      ip VARCHAR(512)
+    );`,
+    'ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS token TEXT;',
+    'ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS ip VARCHAR(512);',
+    `CREATE TABLE IF NOT EXISTS console_variables (
+      id SERIAL PRIMARY KEY,
+      token TEXT DEFAULT '',
+      model VARCHAR(255) NOT NULL DEFAULT 'unsloth/Qwen3.5-9B-MTP-GGUF',
+      ip VARCHAR(512) NOT NULL DEFAULT 'http://127.0.0.1:8888/v1',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS custom_widgets (
       id SERIAL PRIMARY KEY,

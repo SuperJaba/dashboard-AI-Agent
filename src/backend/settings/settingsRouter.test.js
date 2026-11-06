@@ -10,7 +10,7 @@ describe('detectGpuInfo', () => {
 
   it('detects AMD Radeon if running on the host system with Radeon card', () => {
     const gpuInfo = detectGpuInfo();
-    // On this specific machine or general Linux with AMD / NVIDIA or fallback
-    expect(gpuInfo).toMatch(/Radeon|NVIDIA|GeForce|RTX|Brak dedykowanego GPU/i);
+    // On this specific machine or general Linux with AMD / NVIDIA / Apple Silicon or fallback
+    expect(gpuInfo).toMatch(/Radeon|NVIDIA|GeForce|RTX|Apple|Metal|Brak dedykowanego GPU/i);
   });
 });
