@@ -86,6 +86,8 @@ describe('Git Service Unit Tests (SEC-04)', () => {
       const status = gitService.getStatus('/mock/repo');
       expect(status.branch).toBe('main');
       expect(status.changes.length).toBe(2);
+      expect(status.changes[0]).toBe(' M file1.js');
+      expect(status.changes[1]).toBe('?? file2.js');
       expect(status.commits.length).toBe(1);
       expect(status.commits[0].hash).toBe('abc1234');
     });
@@ -252,6 +254,26 @@ describe('Git Service Unit Tests (SEC-04)', () => {
 
       const res = gitService.cloneRepo('https://github.com/test/repo.git', '/path/to/target');
       expect(res.success).toBe(true);
+    });
+  });
+
+  describe('mergePR', () => {
+    it('throws error if directory is not a git repo', async () => {
+      mocks.existsSync.mockReturnValue(false);
+      await expect(gitService.mergePR({ directory: '/nonexistent', prNumber: 42 }))
+        .rejects.toThrow('Not a git repository');
+    });
+
+    it('merges PR successfully using gh CLI', async () => {
+      mocks.existsSync.mockReturnValue(true);
+      mocks.exec.mockImplementation((cmd, opts, cb) => {
+        cb(null, { stdout: 'Merged PR #42 successfully\n', stderr: '' });
+      });
+
+      const res = await gitService.mergePR({ directory: '/mock/repo', prNumber: 42 });
+      expect(res.success).toBe(true);
+      expect(res.merged).toBe(true);
+      expect(res.prNumber).toBe(42);
     });
   });
 });

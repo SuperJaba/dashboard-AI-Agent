@@ -88,7 +88,7 @@ import { deployService } from './src/backend/deploy/deployService.js';
 import { notificationsRouter } from './src/backend/notifications/notificationsRouter.js';
 import { schedulerRouter } from './src/backend/scheduler/schedulerRouter.js';
 import { schedulerService } from './src/backend/scheduler/schedulerService.js';
-import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
+import { registerPtyNamespace, ensurePtySpawnHelperPermissions } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
@@ -143,6 +143,29 @@ function findShellExecutable(requestedCmd) {
     }
 
     return process.env.COMSPEC || 'cmd.exe';
+  }
+
+  if (!requestedCmd || requestedCmd === 'bash') {
+    const unixBashCandidates = [
+      '/bin/bash',
+      '/usr/bin/bash',
+      '/usr/local/bin/bash',
+      '/opt/homebrew/bin/bash',
+      process.env.SHELL,
+      '/bin/zsh',
+      '/bin/sh',
+    ];
+    for (const p of unixBashCandidates) {
+      if (p && fs.existsSync(p)) return p;
+    }
+  }
+
+  if (requestedCmd) {
+    const candidateDirs = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+    for (const dir of candidateDirs) {
+      const full = path.join(dir, requestedCmd);
+      if (fs.existsSync(full)) return full;
+    }
   }
 
   return requestedCmd || 'bash';
@@ -262,6 +285,7 @@ io.on('connection', (socket) => {
 
     // Default remote execution
     try {
+      ensurePtySpawnHelperPermissions();
       const shellCmd = findShellExecutable(command);
       const targetCwd = (cwd && fs.existsSync(cwd)) ? cwd : process.cwd();
 
@@ -275,7 +299,17 @@ io.on('connection', (socket) => {
           'C:\\Program Files\\Git\\usr\\bin',
           process.env.PATH || ''
         ].join(';')
-        : process.env.PATH;
+        : [
+          path.join(userHome, '.local/bin'),
+          path.join(userHome, '.cargo/bin'),
+          '/usr/local/bin',
+          '/opt/homebrew/bin',
+          '/usr/bin',
+          '/bin',
+          '/usr/sbin',
+          '/sbin',
+          process.env.PATH || ''
+        ].filter(Boolean).join(':');
 
       const sanitizedEnv = { ...(env || {}) };
       delete sanitizedEnv.HOME;
@@ -479,6 +513,20 @@ if [ ! -d "node_modules/socket.io-client" ] || [ ! -d "node_modules/node-pty" ];
   echo "📦 Instalacja zależności workera (socket.io-client, node-pty)..."
   npm install --no-audit --no-fund socket.io-client node-pty
 fi
+
+node -e '
+try {
+  const fs = require("fs");
+  const path = require("path");
+  const prebuilds = path.join("node_modules", "node-pty", "prebuilds");
+  if (fs.existsSync(prebuilds)) {
+    fs.readdirSync(prebuilds).forEach(arch => {
+      const h = path.join(prebuilds, arch, "spawn-helper");
+      if (fs.existsSync(h)) fs.chmodSync(h, 0o755);
+    });
+  }
+} catch(e) {}
+'
 
 echo "📥 Pobieranie najnowszego skryptu workera z $SERVER_URL..."
 curl -sSL "\${SERVER_URL}/api/worker/script" -o local-agent-worker.js
