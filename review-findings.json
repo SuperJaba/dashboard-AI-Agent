@@ -1,0 +1,50 @@
+[
+  {
+    "file": "src/UsersView.tsx",
+    "line": 121,
+    "summary": "Calling .trim() on empty searchQuery returns empty string, then .includes('') matches all IDs incorrectly",
+    "failure_scenario": "When searchQuery is empty string '', calling String(u.id).includes('') returns true for all users, making the ID search always match everything instead of filtering"
+  },
+  {
+    "file": "src/UsersView.tsx",
+    "line": 119,
+    "summary": "u.username.toLowerCase() will throw if username is undefined in malformed API response",
+    "failure_scenario": "If API returns user without username field, u.username is undefined and calling .toLowerCase() throws TypeError: Cannot read properties of undefined (reading 'toLowerCase')"
+  },
+  {
+    "file": "src/UsersView.tsx",
+    "line": 111,
+    "summary": "Stats show total counts instead of filtered counts, causing inconsistency with filter bar",
+    "failure_scenario": "When user filters by role or searches, the KPI cards still show total counts (e.g., '10 Administratorzy') while the list shows only 2 filtered results"
+  },
+  {
+    "file": "src/UsersView.tsx",
+    "line": 157,
+    "summary": "Role change uses /api/users/:id/role but backend may not support polymorphic routing for string IDs",
+    "failure_scenario": "If user.id is a string like 'dashboard' or the backend expects numeric IDs only, the PUT request fails with 404 or parse error"
+  },
+  {
+    "file": "src/UsersView.tsx",
+    "line": 106,
+    "summary": "useEffect dependency on fetchUsers creates unnecessary re-render when fetchUsers is useCallback with empty deps",
+    "failure_scenario": "The effect runs once on mount (correctly), but having fetchUsers in the dependency array is redundant since it's already memoized with [] - should be removed for clarity"
+  },
+  {
+    "file": "src/UsersView.tsx",
+    "line": 159,
+    "summary": "Error from fetchUsers() overwrites success toast from handleChangeRole",
+    "failure_scenario": "After successfully changing a user's role, if fetchUsers() throws an error, the error state replaces the success message, showing a confusing error instead of confirming the role change"
+  },
+  {
+    "file": "src/UsersView.tsx",
+    "line": 112,
+    "summary": "Inefficient role filtering - creates new array on every render instead of using filter directly",
+    "failure_scenario": "The useMemo returns a number from .length instead of the filtered array, wasting computation on every users change when it should return the filtered count directly"
+  },
+  {
+    "file": "src/UsersView.tsx",
+    "line": 119,
+    "summary": "searchQuery.toLowerCase() called on potentially empty string causes unnecessary operation",
+    "failure_scenario": "When searchQuery is empty, calling .toLowerCase() and .includes('') is wasteful - the filter should short-circuit when searchQuery is empty"
+  }
+]

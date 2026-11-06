@@ -151,6 +151,79 @@ describe('authMiddleware (SEC-08)', () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it('allows unauthenticated POST to /api/projects/:id/tasks for CLI agents', () => {
+    const req = {
+      method: 'POST',
+      originalUrl: '/api/projects/dashboard/tasks',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('allows unauthenticated POST to /api/projects/:id/analyze for CLI agents', () => {
+    const req = {
+      method: 'POST',
+      originalUrl: '/api/projects/dashboard/analyze',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('allows unauthenticated POST to /api/llm/record-call and route-prompt for CLI agents', () => {
+    const req = {
+      method: 'POST',
+      originalUrl: '/api/llm/record-call',
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('allows unauthenticated POST to /api/llm-proxy for CLI agents passing upstream keys', () => {
+    const req = {
+      method: 'POST',
+      originalUrl: '/api/llm-proxy/chat/completions',
+      headers: { authorization: 'Bearer sk-upstream-key' }
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('allows query string token when it is a signed agent token (?token=... with isAgent: true)', () => {
+    const agentToken = jwt.sign({ id: 1, username: 'agent-runner', isAgent: true }, JWT_SECRET, { expiresIn: '1h' });
+    const req = {
+      method: 'GET',
+      originalUrl: '/api/servers',
+      query: { token: agentToken },
+      headers: {}
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(req.user).toBeDefined();
+    expect(req.user.isAgent).toBe(true);
+  });
+
   it('still blocks unauthenticated POST to other project routes like /api/projects', () => {
     const req = {
       method: 'POST',

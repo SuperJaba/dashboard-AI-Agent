@@ -7,6 +7,7 @@ import os from 'os';
 import { projectsRouter } from './projectsRouter.js';
 import * as agentsRepo from '../agents/agentsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
+import * as projectsRepo from './projectsRepository.js';
 
 describe('projectsRouter - deploy agent handling', () => {
   let tmpDir;
@@ -226,5 +227,61 @@ describe('projectsRouter - deploy agent handling', () => {
       if (origWayland !== undefined) process.env.WAYLAND_DISPLAY = origWayland;
       Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
     }
+  });
+
+  describe('polymorphic project routing (:id and name resolution)', () => {
+    beforeEach(() => {
+      vi.spyOn(projectsRepo, 'getProjects').mockResolvedValue([
+        {
+          id: 42,
+          name: 'dashboard',
+          path: tmpDir,
+          tasks: [{ id: 1, title: 'Sample task', status: 'pending' }]
+        }
+      ]);
+    });
+
+    it('GET /api/projects/:id/tasks resolves tasks by name', async () => {
+      const res = await request(app).get('/api/projects/projects/dashboard/tasks');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].title).toBe('Sample task');
+    });
+
+    it('POST /api/projects/:id/tasks creates a task by project name', async () => {
+      vi.spyOn(projectsRepo, 'updateProject').mockImplementation(async (id, data) => ({
+        id,
+        name: 'dashboard',
+        ...data
+      }));
+
+      const res = await request(app)
+        .post('/api/projects/projects/dashboard/tasks')
+        .send({ title: 'New AI Agent Task', status: 'pending' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.task).toBeDefined();
+      expect(res.body.task.title).toBe('New AI Agent Task');
+    });
+
+    it('POST /api/projects/:id/analyze resolves directory by project name', async () => {
+      const res = await request(app)
+        .post('/api/projects/projects/dashboard/analyze')
+        .send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('tech');
+      expect(res.body).toHaveProperty('tasks');
+    });
+
+    it('DELETE /api/projects/:id resolves project by name without integer parse error', async () => {
+      vi.spyOn(projectsRepo, 'deleteProject').mockResolvedValue({ success: true });
+
+      const res = await request(app).delete('/api/projects/projects/dashboard');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(projectsRepo.deleteProject).toHaveBeenCalledWith(42);
+    });
   });
 });

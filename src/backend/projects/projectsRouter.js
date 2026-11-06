@@ -349,6 +349,52 @@ projectsRouter.put('/projects/:id', async (req, res) => {
   }
 });
 
+// Get all tasks for a project directly
+projectsRouter.get('/projects/:id/tasks', async (req, res) => {
+  try {
+    const projects = await projectsRepo.getProjects();
+    const target = String(req.params.id || '').trim().toLowerCase();
+    const targetProject = projects.find(p => String(p.id) === target || p.name?.toLowerCase() === target);
+    if (!targetProject) {
+      return res.status(404).json({ error: `Projekt "${req.params.id}" nie został znaleziony.` });
+    }
+    res.json(targetProject.tasks || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a single task to a project (from agent or UI)
+projectsRouter.post('/projects/:id/tasks', async (req, res) => {
+  try {
+    const { title, status = 'pending', meta = '' } = req.body || {};
+    if (!title || typeof title !== 'string') {
+      return res.status(400).json({ error: 'Pole "title" jest wymagane' });
+    }
+    const projects = await projectsRepo.getProjects();
+    const target = String(req.params.id || '').trim().toLowerCase();
+    const targetProject = projects.find(p => String(p.id) === target || p.name?.toLowerCase() === target);
+    if (!targetProject) {
+      return res.status(404).json({ error: `Projekt "${req.params.id}" nie został znaleziony.` });
+    }
+
+    const currentTasks = Array.isArray(targetProject.tasks) ? [...targetProject.tasks] : [];
+    const nextId = currentTasks.length > 0 ? Math.max(...currentTasks.map(t => Number(t.id) || 0)) + 1 : 1;
+    const newTask = { id: nextId, title: title.trim(), status, meta };
+    currentTasks.push(newTask);
+
+    const activeTasks = currentTasks.filter(t => t.status !== 'archived');
+    const complete = activeTasks.length > 0
+      ? Math.round((activeTasks.filter(t => t.status === 'completed').length / activeTasks.length) * 100)
+      : 0;
+
+    const row = await projectsRepo.updateProject(targetProject.id, { tasks: currentTasks, complete });
+    res.status(201).json({ ...row, task: newTask });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update all tasks for a project directly
 projectsRouter.put('/projects/:id/tasks', async (req, res) => {
   try {
@@ -471,7 +517,13 @@ projectsRouter.post('/projects/sync-tasks', async (req, res) => {
 // Delete Project
 projectsRouter.delete('/projects/:id', async (req, res) => {
   try {
-    const result = await projectsRepo.deleteProject(req.params.id);
+    const projects = await projectsRepo.getProjects();
+    const target = String(req.params.id || '').trim().toLowerCase();
+    const targetProject = projects.find(p => String(p.id) === target || p.name?.toLowerCase() === target);
+    if (!targetProject) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const result = await projectsRepo.deleteProject(targetProject.id);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -540,8 +592,17 @@ projectsRouter.post('/init-git', (req, res) => {
 });
 
 // Analyze project directory
-projectsRouter.post('/analyze', async (req, res) => {
-  let { directory } = req.body;
+projectsRouter.post(['/analyze', '/projects/:id/analyze'], async (req, res) => {
+  let { directory } = req.body || {};
+  if (!directory && req.params.id) {
+    const projects = await projectsRepo.getProjects();
+    const target = String(req.params.id || '').trim().toLowerCase();
+    const targetProject = projects.find(p => String(p.id) === target || p.name?.toLowerCase() === target);
+    if (!targetProject) {
+      return res.status(404).json({ error: `Projekt "${req.params.id}" nie został znaleziony.` });
+    }
+    directory = targetProject.path;
+  }
   if (!directory) {return res.status(400).json({ error: 'Missing directory' });}
   
   if (directory.startsWith('~/')) {

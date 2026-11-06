@@ -39,7 +39,7 @@ async function main() {
 
       const payload = {
         cwd: process.cwd(),
-        projectId: (targetId && !targetId.startsWith('--')) ? parseInt(targetId, 10) : undefined,
+        projectId: (targetId && !targetId.startsWith('--')) ? (/^\d+$/.test(targetId) ? parseInt(targetId, 10) : targetId) : undefined,
         clearCompleted
       };
 
