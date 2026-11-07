@@ -33,6 +33,7 @@ export const inMemoryStore = {
   },
   projects: [],
   servers: [],
+  llm_servers: [],
   cli_agents: [],
   custom_widgets: [],
   agents: [],
@@ -40,10 +41,24 @@ export const inMemoryStore = {
 };
 
 let useInMemoryFallback = false;
+let lastPgCheckTime = 0;
+const PG_RECONNECT_INTERVAL_MS = 5000;
 
 const rawPoolQuery = pool.query.bind(pool);
 
 export async function safeQuery(text, params = []) {
+  if (useInMemoryFallback && (Date.now() - lastPgCheckTime > PG_RECONNECT_INTERVAL_MS)) {
+    lastPgCheckTime = Date.now();
+    try {
+      await rawPoolQuery('SELECT 1');
+      console.log('PostgreSQL connection restored. Switching back to primary database.');
+      useInMemoryFallback = false;
+      migrate().catch(e => console.warn('Background migration sync warning:', e.message));
+    } catch {
+      // Primary DB still unreachable, remain in fallback
+    }
+  }
+
   if (!useInMemoryFallback) {
     try {
       return await rawPoolQuery(text, params);
@@ -51,6 +66,7 @@ export async function safeQuery(text, params = []) {
       if (err.code === 'ECONNREFUSED' || err.code === '57P01' || err.message?.includes('connect ECONNREFUSED')) {
         console.warn('PostgreSQL connection unavailable, using fallback store:', err.message);
         useInMemoryFallback = true;
+        lastPgCheckTime = Date.now();
       } else {
         throw err;
       }
@@ -146,6 +162,114 @@ export async function safeQuery(text, params = []) {
       return { rows: s ? [s] : [] };
     }
     return { rows: inMemoryStore.servers };
+  }
+
+  if (sql.includes('INSERT INTO servers')) {
+    const nextId = inMemoryStore.servers.length > 0
+      ? Math.max(...inMemoryStore.servers.map(s => Number(s.id) || 0)) + 1
+      : 1;
+    const [name, host, username, port, use_devil, ssh_password, provider, url] = params;
+    const newServer = {
+      id: nextId,
+      name,
+      host,
+      username,
+      port: port || 22,
+      use_devil: use_devil === true,
+      ssh_password,
+      provider: provider || 'local',
+      url: url || (host ? `http://${host}:${port || 22}` : 'http://localhost'),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    inMemoryStore.servers.push(newServer);
+    return { rows: [newServer] };
+  }
+
+  if (sql.includes('UPDATE servers')) {
+    const id = parseInt(params[0], 10);
+    const s = inMemoryStore.servers.find(x => x.id === id);
+    if (s) {
+      const [, name, host, username, port, use_devil, provider, url] = params;
+      if (name !== undefined) s.name = name;
+      if (host !== undefined) s.host = host;
+      if (username !== undefined) s.username = username;
+      if (port !== undefined) s.port = port || 22;
+      if (use_devil !== undefined) s.use_devil = use_devil === true;
+      if (provider !== undefined) s.provider = provider;
+      if (url !== undefined) s.url = url;
+      if (params.length > 8 && params[8] !== undefined) {
+        s.ssh_password = params[8];
+      }
+      s.updated_at = new Date().toISOString();
+      return { rows: [s] };
+    }
+    return { rows: [] };
+  }
+
+  if (sql.includes('DELETE FROM servers')) {
+    const id = parseInt(params[0], 10);
+    inMemoryStore.servers = inMemoryStore.servers.filter(s => s.id !== id);
+    return { rows: [] };
+  }
+
+  // LLM servers queries
+  if (sql.includes('FROM llm_servers')) {
+    if (sql.includes('WHERE id = $1')) {
+      const s = (inMemoryStore.llm_servers || []).find(x => x.id === parseInt(params[0], 10));
+      return { rows: s ? [s] : [] };
+    }
+    return { rows: inMemoryStore.llm_servers || [] };
+  }
+
+  if (sql.includes('INSERT INTO llm_servers')) {
+    if (!inMemoryStore.llm_servers) inMemoryStore.llm_servers = [];
+    const nextId = inMemoryStore.llm_servers.length > 0
+      ? Math.max(...inMemoryStore.llm_servers.map(s => Number(s.id) || 0)) + 1
+      : 1;
+    const [name, url, api_key, model, provider, is_active] = params;
+    const newLlm = {
+      id: nextId,
+      name,
+      url,
+      api_key,
+      model: model || '',
+      provider: provider || 'Custom',
+      is_active: is_active || false,
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.llm_servers.push(newLlm);
+    return { rows: [newLlm] };
+  }
+
+  if (sql.includes('UPDATE llm_servers')) {
+    if (!inMemoryStore.llm_servers) inMemoryStore.llm_servers = [];
+    if (sql.includes('is_active = false')) {
+      inMemoryStore.llm_servers.forEach(srv => { srv.is_active = false; });
+      return { rows: [] };
+    }
+    if (sql.includes('is_active = true WHERE id = $1')) {
+      const id = parseInt(params[0], 10);
+      const s = inMemoryStore.llm_servers.find(x => x.id === id);
+      if (s) {
+        s.is_active = true;
+        return { rows: [s] };
+      }
+      return { rows: [] };
+    }
+    const id = parseInt(params[params.length - 1], 10);
+    const s = inMemoryStore.llm_servers.find(x => x.id === id);
+    if (s) {
+      return { rows: [s] };
+    }
+    return { rows: [] };
+  }
+
+  if (sql.includes('DELETE FROM llm_servers')) {
+    if (!inMemoryStore.llm_servers) inMemoryStore.llm_servers = [];
+    const id = parseInt(params[0], 10);
+    inMemoryStore.llm_servers = inMemoryStore.llm_servers.filter(s => s.id !== id);
+    return { rows: [] };
   }
 
   // Agents queries
@@ -285,6 +409,11 @@ pool.query = async function(text, params = []) {
 
 // ---------- Database Migration ----------
 export async function migrate() {
+  const schema = process.env.DB_SCHEMA || 'dashboard';
+  try {
+    await safeQuery(`CREATE SCHEMA IF NOT EXISTS ${schema};`);
+  } catch {}
+
   const queries = [
     `CREATE TABLE IF NOT EXISTS settings (
       key VARCHAR(255) PRIMARY KEY,
@@ -375,7 +504,13 @@ export async function migrate() {
   ];
 
   for (const q of queries) {
-    await safeQuery(q);
+    try {
+      await safeQuery(q);
+    } catch (err) {
+      if (!err.message?.includes('already exists')) {
+        console.warn('Migration step notice:', err.message);
+      }
+    }
   }
 
   // Default settings seeding
