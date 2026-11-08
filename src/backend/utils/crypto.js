@@ -1,11 +1,12 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+// Load environment variables, prioritize project root .env if available
 import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config();
+// Load .env from project root; fallback to default location if not present
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export const DEFAULT_FALLBACK_ENCRYPTION_KEY = 'fallback-super-secret-encryption-key-32chars!';

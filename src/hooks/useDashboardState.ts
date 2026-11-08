@@ -74,7 +74,7 @@ export function useDashboardState() {
     apiClient.get<unknown>('/api/servers')
       .then(rawData => {
         if (!isMounted) return;
-        const data = z.array(ServerSchema).parse(rawData);
+        const data = Array.isArray(rawData) ? z.array(ServerSchema).parse(rawData) : [];
         if (data.length) setServers(data);
       })
       .catch(console.error);

@@ -102,8 +102,8 @@
     ]
   },
   "statusLine": {
-    "type": "command",
-    "command": "ccstatusline",
+    "type": "",
+    "command": "/home/seba/.antigravity/statusline.sh --classic",
     "enabled": true
   },
   "mcpServers": {

@@ -29,7 +29,10 @@ export interface User {
  * Obsługuje pobieranie listy, wyświetlanie tabeli oraz wszystkie modale CRUD.
  */
 export function UsersView() {
-  const { token } = useDashboardState();
+  const { token: dashboardToken } = useDashboardState();
+  const token = dashboardToken || localStorage.getItem('dashboard_token');
+  const userPayload = token ? JSON.parse(atob(token.split('.')[1])) : {};
+  const currentUserId = userPayload.sub ?? userPayload.id ?? null;
   const toast = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -44,15 +47,17 @@ export function UsersView() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to fetch users');
-      const data: User[] = await res.json();
+      const rawData = await apiClient.get('/api/users');
+      // API may return { success: true, users: [...] } or directly an array
+      const data: User[] = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray((rawData as any).users)
+        ? (rawData as any).users
+        : [];
       setUsers(data);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      toast.error('Nie udało się pobrać listy użytkowników');
+      toast.error(e.message ?? 'Nie udało się pobrać listy użytkowników');
     } finally {
       setLoading(false);
     }
@@ -142,7 +147,7 @@ export function UsersView() {
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Users size={20} /> Użytkownicy
+          <Users size={20} /> Zarządzanie Użytkownikami
         </h2>
         <button
           className="flex items-center gap-1 bg-primary-600 text-white px-3 py-1 rounded hover:bg-primary-700"
@@ -151,7 +156,7 @@ export function UsersView() {
           <UserPlus size={16} /> Dodaj
         </button>
       </div>
-      <UsersTable users={users} loading={loading} setModal={setModal} currentUserId={token ? JSON.parse(atob(token.split('.')[1])).sub : null} />
+      <UsersTable users={users} loading={loading} setModal={setModal} currentUserId={currentUserId} />
 
       {/* ---------- Modale ---------- */}
       {modal?.type === 'add' && (

@@ -1,25 +1,27 @@
 # Changelog
 
-Wszystkie istotne zmiany w tym projekcie są dokumentowane w tym pliku zgodnie ze standardem [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/) oraz [Conventional Commits](https://www.conventionalcommits.org/).
+All significant changes to this project are documented in this file following the [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/) and [Conventional Commits](https://www.conventionalcommits.org/) standards.
 
-## [Unreleased] - 2026-11-04
+## [v0.1.0] - 2026-11-04
 
-### Dodano (Added)
-- **Moduł Zarządzania Użytkownikami (`UsersView`):**
-  - Tabela użytkowników z podglądem ról (`Administrator`, `Użytkownik`) i dat rejestracji.
-  - Modal dodawania nowego użytkownika z walidacją formularza (nazwa użytkownika, hasło min. 8 znaków, rola).
-  - Modal zmiany hasła (bezpośredni reset przez admina lub z podaniem dotychczasowego hasła przez użytkownika).
-  - Modal bezpiecznego usuwania konta z blokadą samobójczego usunięcia aktywnego konta.
-  - Ochrona tras API przez middleware `requireAdmin` (`/api/users/*`).
-- **Globalny System Toastów (`ToastProvider` & `useToast`):**
-  - Animowane powiadomienia typu `success`, `error`, `warning`, `info` oparte o Framer Motion.
-  - Automatyczne wygaszanie z konfigurowalnym czasem trwania i możliwością ręcznego zamknięcia.
-  - Dedykowany hook `useToast` oraz wydzielony kontekst `ToastContext` zgodny z React Fast Refresh.
-  - Rejestracja `ToastProvider` w głównym drzewie aplikacji `src/main.tsx`.
-- **Dostępność (a11y):**
-  - Pełne wsparcie dla atrybutów WAI-ARIA w modalach zarządzania użytkownikami (`role="dialog"`, `aria-modal`, `aria-labelledby`, `role="alert"`).
+### Added
+- UI overhaul: dark/light theming using CSS tokens, removal of hard‑coded colors.
+- User Management module with role‑based tables, add‑user and password‑reset modals, admin route protection.
+- Global Toast notification system built with Framer Motion, hook `useToast`.
+- Accessibility improvements (ARIA attributes, WCAG AA contrast) for modals and forms.
+- Agent worker reverse‑tunnel documentation and CLI task sync.
+- DB fallback and comprehensive connection/auth error handling for CI environments.
+- Updated documentation in `AGENTS.md` for SSH daemon detachment, SSE token exception, polymorphic routing.
 
-### Zmieniono (Changed)
-- **Architektura Themingu i Tokenów CSS:**
-  - Wycofano sztywne kolory heksadecymalne w `LocalWorkerModal.tsx` i `UsersView.tsx` na rzecz semantycznych zmiennych CSS (`--bg-surface`, `--text-main`, `--role-admin-*`, `--role-user-*`, `--success-light`, `--danger-light`).
-  - Ujednolicono kontrast i czytelność elementów interfejsu w trybie jasnym (`[data-theme="light"]`).
+### Changed
+- Refactored theming architecture: switched from hard‑coded hex colors to CSS variables (`var(--text-main)`, `var(--bg-surface)`).
+- Unified component styling across Light and Dark modes.
+- Consolidated environment variable loading in `src/backend/utils/crypto.js`.
+
+## [Unreleased]
+
+### Added
+- (future changes)
+
+### Changed
+- (future changes)
