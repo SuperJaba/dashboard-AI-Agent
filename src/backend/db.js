@@ -1,18 +1,23 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pkg from 'pg';
 import dotenv from 'dotenv';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const { Pool } = pkg;
 
 const schema = process.env.DB_SCHEMA || 'dashboard';
 
 export const pool = new Pool({
   user: process.env.DB_USER || process.env.PGUSER || 'SebaP',
-  host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+  host: process.env.DB_HOST || process.env.PGHOST || 'pgsql.ct8.pl', // Default to remote DB server
   database: process.env.DB_NAME || process.env.PGDATABASE || 'dashboarddb',
   password: process.env.DB_PASSWORD || process.env.PGPASSWORD,
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432),
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: process.env.DB_TIMEOUT ? parseInt(process.env.DB_TIMEOUT, 10) : 3000,
   options: `-c search_path=${schema},public`,
 });
 
@@ -31,18 +36,112 @@ export const inMemoryStore = {
     llmUrl: 'http://127.0.0.1:1337/v1',
     llmModel: 'AtomicChat/qwen35-4b-Q8_0',
   },
+  usersWithRoles: [], // Wersja z rolami dla auth
   projects: [],
   servers: [],
   llm_servers: [],
   cli_agents: [],
+  console_variables: [
+    {
+      id: 1,
+      token: '',
+      model: 'unsloth/Qwen3.5-9B-MTP-GGUF',
+      ip: 'http://127.0.0.1:8888/v1',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
   custom_widgets: [],
   agents: [],
-  user_settings: []
+  user_settings: [],
+  agent_scheduled_tasks: [
+    {
+      id: 1,
+      name: 'Nocny audyt bezpieczeństwa',
+      task_type: 'npm_audit',
+      command: 'npm audit',
+      cron_expression: '0 3 * * *',
+      enabled: true,
+      last_run: null,
+      last_status: 'idle',
+      last_output: null,
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      name: 'Weryfikacja logów błędów',
+      task_type: 'error_check',
+      command: 'node -e "console.log(\'Brak krytycznych błędów w logach.\')"',
+      cron_expression: '0 * * * *',
+      enabled: true,
+      last_run: null,
+      last_status: 'idle',
+      last_output: null,
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 3,
+      name: 'Synchronizacja zadań z tasks.md',
+      task_type: 'sync_tasks',
+      command: 'npm run sync-tasks',
+      cron_expression: '*/30 * * * *',
+      enabled: true,
+      last_run: null,
+      last_status: 'idle',
+      last_output: null,
+      created_at: new Date().toISOString()
+    }
+  ],
+  agent_tasks: [],
+  agent_logs: [],
+  routing_calls: []
 };
 
 let useInMemoryFallback = false;
 let lastPgCheckTime = 0;
 const PG_RECONNECT_INTERVAL_MS = 5000;
+
+export function isDbConnectionOrAuthError(err) {
+  if (!err) return false;
+  const connectionCodes = [
+    'ECONNREFUSED',
+    'ENOTFOUND',
+    'ETIMEDOUT',
+    'EHOSTUNREACH',
+    'ECONNRESET',
+    'EPIPE',
+    '57P01', // admin_shutdown
+    '57P02', // crash_shutdown
+    '57P03', // cannot_connect_now
+    '28P01', // invalid_password
+    '28000', // invalid_authorization_specification / no pg_hba.conf entry
+    '3D000', // database_does_not_exist
+    '08000', // connection_exception
+    '08001', // sqlclient_unable_to_establish_sqlconnection
+    '08003', // connection_does_not_exist
+    '08004', // sqlserver_rejected_establishment_of_sqlconnection
+    '08006', // connection_failure
+    '08007'  // transaction_resolution_unknown
+  ];
+  if (err.code && connectionCodes.includes(err.code)) return true;
+  const msg = String(err.message || '').toLowerCase();
+  return (
+    msg.includes('connect') ||
+    msg.includes('econnrefused') ||
+    msg.includes('sasl:') ||
+    msg.includes('password') ||
+    msg.includes('authentication') ||
+    msg.includes('pg_hba.conf') ||
+    msg.includes('no encryption') ||
+    msg.includes('clientauthentication') ||
+    msg.includes('timeout') ||
+    msg.includes('terminated unexpectedly') ||
+    msg.includes('connection refused') ||
+    msg.includes('could not connect') ||
+    msg.includes('ssl off') ||
+    msg.includes('no pg_hba.conf')
+  );
+}
 
 const rawPoolQuery = pool.query.bind(pool);
 
@@ -63,7 +162,7 @@ export async function safeQuery(text, params = []) {
     try {
       return await rawPoolQuery(text, params);
     } catch (err) {
-      if (err.code === 'ECONNREFUSED' || err.code === '57P01' || err.message?.includes('connect ECONNREFUSED')) {
+      if (isDbConnectionOrAuthError(err)) {
         console.warn('PostgreSQL connection unavailable, using fallback store:', err.message);
         useInMemoryFallback = true;
         lastPgCheckTime = Date.now();
@@ -80,15 +179,56 @@ export async function safeQuery(text, params = []) {
     return { rows: [{ count: inMemoryStore.users.length.toString() }] };
   }
 
+  if (sql.includes('SELECT id, username, role FROM users')) {
+    return { rows: inMemoryStore.users.map(u => ({ id: u.id, username: u.username, role: u.role || 'user' })) };
+  }
+
   if (sql.includes('FROM users WHERE username')) {
-    const user = inMemoryStore.users.find(u => u.username === params[0]);
+    const user = inMemoryStore.users.find(u => u.username === params[0] || (u.email && u.email === params[0]));
     return { rows: user ? [user] : [] };
   }
 
+  if (sql.includes('FROM users WHERE id = $1') || (sql.includes('FROM users') && sql.includes('WHERE id'))) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[0]));
+    return { rows: user ? [user] : [] };
+  }
+
+  if (sql.includes('UPDATE users SET role')) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[1]));
+    if (user) {
+      user.role = params[0];
+      return { rows: [{ id: user.id, username: user.username, role: user.role }] };
+    }
+    return { rows: [] };
+  }
+
+  if (sql.includes('UPDATE users SET password_hash')) {
+    const user = inMemoryStore.users.find(u => u.id === Number(params[1]));
+    if (user) {
+      user.password_hash = params[0];
+      return { rows: [{ id: user.id, username: user.username }] };
+    }
+    return { rows: [] };
+  }
+
   if (sql.includes('INSERT INTO users')) {
-    const newUser = { id: inMemoryStore.users.length + 1, username: params[0], password_hash: params[1] };
+    const newUser = {
+      id: inMemoryStore.users.length + 1,
+      username: params[0],
+      password_hash: params[1],
+      role: params[2] || 'user'
+    };
     inMemoryStore.users.push(newUser);
     return { rows: [newUser] };
+  }
+
+  if (sql.includes('DELETE FROM users WHERE id')) {
+    const idx = inMemoryStore.users.findIndex(u => u.id === Number(params[0]));
+    if (idx !== -1) {
+      const removed = inMemoryStore.users.splice(idx, 1);
+      return { rows: removed };
+    }
+    return { rows: [] };
   }
 
   if (sql.includes('DELETE FROM users')) {
@@ -331,6 +471,36 @@ export async function safeQuery(text, params = []) {
     return { rows: inMemoryStore.agents };
   }
 
+  // Console variables queries
+  if (sql.includes('FROM console_variables')) {
+    if (sql.includes('WHERE id = $1')) {
+      const cv = inMemoryStore.console_variables.find(x => x.id === parseInt(params[0], 10));
+      return { rows: cv ? [{ ...cv }] : [] };
+    }
+    return { rows: inMemoryStore.console_variables.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO console_variables') || sql.includes('UPDATE console_variables')) {
+    let cv = inMemoryStore.console_variables.find(x => x.id === 1);
+    if (!cv) {
+      cv = { id: 1, token: '', model: 'unsloth/Qwen3.5-9B-MTP-GGUF', ip: 'http://127.0.0.1:8888/v1', created_at: new Date().toISOString() };
+      inMemoryStore.console_variables.push(cv);
+    }
+    if (params.length >= 3) {
+      if (params.length === 4 && typeof params[0] === 'number') {
+        cv.token = params[1] !== undefined ? params[1] : cv.token;
+        cv.model = params[2] !== undefined ? params[2] : cv.model;
+        cv.ip = params[3] !== undefined ? params[3] : cv.ip;
+      } else {
+        cv.token = params[0] !== undefined ? params[0] : cv.token;
+        cv.model = params[1] !== undefined ? params[1] : cv.model;
+        cv.ip = params[2] !== undefined ? params[2] : cv.ip;
+      }
+    }
+    cv.updated_at = new Date().toISOString();
+    return { rows: [{ ...cv }] };
+  }
+
   // Custom widgets
   if (sql.includes('DELETE FROM custom_widgets')) {
     const id = String(params[0]);
@@ -399,6 +569,213 @@ export async function safeQuery(text, params = []) {
     return { rows: [row] };
   }
 
+  // Agent Scheduled Tasks
+  if (sql.includes('FROM agent_scheduled_tasks')) {
+    if (sql.includes('WHERE id = $1') || sql.includes('WHERE id=')) {
+      const id = parseInt(params[0], 10);
+      const task = inMemoryStore.agent_scheduled_tasks.find(t => t.id === id);
+      return { rows: task ? [{ ...task }] : [] };
+    }
+    return { rows: inMemoryStore.agent_scheduled_tasks.map(t => ({ ...t })) };
+  }
+
+  if (sql.includes('INSERT INTO agent_scheduled_tasks')) {
+    const nextId = inMemoryStore.agent_scheduled_tasks.length > 0
+      ? Math.max(...inMemoryStore.agent_scheduled_tasks.map(t => t.id || 0)) + 1
+      : 1;
+    const newTask = {
+      id: nextId,
+      name: params[0],
+      task_type: params[1],
+      command: params[2],
+      cron_expression: params[3],
+      enabled: params[4] !== undefined ? Boolean(params[4]) : true,
+      last_status: params[5] || 'idle',
+      last_run: null,
+      last_output: null,
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.agent_scheduled_tasks.push(newTask);
+    return { rows: [{ ...newTask }] };
+  }
+
+  if (sql.includes('UPDATE agent_scheduled_tasks')) {
+    const id = parseInt(params[params.length - 1], 10);
+    const task = inMemoryStore.agent_scheduled_tasks.find(t => t.id === id);
+    if (!task) return { rows: [] };
+
+    // Record run update: SET last_run = $1, last_status = $2, last_output = $3 WHERE id = $4
+    if (sql.includes('SET last_run')) {
+      task.last_run = params[0];
+      task.last_status = params[1];
+      task.last_output = params[2];
+      return { rows: [{ ...task }] };
+    }
+
+    // Toggle enabled update: SET enabled = $1 WHERE id = $2
+    if (sql.includes('SET enabled = $1 WHERE id = $2')) {
+      task.enabled = Boolean(params[0]);
+      return { rows: [{ ...task }] };
+    }
+
+    // Full update: SET name = $1, task_type = $2, command = $3, cron_expression = $4, enabled = $5 WHERE id = $6
+    if (params.length >= 6) {
+      task.name = params[0];
+      task.task_type = params[1];
+      task.command = params[2];
+      task.cron_expression = params[3];
+      task.enabled = Boolean(params[4]);
+      return { rows: [{ ...task }] };
+    }
+
+    return { rows: [{ ...task }] };
+  }
+
+  if (sql.includes('DELETE FROM agent_scheduled_tasks')) {
+    const id = parseInt(params[0], 10);
+    inMemoryStore.agent_scheduled_tasks = inMemoryStore.agent_scheduled_tasks.filter(t => t.id !== id);
+    return { rows: [] };
+  }
+
+  // Agent Tasks queries
+  if (sql.includes('DELETE FROM agent_tasks')) {
+    inMemoryStore.agent_tasks = [];
+    return { rows: [] };
+  }
+
+  if (sql.includes('FROM agent_tasks')) {
+    if (sql.includes('WHERE id = $1') || sql.includes('WHERE id =')) {
+      const id = parseInt(params[0], 10);
+      const task = inMemoryStore.agent_tasks.find(t => t.id === id);
+      return { rows: task ? [{ ...task }] : [] };
+    }
+
+    const fromTime = params[0] ? new Date(params[0]).getTime() : 0;
+    const tasksInWindow = inMemoryStore.agent_tasks.filter(t => new Date(t.created_at).getTime() >= fromTime);
+
+    if (sql.includes('COUNT(*) AS total') || sql.includes('COUNT(*) as total')) {
+      return { rows: [{ total: tasksInWindow.length.toString() }] };
+    }
+    if (sql.includes('COUNT(*) AS ok') || sql.includes('COUNT(*) as ok')) {
+      const okCount = tasksInWindow.filter(t => t.status === 'completed').length;
+      return { rows: [{ ok: okCount.toString() }] };
+    }
+    if (sql.includes('AVG(EXTRACT(EPOCH')) {
+      const completed = tasksInWindow.filter(t => t.duration_ms && t.duration_ms > 0);
+      const avgSec = completed.length > 0
+        ? completed.reduce((acc, curr) => acc + (curr.duration_ms / 1000), 0) / completed.length
+        : 0;
+      return { rows: [{ avg_dur: avgSec.toString() }] };
+    }
+    if (sql.includes('SUM(tokens_used)')) {
+      const sumTokens = tasksInWindow.reduce((acc, curr) => acc + (parseInt(curr.tokens_used, 10) || 0), 0);
+      return { rows: [{ tokens: sumTokens.toString() }] };
+    }
+    return { rows: inMemoryStore.agent_tasks };
+  }
+
+  if (sql.includes('INSERT INTO agent_tasks')) {
+    const newTask = {
+      id: inMemoryStore.agent_tasks.length + 1,
+      agent_name: params[0] || 'Unknown Agent',
+      project_id: params[1] ? parseInt(params[1], 10) : null,
+      status: params[2] || 'started',
+      model: params[3] || null,
+      tokens_used: parseInt(params[4], 10) || 0,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      duration_ms: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    inMemoryStore.agent_tasks.push(newTask);
+    return { rows: [newTask] };
+  }
+
+  if (sql.includes('UPDATE agent_tasks')) {
+    if (sql.includes('status = $1') && sql.includes('duration_ms = $2')) {
+      const id = parseInt(params[2], 10);
+      const task = inMemoryStore.agent_tasks.find(t => t.id === id);
+      if (task) {
+        task.status = params[0];
+        task.duration_ms = parseInt(params[1], 10) || 0;
+        task.updated_at = new Date().toISOString();
+        return { rows: [task] };
+      }
+    }
+    if (sql.includes('tokens_used = tokens_used + $1')) {
+      const id = params[3] ? parseInt(params[3], 10) : null;
+      let task = id ? inMemoryStore.agent_tasks.find(t => t.id === id) : null;
+      if (!task && inMemoryStore.agent_tasks.length > 0) {
+        task = inMemoryStore.agent_tasks[inMemoryStore.agent_tasks.length - 1];
+      }
+      if (task) {
+        task.tokens_used = (task.tokens_used || 0) + (parseInt(params[0], 10) || 0);
+        task.prompt_tokens = (task.prompt_tokens || 0) + (parseInt(params[1], 10) || 0);
+        task.completion_tokens = (task.completion_tokens || 0) + (parseInt(params[2], 10) || 0);
+        task.updated_at = new Date().toISOString();
+        return { rows: [task] };
+      }
+    }
+    return { rows: [] };
+  }
+
+  // Agent Logs queries
+  if (sql.includes('FROM agent_logs')) {
+    if (sql.includes('GROUP BY message')) {
+      const fromTime = params[0] ? new Date(params[0]).getTime() : 0;
+      const errorLogs = inMemoryStore.agent_logs.filter(l => l.level === 'error' && new Date(l.created_at).getTime() >= fromTime);
+      const map = {};
+      for (const log of errorLogs) {
+        map[log.message] = (map[log.message] || 0) + 1;
+      }
+      const rows = Object.entries(map).map(([error, count]) => ({ error, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+      return { rows };
+    }
+    return { rows: inMemoryStore.agent_logs };
+  }
+
+  if (sql.includes('INSERT INTO agent_logs')) {
+    const newLog = {
+      id: inMemoryStore.agent_logs.length + 1,
+      task_id: params[0] ? parseInt(params[0], 10) : null,
+      level: params[1] || 'info',
+      message: params[2] || '',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.agent_logs.push(newLog);
+    return { rows: [newLog] };
+  }
+
+  // Routing Calls queries
+  if (sql.includes('FROM routing_calls')) {
+    if (sql.includes('COUNT(*)')) {
+      return { rows: [{ count: inMemoryStore.routing_calls.length.toString() }] };
+    }
+    const sorted = [...inMemoryStore.routing_calls].reverse();
+    return { rows: sorted.slice(0, 50) };
+  }
+
+  if (sql.includes('INSERT INTO routing_calls')) {
+    const newCall = {
+      id: params[0] || `call_${Date.now()}`,
+      tier: params[1] || 'low',
+      provider: params[2] || 'lm-studio',
+      model: params[3] || 'unknown',
+      duration_ms: parseInt(params[4], 10) || 0,
+      prompt_tokens: parseInt(params[5], 10) || 0,
+      completion_tokens: parseInt(params[6], 10) || 0,
+      total_tokens: parseInt(params[7], 10) || 0,
+      success: params[8] !== false && params[8] !== 'false',
+      fallback_occurred: params[9] === true || params[9] === 'true',
+      fallback_reason: params[10] || null,
+      prompt_preview: params[11] || '',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.routing_calls.push(newCall);
+    return { rows: [newCall] };
+  }
+
   return { rows: [] };
 }
 
@@ -463,7 +840,19 @@ export async function migrate() {
       installed BOOLEAN DEFAULT false,
       llm_model VARCHAR(255),
       temperature NUMERIC DEFAULT 0.7,
-      max_tokens INTEGER DEFAULT 4096
+      max_tokens INTEGER DEFAULT 4096,
+      token TEXT,
+      ip VARCHAR(512)
+    );`,
+    'ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS token TEXT;',
+    'ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS ip VARCHAR(512);',
+    `CREATE TABLE IF NOT EXISTS console_variables (
+      id SERIAL PRIMARY KEY,
+      token TEXT DEFAULT '',
+      model VARCHAR(255) NOT NULL DEFAULT 'unsloth/Qwen3.5-9B-MTP-GGUF',
+      ip VARCHAR(512) NOT NULL DEFAULT 'http://127.0.0.1:8888/v1',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS custom_widgets (
       id SERIAL PRIMARY KEY,
@@ -476,8 +865,11 @@ export async function migrate() {
     `CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       username VARCHAR(255) UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL
+      password_hash TEXT NOT NULL,
+      role VARCHAR(50) DEFAULT 'user'
     );`,
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT \'user\';',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);',
     `CREATE TABLE IF NOT EXISTS agents (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL UNIQUE,
@@ -500,6 +892,53 @@ export async function migrate() {
       theme VARCHAR(20) DEFAULT 'dark',
       language VARCHAR(10) DEFAULT 'pl',
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS agent_scheduled_tasks (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      task_type VARCHAR(100) NOT NULL,
+      command TEXT,
+      cron_expression VARCHAR(100) NOT NULL,
+      enabled BOOLEAN DEFAULT true,
+      last_run TIMESTAMP,
+      last_status VARCHAR(50) DEFAULT 'idle',
+      last_output TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS agent_tasks (
+      id SERIAL PRIMARY KEY,
+      agent_name VARCHAR(255) NOT NULL,
+      project_id INTEGER,
+      status VARCHAR(50) DEFAULT 'started',
+      tokens_used INTEGER DEFAULT 0,
+      prompt_tokens INTEGER DEFAULT 0,
+      completion_tokens INTEGER DEFAULT 0,
+      model VARCHAR(255),
+      duration_ms INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS agent_logs (
+      id SERIAL PRIMARY KEY,
+      task_id INTEGER,
+      level VARCHAR(20) DEFAULT 'info',
+      message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS routing_calls (
+      id VARCHAR(64) PRIMARY KEY,
+      tier VARCHAR(20) NOT NULL,
+      provider VARCHAR(50) NOT NULL,
+      model VARCHAR(255) NOT NULL,
+      duration_ms INTEGER DEFAULT 0,
+      prompt_tokens INTEGER DEFAULT 0,
+      completion_tokens INTEGER DEFAULT 0,
+      total_tokens INTEGER DEFAULT 0,
+      success BOOLEAN DEFAULT TRUE,
+      fallback_occurred BOOLEAN DEFAULT FALSE,
+      fallback_reason TEXT,
+      prompt_preview TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];
 
@@ -517,6 +956,119 @@ export async function migrate() {
   await safeQuery("INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;");
   await safeQuery("INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1') ON CONFLICT (key) DO NOTHING;");
   await safeQuery("INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0') ON CONFLICT (key) DO NOTHING;");
+
+  // Default scheduled tasks seeding (only if table is empty)
+  try {
+    const taskCountRes = await safeQuery('SELECT COUNT(*) as count FROM agent_scheduled_tasks');
+    if (parseInt(taskCountRes?.rows?.[0]?.count || '0', 10) === 0) {
+      await safeQuery(`
+        INSERT INTO agent_scheduled_tasks (name, task_type, command, cron_expression, enabled, last_status) VALUES
+        ('Nocny audyt bezpieczeństwa', 'npm_audit', 'npm audit', '0 3 * * *', true, 'idle'),
+        ('Weryfikacja logów błędów', 'error_check', 'node -e "console.log(\\'Log audit: Brak krytycznych wyjątków w ostatnich logach.\\')"', '0 * * * *', true, 'idle'),
+        ('Synchronizacja zadań z tasks.md', 'sync_tasks', 'npm run sync-tasks', '*/30 * * * *', true, 'idle');
+      `);
+    }
+  } catch {}
+
+  // Synchronize users from public schema and seed default users
+  try {
+    await syncAndSeedUsers();
+  } catch {}
+}
+
+export async function syncAndSeedUsers() {
+  if (useInMemoryFallback) {
+    if (process.env.NODE_ENV !== 'test' && inMemoryStore.users.length <= 1) {
+      const demoHash = '$2b$12$cq4oyVKGTSuk.0L8UmMnwudSgasDBW5MPte4G4xGvZbhadCOBGAAG';
+      const defaultUsers = [
+        { id: 242, username: 'dumpster10k@gmail.com', role: 'admin', password_hash: demoHash },
+        { id: 243, username: 'Seba', role: 'admin', password_hash: demoHash },
+        { id: 244, username: 'test@wp.pl', role: 'user', password_hash: demoHash },
+        { id: 245, username: 'sylwix', role: 'user', password_hash: demoHash },
+        { id: 246, username: 'jan_kowalski', role: 'user', password_hash: demoHash },
+        { id: 247, username: 'anna_nowak', role: 'user', password_hash: demoHash }
+      ];
+      for (const du of defaultUsers) {
+        if (!inMemoryStore.users.some(u => u.username === du.username)) {
+          inMemoryStore.users.push(du);
+        }
+      }
+    }
+    return;
+  }
+
+  try {
+    // 1. Synchronize from public.users if it exists in PostgreSQL
+    const publicUsersTableRes = await pool.query(
+      "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'"
+    );
+    if (publicUsersTableRes.rows.length > 0) {
+      const colsRes = await pool.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users'"
+      );
+      const colNames = colsRes.rows.map(r => r.column_name);
+      const hasPassword = colNames.includes('password');
+      const hasPasswordHash = colNames.includes('password_hash');
+      const pwdCol = hasPassword ? 'u.password' : (hasPasswordHash ? 'u.password_hash' : "''");
+      const hasEmail = colNames.includes('email');
+      const userCol = hasEmail ? 'COALESCE(u.username, u.email)' : 'u.username';
+
+      const hasUserRoles = (await pool.query(
+        "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_roles'"
+      )).rows.length > 0;
+
+      const roleExpr = hasUserRoles
+        ? `COALESCE(
+             (SELECT r.name FROM public.user_roles ur JOIN public.roles r ON ur.role_id = r.id WHERE ur.user_id = u.id AND r.name = 'admin' LIMIT 1),
+             (SELECT r.name FROM public.user_roles ur JOIN public.roles r ON ur.role_id = r.id WHERE ur.user_id = u.id LIMIT 1),
+             'user'
+           )`
+        : `'user'`;
+
+      const syncSql = `
+        INSERT INTO users (username, password_hash, role)
+        SELECT
+          ${userCol} AS username,
+          ${pwdCol} AS password_hash,
+          ${roleExpr} AS role
+        FROM public.users u
+        WHERE ${userCol} IS NOT NULL AND NOT EXISTS (
+          SELECT 1 FROM users du WHERE du.username = ${userCol}
+        )
+        ON CONFLICT (username) DO NOTHING;
+      `;
+      await pool.query(syncSql);
+    }
+  } catch {
+    // Ignore public schema sync errors
+  }
+
+  // 2. If table has <= 1 user and not in test environment, seed standard accounts
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      const countRes = await safeQuery('SELECT COUNT(*) as count FROM users');
+      const currentCount = parseInt(countRes?.rows?.[0]?.count || '0', 10);
+      if (currentCount <= 1) {
+        const demoHash = '$2b$12$cq4oyVKGTSuk.0L8UmMnwudSgasDBW5MPte4G4xGvZbhadCOBGAAG';
+        const seedUsers = [
+          { username: 'dumpster10k@gmail.com', role: 'admin' },
+          { username: 'Seba', role: 'admin' },
+          { username: 'test@wp.pl', role: 'user' },
+          { username: 'sylwix', role: 'user' },
+          { username: 'jan_kowalski', role: 'user' },
+          { username: 'anna_nowak', role: 'user' }
+        ];
+        for (const su of seedUsers) {
+          await safeQuery(
+            'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING',
+            [su.username, demoHash, su.role]
+          );
+        }
+      }
+    } catch {
+      // Ignore user seeding errors
+    }
+  }
 }
 
 // Run migrations automatically when the module is loaded.

@@ -23,7 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+*.env
+*.env.*
+!.env.example
 .agent/
+LITELLM-TEST/
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml
@@ -43,7 +47,20 @@ artifacts/*.json
 # AI agent session states and checkpoints
 .omc/sessions/
 .omc/state/
+.codegraph/
+.codegraph-wsl/
 
 # Jupyter notebooks and screenshots in root
 *.ipynb
+
+# Local credentials
+pass.txt
+docs/pass.txt
+
+# Document watcher metadata
+.fresh/
+docs/.fresh/
+
+# Docker PostgreSQL data
+postgres-data/
 

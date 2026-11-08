@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => {
+  const execSync = vi.fn();
+  const execFileSync = vi.fn((file, args, opts) => {
+    return execSync([file, ...(args || [])].join(' '), opts);
+  });
   return {
     existsSync: vi.fn(),
     mkdirSync: vi.fn(),
-    execSync: vi.fn(),
+    execSync,
+    execFileSync,
     exec: vi.fn()
   };
 });
@@ -24,18 +29,23 @@ vi.mock('child_process', () => {
   return {
     default: {
       execSync: mocks.execSync,
+      execFileSync: mocks.execFileSync,
       exec: mocks.exec
     },
     execSync: mocks.execSync,
+    execFileSync: mocks.execFileSync,
     exec: mocks.exec
   };
 });
 
 import * as gitService from './gitService.js';
 
-describe('Git Service Unit Tests', () => {
+describe('Git Service Unit Tests (SEC-04)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.execFileSync.mockImplementation((file, args, opts) => {
+      return mocks.execSync([file, ...(args || [])].join(' '), opts);
+    });
   });
 
   describe('resolveDirectory', () => {
@@ -76,6 +86,8 @@ describe('Git Service Unit Tests', () => {
       const status = gitService.getStatus('/mock/repo');
       expect(status.branch).toBe('main');
       expect(status.changes.length).toBe(2);
+      expect(status.changes[0]).toBe(' M file1.js');
+      expect(status.changes[1]).toBe('?? file2.js');
       expect(status.commits.length).toBe(1);
       expect(status.commits[0].hash).toBe('abc1234');
     });
@@ -116,6 +128,12 @@ describe('Git Service Unit Tests', () => {
 
       const result = gitService.checkoutBranch('/mock/repo', 'new-feature', true);
       expect(result.success).toBe(true);
+    });
+
+    it('should reject unsafe branch names containing command injection characters', () => {
+      mocks.existsSync.mockReturnValue(true);
+      expect(() => gitService.checkoutBranch('/mock/repo', 'main; rm -rf /')).toThrow(/Invalid branch name/);
+      expect(() => gitService.checkoutBranch('/mock/repo', '$(whoami)')).toThrow(/Invalid branch name/);
     });
   });
 
@@ -181,12 +199,18 @@ describe('Git Service Unit Tests', () => {
       expect(() => gitService.commitChanges('/mock/repo', '')).toThrow('Commit message is required');
     });
 
-    it('should commit with message', () => {
+    it('should commit with message and pass message safely via execFileSync argument', () => {
       mocks.existsSync.mockReturnValue(true);
       mocks.execSync.mockReturnValue('[main 1234567] test commit\n 1 file changed\n');
 
-      const res = gitService.commitChanges('/mock/repo', 'test commit');
+      const complexMsg = 'feat: fix $(rm -rf /) & `id` "quotes" and semicolons;';
+      const res = gitService.commitChanges('/mock/repo', complexMsg);
       expect(res.success).toBe(true);
+      expect(mocks.execFileSync).toHaveBeenCalledWith(
+        'git',
+        ['commit', '-m', complexMsg],
+        expect.any(Object)
+      );
     });
   });
 
@@ -220,6 +244,7 @@ describe('Git Service Unit Tests', () => {
     it('should validate repository url and target directory', () => {
       expect(() => gitService.cloneRepo('', '/target')).toThrow('Repository URL is required');
       expect(() => gitService.cloneRepo('https://github.com/test/repo', '')).toThrow('Target directory is required');
+      expect(() => gitService.cloneRepo('--upload-pack=evil', '/target')).toThrow('Invalid repository URL');
     });
 
     it('should clone repository successfully', () => {
@@ -229,6 +254,26 @@ describe('Git Service Unit Tests', () => {
 
       const res = gitService.cloneRepo('https://github.com/test/repo.git', '/path/to/target');
       expect(res.success).toBe(true);
+    });
+  });
+
+  describe('mergePR', () => {
+    it('throws error if directory is not a git repo', async () => {
+      mocks.existsSync.mockReturnValue(false);
+      await expect(gitService.mergePR({ directory: '/nonexistent', prNumber: 42 }))
+        .rejects.toThrow('Not a git repository');
+    });
+
+    it('merges PR successfully using gh CLI', async () => {
+      mocks.existsSync.mockReturnValue(true);
+      mocks.exec.mockImplementation((cmd, opts, cb) => {
+        cb(null, { stdout: 'Merged PR #42 successfully\n', stderr: '' });
+      });
+
+      const res = await gitService.mergePR({ directory: '/mock/repo', prNumber: 42 });
+      expect(res.success).toBe(true);
+      expect(res.merged).toBe(true);
+      expect(res.prNumber).toBe(42);
     });
   });
 });

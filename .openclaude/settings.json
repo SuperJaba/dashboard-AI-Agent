@@ -335,10 +335,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "codegraph prompt-hook"
+            "command": "command -v codegraph >/dev/null 2>&1 && codegraph prompt-hook || true"
           }
         ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "ccstatusline",
+    "padding": 0,
+    "refreshInterval": 10
   }
 }

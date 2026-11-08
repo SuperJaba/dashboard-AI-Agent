@@ -203,6 +203,12 @@ describe('Backend API Tests', () => {
   });
 
   describe('Socket Info API Endpoints', () => {
+    it('GET /api/socket-info without token should return 401 Unauthorized (SEC-01)', async () => {
+      const res = await request(app).get('/api/socket-info');
+      expect(res.statusCode).toBe(401);
+      expect(res.body.error).toBe('Unauthorized');
+    });
+
     it('GET /api/socket-info should return serverUrl, token, and ready commands', async () => {
       const res = await request(app)
         .get('/api/socket-info')
@@ -228,6 +234,48 @@ describe('Backend API Tests', () => {
       expect(res.body.expiresIn).toBe('30d');
       const decoded = jwt.verify(res.body.token, JWT_SECRET);
       expect(decoded.isWorker).toBe(true);
+    });
+
+    it('GET /api/agents/workers and DELETE /api/agents/workers/:id should manage workers', async () => {
+      // Import activeWorkers from server
+      const { activeWorkers } = await import('../../server.js');
+      const mockEmit = vi.fn();
+      const mockDisconnect = vi.fn();
+      activeWorkers.set('test-worker-1', {
+        id: 'test-worker-1',
+        name: 'omv',
+        type: 'remote',
+        serverName: 'OMV',
+        hostname: 'omv-nas',
+        platform: 'linux',
+        connectedAt: new Date().toISOString(),
+        socket: { emit: mockEmit, disconnect: mockDisconnect }
+      });
+
+      const getRes = await request(app)
+        .get('/api/agents/workers')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(getRes.statusCode).toBe(200);
+      expect(Array.isArray(getRes.body)).toBe(true);
+      const worker = getRes.body.find(w => w.id === 'test-worker-1');
+      expect(worker).toBeDefined();
+      expect(worker.type).toBe('remote');
+      expect(worker.serverName).toBe('OMV');
+
+      // Test killing single worker
+      const delRes = await request(app)
+        .delete('/api/agents/workers/test-worker-1')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(delRes.statusCode).toBe(200);
+      expect(delRes.body.success).toBe(true);
+      expect(mockEmit).toHaveBeenCalledWith('worker_terminate', expect.any(Object));
+      expect(activeWorkers.has('test-worker-1')).toBe(false);
+
+      // 404 on non-existent worker
+      const notFoundRes = await request(app)
+        .delete('/api/agents/workers/non-existent-id')
+        .set('Authorization', `Bearer ${testToken}`);
+      expect(notFoundRes.statusCode).toBe(404);
     });
   });
 });

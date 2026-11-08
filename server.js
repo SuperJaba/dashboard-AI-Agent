@@ -6,18 +6,33 @@ if (typeof PhusionPassenger !== 'undefined') {
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 import fetch from 'node-fetch';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import { corsOptions, corsOriginDelegate } from './src/backend/utils/corsConfig.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import pty from 'node-pty';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+let pty = null;
+try {
+  pty = require('node-pty');
+} catch {
+  // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
+}
 
 import jwt from 'jsonwebtoken';
 import { pool } from './src/backend/db.js';
 import { authRouter } from './src/backend/auth/authRouter.js';
-import { authMiddleware } from './src/backend/auth/authMiddleware.js';
+import { authMiddleware, optionalAuthMiddleware } from './src/backend/auth/authMiddleware.js';
 import { logger, requestLogger } from './src/backend/utils/logger.js';
 import { register, metricsMiddleware, activeAgentWorkers } from './src/backend/metrics.js';
 
@@ -65,23 +80,33 @@ import { alertsRouter } from './src/backend/alerts/alertsRouter.js';
 import { startAlertWatcher } from './src/backend/alerts/alertWatcher.js';
 import { sseRouter } from './src/backend/events/sseRouter.js';
 import { kpiRouter } from './src/backend/analytics/kpiRouter.js';
-import { registerPtyNamespace } from './src/backend/socket/ptyNamespace.js';
+import { opsrampRouter } from './src/backend/opsramp/opsrampRouter.js';
+import { modelRouterApi } from './src/backend/llm/modelRouterApi.js';
+import usersRouter from './src/backend/users/usersRouter.js';
+import { deployRouter } from './src/backend/deploy/deployRouter.js';
+import { deployService } from './src/backend/deploy/deployService.js';
+import { notificationsRouter } from './src/backend/notifications/notificationsRouter.js';
+import { schedulerRouter } from './src/backend/scheduler/schedulerRouter.js';
+import { schedulerService } from './src/backend/scheduler/schedulerService.js';
+import { registerPtyNamespace, ensurePtySpawnHelperPermissions } from './src/backend/socket/ptyNamespace.js';
 import { registerDashboardNamespace } from './src/backend/socket/dashboardNamespace.js';
 export { emitDashboardNotification, emitAgentEvent } from './src/backend/socket/dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './src/backend/socket/socketAuth.js';
+import { classifyWorkerSocket } from './src/backend/socket/workerClassification.js';
 
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { llmProxyRouter } from './src/backend/llm/llmProxyRouter.js';
+import compression from 'compression';
+import { securityHeadersMiddleware } from './src/backend/utils/securityHeaders.js';
 
 const isTestEnvironment = process.env.NODE_ENV === 'test';
-dotenv.config();
 if (isTestEnvironment) {
   process.env.NODE_ENV = 'test';
 }
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+app.use(compression());
 
 const port = process.env.PORT || 3001;
 
@@ -91,8 +116,9 @@ const port = process.env.PORT || 3001;
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: corsOriginDelegate,
+    methods: ['GET', 'POST'],
+    credentials: true
   },
   transports: ['polling', 'websocket']
 });
@@ -119,6 +145,29 @@ function findShellExecutable(requestedCmd) {
     return process.env.COMSPEC || 'cmd.exe';
   }
 
+  if (!requestedCmd || requestedCmd === 'bash') {
+    const unixBashCandidates = [
+      '/bin/bash',
+      '/usr/bin/bash',
+      '/usr/local/bin/bash',
+      '/opt/homebrew/bin/bash',
+      process.env.SHELL,
+      '/bin/zsh',
+      '/bin/sh',
+    ];
+    for (const p of unixBashCandidates) {
+      if (p && fs.existsSync(p)) return p;
+    }
+  }
+
+  if (requestedCmd) {
+    const candidateDirs = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+    for (const dir of candidateDirs) {
+      const full = path.join(dir, requestedCmd);
+      if (fs.existsSync(full)) return full;
+    }
+  }
+
   return requestedCmd || 'bash';
 }
 
@@ -132,22 +181,36 @@ io.on('connection', (socket) => {
   const isWorker = socket.handshake.auth?.isWorker;
 
   if (isWorker) {
+    const classification = classifyWorkerSocket(socket);
     const workerInfo = {
       id: socket.id,
-      name: socket.handshake.auth?.workerName || 'Local Worker',
+      name: socket.handshake.auth?.workerName || (classification.type === 'remote' ? 'Remote-Worker' : 'Local-Worker'),
+      type: classification.type,
+      ip: classification.ip,
+      serverId: classification.serverId,
+      serverName: classification.serverName,
       hostname: socket.handshake.auth?.hostname || 'unknown',
       platform: socket.handshake.auth?.platform || 'unknown',
+      arch: socket.handshake.auth?.arch || 'unknown',
       connectedAt: new Date().toISOString(),
       socket
     };
     activeWorkers.set(socket.id, workerInfo);
     activeAgentWorkers.set(activeWorkers.size);
-    logger.info({ workerId: socket.id, name: workerInfo.name }, '🤖 Registered Local Agent Worker');
+    logger.info({ workerId: socket.id, name: workerInfo.name, type: workerInfo.type, ip: workerInfo.ip }, '🤖 Registered Agent Worker');
 
     socket.on('register_worker', (data) => {
       if (activeWorkers.has(socket.id)) {
         const existing = activeWorkers.get(socket.id);
         Object.assign(existing, data);
+        if (data.type) existing.type = data.type;
+        if (data.workerType) existing.type = data.workerType;
+        if (data.serverId) existing.serverId = Number(data.serverId);
+        if (data.serverName) existing.serverName = data.serverName;
+        if (data.name?.toLowerCase().includes('omv') || data.hostname?.toLowerCase().includes('omv')) {
+          existing.type = 'remote';
+          if (!existing.serverName) existing.serverName = 'OMV';
+        }
       }
     });
 
@@ -189,8 +252,15 @@ io.on('connection', (socket) => {
     let workerToUse = null;
     if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
       workerToUse = activeWorkers.get(targetWorkerId);
-    } else if (executionTarget === 'worker' || (executionTarget !== 'remote' && activeWorkers.size > 0)) {
+    } else if (executionTarget === 'worker') {
       workerToUse = Array.from(activeWorkers.values())[0];
+    } else if (executionTarget !== 'remote' && activeWorkers.size > 0) {
+      // Auto mode: prefer a local worker if one is connected.
+      // If only remote workers exist (e.g. OMV), do NOT hijack local terminal sessions with remote workers!
+      const localWorker = Array.from(activeWorkers.values()).find(w => w.type === 'local');
+      if (localWorker) {
+        workerToUse = localWorker;
+      }
     }
 
     if (workerToUse) {
@@ -207,8 +277,15 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (!pty) {
+      socket.emit('terminal_data', '\r\n\x1b[33m[Warning] Local terminal is not supported on this host environment (FreeBSD / CT8). Please connect an Agent Worker (Local PC) to execute terminal commands.\x1b[0m\r\n');
+      socket.emit('terminal_exit', { exitCode: 1 });
+      return;
+    }
+
     // Default remote execution
     try {
+      ensurePtySpawnHelperPermissions();
       const shellCmd = findShellExecutable(command);
       const targetCwd = (cwd && fs.existsSync(cwd)) ? cwd : process.cwd();
 
@@ -222,7 +299,17 @@ io.on('connection', (socket) => {
           'C:\\Program Files\\Git\\usr\\bin',
           process.env.PATH || ''
         ].join(';')
-        : process.env.PATH;
+        : [
+          path.join(userHome, '.local/bin'),
+          path.join(userHome, '.cargo/bin'),
+          '/usr/local/bin',
+          '/opt/homebrew/bin',
+          '/usr/bin',
+          '/bin',
+          '/usr/sbin',
+          '/sbin',
+          process.env.PATH || ''
+        ].filter(Boolean).join(':');
 
       const sanitizedEnv = { ...(env || {}) };
       delete sanitizedEnv.HOME;
@@ -306,10 +393,14 @@ dashNsp.use(socketAuthMiddleware);
 
 registerPtyNamespace(ptyNsp, activeWorkers);
 registerDashboardNamespace(dashNsp, activeWorkers);
+deployService.setSocketServer(io);
+schedulerService.setSocketServer(io);
 
 
-app.use(cors());
-app.use(express.json());
+app.use(securityHeadersMiddleware);
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(requestLogger);
 app.use(metricsMiddleware);
 // Serve static assets from the public directory
@@ -367,21 +458,176 @@ app.get('/v1/metrics', async (req, res) => {
 // --- Auth Routes ---
 app.use('/api/auth', authRouter);
 
-// API Auth Middleware
-app.use('/api', authMiddleware);
+// Public Worker Script Download
+app.get('/api/worker/script', (req, res) => {
+  const scriptPath = path.join(__dirname, 'scripts', 'local-agent-worker.js');
+  if (fs.existsSync(scriptPath)) {
+    res.setHeader('Content-Type', 'text/javascript');
+    return res.sendFile(scriptPath);
+  }
+  res.status(404).json({ error: 'Worker script not found' });
+});
 
-app.get('/api/agents/workers', (req, res) => {
+// Public Sync Tasks Script Download
+app.get(['/api/scripts/syncTasks.js', '/api/scripts/sync-tasks.js', '/api/scripts/sync-tasks', '/scripts/syncTasks.js'], (req, res) => {
+  const scriptPath = path.join(__dirname, 'src', 'backend', 'scripts', 'syncTasks.js');
+  if (fs.existsSync(scriptPath)) {
+    res.setHeader('Content-Type', 'text/javascript');
+    return res.sendFile(scriptPath);
+  }
+  res.status(404).json({ error: 'Sync tasks script not found' });
+});
+
+// Public Worker Bootstrap / Auto-installer
+app.get(['/api/worker/run', '/api/worker/install'], (req, res) => {
+  const serverUrl = req.query.serverUrl || `${req.protocol}://${req.get('host')}`;
+  res.setHeader('Content-Type', 'text/x-shellscript');
+  res.send(`#!/usr/bin/env bash
+set -e
+SERVER_URL="\${1:-\${DASHBOARD_SERVER_URL:-${serverUrl}}}"
+TOKEN="\${2:-\${DASHBOARD_TOKEN:-}}"
+WORKER_NAME="\${3:-\${WORKER_NAME:-$(hostname)}}"
+WORK_DIR="$HOME/dashboard-worker"
+
+echo "🚀 Inicjalizacja Local Agenta Worker w $WORK_DIR..."
+mkdir -p "$WORK_DIR" && cd "$WORK_DIR"
+
+if [ ! -f package.json ]; then
+  npm init -y >/dev/null 2>&1
+fi
+
+node -e '
+const fs = require("fs");
+try {
+  const p = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  p.type = "module";
+  p.scripts = p.scripts || {};
+  p.scripts["agent:worker"] = "node local-agent-worker.js";
+  p.scripts["agent.worker"] = "node local-agent-worker.js";
+  p.scripts["worker"] = "node local-agent-worker.js";
+  fs.writeFileSync("package.json", JSON.stringify(p, null, 2));
+} catch(e) {}
+'
+
+if [ ! -d "node_modules/socket.io-client" ] || [ ! -d "node_modules/node-pty" ]; then
+  echo "📦 Instalacja zależności workera (socket.io-client, node-pty)..."
+  npm install --no-audit --no-fund socket.io-client node-pty
+fi
+
+node -e '
+try {
+  const fs = require("fs");
+  const path = require("path");
+  const prebuilds = path.join("node_modules", "node-pty", "prebuilds");
+  if (fs.existsSync(prebuilds)) {
+    fs.readdirSync(prebuilds).forEach(arch => {
+      const h = path.join(prebuilds, arch, "spawn-helper");
+      if (fs.existsSync(h)) fs.chmodSync(h, 0o755);
+    });
+  }
+} catch(e) {}
+'
+
+echo "📥 Pobieranie najnowszego skryptu workera z $SERVER_URL..."
+curl -sSL "\${SERVER_URL}/api/worker/script" -o local-agent-worker.js
+
+echo "🔌 Uruchamianie workera ($WORKER_NAME)..."
+exec env DASHBOARD_SERVER_URL="$SERVER_URL" DASHBOARD_TOKEN="$TOKEN" WORKER_NAME="$WORKER_NAME" node local-agent-worker.js
+`);
+});
+
+// Public / Token-optional Socket Endpoints
+app.get('/api/agents/workers', optionalAuthMiddleware, (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
+    type: w.type || (w.ip && w.ip !== '127.0.0.1' && w.ip !== '::1' ? 'remote' : 'local'),
+    ip: w.ip,
+    serverId: w.serverId || null,
+    serverName: w.serverName || null,
     hostname: w.hostname,
     platform: w.platform,
+    arch: w.arch,
     connectedAt: w.connectedAt
   }));
   res.json(workers);
 });
 
-app.get('/api/socket-info', (req, res) => {
+// Terminate / Kill single worker socket
+app.delete('/api/agents/workers/:id', authMiddleware, (req, res) => {
+  const workerId = req.params.id;
+  const worker = activeWorkers.get(workerId);
+  if (!worker) {
+    return res.status(404).json({ error: 'Worker o podanym ID nie został znaleziony' });
+  }
+
+  try {
+    if (worker.socket) {
+      worker.socket.emit('worker_terminate', { reason: 'Ubij z poziomu dashboardu' });
+      setTimeout(() => {
+        try { worker.socket.disconnect(true); } catch {}
+      }, 150);
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Błąd podczas wysyłania worker_terminate');
+  }
+
+  activeWorkers.delete(workerId);
+  activeAgentWorkers.set(activeWorkers.size);
+  logger.info({ workerId, name: worker.name }, '🛑 Ubito workera i rozłączono socket');
+
+  res.json({
+    success: true,
+    message: `Worker "${worker.name}" (${worker.type === 'remote' ? 'Zdalny' : 'Lokalny'}) został pomyślnie ubity i rozłączony.`
+  });
+});
+
+app.post('/api/agents/workers/:id/kill', authMiddleware, (req, res) => {
+  const workerId = req.params.id;
+  const worker = activeWorkers.get(workerId);
+  if (!worker) {
+    return res.status(404).json({ error: 'Worker o podanym ID nie został znaleziony' });
+  }
+
+  try {
+    if (worker.socket) {
+      worker.socket.emit('worker_terminate', { reason: 'Ubij z poziomu dashboardu' });
+      setTimeout(() => {
+        try { worker.socket.disconnect(true); } catch {}
+      }, 150);
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Błąd podczas wysyłania worker_terminate');
+  }
+
+  activeWorkers.delete(workerId);
+  activeAgentWorkers.set(activeWorkers.size);
+  logger.info({ workerId, name: worker.name }, '🛑 Ubito workera i rozłączono socket');
+
+  res.json({
+    success: true,
+    message: `Worker "${worker.name}" (${worker.type === 'remote' ? 'Zdalny' : 'Lokalny'}) został pomyślnie ubity i rozłączony.`
+  });
+});
+
+// Terminate / Kill all worker sockets
+app.delete('/api/agents/workers', authMiddleware, (req, res) => {
+  const count = activeWorkers.size;
+  for (const worker of activeWorkers.values()) {
+    try {
+      if (worker.socket) {
+        worker.socket.emit('worker_terminate', { reason: 'Masowe ubicie workerów z dashboardu' });
+        worker.socket.disconnect(true);
+      }
+    } catch {}
+  }
+  activeWorkers.clear();
+  activeAgentWorkers.set(0);
+  logger.info({ count }, '🛑 Ubito wszystkie aktywne workery');
+  res.json({ success: true, message: `Ubito wszystkie aktywne połączenia (${count}).` });
+});
+
+app.get('/api/socket-info', authMiddleware, (req, res) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${port}`;
   const serverUrl = `${protocol}://${host}`;
@@ -390,13 +636,11 @@ app.get('/api/socket-info', (req, res) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.query.token) {
-    token = req.query.token;
   }
 
-  if (!token) {
+  if (!token && req.user) {
     token = jwt.sign(
-      { id: req.user?.id || 1, username: req.user?.username || 'worker-client', isWorker: true },
+      { id: req.user.id || 1, username: req.user.username || 'worker-client', isWorker: true },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -405,8 +649,13 @@ app.get('/api/socket-info', (req, res) => {
   const workers = Array.from(activeWorkers.values()).map(w => ({
     id: w.id,
     name: w.name,
+    type: w.type || (w.ip && w.ip !== '127.0.0.1' && w.ip !== '::1' ? 'remote' : 'local'),
+    ip: w.ip,
+    serverId: w.serverId || null,
+    serverName: w.serverName || null,
     hostname: w.hostname,
     platform: w.platform,
+    arch: w.arch,
     connectedAt: w.connectedAt
   }));
 
@@ -416,6 +665,7 @@ app.get('/api/socket-info', (req, res) => {
     workers,
     workersCount: workers.length,
     commands: {
+      curl: `curl -sSL "${serverUrl}/api/worker/run" | bash -s -- "${serverUrl}" "${token}" "Moj-PC"`,
       npm: `DASHBOARD_SERVER_URL="${serverUrl}" DASHBOARD_TOKEN="${token}" npm run agent:worker`,
       node: `node scripts/local-agent-worker.js ${serverUrl} "${token}" "Moj-PC"`,
       bash: `export DASHBOARD_SERVER_URL="${serverUrl}"\nexport DASHBOARD_TOKEN="${token}"\nnpm run agent:worker`,
@@ -423,6 +673,12 @@ app.get('/api/socket-info', (req, res) => {
     }
   });
 });
+
+// LLM Proxy for transparent token metrics collection (passes agent API keys directly)
+app.use('/api/llm-proxy', authMiddleware, llmProxyRouter);
+
+// API Auth Middleware
+app.use('/api', authMiddleware);
 
 app.post('/api/socket/token', (req, res) => {
   const user = req.user || { id: 1, username: 'worker-client' };
@@ -447,10 +703,17 @@ app.use('/api/webhooks', webhooksRouter);
 app.use('/api/alerts', authMiddleware, alertsRouter);
 app.use('/api/events', authMiddleware, sseRouter);
 app.use('/api/analytics', authMiddleware, kpiRouter);
+app.use('/api/deploy', authMiddleware, deployRouter);
+app.use('/api/notifications', authMiddleware, notificationsRouter);
+app.use('/api/scheduler', authMiddleware, schedulerRouter);
+app.use('/api/opsramp', opsrampRouter);
+app.use('/api/llm', authMiddleware, modelRouterApi);
+app.use('/api/users', authMiddleware, usersRouter);
 
-// T7.4 — Start alert watcher (skipped in test env)
+// T7.4 — Start alert watcher and agent task scheduler (skipped in test env)
 if (process.env.NODE_ENV !== 'test') {
   startAlertWatcher();
+  schedulerService.initScheduler().catch(err => console.error('Błąd startu schedulera:', err.message));
 }
 
 
@@ -469,7 +732,19 @@ if (staticPath) {
   });
 }
 
-// Init DB
+// Centralized security error handler to prevent internal stack trace leakage
+app.use((err, req, res, next) => {
+  logger.error({ err: err.message, stack: err.stack, path: req.path }, 'Unhandled server error');
+  if (res.headersSent) {
+    return next(err);
+  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.status(err.status || 500).json({
+    error: isProduction ? 'Wystąpił wewnętrzny błąd serwera' : (err.message || 'Internal Server Error')
+  });
+});
+
+// Init DB - non-blocking startup
 async function initDB() {
   try {
     const schema = process.env.DB_SCHEMA || 'dashboard';
@@ -550,16 +825,31 @@ async function initDB() {
         status VARCHAR(50) DEFAULT 'stopped',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS agent_scheduled_tasks (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        task_type VARCHAR(100) NOT NULL,
+        command TEXT,
+        cron_expression VARCHAR(100) NOT NULL,
+        enabled BOOLEAN DEFAULT true,
+        last_run TIMESTAMP,
+        last_status VARCHAR(50) DEFAULT 'idle',
+        last_output TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
       INSERT INTO settings (key, value) VALUES ('llmName', 'AtomicChat') ON CONFLICT (key) DO NOTHING;
       INSERT INTO settings (key, value) VALUES ('llmUrl', 'http://127.0.0.1:1337/v1') ON CONFLICT (key) DO NOTHING;
       INSERT INTO settings (key, value) VALUES ('llmModel', 'AtomicChat/qwen35-4b-Q8_0') ON CONFLICT (key) DO NOTHING;
     `);
     console.log(`Database initialized in schema '${schema}'`);
   } catch (err) {
-    console.error('Failed to initialize database:', err.message);
+    logger.warn({ err: err.message }, 'Błąd initDB - kontynuuj start');
+    // Nie blokuj startu, jeśli tabele nie istnieją
   }
 }
-initDB();
+
+// Start DB initialization asynchronously (non-blocking)
+initDB().catch(err => console.error('Błąd async initDB:', err.message));
 
 const isPassenger = typeof PhusionPassenger !== 'undefined' || !!process.env.PASSENGER_APP_ENV;
 
@@ -569,8 +859,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       console.log('Backend API and Socket.IO running under Phusion Passenger');
       try {
         startBackgroundWorker();
+        startRemoteSyncCron();
       } catch (e) {
-        logger.warn({ err: e.message }, 'Failed to start background worker');
+        logger.warn({ err: e.message }, 'Failed to start background worker or remote sync cron');
       }
     });
   } else {
@@ -579,8 +870,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       logger.info(`Prometheus metrics available at http://localhost:${port}/metrics`);
       try {
         startBackgroundWorker();
+        startRemoteSyncCron();
       } catch (e) {
-        logger.warn({ err: e.message }, 'Failed to start background worker');
+        logger.warn({ err: e.message }, 'Failed to start background worker or remote sync cron');
       }
     });
   }

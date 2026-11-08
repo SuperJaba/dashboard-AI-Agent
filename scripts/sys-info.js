@@ -66,7 +66,11 @@ function getDiskInfo() {
 
 function getTopProcesses() {
   try {
-    const raw = execSync('ps -eo pid,pcpu,pmem,comm --sort=-%mem | head -n 6', {
+    const isBsd = process.platform === 'freebsd' || process.platform === 'darwin';
+    const cmd = isBsd
+      ? 'ps -ax -o pid,pcpu,pmem,comm -m | head -n 6'
+      : 'ps -eo pid,pcpu,pmem,comm --sort=-%mem | head -n 6';
+    const raw = execSync(cmd, {
       encoding: 'utf-8',
       timeout: 3000
     }).trim();

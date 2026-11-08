@@ -98,7 +98,7 @@ describe('AgentsView integration tests', () => {
   it('auto-tunes an agent and triggers server call', async () => {
     render(<AgentsView />);
     await waitFor(() => screen.getByText(/Agent One/i));
-    const tuneBtn = screen.getAllByRole('button').find((btn) => btn.title === 'Auto-Tune Agent Parameters') as HTMLElement;
+    const tuneBtn = screen.getAllByRole('button').find((btn) => btn.title === 'Automatyczne strojenie parametrów') as HTMLElement;
     fireEvent.click(tuneBtn!);
 
     await waitFor(() => {
@@ -125,6 +125,31 @@ describe('AgentsView integration tests', () => {
     await waitFor(() => {
       const mockApi = vi.mocked(apiFetch);
       expect(mockApi).toHaveBeenCalledWith('/api/agents/1', expect.objectContaining({ method: 'PUT' }));
+    });
+  });
+
+  it('closes add agent modal on Escape key', async () => {
+    render(<AgentsView />);
+    await waitFor(() => expect(screen.getByText(/Agent One/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /dodaj agenta/i }));
+    await waitFor(() => screen.getByText(/Dodaj Nowego Agenta/i));
+
+    fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByText(/Dodaj Nowego Agenta/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders Aktywny badge and handles scan notification', async () => {
+    render(<AgentsView />);
+    await waitFor(() => expect(screen.getByText(/Agent One/i)).toBeInTheDocument());
+    expect(screen.getByText('Aktywny')).toBeInTheDocument();
+
+    const scanBtn = screen.getByRole('button', { name: /skanuj system/i });
+    fireEvent.click(scanBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Skanowanie systemu zakończone')).toBeInTheDocument();
     });
   });
 });

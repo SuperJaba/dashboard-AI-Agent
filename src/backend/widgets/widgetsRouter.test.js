@@ -31,7 +31,7 @@ describe('widgetsRouter', () => {
       .post('/api/widgets')
       .send({
         name: 'Echo Test',
-        command: 'echo "hello widget"',
+        command: 'node -e "console.log(\'hello widget\')"',
         type: 'text',
         color: '#6366f1'
       });
@@ -50,7 +50,7 @@ describe('widgetsRouter', () => {
       .put(`/api/widgets/${widgetId}`)
       .send({
         name: 'Echo Updated',
-        command: 'echo "updated output"',
+        command: 'node -e "console.log(\'updated output\')"',
         type: 'text',
         color: '#10b981'
       });

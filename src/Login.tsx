@@ -104,8 +104,8 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     return (
       <div 
         style={{ 
-          minHeight: '100vh', 
-          backgroundColor: '#0f172a', 
+          minHeight: '100dvh', 
+          backgroundColor: 'var(--bg-color, #090d16)', 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center', 
@@ -120,26 +120,15 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const handleResetAuth = async () => {
-    try {
-      await fetch('/api/auth/reset', { method: 'POST' });
-      localStorage.removeItem('dashboard_token');
-      setNeedsSetup(true);
-      setError('Zresetowano stan autentykacji. Utwórz nowe konto administratora.');
-    } catch (err: any) {
-      setError('Błąd resetowania: ' + err.message);
-    }
-  };
-
   return (
     <div 
       style={{ 
-        minHeight: '100vh', 
+        minHeight: '100dvh', 
         width: '100vw',
-        backgroundColor: '#0f172a', 
+        backgroundColor: 'var(--bg-color, #090d16)', 
         backgroundImage: `
-          radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.25) 0px, transparent 50%),
-          radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.2) 0px, transparent 50%)
+          radial-gradient(ellipse 70% 40% at 50% 0%, rgba(79, 70, 229, 0.15), transparent 70%),
+          radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.05), transparent 40%)
         `,
         display: 'flex', 
         alignItems: 'center', 
@@ -150,18 +139,18 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
         overflow: 'hidden'
       }}
     >
-      {/* Background ambient glow circles */}
+      {/* Background ambient glow circle */}
       <div 
         style={{
           position: 'absolute',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '600px',
-          height: '600px',
-          background: 'rgba(79, 70, 229, 0.15)',
+          width: '500px',
+          height: '500px',
+          background: 'rgba(79, 70, 229, 0.1)',
           borderRadius: '50%',
-          filter: 'blur(100px)',
+          filter: 'blur(120px)',
           pointerEvents: 'none'
         }}
       />
@@ -178,13 +167,13 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
         <div 
           className="glass-card animate-in"
           style={{
-            background: 'rgba(30, 41, 59, 0.8)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            borderRadius: '24px',
+            background: 'rgba(15, 23, 42, 0.78)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '20px',
             padding: '2.5rem 2rem',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(79, 70, 229, 0.15)',
+            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)',
             display: 'flex',
             flexDirection: 'column',
             gap: '1.5rem'
@@ -231,6 +220,8 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 </div>
                 <input
                   id="login-username"
+                  name="username"
+                  autoComplete="username"
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
@@ -262,6 +253,8 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 </div>
                 <input
                   id="login-password"
+                  name="password"
+                  autoComplete="current-password"
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -323,28 +316,6 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
               <ChevronRight size={18} aria-hidden="true" />
             </button>
           </form>
-
-          {/* Reset Auth Options */}
-          <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'center' }}>
-            <button
-              type="button"
-              onClick={handleResetAuth}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#94a3b8',
-                fontSize: '0.75rem',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                transition: 'color 0.2s'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.color = '#ef4444'}
-              onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
-              title="Wyczyść użytkowników w bazie danych i przejdź do ponownego Setupu"
-            >
-              Resetuj bazę autentykacji (Zresetuj dostęp)
-            </button>
-          </div>
         </div>
       </div>
     </div>

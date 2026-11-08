@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Folder, FolderPlus, ChevronUp, ChevronRight, X, Loader2, Check, HardDrive, ArrowRight } from 'lucide-react';
 import { apiClient } from './shared/api-client';
 
@@ -21,6 +21,8 @@ interface FsResponse {
   drives?: string[];
 }
 
+export const STORAGE_KEY_LAST_WORKSPACE_PATH = 'last_workspace_folder_path';
+
 export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
   isOpen,
   onClose,
@@ -35,7 +37,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDirectory = async (targetPath?: string) => {
+  const loadDirectory = useCallback(async function fetchDir(targetPath?: string, isFallbackCandidate = false) {
     setLoading(true);
     setError(null);
     try {
@@ -52,17 +54,36 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
       }
       setSelectedFolder(null);
     } catch (err: any) {
+      if (isFallbackCandidate) {
+        try {
+          localStorage.removeItem(STORAGE_KEY_LAST_WORKSPACE_PATH);
+        } catch {
+          // ignore
+        }
+        await fetchDir();
+        return;
+      }
       setError(err.message || 'Nie udało się odczytać zawartości folderu');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      loadDirectory();
+      let savedPath: string | null = null;
+      try {
+        savedPath = localStorage.getItem(STORAGE_KEY_LAST_WORKSPACE_PATH);
+      } catch {
+        // ignore
+      }
+      if (savedPath && savedPath.trim()) {
+        loadDirectory(savedPath.trim(), true);
+      } else {
+        loadDirectory();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, loadDirectory]);
 
   if (!isOpen) return null;
 
@@ -76,17 +97,29 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
 
   const handleConfirm = () => {
     const trimmedInput = (inputPath || '').trim();
+    let chosenPath = '';
+    let chosenName = '';
+
     if (selectedFolder) {
-      const name = selectedFolder.name.replace(/^Dysk\s*\((.*)\)$/, '$1') || selectedFolder.name;
-      onSelectFolder(selectedFolder.path, name);
-      onClose();
+      chosenName = selectedFolder.name.replace(/^Dysk\s*\((.*)\)$/, '$1') || selectedFolder.name;
+      chosenPath = selectedFolder.path;
     } else if (trimmedInput && trimmedInput !== currentPath) {
-      const name = trimmedInput.replace(/[/\\]$/, '').split(/[/\\]/).pop() || trimmedInput;
-      onSelectFolder(trimmedInput, name);
-      onClose();
+      chosenName = trimmedInput.replace(/[/\\]$/, '').split(/[/\\]/).pop() || trimmedInput;
+      chosenPath = trimmedInput;
     } else if (currentPath) {
-      const name = currentPath.replace(/[/\\]$/, '').split(/[/\\]/).pop() || currentPath;
-      onSelectFolder(currentPath, name);
+      chosenName = currentPath.replace(/[/\\]$/, '').split(/[/\\]/).pop() || currentPath;
+      chosenPath = currentPath;
+    }
+
+    if (chosenPath) {
+      try {
+        const parent = chosenPath.replace(/[/\\][^/\\]+[/\\]?$/, '');
+        const pathToSave = parent && parent !== chosenPath ? parent : chosenPath;
+        localStorage.setItem(STORAGE_KEY_LAST_WORKSPACE_PATH, pathToSave);
+      } catch {
+        // ignore storage errors
+      }
+      onSelectFolder(chosenPath, chosenName);
       onClose();
     }
   };
@@ -108,7 +141,8 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 150
+        zIndex: 150,
+        overscrollBehavior: 'contain'
       }}
     >
       <div
@@ -185,7 +219,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
                 fontWeight: 'bold'
               }}
             >
-              <option value="" disabled>Dysk...</option>
+              <option value="" disabled>Dysk…</option>
               {drives.map(drive => (
                 <option key={drive} value={drive} style={{ background: '#1e293b', color: '#fff' }}>
                   {drive}
@@ -200,7 +234,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
               type="text"
               value={inputPath}
               onChange={(e) => setInputPath(e.target.value)}
-              placeholder="Wpisz lub wklej ścieżkę (np. C:\...)"
+              placeholder="Wpisz lub wklej ścieżkę (np. C:\…)"
               aria-label="Ścieżka folderu"
               style={{
                 flex: 1,
@@ -248,7 +282,7 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '0.5rem', color: 'var(--text-muted)' }}>
               <Loader2 className="animate-spin" size={20} />
-              <span>Wczytywanie folderów...</span>
+              <span>Wczytywanie folderów…</span>
             </div>
           ) : error ? (
             <div style={{ color: '#ef4444', padding: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>
@@ -265,8 +299,20 @@ export const FolderPickerDialog: React.FC<FolderPickerDialogProps> = ({
               return (
                 <div
                   key={dir.path}
+                  role="button"
+                  tabIndex={0}
+                  aria-selected={isSelected}
                   onClick={() => setSelectedFolder(dir)}
                   onDoubleClick={() => loadDirectory(dir.path)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      loadDirectory(dir.path);
+                    } else if (e.key === " ") {
+                      e.preventDefault();
+                      setSelectedFolder(dir);
+                    }
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

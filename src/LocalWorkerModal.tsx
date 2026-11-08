@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, Copy, Check, Laptop, Terminal, Wifi, WifiOff, 
-  ShieldCheck, Key, Eye, EyeOff, RefreshCw, Server
+  ShieldCheck, Key, Eye, EyeOff, RefreshCw, Server,
+  PowerOff
 } from 'lucide-react';
 
 interface LocalWorkerModalProps {
@@ -17,7 +18,10 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [isGeneratingToken, setIsGeneratingToken] = useState(false);
-  const [commandTab, setCommandTab] = useState<'npm' | 'node' | 'bash' | 'powershell'>('npm');
+  const [commandTab, setCommandTab] = useState<'curl' | 'npm' | 'node' | 'bash' | 'powershell'>('curl');
+  const [killingWorkerId, setKillingWorkerId] = useState<string | null>(null);
+  const [isKillingAll, setIsKillingAll] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const defaultUrl = typeof window !== 'undefined'
     ? (window.location.port === '5173' ? 'http://localhost:3001' : window.location.origin)
@@ -105,6 +109,76 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
     }
   };
 
+  const handleKillWorker = async (workerId: string, name: string) => {
+    setKillingWorkerId(workerId);
+    setActionFeedback(null);
+    try {
+      const headers: Record<string, string> = {};
+      const tokenToSend = activeToken || (typeof window !== 'undefined' ? localStorage.getItem('dashboard_token') : '');
+      if (tokenToSend) headers['Authorization'] = `Bearer ${tokenToSend}`;
+
+      const res = await fetch(`/api/agents/workers/${workerId}`, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActionFeedback({ type: 'success', message: data.message || `Ubito socket "${name}"!` });
+        await fetchSocketInfo();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Nie udało się ubić workera.' });
+      }
+    } catch (e: any) {
+      setActionFeedback({ type: 'error', message: `Błąd sieci: ${e.message}` });
+    } finally {
+      setKillingWorkerId(null);
+      setTimeout(() => setActionFeedback(null), 5000);
+    }
+  };
+
+  const handleKillAllWorkers = async () => {
+    setIsKillingAll(true);
+    setActionFeedback(null);
+    try {
+      const headers: Record<string, string> = {};
+      const tokenToSend = activeToken || (typeof window !== 'undefined' ? localStorage.getItem('dashboard_token') : '');
+      if (tokenToSend) headers['Authorization'] = `Bearer ${tokenToSend}`;
+
+      const res = await fetch('/api/agents/workers', { method: 'DELETE', headers });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActionFeedback({ type: 'success', message: data.message || 'Ubito wszystkie aktywne sockety!' });
+        await fetchSocketInfo();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Nie udało się ubić workerów.' });
+      }
+    } catch (e: any) {
+      setActionFeedback({ type: 'error', message: `Błąd sieci: ${e.message}` });
+    } finally {
+      setIsKillingAll(false);
+      setTimeout(() => setActionFeedback(null), 5000);
+    }
+  };
+
+  const handleKillServerTunnel = async (serverId: number, serverName: string) => {
+    setActionFeedback(null);
+    try {
+      const headers: Record<string, string> = {};
+      const tokenToSend = activeToken || (typeof window !== 'undefined' ? localStorage.getItem('dashboard_token') : '');
+      if (tokenToSend) headers['Authorization'] = `Bearer ${tokenToSend}`;
+
+      const res = await fetch(`/api/servers/${serverId}/kill-tunnel`, { method: 'POST', headers });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActionFeedback({ type: 'success', message: data.message || `Ubito proces tunelu na serwerze ${serverName} przez SSH!` });
+        await fetchSocketInfo();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Błąd ubijania tunelu na serwerze.' });
+      }
+    } catch (e: any) {
+      setActionFeedback({ type: 'error', message: `Błąd: ${e.message}` });
+    } finally {
+      setTimeout(() => setActionFeedback(null), 5000);
+    }
+  };
+
   const copyToClipboard = async (text: string, setCopied: (v: boolean) => void) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -128,6 +202,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
   const cleanServerUrl = (serverUrl || defaultUrl).trim().replace(/\/$/, '');
 
   const commands = {
+    curl: `curl -sSL "${cleanServerUrl}/api/worker/run" | bash -s -- "${cleanServerUrl}" "${safeToken}" "${workerName}"`,
     npm: `DASHBOARD_SERVER_URL="${cleanServerUrl}" DASHBOARD_TOKEN="${safeToken}" WORKER_NAME="${workerName}" npm run agent:worker`,
     node: `node scripts/local-agent-worker.js ${cleanServerUrl} "${safeToken}" "${workerName}"`,
     bash: `export DASHBOARD_SERVER_URL="${cleanServerUrl}"\nexport DASHBOARD_TOKEN="${safeToken}"\nexport WORKER_NAME="${workerName}"\nnpm run agent:worker`,
@@ -160,8 +235,8 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#0f172a',
-          border: '1px solid #334155',
+          background: 'var(--bg-surface)',
+          border: `1px solid var(--border-color)`,
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
           borderRadius: '16px',
           width: '680px',
@@ -172,7 +247,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           flexDirection: 'column',
           gap: '1.1rem',
           padding: '1.75rem',
-          color: '#f8fafc'
+          color: 'var(--text-main)'
         }}
       >
         {/* Header */}
@@ -180,18 +255,18 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{
               background: 'rgba(56, 189, 248, 0.1)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
+              border: `1px solid rgba(56, 189, 248, 0.25)`,
               borderRadius: '10px',
               padding: '0.6rem',
-              color: '#38bdf8'
+              color: 'var(--secondary)'
             }}>
               <Laptop size={22} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: '#f8fafc' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--text-main)' }}>
                 Połączenie Socket & Local Worker
               </h2>
-              <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+              <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 Podłącz lokalnego workera przez Socket.IO, aby agenci CLI wykonywali się na Twoim komputerze.
               </p>
             </div>
@@ -203,7 +278,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#94a3b8',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: '0.4rem',
               borderRadius: '8px',
@@ -215,32 +290,179 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           </button>
         </div>
 
-        {/* Worker Status Badge */}
+        {/* Worker Status Badge & List with Kill Options */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: workers.length > 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.08)',
-          border: `1px solid ${workers.length > 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.25)'}`,
-          padding: '0.75rem 1rem',
-          borderRadius: '10px'
+          flexDirection: 'column',
+          gap: '0.75rem',
+          background: workers.length > 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+          border: `1px solid ${workers.length > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.25)'}`,
+          padding: '0.85rem 1rem',
+          borderRadius: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {workers.length > 0 ? (
-              <Wifi size={18} style={{ color: '#10b981' }} />
-            ) : (
-              <WifiOff size={18} style={{ color: '#ef4444' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              {workers.length > 0 ? (
+                <Wifi size={18} style={{ color: 'var(--success)' }} />
+              ) : (
+                <WifiOff size={18} style={{ color: 'var(--danger)' }} />
+              )}
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: workers.length > 0 ? 'var(--success-light)' : 'var(--danger-light)' }}>
+                {workers.length > 0
+                  ? `Aktywne połączenia Socket (${workers.length})`
+                  : 'Brak aktywnego połączenia workera do Socket.IO'}
+              </span>
+            </div>
+
+            {workers.length > 1 && (
+              <button
+                type="button"
+                onClick={handleKillAllWorkers}
+                disabled={isKillingAll}
+                title="Rozłącz i ubij wszystkie aktywne połączenia socket.io"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: `1px solid rgba(239, 68, 68, 0.35)`,
+                  borderRadius: '6px',
+                  color: 'var(--danger-light)',
+                  fontSize: '0.72rem',
+                  padding: '3px 8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  fontWeight: 600
+                }}
+              >
+                <PowerOff size={12} className={isKillingAll ? 'animate-spin' : ''} />
+                <span>Ubij wszystkie sockety</span>
+              </button>
             )}
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: workers.length > 0 ? '#34d399' : '#f87171' }}>
-              {workers.length > 0
-                ? `Aktywne połączenie Socket (${workers.length} ${workers.length === 1 ? 'worker połączony' : 'workery połączone'})`
-                : 'Brak aktywnego połączenia workera do Socket.IO'}
-            </span>
           </div>
+
+          {actionFeedback && (
+            <div style={{
+              padding: '0.45rem 0.75rem',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              background: actionFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              color: actionFeedback.type === 'success' ? 'var(--success-light)' : 'var(--danger-light)',
+              border: `1px solid ${actionFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+            }}>
+              {actionFeedback.message}
+            </div>
+          )}
+
           {workers.length > 0 && (
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: 'var(--mono)' }}>
-              {workers.map(w => `${w.name} [${w.platform}]`).join(', ')}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.2rem' }}>
+              {workers.map((w) => {
+                const isRemote = w.type === 'remote' || w.serverName || (w.ip && w.ip !== '127.0.0.1' && w.ip !== '::1' && w.ip !== 'localhost');
+                const isBeingKilled = killingWorkerId === w.id;
+
+                return (
+                  <div
+                    key={w.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.6rem',
+                      background: 'var(--bg-surface)',
+                      border: `1px solid var(--border-color)`,
+                      borderRadius: '8px',
+                      padding: '0.55rem 0.75rem'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div style={{
+                        background: isRemote ? 'rgba(168, 85, 247, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                        border: `1px solid ${isRemote ? 'rgba(168, 85, 247, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
+                        borderRadius: '6px',
+                        padding: '0.35rem',
+                        color: isRemote ? 'var(--role-admin-text)' : 'var(--secondary)'
+                      }}>
+                        {isRemote ? <Server size={15} /> : <Laptop size={15} />}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                            {w.name}
+                          </span>
+                          <span style={{
+                            fontSize: '0.68rem',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 700,
+                            background: isRemote ? 'rgba(168, 85, 247, 0.2)' : 'rgba(56, 189, 248, 0.2)',
+                            color: isRemote ? 'var(--role-admin-text)' : 'var(--secondary)',
+                            border: `1px solid ${isRemote ? 'rgba(168, 85, 247, 0.35)' : 'rgba(56, 189, 248, 0.35)'}`
+                          }}>
+                            {isRemote ? `🌐 Zdalny (Serwer${w.serverName ? `: ${w.serverName}` : ''})` : '💻 Lokalny (PC)'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '1px', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span>Host: <code>{w.hostname}</code></span>
+                          {w.ip && <span>IP: <code>{w.ip}</code></span>}
+                          <span>OS: <code>{w.platform}{w.arch ? `/${w.arch}` : ''}</code></span>
+                          {w.connectedAt && (
+                            <span>Od: {new Date(w.connectedAt).toLocaleTimeString()}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      {(w.serverId || (w.name && w.name.toLowerCase() === 'omv')) && (
+                        <button
+                          type="button"
+                          onClick={() => handleKillServerTunnel(w.serverId || 1, w.serverName || w.name)}
+                          title="Zabij wszystkie procesy workera bezpośrednio na serwerze przez SSH (pkill)"
+                          style={{
+                            background: 'rgba(168, 85, 247, 0.1)',
+                            border: `1px solid rgba(168, 85, 247, 0.3)`,
+                            borderRadius: '6px',
+                            color: 'var(--role-admin-text)',
+                            fontSize: '0.72rem',
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          <Terminal size={11} />
+                          <span>Ubij na serwerze (SSH)</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleKillWorker(w.id, w.name)}
+                        disabled={isBeingKilled}
+                        title={`Ubij socket i zakończ proces dla workera ${w.name}`}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: `1px solid rgba(239, 68, 68, 0.35)`,
+                          borderRadius: '6px',
+                          color: 'var(--danger-light)',
+                          fontSize: '0.72rem',
+                          padding: '3px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        <PowerOff size={11} className={isBeingKilled ? 'animate-spin' : ''} />
+                        <span>{isBeingKilled ? 'Ubijanie...' : 'Ubij socket'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -249,14 +471,14 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           display: 'flex',
           flexDirection: 'column',
           gap: '0.5rem',
-          background: 'rgba(30, 41, 59, 0.45)',
-          border: '1px solid #334155',
+          background: 'var(--bg-surface)',
+          border: `1px solid var(--border-color)`,
           borderRadius: '10px',
           padding: '1rem'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Key size={15} style={{ color: '#f59e0b' }} /> Aktualny Token do Socketu (JWT Auth Token):
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Key size={15} style={{ color: 'var(--warning)' }} /> Aktualny Token do Socketu (JWT Auth Token):
             </span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -266,9 +488,9 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
                 title="Generuj nowy 30-dniowy token dedykowany dla workera"
                 style={{
                   background: 'rgba(245, 158, 11, 0.1)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  border: `1px solid rgba(245, 158, 11, 0.3)`,
                   borderRadius: '6px',
-                  color: '#f59e0b',
+                  color: 'var(--warning-light)',
                   fontSize: '0.75rem',
                   padding: '3px 8px',
                   cursor: 'pointer',
@@ -284,10 +506,10 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
                 type="button"
                 onClick={() => copyToClipboard(safeToken, setCopiedToken)}
                 style={{
-                  background: copiedToken ? '#059669' : 'rgba(56, 189, 248, 0.15)',
-                  border: `1px solid ${copiedToken ? '#10b981' : 'rgba(56, 189, 248, 0.3)'}`,
+                  background: copiedToken ? 'var(--success)' : 'rgba(56, 189, 248, 0.15)',
+                  border: `1px solid ${copiedToken ? 'var(--success-light)' : 'rgba(56, 189, 248, 0.3)'}`,
                   borderRadius: '6px',
-                  color: copiedToken ? '#ffffff' : '#38bdf8',
+                  color: copiedToken ? '#ffffff' : 'var(--secondary)',
                   fontSize: '0.75rem',
                   padding: '3px 8px',
                   cursor: 'pointer',
@@ -307,8 +529,8 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <div style={{
               flex: 1,
-              background: '#090d16',
-              border: '1px solid #1e293b',
+              background: 'var(--bg-color)',
+              border: `1px solid var(--border-color)`,
               borderRadius: '8px',
               padding: '0.5rem 0.75rem',
               display: 'flex',
@@ -324,7 +546,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
                   width: '100%',
                   background: 'transparent',
                   border: 'none',
-                  color: '#38bdf8',
+                  color: 'var(--secondary)',
                   fontFamily: 'var(--mono)',
                   fontSize: '0.8rem',
                   outline: 'none',
@@ -338,10 +560,10 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
               title={showToken ? 'Ukryj token' : 'Pokaż pełny token'}
               style={{
                 background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid #334155',
+                border: `1px solid var(--border-color)`,
                 borderRadius: '8px',
                 padding: '0.5rem',
-                color: '#94a3b8',
+                color: 'var(--text-muted)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center'
@@ -359,7 +581,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Server size={13} style={{ color: '#38bdf8' }} /> Adres serwera Socket (URL):
+              <Server size={13} style={{ color: 'var(--secondary)' }} /> Adres serwera Socket (URL):
             </label>
             <div style={{ display: 'flex', gap: '0.3rem' }}>
               <input
@@ -369,11 +591,11 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
                 placeholder="http://localhost:3001"
                 style={{
                   flex: 1,
-                  background: '#1e293b',
-                  border: '1px solid #334155',
+                  background: 'var(--bg-surface)',
+                  border: `1px solid var(--border-color)`,
                   borderRadius: '8px',
                   padding: '0.45rem 0.65rem',
-                  color: '#f8fafc',
+                  color: 'var(--text-main)',
                   fontSize: '0.8rem',
                   fontFamily: 'var(--mono)',
                   outline: 'none'
@@ -384,11 +606,11 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
                 onClick={() => copyToClipboard(serverUrl, setCopiedUrl)}
                 title="Kopiuj URL"
                 style={{
-                  background: '#1e293b',
-                  border: '1px solid #334155',
+                  background: 'var(--bg-surface)',
+                  border: `1px solid var(--border-color)`,
                   borderRadius: '8px',
                   padding: '0.45rem',
-                  color: copiedUrl ? '#10b981' : '#94a3b8',
+                  color: copiedUrl ? 'var(--success-light)' : 'var(--text-muted)',
                   cursor: 'pointer'
                 }}
               >
@@ -407,11 +629,11 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
               onChange={(e) => setWorkerName(e.target.value)}
               placeholder="Moj-PC"
               style={{
-                background: '#1e293b',
-                border: '1px solid #334155',
+                background: 'var(--bg-surface)',
+                border: `1px solid var(--border-color)`,
                 borderRadius: '8px',
                 padding: '0.45rem 0.65rem',
-                color: '#f8fafc',
+                color: 'var(--text-main)',
                 fontSize: '0.8rem',
                 fontFamily: 'var(--mono)',
                 outline: 'none'
@@ -424,14 +646,15 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Terminal size={15} style={{ color: '#10b981' }} /> Komenda do połączenia Socket:
+              <Terminal size={15} style={{ color: 'var(--success)' }} /> Komenda do połączenia Socket:
             </span>
           </div>
 
           {/* Format Tabs */}
-          <div style={{ display: 'flex', gap: '0.3rem', background: '#090d16', padding: '3px', borderRadius: '8px', border: '1px solid #1e293b' }}>
+          <div style={{ display: 'flex', gap: '0.3rem', background: 'var(--bg-color)', padding: '3px', borderRadius: '8px', border: `1px solid var(--border-color)` }}>
             {[
-              { id: 'npm', label: 'NPM (Zalecane)' },
+              { id: 'curl', label: 'CURL (Dowolny katalog)' },
+              { id: 'npm', label: 'NPM (Katalog repo)' },
               { id: 'node', label: 'Node Skrypt' },
               { id: 'bash', label: 'Bash / Linux' },
               { id: 'powershell', label: 'PowerShell' }
@@ -443,7 +666,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
                 style={{
                   flex: 1,
                   background: commandTab === tab.id ? '#2563eb' : 'transparent',
-                  color: commandTab === tab.id ? '#ffffff' : '#94a3b8',
+                  color: commandTab === tab.id ? '#ffffff' : 'var(--text-muted)',
                   border: 'none',
                   borderRadius: '6px',
                   padding: '4px 8px',
@@ -461,8 +684,8 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           {/* Command Output Box */}
           <div style={{
             position: 'relative',
-            background: '#090d16',
-            border: '1px solid #1e293b',
+            background: 'var(--bg-color)',
+            border: `1px solid var(--border-color)`,
             borderRadius: '10px',
             padding: '0.85rem 1rem',
             overflowX: 'auto'
@@ -471,7 +694,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
               margin: 0,
               fontSize: '0.8rem',
               fontFamily: 'var(--mono)',
-              color: '#34d399',
+              color: 'var(--success-light)',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-all',
               lineHeight: 1.5
@@ -488,7 +711,7 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.5rem',
-              background: copiedCmd ? '#059669' : '#2563eb',
+              background: copiedCmd ? 'var(--success)' : '#2563eb',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -510,17 +733,16 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
           display: 'flex',
           gap: '0.75rem',
           background: 'rgba(30, 41, 59, 0.4)',
-          border: '1px solid rgba(51, 65, 85, 0.5)',
+          border: `1px solid rgba(51, 65, 85, 0.5)`,
           borderRadius: '8px',
           padding: '0.75rem',
           fontSize: '0.75rem',
-          color: '#94a3b8',
+          color: 'var(--text-muted)',
           lineHeight: 1.4
         }}>
-          <ShieldCheck size={18} style={{ color: '#10b981', flexShrink: 0, marginTop: '2px' }} />
+          <ShieldCheck size={18} style={{ color: 'var(--success-light)', flexShrink: 0, marginTop: '2px' }} />
           <div>
-            <strong>Instrukcja:</strong> Wklej powyższe polecenie w terminalu na komputerze dewelopera (w katalogu projektu).
-            Gdy worker zestawi połączenie Socket.IO, w dashboardzie pojawi się zielona ikona, a polecenia agentów (Claude Code, Antigravity, skrypty) uruchomią się bezpośrednio na Twoim PC z podglądem na żywo w przeglądarce.
+            <strong>Instrukcja:</strong> Wklej powyższe polecenie w terminalu. Zakładka <strong>CURL (Dowolny katalog)</strong> automatycznie zainicjalizuje środowisko w <code>~/dashboard-worker</code>, zainstaluje zależności i uruchomi tunel bez konieczności znajdowania się w katalogu projektu. Jeśli wolisz komendę <code>npm run agent:worker</code>, upewnij się, że uruchamiasz ją w katalogu repozytorium dashboardu lub w <code>~/dashboard-worker</code>.
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useToast } from './hooks/useToast';
 import ReactDOM from 'react-dom';
 import { 
   GitBranch, GitCommit, GitPullRequest, AlertCircle, RefreshCw, 
@@ -6,6 +7,8 @@ import {
   DownloadCloud, FileText, Plus, Check
 } from 'lucide-react';
 import { apiClient } from './shared/api-client';
+import { AntigravityCard } from './components/AntigravityCard';
+import { SplitDiffViewer } from './components/SplitDiffViewer';
 import './index.css';
 
 interface RepoStatusProps {
@@ -14,12 +17,12 @@ interface RepoStatusProps {
 }
 
 export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTerminal }) => {
+  const toast = useToast();
   const [gitStatus, setGitStatus] = useState<any>(null);
   const [githubData, setGithubData] = useState<any>(null);
   const [branches, setBranches] = useState<{ current: string; local: string[]; remote: string[] }>({ current: '', local: [], remote: [] });
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCommits, setShowCommits] = useState(false);
   const [showChanges, setShowChanges] = useState(true);
@@ -35,9 +38,12 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
   const [deployModal, setDeployModal] = useState<{ show: boolean; title: string; content: string; isError: boolean } | null>(null);
 
   const showNotification = useCallback((text: string, type: 'success' | 'error' = 'success') => {
-    setActionMessage({ text, type });
-    setTimeout(() => setActionMessage(null), 4000);
-  }, []);
+    if (type === 'error') {
+      toast.error(text);
+    } else {
+      toast.success(text);
+    }
+  }, [toast]);
 
   const fetchRepoData = useCallback(async () => {
     setLoading(true);
@@ -50,7 +56,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       ]);
 
       if (statusData.error && statusData.error === 'Not a git repository') {
-        setError('Not a git repository');
+        setError('To nie jest repozytorium Git');
       } else {
         setGitStatus(statusData);
         setGithubData(ghData);
@@ -62,7 +68,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       if (err.message !== 'Not a git repository') {
         console.error(err);
       }
-      setError(err.message || 'Failed to fetch repo data');
+      setError(err.message || 'Nie udało się pobrać danych repozytorium');
     }
     setLoading(false);
   }, [directory]);
@@ -76,14 +82,14 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/checkout', { directory, branch: branchName });
       if (res.error) {
-        showNotification(`Checkout failed: ${res.error}`, 'error');
+        showNotification(`Błąd przełączania gałęzi: ${res.error}`, 'error');
       } else {
-        showNotification(`Switched to branch ${branchName}`);
+        showNotification(`Przełączono na gałąź ${branchName}`);
         setShowBranchMenu(false);
         await fetchRepoData();
       }
     } catch (err: any) {
-      showNotification(`Checkout failed: ${err.message}`, 'error');
+      showNotification(`Błąd przełączania gałęzi: ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -95,16 +101,16 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/checkout', { directory, branch: newBranchInput.trim(), createNew: true });
       if (res.error) {
-        showNotification(`Create branch failed: ${res.error}`, 'error');
+        showNotification(`Błąd tworzenia gałęzi: ${res.error}`, 'error');
       } else {
-        showNotification(`Created and switched to branch ${newBranchInput.trim()}`);
+        showNotification(`Utworzono i przełączono na gałąź ${newBranchInput.trim()}`);
         setNewBranchMode(false);
         setNewBranchInput('');
         setShowBranchMenu(false);
         await fetchRepoData();
       }
     } catch (err: any) {
-      showNotification(`Failed: ${err.message}`, 'error');
+      showNotification(`Błąd: ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -115,13 +121,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/fetch', { directory });
       if (res.error) {
-        showNotification(`Fetch failed: ${res.error}`, 'error');
+        showNotification(`Błąd pobierania (fetch): ${res.error}`, 'error');
       } else {
-        showNotification('Git fetch complete');
+        showNotification('Pobieranie zmian (fetch) zakończone pomyślnie');
         await fetchRepoData();
       }
     } catch (err: any) {
-      showNotification(`Fetch failed: ${err.message}`, 'error');
+      showNotification(`Błąd pobierania (fetch): ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -132,13 +138,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/pull', { directory });
       if (res.error) {
-        showNotification(`Pull failed: ${res.error}`, 'error');
+        showNotification(`Błąd scalania (pull): ${res.error}`, 'error');
       } else {
-        showNotification('Git pull complete');
+        showNotification('Pobieranie i scalanie (pull) zakończone pomyślnie');
         await fetchRepoData();
       }
     } catch (err: any) {
-      showNotification(`Pull failed: ${err.message}`, 'error');
+      showNotification(`Błąd scalania (pull): ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -149,13 +155,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/push', { directory });
       if (res.error) {
-        showNotification(`Push failed: ${res.error}`, 'error');
+        showNotification(`Błąd wysyłania (push): ${res.error}`, 'error');
       } else {
-        showNotification('Git push complete');
+        showNotification('Wysyłanie zmian (push) zakończone pomyślnie');
         await fetchRepoData();
       }
     } catch (err: any) {
-      showNotification(`Push failed: ${err.message}`, 'error');
+      showNotification(`Błąd wysyłania (push): ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -166,7 +172,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/diff', { directory, staged, file });
       if (res.error) {
-        showNotification(`Diff failed: ${res.error}`, 'error');
+        showNotification(`Błąd pobierania diff: ${res.error}`, 'error');
       } else {
         setDiffModal({
           show: true,
@@ -177,7 +183,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
         });
       }
     } catch (err: any) {
-      showNotification(`Diff failed: ${err.message}`, 'error');
+      showNotification(`Błąd pobierania diff: ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -188,13 +194,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/stage', { directory, files });
       if (res.error) {
-        showNotification(`Stage failed: ${res.error}`, 'error');
+        showNotification(`Błąd indeksowania: ${res.error}`, 'error');
       } else {
-        showNotification('Files staged');
+        showNotification('Pliki dodane do indeksu (staged)');
         await fetchRepoData();
       }
     } catch (err: any) {
-      showNotification(`Stage failed: ${err.message}`, 'error');
+      showNotification(`Błąd indeksowania: ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -205,13 +211,13 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/unstage', { directory, files });
       if (res.error) {
-        showNotification(`Unstage failed: ${res.error}`, 'error');
+        showNotification(`Błąd wycofywania z indeksu: ${res.error}`, 'error');
       } else {
-        showNotification('Files unstaged');
+        showNotification('Pliki wycofane z indeksu (unstaged)');
         await fetchRepoData();
       }
     } catch (err: any) {
-      showNotification(`Unstage failed: ${err.message}`, 'error');
+      showNotification(`Błąd wycofywania z indeksu: ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -223,15 +229,15 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
     try {
       const res = await apiClient.post<any>('/api/git/commit', { directory, message: commitMessage.trim() });
       if (res.error) {
-        showNotification(`Commit failed: ${res.error}`, 'error');
+        showNotification(`Błąd zatwierdzania: ${res.error}`, 'error');
       } else {
-        showNotification('Commit created successfully');
+        showNotification('Commit został pomyślnie utworzony');
         setCommitModal(false);
         setCommitMessage('');
         await fetchRepoData();
       }
     } catch (err: any) {
-      showNotification(`Commit failed: ${err.message}`, 'error');
+      showNotification(`Błąd zatwierdzania: ${err.message}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -255,14 +261,20 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
   }
 
   return (
-    <div className="glass-card animate-in delay-3" style={{ maxWidth: '100%', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <AntigravityCard 
+      elevation="medium" 
+      maxTilt={3} 
+      glowColor="rgba(99, 102, 241, 0.14)" 
+      className="animate-in delay-3" 
+      style={{ maxWidth: '100%', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem' }}
+    >
       
       {/* Top Toolbar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <h2 className="section-title" style={{ margin: 0 }}>
             <GitPullRequest size={24} color="var(--primary)" />
-            Repository
+            Repozytorium Git
           </h2>
 
           {/* Branch Switcher Dropdown */}
@@ -283,7 +295,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
-              title="Click to switch or create branch"
+              title="Kliknij, aby przełączyć lub utworzyć gałąź"
             >
               <GitBranch size={16} />
               <span>{gitStatus?.branch || branches.current || 'branch'}</span>
@@ -307,7 +319,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 gap: '0.3rem'
               }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.2rem 0.5rem', fontWeight: 600, textTransform: 'uppercase' }}>
-                  Branches
+                  Gałęzie
                 </div>
                 
                 {branches.local.map(b => (
@@ -350,13 +362,17 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                         width: '100%'
                       }}
                     >
-                      <Plus size={14} /> New Branch...
+                      <Plus size={14} /> Nowa gałąź…
                     </button>
                   ) : (
                     <div style={{ display: 'flex', gap: '0.3rem' }}>
                       <input
                         type="text"
-                        placeholder="branch-name"
+                        name="newBranchName"
+                        aria-label="Nazwa nowej gałęzi Git"
+                        autoComplete="off"
+                        spellCheck={false}
+                        placeholder="nazwa-gałęzi"
                         value={newBranchInput}
                         onChange={e => setNewBranchInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleCreateBranch(); }}
@@ -383,7 +399,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                           cursor: 'pointer'
                         }}
                       >
-                        Create
+                        Utwórz
                       </button>
                     </div>
                   )}
@@ -397,10 +413,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button 
             onClick={handleFetch}
-            className="btn-add-project"
-            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            className="btn-secondary"
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
             disabled={loading || !!actionLoading}
-            title="Fetch from remote"
+            title="Pobierz metadane ze zdalnego repozytorium (git fetch)"
           >
             <RefreshCw size={14} className={actionLoading === 'fetch' ? 'spin' : ''} />
             Fetch
@@ -408,10 +424,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
 
           <button 
             onClick={handlePull}
-            className="btn-add-project"
-            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            className="btn-secondary"
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
             disabled={loading || !!actionLoading}
-            title="Pull latest changes"
+            title="Pobierz i scal najnowsze zmiany (git pull)"
           >
             <DownloadCloud size={14} className={actionLoading === 'pull' ? 'spin' : ''} />
             Pull
@@ -419,10 +435,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
 
           <button 
             onClick={handlePush}
-            className="btn-add-project"
-            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            className="btn-secondary"
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
             disabled={loading || !!actionLoading}
-            title="Push commits to remote"
+            title="Wyślij commity do zdalnego repozytorium (git push)"
           >
             <UploadCloud size={14} className={actionLoading === 'push' ? 'spin' : ''} />
             Push
@@ -430,10 +446,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
 
           <button 
             onClick={() => handleOpenDiff(false)}
-            className="btn-add-project"
-            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            className="btn-secondary"
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
             disabled={loading || !!actionLoading}
-            title="View Working Tree Diff"
+            title="Podgląd różnic w katalogu roboczym (git diff)"
           >
             <FileText size={14} />
             Diff
@@ -444,7 +460,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
             className="btn btn-primary"
             style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
             disabled={loading || !!actionLoading}
-            title="Commit changes"
+            title="Zatwierdź zmiany (git commit)"
           >
             <GitCommit size={14} />
             Commit
@@ -452,10 +468,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
 
           <button 
             onClick={fetchRepoData}
-            className="btn-add-project"
-            style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
+            className="btn-secondary"
+            style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             disabled={loading}
-            title="Refresh status"
+            title="Odśwież stan repozytorium"
           >
             <RefreshCw size={14} className={loading ? "spin" : ""} />
           </button>
@@ -463,28 +479,12 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       </div>
 
       {/* Notification Banner */}
-      {actionMessage && (
-        <div style={{
-          padding: '0.5rem 1rem',
-          borderRadius: '6px',
-          fontSize: '0.85rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          background: actionMessage.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-          color: actionMessage.type === 'error' ? '#f87171' : '#34d399',
-          border: `1px solid ${actionMessage.type === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
-        }}>
-          {actionMessage.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
-          {actionMessage.text}
-        </div>
-      )}
 
       {loading && !gitStatus ? (
         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          Loading repository data...
+          Ładowanie danych repozytorium...
         </div>
-      ) : error && error !== 'Not a git repository' ? (
+      ) : error && error !== 'Not a git repository' && error !== 'To nie jest repozytorium Git' ? (
         <div style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <AlertCircle size={16} /> {error}
         </div>
@@ -495,11 +495,14 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <div 
+                role="button"
+                tabIndex={0}
                 className="info-label"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', userSelect: 'none' }}
                 onClick={() => setShowChanges(!showChanges)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowChanges(!showChanges); } }}
               >
-                <span>Uncommitted Changes ({gitStatus?.changes?.length || 0})</span>
+                <span>Niezatwierdzone zmiany ({gitStatus?.changes?.length || 0})</span>
                 {showChanges ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </div>
               {gitStatus?.changes?.length > 0 && (
@@ -515,9 +518,9 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                       fontSize: '0.7rem',
                       cursor: 'pointer'
                     }}
-                    title="Stage all changes"
+                    title="Dodaj wszystkie zmiany do indeksu (git add .)"
                   >
-                    Stage All
+                    Dodaj wszystkie
                   </button>
                   <button
                     onClick={() => handleUnstage('.')}
@@ -530,9 +533,9 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                       fontSize: '0.7rem',
                       cursor: 'pointer'
                     }}
-                    title="Unstage all changes"
+                    title="Wycofaj wszystkie zmiany z indeksu (git reset)"
                   >
-                    Unstage All
+                    Wycofaj wszystkie
                   </button>
                 </div>
               )}
@@ -543,12 +546,31 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 {gitStatus?.changes?.length > 0 ? (
                   <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '0.8rem', fontFamily: 'var(--mono)', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     {gitStatus.changes.map((c: string, i: number) => {
-                      const statusType = c.substring(0, 2).trim();
-                      const fileName = c.substring(3).trim();
+                      let status = c.substring(0, 2);
+                      let path = c.substring(2).trim();
+                      const match = c.match(/^([ MADRCU?]{1,2})\s+(.*)$/);
+                      if (match) {
+                        status = match[1];
+                        path = match[2].trim();
+                      } else if (!path) {
+                        path = c.trim();
+                      }
+                      if (path.includes(' -> ')) {
+                        const parts = path.split(' -> ');
+                        path = parts[parts.length - 1].trim();
+                      }
+                      const isStaged = status[0] !== ' ' && status[0] !== '?' && status[0] !== undefined;
+                      const statusType = status.trim();
+                      const fileName = path;
+
                       return (
-                        <div 
+                        <button 
+                          type="button"
                           key={i} 
                           style={{ 
+                            width: '100%',
+                            textAlign: 'left',
+                            border: 'none',
                             display: 'flex', 
                             justifyContent: 'space-between', 
                             alignItems: 'center', 
@@ -557,20 +579,20 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                             borderRadius: '4px',
                             cursor: 'pointer'
                           }}
-                          onClick={() => handleOpenDiff(false, fileName)}
-                          title={`Click to view diff for ${fileName}`}
+                          onClick={() => handleOpenDiff(isStaged, fileName)}
+                          title={`Kliknij, aby zobaczyć diff dla ${fileName}`}
                         >
                           <span style={{ color: statusType === 'M' ? '#F59E0B' : statusType === '??' ? '#38bdf8' : '#10B981' }}>
                             {c}
                           </span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>view diff</span>
-                        </div>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>pokaż diff</span>
+                        </button>
                       );
                     })}
                   </div>
                 ) : (
                   <span style={{ fontSize: '0.85rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <CheckCircle2 size={14} /> Working tree clean
+                    <CheckCircle2 size={14} /> Katalog roboczy czysty (brak zmian)
                   </span>
                 )}
               </div>
@@ -579,11 +601,14 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
             {/* Commits Section */}
             <div>
               <div 
+                role="button"
+                tabIndex={0}
                 className="info-label" 
-                style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                style={{ width: '100%', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 onClick={() => setShowCommits(!showCommits)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowCommits(!showCommits); } }}
               >
-                Recent Commits
+                Ostatnie commity
                 {showCommits ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </div>
               
@@ -608,12 +633,15 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
           {/* GitHub PRs & CI */}
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div 
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', cursor: 'pointer' }} 
+              role="button"
+              tabIndex={0}
+              style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', cursor: 'pointer' }} 
               onClick={() => setShowPRs(!showPRs)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowPRs(!showPRs); } }}
             >
               <h3 style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <GitPullRequest size={18} />
-                Pull Requests
+                Pull Requesty
                 {showPRs ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -641,7 +669,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
                   title="Anuluj wszystkie zadania CI"
                 >
-                  Cancel All
+                  Anuluj wszystkie
                 </button>
               </div>
             </div>
@@ -659,7 +687,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No open pull requests found or gh not authenticated.</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Brak otwartych Pull Requestów lub brak autoryzacji GitHub CLI.</div>
               )
             )}
             
@@ -675,15 +703,15 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                     if (data.error) {
                       setDeployModal({
                         show: true,
-                        title: 'Deploy Error',
+                        title: 'Błąd wdrożenia',
                         content: `${data.error}\n${data.stdout || ''}`,
                         isError: true
                       });
                     } else {
                       setDeployModal({
                         show: true,
-                        title: 'Deploy Success',
-                        content: data.log || 'Deployed successfully',
+                        title: 'Wdrożenie zakończone sukcesem',
+                        content: data.log || 'Wdrożono pomyślnie',
                         isError: false
                       });
                       fetchRepoData();
@@ -691,7 +719,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                   } catch (e: any) {
                     setDeployModal({
                       show: true,
-                      title: 'Request Failed',
+                      title: 'Błąd zapytania',
                       content: e.message,
                       isError: true
                     });
@@ -700,7 +728,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                 }}
               >
                 <UploadCloud size={18} />
-                {loading ? 'Deploying...' : 'Sync & Deploy Remote'}
+                {loading ? 'Wdrażanie…' : 'Synchronizuj i wdróż (Deploy)'}
               </button>
             </div>
           </div>
@@ -710,6 +738,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       {/* Diff Viewer Modal */}
       {diffModal && diffModal.show && ReactDOM.createPortal(
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Podgląd zmian Git Diff"
+          onKeyDown={(e) => { if (e.key === 'Escape') setDiffModal(null); }}
           onClick={(e) => { if (e.target === e.currentTarget) setDiffModal(null); }}
           style={{
             position: 'fixed', inset: 0,
@@ -727,26 +759,20 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
             border: '1px solid rgba(56, 189, 248, 0.3)',
             borderRadius: '1.25rem',
             width: '100%',
-            maxWidth: '850px',
+            maxWidth: 'min(1300px, 96vw)',
+            height: '85vh',
             padding: '1.75rem',
             position: 'relative',
             animation: 'modalIn 0.2s ease-out',
-            maxHeight: '90vh',
+            maxHeight: '92vh',
             display: 'flex',
             flexDirection: 'column'
           }}>
             <button
               onClick={() => setDiffModal(null)}
-              style={{
-                position: 'absolute', top: '1rem', right: '1rem',
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '0.5rem',
-                color: '#9ca3af',
-                cursor: 'pointer',
-                padding: '0.375rem',
-                display: 'flex', alignItems: 'center',
-              }}
+              className="modal-close-btn"
+              title="Zamknij (Esc)"
+              aria-label="Zamknij okno diff"
             >
               <X size={18} />
             </button>
@@ -754,36 +780,38 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileText size={20} />
-                {diffModal.file ? `Diff: ${diffModal.file}` : 'Working Tree Diff'}
+                {diffModal.file ? `Diff: ${diffModal.file}` : 'Podgląd zmian roboczych (Working Tree Diff)'}
               </h3>
               <div style={{ display: 'flex', gap: '0.5rem', marginRight: '2rem' }}>
                 <button
                   onClick={() => handleOpenDiff(false, diffModal.file)}
                   style={{
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '4px',
+                    padding: '0.3rem 0.75rem',
+                    borderRadius: '6px',
                     fontSize: '0.75rem',
+                    fontWeight: !diffModal.staged ? 600 : 400,
                     border: 'none',
                     cursor: 'pointer',
-                    background: !diffModal.staged ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                    background: !diffModal.staged ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
                     color: '#fff'
                   }}
                 >
-                  Unstaged
+                  Niezindeksowane (Unstaged)
                 </button>
                 <button
                   onClick={() => handleOpenDiff(true, diffModal.file)}
                   style={{
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '4px',
+                    padding: '0.3rem 0.75rem',
+                    borderRadius: '6px',
                     fontSize: '0.75rem',
+                    fontWeight: diffModal.staged ? 600 : 400,
                     border: 'none',
                     cursor: 'pointer',
-                    background: diffModal.staged ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                    background: diffModal.staged ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
                     color: '#fff'
                   }}
                 >
-                  Staged
+                  Zindeksowane (Staged)
                 </button>
               </div>
             </div>
@@ -794,47 +822,17 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
               </div>
             )}
 
-            <div style={{
-              background: '#020617',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '0.75rem',
-              padding: '1rem',
-              overflowY: 'auto',
-              flex: 1,
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              lineHeight: '1.5',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}>
-              {diffModal.diff.split(/\r?\n/).map((line, idx) => {
-                let color = '#cbd5e1';
-                let bg = 'transparent';
-                if (line.startsWith('+') && !line.startsWith('+++')) {
-                  color = '#34d399';
-                  bg = 'rgba(16, 185, 129, 0.1)';
-                } else if (line.startsWith('-') && !line.startsWith('---')) {
-                  color = '#f87171';
-                  bg = 'rgba(239, 68, 68, 0.1)';
-                } else if (line.startsWith('@@')) {
-                  color = '#38bdf8';
-                  bg = 'rgba(56, 189, 248, 0.08)';
-                }
-                return (
-                  <div key={idx} style={{ color, background: bg, padding: '1px 4px', borderRadius: '2px' }}>
-                    {line || ' '}
-                  </div>
-                );
-              })}
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <SplitDiffViewer diff={diffModal.diff} defaultMode="split" />
             </div>
 
             <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button
                 onClick={() => setDiffModal(null)}
-                className="btn-add-project"
-                style={{ padding: '0.5rem 1.25rem' }}
+                className="btn-secondary"
+                style={{ padding: '0.45rem 1.25rem', fontSize: '0.85rem', borderRadius: '8px' }}
               >
-                Close
+                Zamknij
               </button>
             </div>
           </div>
@@ -845,6 +843,10 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       {/* Commit Modal */}
       {commitModal && ReactDOM.createPortal(
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Zatwierdź zmiany Git"
+          onKeyDown={(e) => { if (e.key === 'Escape') setCommitModal(false); }}
           onClick={(e) => { if (e.target === e.currentTarget) setCommitModal(false); }}
           style={{
             position: 'fixed', inset: 0,
@@ -869,33 +871,26 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
           }}>
             <button
               onClick={() => setCommitModal(false)}
-              style={{
-                position: 'absolute', top: '1rem', right: '1rem',
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '0.5rem',
-                color: '#9ca3af',
-                cursor: 'pointer',
-                padding: '0.375rem',
-                display: 'flex', alignItems: 'center',
-              }}
+              className="modal-close-btn"
+              title="Zamknij (Esc)"
+              aria-label="Zamknij okno commita"
             >
               <X size={18} />
             </button>
 
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <GitCommit size={22} />
-              Create Commit
+              Nowy Commit
             </h3>
 
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                Commit Message
+                Wiadomość commita
               </label>
               <textarea
                 value={commitMessage}
                 onChange={e => setCommitMessage(e.target.value)}
-                placeholder="feat(core): add new feature..."
+                placeholder="np. feat(git): dodaj nowy moduł..."
                 rows={4}
                 style={{
                   width: '100%',
@@ -926,18 +921,19 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                     fontSize: '0.8rem',
                     cursor: 'pointer'
                   }}
+                  title="Dodaj wszystkie pliki do indeksu"
                 >
-                  Stage All
+                  Dodaj wszystkie (Stage All)
                 </button>
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button
                   onClick={() => setCommitModal(false)}
-                  className="btn-add-project"
-                  style={{ padding: '0.5rem 1.25rem' }}
+                  className="btn-secondary"
+                  style={{ padding: '0.45rem 1.25rem', fontSize: '0.85rem', borderRadius: '8px' }}
                 >
-                  Cancel
+                  Anuluj
                 </button>
                 <button
                   onClick={handleCommit}
@@ -945,7 +941,7 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
                   style={{ padding: '0.5rem 1.5rem', background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}
                   disabled={!commitMessage.trim() || actionLoading === 'commit'}
                 >
-                  {actionLoading === 'commit' ? 'Committing...' : 'Commit'}
+                  {actionLoading === 'commit' ? 'Zatwierdzanie…' : 'Zatwierdź commit'}
                 </button>
               </div>
             </div>
@@ -957,6 +953,11 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
       {/* Deploy Modal */}
       {deployModal && deployModal.show && ReactDOM.createPortal(
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Wdrożenie na serwer"
+          tabIndex={-1}
+          onKeyDown={(e) => e.key === 'Escape' && setDeployModal(null)}
           onClick={(e) => { if (e.target === e.currentTarget) setDeployModal(null); }}
           style={{
             position: 'fixed', inset: 0,
@@ -984,16 +985,9 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
           }}>
             <button
               onClick={() => setDeployModal(null)}
-              style={{
-                position: 'absolute', top: '1rem', right: '1rem',
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '0.5rem',
-                color: '#9ca3af',
-                cursor: 'pointer',
-                padding: '0.375rem',
-                display: 'flex', alignItems: 'center',
-              }}
+              className="modal-close-btn"
+              title="Zamknij (Esc)"
+              aria-label="Zamknij okno wdrożenia"
             >
               <X size={18} />
             </button>
@@ -1074,6 +1068,6 @@ export const RepoStatus: React.FC<RepoStatusProps> = ({ directory, onLaunchTermi
         </div>,
         document.body
       )}
-    </div>
+    </AntigravityCard>
   );
 };

@@ -25,7 +25,7 @@ describe('Accessibility (WCAG 2.1 AA) Auditing Suite', () => {
         render(<PreferencesProvider><App /></PreferencesProvider>);
       });
       
-      const dashboardNavBtn = screen.getByRole('button', { name: /Dashboard/i });
+      const dashboardNavBtn = screen.getByRole('button', { name: /^Dashboard$/i });
       const agentsNavBtn = screen.getByRole('button', { name: /Agenci AI/i });
 
       expect(dashboardNavBtn).toBeInTheDocument();
@@ -48,9 +48,14 @@ describe('Accessibility (WCAG 2.1 AA) Auditing Suite', () => {
       expect(remoteToggle).toHaveAttribute('aria-controls', 'remote-servers-list');
     });
 
-    it('provides accessible labels for sidebar server configuration input fields', async () => {
+    it('provides accessible labels for server configuration input fields in settings', async () => {
       await act(async () => {
         render(<PreferencesProvider><App /></PreferencesProvider>);
+      });
+
+      const settingsButton = screen.getByRole('button', { name: /Ustawienia|Settings/i });
+      await act(async () => {
+        fireEvent.click(settingsButton);
       });
 
       expect(screen.getByLabelText(/Nazwa Serwera/i)).toBeInTheDocument();

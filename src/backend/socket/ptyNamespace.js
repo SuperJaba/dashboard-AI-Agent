@@ -1,7 +1,56 @@
-import pty from 'node-pty';
+import { createRequire } from 'module';
 import fs from 'fs';
 import path from 'path';
+
+const require = createRequire(import.meta.url);
+
+/**
+ * Ensures spawn-helper binaries in node-pty prebuilds have executable permissions (+x) on Unix.
+ * Missing +x causes posix_spawnp to fail with "posix_spawnp failed."
+ */
+export function ensurePtySpawnHelperPermissions() {
+  if (process.platform === 'win32') return;
+  try {
+    const nodePtyPkg = require.resolve('node-pty/package.json');
+    const nodePtyDir = path.dirname(nodePtyPkg);
+    const prebuildsDir = path.join(nodePtyDir, 'prebuilds');
+    if (fs.existsSync(prebuildsDir)) {
+      const archDirs = fs.readdirSync(prebuildsDir);
+      for (const arch of archDirs) {
+        const helper = path.join(prebuildsDir, arch, 'spawn-helper');
+        if (fs.existsSync(helper)) {
+          try {
+            const stat = fs.statSync(helper);
+            if ((stat.mode & 0o111) === 0) {
+              fs.chmodSync(helper, 0o755);
+            }
+          } catch {}
+        }
+      }
+    }
+    const buildReleaseHelper = path.join(nodePtyDir, 'build', 'Release', 'spawn-helper');
+    if (fs.existsSync(buildReleaseHelper)) {
+      try {
+        const stat = fs.statSync(buildReleaseHelper);
+        if ((stat.mode & 0o111) === 0) {
+          fs.chmodSync(buildReleaseHelper, 0o755);
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
+ensurePtySpawnHelperPermissions();
+
+let pty = null;
+try {
+  pty = require('node-pty');
+} catch {
+  // node-pty is optional and may not be installed on all platforms (e.g. FreeBSD / CT8)
+}
 import { logger } from '../utils/logger.js';
+import { safeQuery } from '../db.js';
+import { broadcastRoutingStats } from './dashboardNamespace.js';
 
 /**
  * Finds the best shell executable for the current platform.
@@ -28,8 +77,37 @@ export function findShellExecutable(requestedCmd) {
     return process.env.COMSPEC || 'cmd.exe';
   }
 
+  if (!requestedCmd || requestedCmd === 'bash') {
+    const unixBashCandidates = [
+      '/bin/bash',
+      '/usr/bin/bash',
+      '/usr/local/bin/bash',
+      '/opt/homebrew/bin/bash',
+      process.env.SHELL,
+      '/bin/zsh',
+      '/bin/sh',
+    ];
+    for (const p of unixBashCandidates) {
+      if (p && fs.existsSync(p)) return p;
+    }
+  }
+
+  if (requestedCmd) {
+    const candidateDirs = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+    for (const dir of candidateDirs) {
+      const full = path.join(dir, requestedCmd);
+      if (fs.existsSync(full)) return full;
+    }
+  }
+
   return requestedCmd || 'bash';
 }
+
+/**
+ * In-memory map of active terminal sessions (sessionId -> { taskId, sessionStartTime })
+ * Shared across /pty and /dashboard namespaces to correlate worker exit events with database tasks.
+ */
+export const activeTerminalSessions = new Map();
 
 /**
  * Registers PTY terminal socket.io event handlers in the /pty namespace.
@@ -44,17 +122,36 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
     let ptyProcess = null;
     let activeWorkerSocket = null;
 
-    socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent }) => {
+    socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent, taskId }) => {
+      if (ptyProcess) {
+        try {
+          ptyProcess.kill();
+        } catch {}
+        ptyProcess = null;
+      }
+
+      const sessionStartTime = Date.now();
+      if (taskId) {
+        activeTerminalSessions.set(socket.id, { taskId, sessionStartTime });
+      }
+
       let workerToUse = null;
       if (targetWorkerId && activeWorkers.has(targetWorkerId)) {
         workerToUse = activeWorkers.get(targetWorkerId);
-      } else if (executionTarget === 'worker' || (executionTarget !== 'remote' && activeWorkers.size > 0)) {
+      } else if (executionTarget === 'worker') {
         workerToUse = Array.from(activeWorkers.values())[0];
+      } else if (executionTarget !== 'remote' && activeWorkers.size > 0) {
+        // Auto mode: prefer a local worker if one is connected.
+        // If only remote workers exist (e.g. OMV), do NOT hijack local terminal sessions with remote workers!
+        const localWorker = Array.from(activeWorkers.values()).find(w => w.type === 'local');
+        if (localWorker) {
+          workerToUse = localWorker;
+        }
       }
 
       if (workerToUse) {
         activeWorkerSocket = workerToUse.socket;
-        logger.info({ sessionId: socket.id, worker: workerToUse.name }, 'Forwarding PTY spawn to local worker');
+        logger.info({ sessionId: socket.id, worker: workerToUse.name, taskId }, 'Forwarding PTY spawn to local worker');
         activeWorkerSocket.emit('worker_spawn_pty', {
           sessionId: socket.id,
           command,
@@ -62,11 +159,19 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
           cwd,
           env,
           scriptContent,
+          taskId,
         });
         return;
       }
 
+      if (!pty) {
+        socket.emit('terminal_data', '\r\n\x1b[33m[Warning] Local terminal is not supported on this host environment (FreeBSD / CT8). Please connect an Agent Worker (Local PC) to execute terminal commands.\x1b[0m\r\n');
+        socket.emit('terminal_exit', { exitCode: 1 });
+        return;
+      }
+
       try {
+        ensurePtySpawnHelperPermissions();
         const shellCmd = findShellExecutable(command);
         const targetCwd = (cwd && fs.existsSync(cwd)) ? cwd : process.cwd();
         const userHome = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\picho';
@@ -79,7 +184,17 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
             'C:\\Program Files\\Git\\usr\\bin',
             process.env.PATH || '',
           ].join(';')
-          : process.env.PATH;
+          : [
+            path.join(userHome, '.local/bin'),
+            path.join(userHome, '.cargo/bin'),
+            '/usr/local/bin',
+            '/opt/homebrew/bin',
+            '/usr/bin',
+            '/bin',
+            '/usr/sbin',
+            '/sbin',
+            process.env.PATH || '',
+          ].filter(Boolean).join(':');
 
         const sanitizedEnv = { ...(env || {}) };
         delete sanitizedEnv.HOME;
@@ -104,7 +219,22 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
         });
 
         ptyProcess.onData((data) => socket.emit('terminal_data', data));
-        ptyProcess.onExit(({ exitCode, signal }) => socket.emit('terminal_exit', { exitCode, signal }));
+        ptyProcess.onExit(({ exitCode, signal }) => {
+          const session = activeTerminalSessions.get(socket.id);
+          const currentTaskId = session?.taskId || taskId;
+          const currentStartTime = session?.sessionStartTime || sessionStartTime;
+          if (currentTaskId) {
+            const durationMs = Date.now() - currentStartTime;
+            safeQuery(
+              'UPDATE agent_tasks SET status = $1, duration_ms = $2, updated_at = NOW() WHERE id = $3',
+              [exitCode === 0 ? 'completed' : 'failed', durationMs, currentTaskId]
+            ).then(() => {
+              broadcastRoutingStats();
+            }).catch(() => {});
+          }
+          activeTerminalSessions.delete(socket.id);
+          socket.emit('terminal_exit', { exitCode, signal });
+        });
       } catch (err) {
         logger.error({ err: err.message }, 'PTY spawn error');
         socket.emit('terminal_error', err.message);
@@ -136,6 +266,17 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
     });
 
     socket.on('disconnect', () => {
+      const session = activeTerminalSessions.get(socket.id);
+      if (session?.taskId) {
+        const durationMs = Date.now() - session.sessionStartTime;
+        safeQuery(
+          "UPDATE agent_tasks SET status = CASE WHEN status = 'started' THEN 'stopped' ELSE status END, duration_ms = CASE WHEN duration_ms IS NULL OR duration_ms = 0 THEN $1 ELSE duration_ms END, updated_at = NOW() WHERE id = $2",
+          [durationMs, session.taskId]
+        ).then(() => {
+          broadcastRoutingStats();
+        }).catch(() => {});
+        activeTerminalSessions.delete(socket.id);
+      }
       if (activeWorkerSocket) {
         activeWorkerSocket.emit('worker_kill_pty', { sessionId: socket.id });
         activeWorkerSocket = null;

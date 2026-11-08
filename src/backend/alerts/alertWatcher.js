@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import fetch from 'node-fetch';
 import { logger } from '../utils/logger.js';
+import { notificationService } from '../notifications/notificationService.js';
 
 /**
  * T7.4 — Alert Watcher & Dispatcher
@@ -126,6 +127,8 @@ function countRecentHttpErrors() {
  * @param {object} alert - Obiekt alertu { type, message, value, threshold }
  */
 async function dispatchAlert(alert) {
+  notificationService.notify('alert:triggered', alert);
+
   if (webhooks.length === 0) {
     logger.warn({ alert }, 'Brak webhooków do powiadomienia');
     return;

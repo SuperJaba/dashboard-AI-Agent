@@ -31,7 +31,14 @@ JWT_SECRET=your_super_secret_jwt_token_key
 ENCRYPTION_KEY=32_character_long_secret_key_here
 ```
 
-### 3. Launch Development
+### 3. Database Initialization (Optional)
+If running a local PostgreSQL instance, initialize or migrate the database:
+```bash
+npm run migrate
+```
+*(The migration script automatically creates the database if it does not exist).*
+
+### 4. Launch Development
 ```bash
 npm run dev
 ```
@@ -46,8 +53,9 @@ npm run lint        # Check Oxlint & ESLint (0 errors required)
 npm run build       # Verify production TypeScript bundle builds cleanly
 ```
 
-## Contribution Workflow
-1. Create a feature branch: `git checkout -b feat/your-feature-name`.
+## Contribution & Deployment Workflow
+1. Create a feature branch from `dev`: `git checkout -b feat/your-feature-name`.
 2. Follow commit conventions: `<type>[optional scope]: <subject>` (Conventional Commits).
 3. Ensure all tests and linting pass cleanly.
 4. Open a Pull Request targeting `dev`.
+5. Once merged into `dev`, promote changes to `master` via PR. Merging into `master` automatically triggers deployment to CT8.pl (see [DEPLOYMENT.md](DEPLOYMENT.md)).

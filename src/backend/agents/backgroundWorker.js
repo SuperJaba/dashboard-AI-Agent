@@ -37,10 +37,12 @@ export function startBackgroundWorker(intervalMs = 5 * 60 * 1000) {
   setInterval(runAgents, intervalMs);
 }
 
-function getAgentCmd(agentName) {
+export function getAgentCmd(agentName) {
   const norm = (agentName || '').toLowerCase().trim();
   const map = {
     'antigravity': 'agy',
+    'open claude': 'openclaude',
+    'openclaude': 'openclaude',
     'claude code': 'claude',
     'codex': 'codex',
     'gemini cli': 'gemini',

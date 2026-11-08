@@ -96,7 +96,11 @@
       "Bash(codegraph *)",
       "Bash(agy *)",
       "Bash(openclaude *)",
-      "Bash(claude *)"
+      "Bash(claude *)",
+      "Skill(sys-admin)",
+      "Bash(for pr)",
+      "Bash(do echo:*)",
+      "Bash(done)"
     ],
     "deny": [
       "Bash(rm -rf /*)",
@@ -110,7 +114,11 @@
       "Bash(git rm:*)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
+    "xerj"
+  ],
+  "disabledMcpjsonServers": [
     "MCP_DOCKER",
     "codegraph"
   ],

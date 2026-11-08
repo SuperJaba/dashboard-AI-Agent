@@ -2,12 +2,17 @@ import { Router } from 'express';
 import { execFile } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import fs from 'fs';
 import { logger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SYS_INFO_SCRIPT = path.resolve(__dirname, '../../../../scripts/sys-info.js');
+const candidatePaths = [
+  path.resolve(__dirname, '../../../scripts/sys-info.js'),
+  path.resolve(process.cwd(), 'scripts/sys-info.js'),
+];
+const SYS_INFO_SCRIPT = candidatePaths.find(p => fs.existsSync(p)) || candidatePaths[0];
 const MAX_CONNECTIONS = 50;
 
 let connectionCount = 0;

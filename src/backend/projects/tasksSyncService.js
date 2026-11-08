@@ -174,7 +174,10 @@ export function getRecentGitCommitMessages(projectPath, limit = 50) {
  */
 export async function syncProjectTasks(projectId, options = {}) {
   const projects = await projectsRepo.getProjects();
-  const project = projects.find(p => p.id === parseInt(projectId, 10));
+  const isNum = /^\d+$/.test(String(projectId));
+  const project = isNum
+    ? projects.find(p => p.id === parseInt(projectId, 10))
+    : projects.find(p => p.name.toLowerCase() === String(projectId).toLowerCase());
   if (!project) {
     throw new Error(`Project #${projectId} not found`);
   }
@@ -266,14 +269,14 @@ export async function syncProjectTasks(projectId, options = {}) {
     const completedCount = activeTasks.filter(t => t.status === 'completed').length;
     const completePercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-    const updatedProject = await projectsRepo.updateProject(projectId, {
+    const updatedProject = await projectsRepo.updateProject(project.id, {
       tasks: finalTasks,
       complete: completePercentage
     });
 
     return {
       success: true,
-      projectId: parseInt(projectId, 10),
+      projectId: project.id,
       projectName: project.name,
       updatedInWorkspace,
       updatedInDb,

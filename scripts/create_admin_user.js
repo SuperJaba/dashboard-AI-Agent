@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { pool } from '../src/backend/db.js';
 
 async function main() {

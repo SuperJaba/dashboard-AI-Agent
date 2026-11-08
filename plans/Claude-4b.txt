@@ -1,0 +1,88 @@
+# Zadania deweloperskie dla Claude Code (Model Qwen 3.5 4B)
+Data: 2026-11-03
+Repozytorium: dashboard (AI-Agents)
+
+Poniższe zadania zostały wyselekcjonowane specjalnie pod model 4B: są wąsko zdefiniowane, dotyczą 1 pliku, posiadają deterministyczne testy i nie wymagają skomplikowanych abstrakcji.
+
+---
+
+### ZADANIE 1: Testy jednostkowe dla `src/backend/utils/network.js`
+**Cel:** Stworzenie kompletnego pliku testowego `src/backend/utils/network.test.js` w Vitest.
+**Plik źródłowy:** `src/backend/utils/network.js` (24 linie)
+
+**Prompt do wklejenia w Claude Code:**
+```text
+Stwórz plik testowy src/backend/utils/network.test.js w Vitest dla src/backend/utils/network.js.
+Przetestuj funkcje:
+1. getLocalLanIp():
+   - Zamockuj moduł 'os' metodą vi.mock('os', ...).
+   - Przetestuj przypadek, gdy os.networkInterfaces() zwraca interfejs IPv4 z internal: false (powinien zwrócić jego adres IP).
+   - Przetestuj przypadek, gdy brak interfejsów zewnętrznych (powinien zwrócić fallback '127.0.0.1').
+2. resolveDashboardUrl(req):
+   - Gdy req posiada nagłówek x-forwarded-proto i x-forwarded-host (np. https i mydomain.com).
+   - Gdy host to 'localhost:5173' lub '127.0.0.1' - powinien zwrócić URL oparty na getLocalLanIp() i process.env.PORT || 3001.
+   - Gdy req jest null/undefined - powinien zwrócić domyślny fallback z LAN IP.
+
+Na koniec uruchom: npx vitest run src/backend/utils/network.test.js i upewnij się, że wszystkie testy przechodzą.
+```
+
+---
+
+### ZADANIE 2: Testy jednostkowe dla `src/backend/utils/ssh.js`
+**Cel:** Stworzenie pliku testowego `src/backend/utils/ssh.test.js` w Vitest.
+**Plik źródłowy:** `src/backend/utils/ssh.js` (9 linii)
+
+**Prompt do wklejenia w Claude Code:**
+```text
+Stwórz plik testowy src/backend/utils/ssh.test.js w Vitest dla src/backend/utils/ssh.js.
+Funkcja sshCmd(s, remoteCmd) generuje polecenie SSH.
+Przetestuj:
+1. Gdy obiekt 's' posiada ssh_password:
+   - Zamockuj './crypto.js' (funkcję decrypt) tak, aby zwracała odszyfrowane hasło 'tajne123'.
+   - Upewnij się, że polecenie zawiera 'sshpass -p "tajne123"' oraz port, username i host.
+2. Gdy obiekt 's' nie posiada ssh_password:
+   - Upewnij się, że polecenie zawiera klucze tożsamości -i ~/.ssh/id_ed25519_antigravity oraz port, username i host.
+3. Przetestuj przekazanie parametru remoteCmd (np. 'uptime') i upewnij się, że jest dopisany na końcu polecenia.
+4. Przetestuj brak parametru remoteCmd.
+
+Na koniec uruchom: npx vitest run src/backend/utils/ssh.test.js i upewnij się, że testy przechodzą.
+```
+
+---
+
+### ZADANIE 3: Przywrócenie dostępności (focus-visible) w `src/index.css`
+**Cel:** Poprawa pliku `src/index.css` tak, aby zachować deklarację `cursor: pointer` dla elementów klikalnych, ale nie usuwać reguły `:focus-visible` (kluczowej dla dostępności klawiaturą).
+
+**Prompt do wklejenia w Claude Code:**
+```text
+W pliku src/index.css upewnij się, że znajdują się OBA poniższe bloki styli:
+1. Styl dla focus-visible:
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+2. Styl dla kursorów:
+a, button, input, select, textarea, .cursor-pointer {
+  cursor: pointer;
+}
+
+Uruchom: npm run lint oraz npx vitest run src/__tests__/a11y.test.tsx i upewnij się, że nie ma błędów lintera ani testów a11y.
+```
+
+---
+
+### ZADANIE 4: Dynamiczne etykiety i okna czasowe w `RemoteTelemetryCharts.tsx`
+**Cel:** Połączenie przycisków `15m`, `1h`, `6h` z dynamicznym generowaniem etykiet czasowych na wykresach w `src/components/RemoteTelemetryCharts.tsx`.
+
+**Prompt do wklejenia w Claude Code:**
+```text
+W pliku src/components/RemoteTelemetryCharts.tsx przyciski zakresu czasu (15m, 1h, 6h) nie wpływają na dane wykresów.
+Zmodyfikuj useMemo dla hostTelemetryData, serverProcessData i sshLatencyData tak, aby:
+1. timeRange było w tablicy zależności useMemo.
+2. Etykiety osi X zależały od timeRange:
+   - '15m': ['T-15m', 'T-12m', 'T-9m', 'T-6m', 'T-3m', 'Teraz']
+   - '1h': ['T-60m', 'T-45m', 'T-30m', 'T-15m', 'Teraz']
+   - '6h': ['T-6h', 'T-4h', 'T-3h', 'T-2h', 'T-1h', 'Teraz']
+3. Uruchom test: npx vitest run src/components/RemoteTelemetryCharts.test.tsx i upewnij się, że przechodzi.
+```

@@ -4,9 +4,32 @@ import os from 'os';
 import fs from 'fs';
 import path from 'path';
 
+// Safely load .env if present without requiring external dotenv dependency
+try {
+  if (typeof process.loadEnvFile === 'function') {
+    process.loadEnvFile();
+  } else if (fs.existsSync('.env')) {
+    const envLines = fs.readFileSync('.env', 'utf8').split('\n');
+    for (const line of envLines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim().replace(/^['"]|['"]$/g, '');
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+} catch {
+  // Ignore missing .env
+}
+
 function sanitizeToken(raw) {
   if (!raw) return raw;
-  raw = String(raw).trim().replace(/^['"]|['"]$/g, '');
+  raw = String(raw).trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
   const idx = raw.lastIndexOf('eyJhbGci');
   if (idx > 0) {
     const candidate = raw.slice(idx);
@@ -22,10 +45,36 @@ function sanitizeToken(raw) {
 const SERVER_URL = (process.env.DASHBOARD_SERVER_URL || process.argv[2] || 'http://localhost:3001').trim();
 const AUTH_TOKEN = sanitizeToken(process.env.DASHBOARD_TOKEN || process.argv[3] || 'fallback-super-secret-key-123');
 const WORKER_NAME = process.env.WORKER_NAME || process.argv[4] || os.hostname() || 'Local-Workstation';
+const WORKER_TYPE = (process.env.WORKER_TYPE || process.argv[5] || 'auto').trim();
 
 console.log(`🚀 Starting Local Agent Worker...`);
 console.log(`📡 Connecting to Remote Dashboard at: ${SERVER_URL}`);
-console.log(`🏷️  Worker Name: ${WORKER_NAME}`);
+console.log(`🏷️  Worker Name: ${WORKER_NAME} (${WORKER_TYPE})`);
+
+function ensurePtySpawnHelperPermissions() {
+  if (process.platform === 'win32') return;
+  try {
+    const nodePtyPkg = require.resolve('node-pty/package.json');
+    const nodePtyDir = path.dirname(nodePtyPkg);
+    const prebuildsDir = path.join(nodePtyDir, 'prebuilds');
+    if (fs.existsSync(prebuildsDir)) {
+      const archDirs = fs.readdirSync(prebuildsDir);
+      for (const arch of archDirs) {
+        const helper = path.join(prebuildsDir, arch, 'spawn-helper');
+        if (fs.existsSync(helper)) {
+          try {
+            const stat = fs.statSync(helper);
+            if ((stat.mode & 0o111) === 0) {
+              fs.chmodSync(helper, 0o755);
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+}
+
+ensurePtySpawnHelperPermissions();
 
 function findShellExecutable(requestedCmd) {
   if (requestedCmd && requestedCmd !== 'bash' && fs.existsSync(requestedCmd)) {
@@ -33,11 +82,15 @@ function findShellExecutable(requestedCmd) {
   }
 
   if (process.platform === 'win32') {
+    const userHome = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\picho';
     const gitBashCandidates = [
       'C:\\Program Files\\Git\\bin\\bash.exe',
       'C:\\Program Files\\Git\\usr\\bin\\bash.exe',
       'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
       path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'bin', 'bash.exe'),
+      path.join(userHome, 'AppData', 'Local', 'Programs', 'Git', 'bin', 'bash.exe'),
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Git', 'bin', 'bash.exe'),
+      path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Git', 'bin', 'bash.exe'),
     ];
 
     for (const bashPath of gitBashCandidates) {
@@ -47,6 +100,29 @@ function findShellExecutable(requestedCmd) {
     }
 
     return process.env.COMSPEC || 'cmd.exe';
+  }
+
+  if (!requestedCmd || requestedCmd === 'bash') {
+    const unixBashCandidates = [
+      '/bin/bash',
+      '/usr/bin/bash',
+      '/usr/local/bin/bash',
+      '/opt/homebrew/bin/bash',
+      process.env.SHELL,
+      '/bin/zsh',
+      '/bin/sh',
+    ];
+    for (const p of unixBashCandidates) {
+      if (p && fs.existsSync(p)) return p;
+    }
+  }
+
+  if (requestedCmd) {
+    const candidateDirs = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+    for (const dir of candidateDirs) {
+      const full = path.join(dir, requestedCmd);
+      if (fs.existsSync(full)) return full;
+    }
   }
 
   return requestedCmd || 'bash';
@@ -62,8 +138,10 @@ const socket = io(targetSocketUrl, {
     token: AUTH_TOKEN,
     isWorker: true,
     workerName: WORKER_NAME,
+    workerType: WORKER_TYPE !== 'auto' ? WORKER_TYPE : undefined,
     hostname: os.hostname(),
-    platform: process.platform
+    platform: process.platform,
+    arch: os.arch()
   },
   transports: ['websocket', 'polling'],
   reconnection: true,
@@ -78,11 +156,26 @@ socket.on('connect', () => {
   socket.emit('register_worker', {
     workerId: socket.id,
     name: WORKER_NAME,
+    type: WORKER_TYPE !== 'auto' ? WORKER_TYPE : undefined,
     hostname: os.hostname(),
     platform: process.platform,
     arch: os.arch(),
     uptime: os.uptime()
   });
+});
+
+socket.on('worker_terminate', ({ reason } = {}) => {
+  console.log(`🛑 Otrzymano polecenie zakończenia pracy z dashboardu: ${reason || 'ubity'}`);
+  for (const ptyProc of activeSessions.values()) {
+    try {
+      ptyProc.kill();
+    } catch {}
+  }
+  activeSessions.clear();
+  try {
+    socket.disconnect();
+  } catch {}
+  process.exit(0);
 });
 
 socket.on('disconnect', (reason) => {
@@ -124,22 +217,31 @@ socket.on('worker_spawn_pty', ({ sessionId, command, args, cwd, env, scriptConte
       }
     }
 
+    ensurePtySpawnHelperPermissions();
     const userHome = process.env.USERPROFILE || process.env.HOME || os.homedir();
     const extendedPath = process.platform === 'win32'
       ? [
         path.join(userHome, 'AppData\\Local\\agy\\bin'),
         path.join(userHome, 'AppData\\Local\\JetBrains\\Air\\node-24.13.0\\node-v24.13.0-win-x64'),
         path.join(userHome, 'AppData\\Local\\nvm\\v20.20.0'),
+        path.join(userHome, 'AppData\\Roaming\\npm'),
+        path.join(userHome, '.cargo\\bin'),
         'C:\\Program Files\\Git\\bin',
         'C:\\Program Files\\Git\\usr\\bin',
         process.env.PATH || ''
-      ].join(';')
+      ].filter(Boolean).join(';')
       : [
         path.join(userHome, '.local/bin'),
         path.join(userHome, '.cargo/bin'),
+        path.join(userHome, '.nvm/versions/node', process.version, 'bin'),
         '/usr/local/bin',
+        '/opt/homebrew/bin',
+        '/usr/bin',
+        '/bin',
+        '/usr/sbin',
+        '/sbin',
         process.env.PATH || ''
-      ].join(':');
+      ].filter(Boolean).join(':');
 
     // Sanitize remote env: protect local host environment from being corrupted by remote server env
     const sanitizedRemoteEnv = { ...(env || {}) };

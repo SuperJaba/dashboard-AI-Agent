@@ -7,9 +7,19 @@
 - [x] NPM Script: build (kompilacja pakietu produkcyjnego Vite)
 - [x] NPM Script: lint (weryfikacja Oxlint - 0 błędów i ostrzeżeń)
 - [x] NPM Script: test (pełny zestaw 33 plików testowych Vitest)
-- [ ] NPM Script: test:sys (diagnostyka systemowa node --test)
-- [ ] NPM Script: test:e2e (testy end-to-end Playwright)
-- [ ] NPM Script: deploy:ct8 (optymalizacja i wdrożenie na serwer zdalny CT8)
+- [x] NPM Script: test:sys (diagnostyka systemowa node --test)
+- [x] NPM Script: test:e2e (testy end-to-end Playwright)
+- [x] NPM Script: deploy:ct8 (optymalizacja i wdrożenie na serwer zdalny CT8)
+  - ✅ Dodał validację środowiska przed deploymentem
+  - ✅ Automatyczne wykrywanie klucza SSH lub hasła
+  - ✅ Walidacja połączenia SSH do hostu docelowego
+  - ✅ Pakowanie backendu z wykluczeniem testów i skryptów CI/CD
+  - ✅ Walidacja lockfile hash przed instalacją zależności
+  - ✅ Automatyczne konfigurowanie .env na serwerze
+  - ✅ Restart aplikacji przez Phusion Passenger
+  - ✅ Weryfikacja deploymentu (health check, metrics, main URL)
+
+## Funkcjonalności i Architektura
 
 ## Funkcjonalności i Architektura
 - [x] Dodać autoryzację do API (JWT i ochrona endpointów)
@@ -21,3 +31,13 @@
 - [x] Internacjonalizacja i18n (język polski jako domyślny, obsługa angielskiego)
 - [x] Synchronizacja zadań i auto-detekcja w projektach zdalnych
 - [x] Flaga YOLO dla pomijania uprawnień przy uruchamianiu terminala
+
+## Bezpieczeństwo i Hardening (Audyt 2026-10-30 - docs/SECURITY_AUDIT.md)
+- [x] [SEC-01] Usunięcie Auth Bypass w `/api/socket-info` (blokada wydawania 30-dniowych JWT niezalogowanym)
+- [x] [SEC-02] Zabezpieczenie resetu bazy użytkowników (usunięcie przycisku z `Login.tsx`, ochrona `POST /api/auth/reset` w produkcji)
+- [x] [SEC-03] Eliminacja arbitralnego SSRF w `/api/llm-proxy` (objęcie `authMiddleware`, walidacja i blokada adresów RFC1918/link-local)
+- [x] [SEC-04] Ochrona przed Command Injection w `gitService.js` (refaktoryzacja `execSync` na bezpieczną tablicę argumentów `execFileSync`)
+- [x] [SEC-05] Konfiguracja nagłówków bezpieczeństwa Content-Security-Policy (CSP) oraz HSTS w `securityHeaders.js`
+- [x] [SEC-06] Ścisła konfiguracja CORS (whitelist domen zamiast wildcarda `*` w Express i Socket.IO)
+- [x] [SEC-07] Wymuszenie bezpiecznego i trwałego `ENCRYPTION_KEY` w trybie produkcyjnym w `crypto.js`
+- [x] [SEC-08] Usunięcie akceptacji tokenu w query stringu (`?token=...`) w `authMiddleware.js`

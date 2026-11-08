@@ -1,5 +1,10 @@
 import { logger } from '../utils/logger.js';
 import { activeAgentWorkers } from '../metrics.js';
+import { classifyWorkerSocket } from './workerClassification.js';
+import { activeTerminalSessions } from './ptyNamespace.js';
+import { safeQuery } from '../db.js';
+
+let globalDashNsp = null;
 
 /**
  * Registers worker/agent Socket.IO event handlers in the /dashboard namespace.
@@ -8,6 +13,7 @@ import { activeAgentWorkers } from '../metrics.js';
  * @param {Map<string, object>} activeWorkers       - shared worker registry
  */
 export function registerDashboardNamespace(dashNsp, activeWorkers) {
+  globalDashNsp = dashNsp;
   dashNsp.on('connection', (socket) => {
     const isWorker = socket.handshake.auth?.isWorker;
 
@@ -36,11 +42,17 @@ export function registerDashboardNamespace(dashNsp, activeWorkers) {
     }
 
     // Worker agent registration
+    const classification = classifyWorkerSocket(socket);
     const workerInfo = {
       id: socket.id,
-      name: socket.handshake.auth?.workerName || 'Local Worker',
+      name: socket.handshake.auth?.workerName || (classification.type === 'remote' ? 'Remote-Worker' : 'Local-Worker'),
+      type: classification.type,
+      ip: classification.ip,
+      serverId: classification.serverId,
+      serverName: classification.serverName,
       hostname: socket.handshake.auth?.hostname || 'unknown',
       platform: socket.handshake.auth?.platform || 'unknown',
+      arch: socket.handshake.auth?.arch || 'unknown',
       connectedAt: new Date().toISOString(),
       socket,
     };
@@ -49,11 +61,21 @@ export function registerDashboardNamespace(dashNsp, activeWorkers) {
     if (activeAgentWorkers && typeof activeAgentWorkers.set === 'function') {
       activeAgentWorkers.set(activeWorkers.size);
     }
-    logger.info({ workerId: socket.id, name: workerInfo.name }, '🤖 Registered Local Agent Worker (/dashboard)');
+    logger.info({ workerId: socket.id, name: workerInfo.name, type: workerInfo.type, ip: workerInfo.ip }, '🤖 Registered Agent Worker (/dashboard)');
 
     socket.on('register_worker', (data) => {
       const existing = activeWorkers.get(socket.id);
-      if (existing) Object.assign(existing, data);
+      if (existing) {
+        Object.assign(existing, data);
+        if (data.type) existing.type = data.type;
+        if (data.workerType) existing.type = data.workerType;
+        if (data.serverId) existing.serverId = Number(data.serverId);
+        if (data.serverName) existing.serverName = data.serverName;
+        if (data.name?.toLowerCase().includes('omv') || data.hostname?.toLowerCase().includes('omv')) {
+          existing.type = 'remote';
+          if (!existing.serverName) existing.serverName = 'OMV';
+        }
+      }
     });
 
     // Forward terminal stream from worker to PTY client
@@ -67,12 +89,42 @@ export function registerDashboardNamespace(dashNsp, activeWorkers) {
       const ptyNsp = dashNsp.server.of('/pty');
       const clientSocket = ptyNsp?.sockets?.get(sessionId) || dashNsp.server.of('/')?.sockets?.get(sessionId);
       if (clientSocket) clientSocket.emit('terminal_exit', { exitCode, signal });
+
+      const session = activeTerminalSessions.get(sessionId);
+      if (session?.taskId) {
+        const durationMs = Date.now() - session.sessionStartTime;
+        safeQuery(
+          'UPDATE agent_tasks SET status = $1, duration_ms = $2, updated_at = NOW() WHERE id = $3',
+          [exitCode === 0 ? 'completed' : 'failed', durationMs, session.taskId]
+        ).then(() => {
+          broadcastRoutingStats();
+        }).catch((err) => {
+          logger.warn({ err: err.message }, 'Failed to update agent_tasks on worker exit');
+        });
+        activeTerminalSessions.delete(sessionId);
+      }
     });
 
     socket.on('worker_terminal_error', ({ sessionId, message }) => {
       const ptyNsp = dashNsp.server.of('/pty');
       const clientSocket = ptyNsp?.sockets?.get(sessionId) || dashNsp.server.of('/')?.sockets?.get(sessionId);
       if (clientSocket) clientSocket.emit('terminal_error', message);
+
+      const session = activeTerminalSessions.get(sessionId);
+      if (session?.taskId) {
+        const durationMs = Date.now() - session.sessionStartTime;
+        safeQuery(
+          'UPDATE agent_tasks SET status = $1, duration_ms = $2, updated_at = NOW() WHERE id = $3',
+          ['failed', durationMs, session.taskId]
+        ).then(() => {
+          broadcastRoutingStats();
+        }).catch(() => {});
+        safeQuery(
+          'INSERT INTO agent_logs (task_id, level, message) VALUES ($1, $2, $3)',
+          [session.taskId, 'error', String(message)]
+        ).catch(() => {});
+        activeTerminalSessions.delete(sessionId);
+      }
     });
 
     // Worker agent status and events
@@ -119,4 +171,20 @@ export function emitAgentEvent(dashNsp, event) {
     timestamp: new Date().toISOString(),
     ...event,
   });
+}
+
+/**
+ * Broadcasts routing stats or routing update event to all connected dashboard clients
+ * @param {object} [stats]
+ */
+export function broadcastRoutingStats(stats) {
+  if (!globalDashNsp) return;
+  try {
+    if (stats) {
+      globalDashNsp.emit('routing:stats', stats);
+    }
+    globalDashNsp.emit('routing:stats_updated');
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to broadcast routing stats');
+  }
 }

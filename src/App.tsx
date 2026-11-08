@@ -2,24 +2,33 @@ import { startTransition, useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Folder, Plus, TerminalSquare, GitBranch, 
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
-  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings, X,
-  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff
+  Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings,
+  RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
+  Files, Zap, FileText, Flame, Users, Menu, X
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
+import { Modal } from './components/Modal';
+import { FormField } from './components/FormField';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { ServerStats } from './ServerStats';
 import { RepoStatus } from './RepoStatus';
 import { WebhookSettingsModal } from './components/WebhookSettingsModal';
-import { KpiDashboardPanel } from './components/kpi/KpiDashboardPanel';
+import { ModelRoutingSettings } from './components/ModelRoutingSettings';
+import { KpiDashboardPanel } from "./kpi/KpiDashboardPanel";
 import { ModelRoutingWidget } from './components/ModelRoutingWidget';
+import { DeployCt8Widget } from './components/deploy-ct8-widget';
+import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardState } from './hooks/useDashboardState';
+import { useToast } from './hooks/useToast';
 
 const TerminalView = lazy(() => import('./TerminalView').then(m => ({ default: m.TerminalView })));
 const LlmServerManager = lazy(() => import('./LlmServerManager').then(m => ({ default: m.LlmServerManager })));
 const CustomWidgets = lazy(() => import('./CustomWidgets'));
 const AgentsView = lazy(() => import('./AgentsView').then(m => ({ default: m.AgentsView })));
+const OpsRampView = lazy(() => import('./OpsRampView').then(m => ({ default: m.OpsRampView })));
+const UsersView = lazy(() => import('./UsersView').then(m => ({ default: m.UsersView })));
 const FolderPickerDialog = lazy(() => import('./FolderPickerDialog').then(m => ({ default: m.FolderPickerDialog })));
 
 const ViewFallback = () => (
@@ -28,6 +37,7 @@ const ViewFallback = () => (
   </div>
 );
 import { DashboardTiles } from './TilesView';
+import { AntigravityCard } from './components/AntigravityCard';
 import { usePreferences, type Language } from './preferences/PreferencesContext';
 
 function App() {
@@ -88,16 +98,57 @@ function App() {
     projectFolderInputRef,
     handleCloneProject,
     setupSshKey,
-    agents
+    agents,
+    setupTunnel,
+    setSetupTunnel,
+    settingUpTunnel,
+    setupTunnelOnServer
   } = useDashboardState();
   const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '';
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
+  const toast = useToast();
   const [showSettings, setShowSettings] = useState(false);
   const [showWorkerModal, setShowWorkerModal] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [workersCount, setWorkersCount] = useState(0);
+
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [activeView, activeProjectId, activeServer?.id]);
   const [showArchived, setShowArchived] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [tunnelFeedback, setTunnelFeedback] = useState<string | null>(null);
+  const [isDeployingApp, setIsDeployingApp] = useState(false);
   const { connected: isSseConnected } = useLiveTelemetry();
+
+  const handleTriggerTunnel = async (serverId: number) => {
+    setTunnelFeedback('Konfigurowanie i uruchamianie tunelu...');
+    const res = await setupTunnelOnServer(serverId);
+    if (res?.success) {
+      setTunnelFeedback(res.message || 'Tunel został pomyślnie uruchomiony!');
+    } else {
+      setTunnelFeedback(`Błąd tunelu: ${res?.error || 'Nieznany błąd'}`);
+    }
+    setTimeout(() => setTunnelFeedback(null), 6000);
+  };
+
+  const handleDeployRemote = async (agentName: string) => {
+    const res: any = await deployRemoteAgent(agentName, activeServer);
+    if (res && !res.success) {
+      toast.error(res.error || 'Nie udało się wdrożyć agenta zdalnego');
+    } else if (res?.success) {
+      toast.success(`Agent ${agentName.toUpperCase()} został pomyślnie uruchomiony`);
+    }
+  };
+
+  const handleDeployLocal = async (agentName: string) => {
+    const res: any = await deployAgent(agentName);
+    if (res && !res.success) {
+      toast.error(res.error || 'Nie udało się wdrożyć agenta');
+    } else if (res?.success) {
+      toast.success(`Agent ${agentName.toUpperCase()} został pomyślnie uruchomiony`);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -139,8 +190,52 @@ function App() {
 
   return (
     <div className="layout">
+      {/* Mobile Topbar */}
+      <header className="mobile-topbar" aria-label="Nawigacja mobilna">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <LayoutDashboard size={20} color="var(--primary, #4F46E5)" aria-hidden="true" />
+          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>AI Agents</span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ padding: '0.4rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          onClick={() => setIsMobileNavOpen((prev) => !prev)}
+          aria-label={isMobileNavOpen ? 'Zamknij menu' : 'Otwórz menu'}
+          aria-expanded={isMobileNavOpen}
+        >
+          {isMobileNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+          <span style={{ fontSize: '0.8rem' }}>Menu</span>
+        </button>
+      </header>
+
+      {/* Mobile Backdrop */}
+      {isMobileNavOpen && (
+        <div
+          className="mobile-sidebar-backdrop"
+          onClick={() => setIsMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isMobileNavOpen ? 'sidebar-open' : ''}`}>
+        {/* Mobile Close Button in Drawer */}
+        <div className="flex md:hidden items-center justify-between pb-2 mb-2 border-b border-[var(--border-color)]">
+          <div className="flex items-center gap-2">
+            <LayoutDashboard size={18} className="text-[var(--primary)]" aria-hidden="true" />
+            <span className="font-bold text-sm">AI Agents</span>
+          </div>
+          <button
+            type="button"
+            className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+            onClick={() => setIsMobileNavOpen(false)}
+            aria-label="Zamknij menu"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
         {/* Navigation Section */}
         <nav aria-label="Main Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
           <button 
@@ -163,6 +258,30 @@ function App() {
           >
             <Bot size={18} aria-hidden="true" />
             <span>Agenci AI</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'opsramp' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('opsramp');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'opsramp' ? 'page' : undefined}
+          >
+            <Activity size={18} aria-hidden="true" />
+            <span>OpsRamp AIOps</span>
+          </button>
+          <button 
+            type="button"
+            className={`project-item ${activeView === 'users' ? 'active' : ''}`}
+            onClick={() => startTransition(() => {
+              setActiveView('users');
+              setActiveProjectId(null);
+            })}
+            aria-current={activeView === 'users' ? 'page' : undefined}
+          >
+            <Users size={18} aria-hidden="true" />
+            <span>Użytkownicy</span>
           </button>
           <button 
             type="button"
@@ -283,8 +402,12 @@ function App() {
             {servers.map(server => (
               <div 
                 key={server.id} 
+                role="button"
+                tabIndex={0}
+                aria-selected={activeProjectId === `server-${server.id}`}
                 className={`project-item ${activeProjectId === `server-${server.id}` ? 'active' : ''}`}
                 onClick={() => setActiveProjectId(`server-${server.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveProjectId(`server-${server.id}`); } }}
                 style={{ justifyContent: 'space-between' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -326,51 +449,6 @@ function App() {
         )}
 
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
-          <input 
-            id="custom-llm-name"
-            type="text" 
-            placeholder="np. AtomicChat" 
-            value={customLlmName}
-            onChange={(e) => setCustomLlmName(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
-          <input 
-            id="custom-llm-url"
-            type="text" 
-            placeholder="http://localhost:1337/v1" 
-            value={customLlmUrl}
-            onChange={(e) => setCustomLlmUrl(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
-          <input 
-            id="custom-llm-model"
-            type="text" 
-            placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
-            value={customLlmModel}
-            onChange={(e) => setCustomLlmModel(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
-          <input 
-            id="custom-api-key"
-            type="password" 
-            placeholder="Brak" 
-            value={customApiKey}
-            onChange={(e) => setCustomApiKey(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'white', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-          />
-          <button 
-            type="button"
-            onClick={saveSettings}
-            aria-live="polite"
-            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
-          >
-            {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
-            {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
-          </button>
           <button 
             type="button"
             onClick={() => setShowWorkerModal(true)}
@@ -421,73 +499,120 @@ function App() {
         </div>
       </aside>
 
-      {showSettings && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('settings.title')}
-          onClick={() => setShowSettings(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: '12px', padding: '1.5rem', width: '320px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '1rem' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{t('settings.title')}</h2>
+      <Modal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        title={t('settings.title')}
+        icon={<Settings size={18} className="text-sky-400" />}
+        maxWidth="480px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.theme')}</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 type="button"
-                onClick={() => setShowSettings(false)}
-                aria-label={t('settings.close')}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                onClick={() => setTheme('dark')}
+                aria-pressed={theme === 'dark'}
+                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'dark' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'dark' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: theme === 'dark' ? 'white' : 'var(--text-main)', cursor: 'pointer' }}
               >
-                <X size={18} aria-hidden="true" />
+                {t('settings.theme.dark')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                aria-pressed={theme === 'light'}
+                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'light' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'light' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: theme === 'light' ? 'white' : 'var(--text-main)', cursor: 'pointer' }}
+              >
+                {t('settings.theme.light')}
               </button>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.theme')}</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setTheme('dark')}
-                  aria-pressed={theme === 'dark'}
-                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'dark' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'dark' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer' }}
-                >
-                  {t('settings.theme.dark')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTheme('light')}
-                  aria-pressed={theme === 'light'}
-                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'light' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'light' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer' }}
-                >
-                  {t('settings.theme.light')}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label htmlFor="language-select" className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.language')}</label>
-              <select
-                id="language-select"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as Language)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
-              >
-                <option value="pl">Polski</option>
-                <option value="en">English</option>
-                <option value="hi">हिन्दी (Hindi)</option>
-              </select>
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
-
-            <WebhookSettingsModal token={token} />
           </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label htmlFor="language-select" className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.language')}</label>
+            <select
+              id="language-select"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as Language)}
+              style={{ background: 'var(--bg-surface, rgba(255,255,255,0.05))', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+            >
+              <option value="pl" style={{ background: 'var(--bg-surface)', color: 'var(--text-main)' }}>Polski</option>
+              <option value="en" style={{ background: 'var(--bg-surface)', color: 'var(--text-main)' }}>English</option>
+              <option value="hi" style={{ background: 'var(--bg-surface)', color: 'var(--text-main)' }}>हिन्दी (Hindi)</option>
+            </select>
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+          {/* Konfiguracja routingu modeli */}
+          <ModelRoutingSettings />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>Domyślny Serwer LLM</span>
+            <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
+            <input 
+              id="custom-llm-name"
+              name="customLlmName"
+              autoComplete="off"
+              type="text" 
+              placeholder="np. AtomicChat" 
+              value={customLlmName}
+              onChange={(e) => setCustomLlmName(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontSize: '0.8rem' }}
+            />
+            <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
+            <input 
+              id="custom-llm-url"
+              name="customLlmUrl"
+              autoComplete="off"
+              spellCheck={false}
+              type="text" 
+              placeholder="http://localhost:1337/v1" 
+              value={customLlmUrl}
+              onChange={(e) => setCustomLlmUrl(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+            />
+            <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
+            <input 
+              id="custom-llm-model"
+              name="customLlmModel"
+              autoComplete="off"
+              spellCheck={false}
+              type="text" 
+              placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
+              value={customLlmModel}
+              onChange={(e) => setCustomLlmModel(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+            />
+            <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
+            <input 
+              id="custom-api-key"
+              name="customApiKey"
+              autoComplete="off"
+              spellCheck={false}
+              type="password" 
+              placeholder="Brak" 
+              value={customApiKey}
+              onChange={(e) => setCustomApiKey(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
+            />
+            <button 
+              type="button"
+              onClick={saveSettings}
+              aria-live="polite"
+              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
+            >
+              {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
+              {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
+            </button>
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '0.25rem 0' }} />
+
+          <WebhookSettingsModal token={token} />
         </div>
-      )}
+      </Modal>
 
       <LocalWorkerModal 
         isOpen={showWorkerModal} 
@@ -500,6 +625,14 @@ function App() {
         {activeView === 'agents' ? (
           <Suspense fallback={<ViewFallback />}>
             <AgentsView />
+          </Suspense>
+        ) : activeView === 'opsramp' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <OpsRampView />
+          </Suspense>
+        ) : activeView === 'users' ? (
+          <Suspense fallback={<ViewFallback />}>
+            <UsersView />
           </Suspense>
         ) : (
           <div style={{ height: '100%', overflowY: 'auto' }}>
@@ -518,7 +651,7 @@ function App() {
               </div>
             </header>
             
-            <ServerStats serverId={activeServer.id} />
+            <ServerStats serverId={activeServer.id} serverName={activeServer.name} />
             
             <Suspense fallback={<ViewFallback />}>
               <CustomWidgets 
@@ -536,43 +669,84 @@ function App() {
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Skopiuj wybrane pliki i foldery do określonej ścieżki na tym serwerze.')}
                   >
-                    📂 Copy Files
+                    <Files size={14} aria-hidden="true" />
+                    <span>Copy Files</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Uruchom skrypt aktualizacji na tym serwerze i zaraportuj wyniki.')}
                   >
-                    ⚡ Run Script
+                    <Zap size={14} aria-hidden="true" />
+                    <span>Run Script</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Przeanalizuj logi systemowe w poszukiwaniu błędów i przygotuj raport.')}
                   >
-                    📋 Analyze Logs
+                    <FileText size={14} aria-hidden="true" />
+                    <span>Analyze Logs</span>
                   </button>
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236,72,153,0.2)' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236,72,153,0.2)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={() => setRemotePrompt('Użyj skilla grafana-dashboards, aby przygotować pliki konfiguracyjne. Następnie połącz się przez SSH z tym serwerem, zainstaluj Dockera (jeśli nie ma) i uruchom stos Prometheus + Grafana za pomocą docker-compose z wygenerowanymi dashboardami na porcie 3000.')}
                   >
-                    🔥 Deploy Grafana Stack
+                    <Flame size={14} aria-hidden="true" />
+                    <span>Deploy Grafana Stack</span>
+                  </button>
+                  <button 
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)' }}
+                    onClick={() => handleTriggerTunnel(activeServer.id)}
+                    disabled={settingUpTunnel}
+                    title="Zainstaluj i uruchom tunel Socket.IO workera na tym serwerze przez SSH"
+                  >
+                    <Laptop size={13} />
+                    {settingUpTunnel ? 'Uruchamianie...' : 'Tunel'}
                   </button>
                 </div>
 
-                <label htmlFor="remote-prompt-input" className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Polecenie dla Agenta</label>
+                {tunnelFeedback && (
+                  <div style={{ 
+                    padding: '0.5rem 0.75rem', 
+                    marginBottom: '1rem', 
+                    borderRadius: '6px', 
+                    fontSize: '0.8rem', 
+                    background: tunnelFeedback.includes('Błąd') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
+                    color: tunnelFeedback.includes('Błąd') ? '#ef4444' : '#10b981', 
+                    border: `1px solid ${tunnelFeedback.includes('Błąd') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}` 
+                  }}>
+                    {tunnelFeedback}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <label htmlFor="remote-prompt-input" className="info-label" style={{ display: 'block', marginBottom: 0 }}>Polecenie dla Agenta</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#93c5fd', cursor: 'pointer', userSelect: 'none' }} title="Automatycznie skonfiguruj i uruchom tunel Socket.IO workera na serwerze przed rozpoczęciem pracy">
+                    <input 
+                      type="checkbox" 
+                      checked={setupTunnel} 
+                      onChange={e => setSetupTunnel(e.target.checked)} 
+                      style={{ cursor: 'pointer', accentColor: 'var(--primary)' }} 
+                    />
+                    <Laptop size={13} color="#38bdf8" />
+                    <span style={{ fontWeight: 600 }}>Tunel</span>
+                  </label>
+                </div>
                 <textarea 
                   id="remote-prompt-input"
                   value={remotePrompt}
                   onChange={e => setRemotePrompt(e.target.value)}
-                  placeholder="e.g., Check PHP logs for errors, update packages, or install Grafana..."
+                  placeholder="e.g., Check PHP logs for errors, update packages, or install Grafana…"
                   style={{ 
                     width: '100%', minHeight: '100px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', 
                     borderRadius: '6px', padding: '0.75rem', color: 'var(--text-main)', marginBottom: '1rem', resize: 'vertical'
@@ -587,7 +761,7 @@ function App() {
                       key={agent.id}
                       type="button"
                       className="btn btn-primary" 
-                      onClick={() => deployRemoteAgent(agent.name.toLowerCase(), activeServer)}
+                      onClick={() => handleDeployRemote(agent.name.toLowerCase())}
                       disabled={deploying !== null || !remotePrompt.trim()}
                       style={{ 
                         opacity: (deploying === agent.name.toLowerCase() || !remotePrompt.trim()) ? 0.7 : 1,
@@ -595,7 +769,7 @@ function App() {
                       }}
                     >
                       <Rocket size={18} aria-hidden="true" />
-                      {deploying === agent.name.toLowerCase() ? 'Deploying...' : `Deploy ${agent.name}`}
+                      {deploying === agent.name.toLowerCase() ? 'Deploying…' : `Deploy ${agent.name}`}
                     </button>
                   ))}
                 </div>
@@ -648,7 +822,7 @@ function App() {
                       <button
                         type="button"
                         className="btn btn-primary"
-                        onClick={() => activeAgentName && deployAgent(activeAgentName)}
+                        onClick={() => activeAgentName && handleDeployLocal(activeAgentName)}
                         disabled={deploying !== null || !activeAgentName}
                         style={{
                           opacity: (deploying === activeAgentName || !activeAgentName) ? 0.7 : 1,
@@ -656,7 +830,7 @@ function App() {
                         }}
                       >
                         <Rocket size={20} aria-hidden="true" />
-                        {deploying === activeAgentName ? 'Deploying...' : 'Deploy'}
+                        {deploying === activeAgentName ? 'Deploying…' : 'Deploy'}
                       </button>
                     </>
                   )}
@@ -694,60 +868,95 @@ function App() {
             )}
 
             <div>
-              <AnalyticsPanel projects={projects} />
-              <div className="grid-top" style={{ marginBottom: '2rem' }}>
-                <div className="glass-card animate-in delay-2">
-                  <span className="info-label">Implementation Status</span>
-                  <div className="info-value">
-                    <Activity size={24} color="var(--secondary)" aria-hidden="true" />
-                    {activeProject.complete}% Complete
+              {!terminalConfig && !isDeployingApp && projects.length > 0 && <AnalyticsPanel projects={projects} />}
+              <div className="grid-top" style={{ marginBottom: '2rem', perspective: '1200px' }}>
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(236, 72, 153, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}
+                >
+                  <div className="antigravity-depth-pop">
+                    <span className="info-label">Implementation Status</span>
+                    <div className="info-value">
+                      <Activity size={24} color="var(--secondary)" aria-hidden="true" />
+                      {activeProject.complete}% Complete
+                    </div>
                   </div>
-                  <div style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.1)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ background: 'linear-gradient(90deg, var(--primary), var(--secondary))', width: `${activeProject.complete}%`, height: '100%', transition: 'width 0.5s ease-out' }}></div>
+                  <div className="antigravity-depth-sub" style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.08)', height: '7px', borderRadius: '9999px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div className="antigravity-progress-glow" style={{ background: 'linear-gradient(90deg, var(--primary), var(--secondary))', width: `${activeProject.complete}%`, height: '100%', transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '9999px' }} />
+                    </div>
                   </div>
-                </div>
+                </AntigravityCard>
 
-                <div className="glass-card animate-in delay-2" style={{ animationDelay: '0.25s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(79, 70, 229, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                >
+                  <div className="antigravity-depth-pop">
                     <span className="info-label">Technology Stack</span>
                     <div className="info-value">
                       <TerminalSquare size={24} color="var(--primary)" aria-hidden="true" />
                       {activeProject.tech}
                     </div>
                   </div>
-                  <button 
-                    type="button"
-                    className="btn-add-project" 
-                    style={{ marginTop: '1rem', width: 'fit-content', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
-                    onClick={analyzeProject}
-                    disabled={deploying === 'analyze'}
-                  >
-                    {deploying === 'analyze' ? 'Analyzing...' : 'Analyze Workspace'}
-                  </button>
-                </div>
+                  <div className="antigravity-depth-sub">
+                    <button 
+                      type="button"
+                      className="btn-add-project" 
+                      style={{ marginTop: '1rem', width: 'fit-content', padding: '0.45rem 0.9rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px' }} 
+                      onClick={analyzeProject}
+                      disabled={deploying === 'analyze'}
+                    >
+                      {deploying === 'analyze' && <RefreshCw size={14} className="animate-spin" />}
+                      {deploying === 'analyze' ? 'Analyzing…' : 'Analyze Workspace'}
+                    </button>
+                  </div>
+                </AntigravityCard>
 
-                <div className="glass-card animate-in delay-2" style={{ animationDelay: '0.3s' }}>
-                  <span className="info-label">Project Path</span>
-                  <div className="info-value" style={{ fontSize: '1rem' }}>
-                    <Folder size={20} color="#10B981" aria-hidden="true" />
-                    {activeProject.path}
+                <AntigravityCard
+                  elevation="medium"
+                  maxTilt={7}
+                  glowColor="rgba(16, 185, 129, 0.2)"
+                  className="animate-in delay-2"
+                  style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}
+                >
+                  <div className="antigravity-depth-pop">
+                    <span className="info-label">Project Path</span>
+                    <div className="info-value" style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={activeProject.path}>
+                      <Folder size={18} color="#10B981" aria-hidden="true" style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeProject.path}</span>
+                    </div>
                   </div>
-                  <div className="info-value" style={{ fontSize: '1rem', marginTop: '0.5rem' }}>
-                    <GitBranch size={20} color="#F59E0B" aria-hidden="true" />
-                    {activeProject.branch ? (
-                      activeProject.branch
-                    ) : (
-                      <button type="button" className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={initGit}>
-                        Create Git
-                      </button>
-                    )}
+                  <div className="antigravity-depth-sub" style={{ marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="info-value" style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <GitBranch size={18} color="#F59E0B" aria-hidden="true" />
+                      {activeProject.branch ? (
+                        <span style={{ fontFamily: 'monospace', color: '#fcd34d', fontWeight: 600 }}>{activeProject.branch}</span>
+                      ) : (
+                        <button type="button" className="btn-add-project" style={{ marginLeft: '0.5rem', padding: '0.25rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px' }} onClick={initGit}>
+                          Create Git
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </AntigravityCard>
               </div>
 
               <RepoStatus directory={activeProject.path || ''} onLaunchTerminal={(config) => setTerminalConfig(config)} />
 
-              <section className="glass-card animate-in delay-3" style={{ maxWidth: '100%' }}>
+              <AntigravityCard
+                elevation="medium"
+                maxTilt={3}
+                glowColor="rgba(79, 70, 229, 0.14)"
+                className="animate-in delay-3"
+                style={{ maxWidth: '100%', padding: '1.25rem', marginTop: '1.5rem', marginBottom: '2rem' }}
+              >
                 <div 
                   className="sidebar-title-btn tasks-header" 
                   onClick={() => setShowTasks(!showTasks)}
@@ -904,6 +1113,19 @@ function App() {
                       <div 
                         className="task-item" 
                         key={task.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-selected={selectedTaskIds.includes(task.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            if (selectedTaskIds.includes(task.id)) {
+                              setSelectedTaskIds(selectedTaskIds.filter(id => id !== task.id));
+                            } else {
+                              setSelectedTaskIds([...selectedTaskIds, task.id]);
+                            }
+                          }
+                        }}
                         onClick={() => {
                           if (selectedTaskIds.includes(task.id)) {
                             setSelectedTaskIds(selectedTaskIds.filter(id => id !== task.id));
@@ -1007,10 +1229,12 @@ function App() {
                     <form onSubmit={addTask} style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', padding: '0 0.5rem' }}>
                       <input 
                         id="new-task-input"
+                        name="newTaskTitle"
+                        autoComplete="off"
                         type="text" 
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
-                        placeholder="Add a new custom task..." 
+                        placeholder="Add a new custom task…" 
                         aria-label="Add a new custom task"
                         style={{ 
                           flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', 
@@ -1114,15 +1338,19 @@ function App() {
                     )}
                   </div>
                 )}
-              </section>
+              </AntigravityCard>
             </div>
           </>
         ) : (
           <div>
             <div style={{ padding: '1.25rem 1.25rem 0 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <KpiDashboardPanel />
-              <ModelRoutingWidget />
-              <AnalyticsPanel projects={projects} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1rem' }}>
+                <ModelRoutingWidget />
+                <DeployCt8Widget onDeployStateChange={setIsDeployingApp} />
+                <AgentSchedulerWidget />
+              </div>
+              {!isDeployingApp && projects.length > 0 && <AnalyticsPanel projects={projects} />}
             </div>
             <DashboardTiles projects={projects} onProjectClick={setActiveProjectId} onAddProject={handleAddProject} />
           </div>
@@ -1146,6 +1374,8 @@ function App() {
                 <label htmlFor="new-server-name" className="info-label">Name</label>
                 <input 
                   id="new-server-name"
+                  name="serverName"
+                  autoComplete="off"
                   type="text" 
                   value={newServer.name}
                   onChange={e => setNewServer({...newServer, name: e.target.value})}
@@ -1158,6 +1388,9 @@ function App() {
                 <label htmlFor="new-server-host" className="info-label">Host (IP or Domain)</label>
                 <input 
                   id="new-server-host"
+                  name="serverHost"
+                  autoComplete="off"
+                  spellCheck={false}
                   type="text" 
                   value={newServer.host}
                   onChange={e => setNewServer({...newServer, host: e.target.value})}
@@ -1171,6 +1404,9 @@ function App() {
                   <label htmlFor="new-server-username" className="info-label">Username</label>
                   <input 
                     id="new-server-username"
+                    name="serverUsername"
+                    autoComplete="off"
+                    spellCheck={false}
                     type="text" 
                     value={newServer.username}
                     onChange={e => setNewServer({...newServer, username: e.target.value})}
@@ -1183,6 +1419,8 @@ function App() {
                   <label htmlFor="new-server-port" className="info-label">Port</label>
                   <input 
                     id="new-server-port"
+                    name="serverPort"
+                    autoComplete="off"
                     type="number" 
                     value={newServer.port}
                     onChange={e => setNewServer({...newServer, port: parseInt(e.target.value)})}
@@ -1214,6 +1452,9 @@ function App() {
                 <div style={{ position: 'relative' }}>
                   <input
                     id="new-server-ssh-password"
+                    name="serverSshPassword"
+                    autoComplete="current-password"
+                    spellCheck={false}
                     type={showPassword ? 'text' : 'password'}
                     value={newServer.ssh_password}
                     onChange={e => setNewServer({...newServer, ssh_password: e.target.value})}
@@ -1224,11 +1465,11 @@ function App() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(p => !p)}
-                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '0.2rem 0.3rem', lineHeight: 1 }}
+                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.2rem 0.3rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     title={showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
                     aria-label={showPassword ? 'Ukryj hasło SSH' : 'Pokaż hasło SSH'}
                   >
-                    {showPassword ? '🙈' : '👁️'}
+                    {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                   </button>
                 </div>
               </div>
@@ -1252,105 +1493,118 @@ function App() {
       )}
 
       {/* Clone Git Repository Modal */}
-      {showCloneModal && (
-        <div className="modal-overlay" onClick={() => !cloneLoading && setShowCloneModal(false)}>
-          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-            <h3 className="section-title" style={{ color: '#38bdf8' }}>
-              <DownloadCloud size={20} />
-              Clone Git Repository
-            </h3>
+      <Modal
+        isOpen={showCloneModal}
+        onClose={() => { if (!cloneLoading) setShowCloneModal(false); }}
+        title="Klonuj repozytorium Git"
+        icon={<DownloadCloud size={20} className="text-sky-400" />}
+        maxWidth="520px"
+      >
+        {cloneError && (
+          <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
+            {cloneError}
+          </div>
+        )}
 
-            {cloneError && (
-              <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                {cloneError}
-              </div>
-            )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <FormField
+            label="Adres URL repozytorium (HTTPS lub SSH)"
+            htmlFor="clone-repo-url"
+            required
+          >
+            <input
+              id="clone-repo-url"
+              name="cloneRepoUrl"
+              autoComplete="off"
+              spellCheck={false}
+              type="text"
+              value={cloneRepoUrl}
+              onChange={e => {
+                setCloneRepoUrl(e.target.value);
+                if (!cloneProjectName && e.target.value) {
+                  const match = e.target.value.trim().match(/\/([^/]+?)(\.git)?$/);
+                  if (match && match[1]) setCloneProjectName(match[1]);
+                }
+              }}
+              className="config-input"
+              placeholder="https://github.com/username/repository.git"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+              autoFocus
+            />
+          </FormField>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label htmlFor="clone-repo-url" className="info-label">Repository URL (HTTPS or SSH)</label>
-                <input
-                  id="clone-repo-url"
-                  type="text"
-                  value={cloneRepoUrl}
-                  onChange={e => {
-                    setCloneRepoUrl(e.target.value);
-                    if (!cloneProjectName && e.target.value) {
-                      const match = e.target.value.trim().match(/\/([^/]+?)(\.git)?$/);
-                      if (match && match[1]) setCloneProjectName(match[1]);
-                    }
-                  }}
-                  className="config-input"
-                  placeholder="https://github.com/username/repository.git"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
-                  autoFocus
-                />
-              </div>
+          <FormField
+            label="Katalog docelowy"
+            htmlFor="clone-target-dir"
+            required
+          >
+            <input
+              id="clone-target-dir"
+              name="cloneTargetDir"
+              autoComplete="off"
+              spellCheck={false}
+              type="text"
+              value={cloneTargetDir}
+              onChange={e => setCloneTargetDir(e.target.value)}
+              className="config-input"
+              placeholder="~/projects/my-repo"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+            />
+          </FormField>
 
-              <div>
-                <label htmlFor="clone-target-dir" className="info-label">Target Directory</label>
-                <input
-                  id="clone-target-dir"
-                  type="text"
-                  value={cloneTargetDir}
-                  onChange={e => setCloneTargetDir(e.target.value)}
-                  className="config-input"
-                  placeholder="C:\Projects\my-repo or ~/projects/my-repo"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
-                />
-              </div>
+          <FormField
+            label="Nazwa projektu w dashboardzie (opcjonalna)"
+            htmlFor="clone-project-name"
+          >
+            <input
+              id="clone-project-name"
+              name="cloneProjectName"
+              autoComplete="off"
+              type="text"
+              value={cloneProjectName}
+              onChange={e => setCloneProjectName(e.target.value)}
+              className="config-input"
+              placeholder="Mój Projekt"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+            />
+          </FormField>
 
-              <div>
-                <label htmlFor="clone-project-name" className="info-label">Project Name in Dashboard (optional)</label>
-                <input
-                  id="clone-project-name"
-                  type="text"
-                  value={cloneProjectName}
-                  onChange={e => setCloneProjectName(e.target.value)}
-                  className="config-input"
-                  placeholder="My Repo"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ flex: 1, padding: '0.5rem' }}
-                  onClick={() => setShowCloneModal(false)}
-                  disabled={cloneLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
-                  disabled={!cloneRepoUrl.trim() || !cloneTargetDir.trim() || cloneLoading}
-                  onClick={async () => {
-                    setCloneLoading(true);
-                    setCloneError(null);
-                    try {
-                      await handleCloneProject(cloneRepoUrl.trim(), cloneTargetDir.trim(), cloneProjectName.trim() || undefined);
-                      setShowCloneModal(false);
-                      setCloneRepoUrl('');
-                      setCloneTargetDir('');
-                      setCloneProjectName('');
-                    } catch (err: any) {
-                      setCloneError(err.message || 'Failed to clone repository');
-                    } finally {
-                      setCloneLoading(false);
-                    }
-                  }}
-                >
-                  {cloneLoading ? 'Cloning...' : 'Clone Repository'}
-                </button>
-              </div>
-            </div>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ flex: 1, padding: '0.5rem' }}
+              onClick={() => setShowCloneModal(false)}
+              disabled={cloneLoading}
+            >
+              Anuluj
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
+              disabled={!cloneRepoUrl.trim() || !cloneTargetDir.trim() || cloneLoading}
+              onClick={async () => {
+                setCloneLoading(true);
+                setCloneError(null);
+                try {
+                  await handleCloneProject(cloneRepoUrl.trim(), cloneTargetDir.trim(), cloneProjectName.trim() || undefined);
+                  setShowCloneModal(false);
+                  setCloneRepoUrl('');
+                  setCloneTargetDir('');
+                  setCloneProjectName('');
+                } catch (err: any) {
+                  setCloneError(err.message || 'Błąd klonowania repozytorium');
+                } finally {
+                  setCloneLoading(false);
+                }
+              }}
+            >
+              {cloneLoading ? 'Klonowanie...' : 'Klonuj repozytorium'}
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* Offline banner (T2.3) */}
       {!isSseConnected && (
@@ -1377,7 +1631,7 @@ function App() {
           }}
         >
           <WifiOff size={14} aria-hidden="true" />
-          <span>Brak połączenia z serwerem — ponawiam...</span>
+          <span>Brak połączenia z serwerem — ponawiam…</span>
         </div>
       )}
 

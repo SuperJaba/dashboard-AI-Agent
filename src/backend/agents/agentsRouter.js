@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import * as agentsRepo from './agentsRepository.js';
+import * as consoleVarsRepo from './consoleVarsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import { getBestAvailableModel } from '../utils/llm.js';
 
@@ -11,8 +12,9 @@ export const agentsRouter = express.Router();
 // Canonical catalog of well-known CLI coding agents we know how to auto-detect.
 // Extend this list (rather than hardcoding one-off entries) whenever a new
 // agent CLI should be discoverable by the "System scan" feature.
-const KNOWN_AGENTS = [
+export const KNOWN_AGENTS = [
   { name: 'Claude Code', cmd: 'claude', desc: 'Anthropic Claude Code CLI', configPath: (home) => `${home}/.claude.json` },
+  { name: 'Open Claude', cmd: 'openclaude', desc: 'OpenClaude AI CLI agent', configPath: (home) => `${home}/.openclaude/settings.json` },
   { name: 'Codex', cmd: 'codex', desc: 'OpenAI Codex CLI', configPath: (home) => `${home}/.codex/config.json` },
   { name: 'Antigravity', cmd: 'agy', desc: 'Google AI Antigravity CLI', configPath: (home) => `${home}/.gemini/config.json` },
   { name: 'Aider', cmd: 'aider', desc: 'Aider AI pair programming', configPath: (home) => `${home}/.aider.conf.yml` },
@@ -79,6 +81,38 @@ agentsRouter.get('/', async (req, res) => {
   try {
     const agents = await agentsRepo.getAgents();
     res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get console environment variables (token, model, IP)
+agentsRouter.get('/console-vars', async (req, res) => {
+  try {
+    const vars = await consoleVarsRepo.getConsoleVars();
+    res.json(vars);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save console environment variables to DB
+agentsRouter.post('/console-vars', async (req, res) => {
+  try {
+    const { token, model, ip } = req.body || {};
+    const result = await consoleVarsRepo.saveConsoleVars({ token, model, ip });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Test console variables connection
+agentsRouter.post('/console-vars/test', async (req, res) => {
+  try {
+    const { token, model, ip } = req.body || {};
+    const result = await consoleVarsRepo.testConsoleConnection({ token, model, ip });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
