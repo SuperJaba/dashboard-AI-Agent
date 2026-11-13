@@ -8,8 +8,8 @@
   {
     "file": "src/UsersView.tsx",
     "line": 119,
-    "summary": "u.username.toLowerCase() will throw if username is undefined in malformed API response",
-    "failure_scenario": "If API returns user without username field, u.username is undefined and calling .toLowerCase() throws TypeError: Cannot read properties of undefined (reading 'toLowerCase')"
+    "summary": "Calling .toLowerCase() on u.username without null check causes crash on undefined",
+    "failure_scenario": "When API returns user without username field, calling u.username.toLowerCase() throws TypeError: Cannot read properties of undefined"
   },
   {
     "file": "src/UsersView.tsx",
@@ -26,8 +26,8 @@
   {
     "file": "src/UsersView.tsx",
     "line": 106,
-    "summary": "useEffect dependency on fetchUsers creates unnecessary re-render when fetchUsers is useCallback with empty deps",
-    "failure_scenario": "The effect runs once on mount (correctly), but having fetchUsers in the dependency array is redundant since it's already memoized with [] - should be removed for clarity"
+    "summary": "useEffect dependency on fetchUsers is redundant since fetchUsers has empty dependency array",
+    "failure_scenario": "The effect should have empty [] dependency since fetchUsers is already useCallback([]) - having fetchUsers in deps is unnecessary and could cause issues if fetchUsers changes"
   },
   {
     "file": "src/UsersView.tsx",
@@ -40,11 +40,5 @@
     "line": 154,
     "summary": "handleChangeRole returns early without resetting error state if role already matches",
     "failure_scenario": "If user clicks change role button to same role, the early return leaves any existing error state displayed instead of clearing it"
-  },
-  {
-    "file": "src/UsersView.tsx",
-    "line": 119,
-    "summary": "searchQuery.toLowerCase() called on potentially empty string causes unnecessary operation",
-    "failure_scenario": "When searchQuery is empty, calling .toLowerCase() and .includes('') is wasteful - the filter should short-circuit when searchQuery is empty"
   }
 ]

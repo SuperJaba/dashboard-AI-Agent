@@ -105,24 +105,36 @@ export function UsersView() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Statystyki
+  // Filtrowana lista użytkowników
+  const filteredUsers = useMemo(() => {
+    const filtered = users.filter(u => {
+      // Safe search: ignoruj puste query i brakujące pola
+      if (!searchQuery || searchQuery.trim() === '') {
+        return true;
+      }
+      const cleanQuery = searchQuery.trim().toLowerCase();
+      const username = u.username || '';
+      const matchesSearch =
+        username.includes(cleanQuery) ||
+        String(u.id).includes(cleanQuery);
+      const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+
+    // Filtrowane statystyki (do KPI cards)
+    const total = filtered.length;
+    const admins = filtered.filter(u => u.role === 'admin').length;
+    const regular = filtered.filter(u => u.role === 'user').length;
+    return { users: filtered, total, admins, regular };
+  }, [users, searchQuery, roleFilter]);
+
+  // Statystyki dla KPI cards (na podstawie oryginalnych użytkowników)
   const stats = useMemo(() => {
     const total = users.length;
     const admins = users.filter(u => u.role === 'admin').length;
     const regular = users.filter(u => u.role === 'user').length;
     return { total, admins, regular };
   }, [users]);
-
-  // Filtrowana lista użytkowników
-  const filteredUsers = useMemo(() => {
-    return users.filter(u => {
-      const matchesSearch = 
-        u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(u.id).includes(searchQuery.trim());
-      const matchesRole = roleFilter === 'all' || u.role === roleFilter;
-      return matchesSearch && matchesRole;
-    });
-  }, [users, searchQuery, roleFilter]);
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,13 +164,17 @@ export function UsersView() {
   };
 
   const handleChangeRole = async (user: UserItem, newTargetRole: 'admin' | 'user') => {
-    if (user.role === newTargetRole) return;
+    if (user.role === newTargetRole) {
+      // Reset error state if clicking same role
+      setRoleChangeError(null);
+      return;
+    }
     try {
       await apiClient.put(`/api/users/${user.id}/role`, { role: newTargetRole });
       toast.success(`Zmieniono rolę dla ${user.username} na ${newTargetRole === 'admin' ? 'Administrator' : 'Użytkownik'}.`);
       await fetchUsers();
     } catch (err: any) {
-      setError(err?.message || 'Błąd podczas zmiany roli użytkownika');
+      setRoleChangeError(err?.message || 'Błąd podczas zmiany roli użytkownika');
     }
   };
 
@@ -351,7 +367,7 @@ export function UsersView() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Wszyscy ({stats.total})
+              Wszyscy ({filteredUsers.users.length})
             </button>
             <button
               type="button"
@@ -362,7 +378,7 @@ export function UsersView() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Administratorzy ({stats.admins})
+              Administratorzy ({filteredUsers.users.filter(u => u.role === 'admin').length})
             </button>
             <button
               type="button"
@@ -373,7 +389,7 @@ export function UsersView() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Użytkownicy ({stats.regular})
+              Użytkownicy ({filteredUsers.users.filter(u => u.role === 'user').length})
             </button>
           </div>
         </div>
@@ -417,7 +433,7 @@ export function UsersView() {
             <div className="text-base font-medium text-white">Ładowanie listy użytkowników...</div>
             <div className="text-sm text-slate-400 mt-1">Pobieranie uprawnień i kont systemowych</div>
           </div>
-        ) : filteredUsers.length === 0 ? (
+        ) : filteredUsers.users.length === 0 ? (
           <div className="glass-card p-12 text-center rounded-2xl border border-white/[0.08]">
             <Users size={40} className="mx-auto text-slate-500 mb-3" />
             <div className="text-base font-semibold text-white">
@@ -443,7 +459,7 @@ export function UsersView() {
              WIDOK KAFELKÓW / KART (Duże, przejrzyste rekordy zagospodarowujące przestrzeń)
              ========================================================================= */
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-            {filteredUsers.map(u => {
+            {filteredUsers.users.map(u => {
               const isCurrent = currentUser?.id === u.id || currentUser?.username === u.username;
               const isAdmin = u.role === 'admin';
 
@@ -603,7 +619,7 @@ export function UsersView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.05]">
-                  {filteredUsers.map(u => {
+                  {filteredUsers.users.map(u => {
                     const isCurrent = currentUser?.id === u.id || currentUser?.username === u.username;
                     const isAdmin = u.role === 'admin';
 
