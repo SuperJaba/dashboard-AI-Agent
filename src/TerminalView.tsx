@@ -46,6 +46,11 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   const [workers, setWorkers] = useState<any[]>([]);
   const [showWorkerModal, setShowWorkerModal] = useState(false);
   const [copiedTunnelCmd, setCopiedTunnelCmd] = useState(false);
+  const [serverUrl, setServerUrl] = useState(
+    typeof window !== 'undefined'
+      ? (window.location.port === '5173' ? 'http://localhost:3001' : window.location.origin)
+      : 'https://dashboard.jagger2.ct8.pl'
+  );
 
   const activeToken = typeof window !== 'undefined'
     ? (localStorage.getItem('dashboard_token') || localStorage.getItem('token') || '')
@@ -73,7 +78,24 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     };
 
     fetchWorkers();
-    const interval = setInterval(fetchWorkers, 3000);
+    const fetchSocketInfo = () => {
+      const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
+      fetch('/api/socket-info', {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (isMounted && data?.serverUrl) {
+            setServerUrl(data.serverUrl);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchSocketInfo();
+    const interval = setInterval(() => {
+      fetchWorkers();
+      fetchSocketInfo();
+    }, 3000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -366,9 +388,9 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              const serverTarget = typeof window !== 'undefined'
+              const serverTarget = serverUrl || (typeof window !== 'undefined'
                 ? (window.location.port === '5173' ? 'http://localhost:3001' : window.location.origin)
-                : 'https://dashboard.jagger2.ct8.pl';
+                : 'https://dashboard.jagger2.ct8.pl');
               const tokenVal = activeToken || 'twój_token_socket';
               const cmd = `DASHBOARD_SERVER_URL="${serverTarget}" DASHBOARD_TOKEN="${tokenVal}" WORKER_NAME="Moj-PC" npm run agent:worker`;
               if (navigator.clipboard && navigator.clipboard.writeText) {

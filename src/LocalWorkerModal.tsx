@@ -55,6 +55,9 @@ export function LocalWorkerModal({ isOpen, onClose, token: propToken }: LocalWor
       const res = await fetch('/api/socket-info', { headers });
       if (res.ok) {
         const data = await res.json();
+        if (data.serverUrl) {
+          setServerUrl(data.serverUrl);
+        }
         if (data.token && (!activeToken || activeToken === 'fallback-super-secret-key-123')) {
           setActiveToken(data.token);
           if (typeof window !== 'undefined' && !localStorage.getItem('dashboard_token')) {
