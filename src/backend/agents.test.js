@@ -114,12 +114,12 @@ describe('agentsRouter', () => {
   });
 
   it('should have GET / endpoint handler', () => {
-    const router = agentsRouter.agentsRouter();
+    const router = agentsRouter.agentsRouter;
     expect(router.stack.length).toBeGreaterThan(0);
   });
 
   it('should have POST /scan endpoint handler', () => {
-    const router = agentsRouter.agentsRouter();
+    const router = agentsRouter.agentsRouter;
     const scanRouteFound = router.stack.some(layer =>
       layer.route && layer.route.path === '/scan'
     );
