@@ -127,5 +127,5 @@ Moving from a *launcher and viewer* to an *autonomous engineering fleet orchestr
 
 ## Next Steps
 - [ ] Implement the **Global Emergency Kill-Switch & VRAM Purge** button in dashboard header.
-- [ ] Prototype the Telegram notification & 1-tap PR merge webhook.
+- [x] Prototype the Telegram notification & 1-tap PR merge webhook.
 - [ ] Define the DAG specification for Multi-Agent Assembly Pipelines.

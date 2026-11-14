@@ -21,7 +21,7 @@ describe('Users Router (/api/users)', () => {
     app.use('/api/users', authMiddleware, usersRouter);
 
     // Czyszczenie i przygotowanie testowych użytkowników
-    await safeQuery('DELETE FROM users');
+    await safeQuery("DELETE FROM users WHERE username IN ('admin_user', 'regular_user', 'nowy_admin', 'nowy_user')");
 
     const adminHash = await bcrypt.hash('adminpassword123', 12);
     const adminRes = await safeQuery(
@@ -41,7 +41,7 @@ describe('Users Router (/api/users)', () => {
   });
 
   afterEach(async () => {
-    await safeQuery('DELETE FROM users');
+    await safeQuery("DELETE FROM users WHERE username IN ('admin_user', 'regular_user', 'nowy_admin', 'nowy_user')");
   });
 
   describe('GET /api/users', () => {
@@ -66,8 +66,9 @@ describe('Users Router (/api/users)', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.users)).toBe(true);
-      expect(res.body.users.length).toBe(2);
+      expect(res.body.users.length).toBeGreaterThanOrEqual(2);
       expect(res.body.users.some(u => u.username === 'admin_user')).toBe(true);
+      expect(res.body.users.some(u => u.username === 'regular_user')).toBe(true);
     });
   });
 

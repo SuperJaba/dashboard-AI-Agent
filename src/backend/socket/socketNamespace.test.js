@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { io as Client } from 'socket.io-client';
 import express from 'express';
-import { registerPtyNamespace } from './ptyNamespace.js';
+import { registerPtyNamespace, findShellExecutable, ensurePtySpawnHelperPermissions } from './ptyNamespace.js';
 import { registerDashboardNamespace, emitDashboardNotification, emitAgentEvent } from './dashboardNamespace.js';
 import { createSocketAuthMiddleware } from './socketAuth.js';
 
@@ -214,6 +214,18 @@ describe('T2.2 — Socket.IO Namespace Isolation (/pty vs /dashboard)', () => {
       // Clean up
       ptyClient.close();
       workerSocket.close();
+    });
+  });
+
+  describe('findShellExecutable & ensurePtySpawnHelperPermissions', () => {
+    it('resolves an executable shell path on the current platform', () => {
+      const shell = findShellExecutable('bash');
+      expect(typeof shell).toBe('string');
+      expect(shell.length).toBeGreaterThan(0);
+    });
+
+    it('ensures spawn helper permissions without throwing', () => {
+      expect(() => ensurePtySpawnHelperPermissions()).not.toThrow();
     });
   });
 });

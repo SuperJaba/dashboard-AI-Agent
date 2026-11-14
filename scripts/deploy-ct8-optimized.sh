@@ -229,8 +229,31 @@ END \$\$;
 CREATE TABLE IF NOT EXISTS dashboard.users (
   id SERIAL PRIMARY KEY,
   username VARCHAR(255) UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL
+  password_hash TEXT NOT NULL,
+  role VARCHAR(50) DEFAULT 'user',
+  email VARCHAR(255)
 );
+ALTER TABLE dashboard.users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user';
+ALTER TABLE dashboard.users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+DO \$\$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+    INSERT INTO dashboard.users (username, password_hash, role)
+    SELECT
+      COALESCE(u.username, u.email) as username,
+      u.password as password_hash,
+      COALESCE(
+        (SELECT r.name FROM public.user_roles ur JOIN public.roles r ON ur.role_id = r.id WHERE ur.user_id = u.id AND r.name = 'admin' LIMIT 1),
+        (SELECT r.name FROM public.user_roles ur JOIN public.roles r ON ur.role_id = r.id WHERE ur.user_id = u.id LIMIT 1),
+        'user'
+      ) AS role
+    FROM public.users u
+    WHERE NOT EXISTS (
+      SELECT 1 FROM dashboard.users du
+      WHERE du.username = COALESCE(u.username, u.email)
+    );
+  END IF;
+END \$\$;
 EOF_SCHEMA
       fi
     fi

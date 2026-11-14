@@ -7,6 +7,12 @@
       "skillPath": "skills/context-budget/SKILL.md",
       "computedHash": "b66f9dea9c1dc8ea220b641503613009de537129f4eb5ca1f8edbf7acd708f42"
     },
+    "design-taste-frontend": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "computedHash": "23b3930015c478034b222e1a015da03a962c8ab48aee9fb4f3f69d977034feaa"
+    },
     "find-skills": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

@@ -40,6 +40,16 @@ export const inMemoryStore = {
   projects: [],
   servers: [],
   cli_agents: [],
+  console_variables: [
+    {
+      id: 1,
+      token: '',
+      model: 'unsloth/Qwen3.5-9B-MTP-GGUF',
+      ip: 'http://127.0.0.1:8888/v1',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
   custom_widgets: [],
   agents: [],
   user_settings: [],
@@ -158,7 +168,7 @@ export async function safeQuery(text, params = []) {
   }
 
   if (sql.includes('FROM users WHERE username')) {
-    const user = inMemoryStore.users.find(u => u.username === params[0]);
+    const user = inMemoryStore.users.find(u => u.username === params[0] || (u.email && u.email === params[0]));
     return { rows: user ? [user] : [] };
   }
 
@@ -335,6 +345,36 @@ export async function safeQuery(text, params = []) {
 
   if (sql.includes('FROM agents')) {
     return { rows: inMemoryStore.agents };
+  }
+
+  // Console variables queries
+  if (sql.includes('FROM console_variables')) {
+    if (sql.includes('WHERE id = $1')) {
+      const cv = inMemoryStore.console_variables.find(x => x.id === parseInt(params[0], 10));
+      return { rows: cv ? [{ ...cv }] : [] };
+    }
+    return { rows: inMemoryStore.console_variables.map(x => ({ ...x })) };
+  }
+
+  if (sql.includes('INSERT INTO console_variables') || sql.includes('UPDATE console_variables')) {
+    let cv = inMemoryStore.console_variables.find(x => x.id === 1);
+    if (!cv) {
+      cv = { id: 1, token: '', model: 'unsloth/Qwen3.5-9B-MTP-GGUF', ip: 'http://127.0.0.1:8888/v1', created_at: new Date().toISOString() };
+      inMemoryStore.console_variables.push(cv);
+    }
+    if (params.length >= 3) {
+      if (params.length === 4 && typeof params[0] === 'number') {
+        cv.token = params[1] !== undefined ? params[1] : cv.token;
+        cv.model = params[2] !== undefined ? params[2] : cv.model;
+        cv.ip = params[3] !== undefined ? params[3] : cv.ip;
+      } else {
+        cv.token = params[0] !== undefined ? params[0] : cv.token;
+        cv.model = params[1] !== undefined ? params[1] : cv.model;
+        cv.ip = params[2] !== undefined ? params[2] : cv.ip;
+      }
+    }
+    cv.updated_at = new Date().toISOString();
+    return { rows: [{ ...cv }] };
   }
 
   // Custom widgets
@@ -671,7 +711,19 @@ export async function migrate() {
       installed BOOLEAN DEFAULT false,
       llm_model VARCHAR(255),
       temperature NUMERIC DEFAULT 0.7,
-      max_tokens INTEGER DEFAULT 4096
+      max_tokens INTEGER DEFAULT 4096,
+      token TEXT,
+      ip VARCHAR(512)
+    );`,
+    'ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS token TEXT;',
+    'ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS ip VARCHAR(512);',
+    `CREATE TABLE IF NOT EXISTS console_variables (
+      id SERIAL PRIMARY KEY,
+      token TEXT DEFAULT '',
+      model VARCHAR(255) NOT NULL DEFAULT 'unsloth/Qwen3.5-9B-MTP-GGUF',
+      ip VARCHAR(512) NOT NULL DEFAULT 'http://127.0.0.1:8888/v1',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS custom_widgets (
       id SERIAL PRIMARY KEY,
@@ -688,6 +740,7 @@ export async function migrate() {
       role VARCHAR(50) DEFAULT 'user'
     );`,
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT \'user\';',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);',
     `CREATE TABLE IF NOT EXISTS agents (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL UNIQUE,
@@ -781,6 +834,106 @@ export async function migrate() {
       `);
     }
   } catch {}
+
+  // Synchronize users from public schema and seed default users
+  try {
+    await syncAndSeedUsers();
+  } catch {}
+}
+
+export async function syncAndSeedUsers() {
+  if (useInMemoryFallback) {
+    if (process.env.NODE_ENV !== 'test' && inMemoryStore.users.length <= 1) {
+      const demoHash = '$2b$12$cq4oyVKGTSuk.0L8UmMnwudSgasDBW5MPte4G4xGvZbhadCOBGAAG';
+      const defaultUsers = [
+        { id: 242, username: 'dumpster10k@gmail.com', role: 'admin', password_hash: demoHash },
+        { id: 243, username: 'Seba', role: 'admin', password_hash: demoHash },
+        { id: 244, username: 'test@wp.pl', role: 'user', password_hash: demoHash },
+        { id: 245, username: 'sylwix', role: 'user', password_hash: demoHash },
+        { id: 246, username: 'jan_kowalski', role: 'user', password_hash: demoHash },
+        { id: 247, username: 'anna_nowak', role: 'user', password_hash: demoHash }
+      ];
+      for (const du of defaultUsers) {
+        if (!inMemoryStore.users.some(u => u.username === du.username)) {
+          inMemoryStore.users.push(du);
+        }
+      }
+    }
+    return;
+  }
+
+  try {
+    // 1. Synchronize from public.users if it exists in PostgreSQL
+    const publicUsersTableRes = await pool.query(
+      "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'"
+    );
+    if (publicUsersTableRes.rows.length > 0) {
+      const colsRes = await pool.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users'"
+      );
+      const colNames = colsRes.rows.map(r => r.column_name);
+      const hasPassword = colNames.includes('password');
+      const hasPasswordHash = colNames.includes('password_hash');
+      const pwdCol = hasPassword ? 'u.password' : (hasPasswordHash ? 'u.password_hash' : "''");
+      const hasEmail = colNames.includes('email');
+      const userCol = hasEmail ? 'COALESCE(u.username, u.email)' : 'u.username';
+
+      const hasUserRoles = (await pool.query(
+        "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_roles'"
+      )).rows.length > 0;
+
+      const roleExpr = hasUserRoles
+        ? `COALESCE(
+             (SELECT r.name FROM public.user_roles ur JOIN public.roles r ON ur.role_id = r.id WHERE ur.user_id = u.id AND r.name = 'admin' LIMIT 1),
+             (SELECT r.name FROM public.user_roles ur JOIN public.roles r ON ur.role_id = r.id WHERE ur.user_id = u.id LIMIT 1),
+             'user'
+           )`
+        : `'user'`;
+
+      const syncSql = `
+        INSERT INTO users (username, password_hash, role)
+        SELECT
+          ${userCol} AS username,
+          ${pwdCol} AS password_hash,
+          ${roleExpr} AS role
+        FROM public.users u
+        WHERE ${userCol} IS NOT NULL AND NOT EXISTS (
+          SELECT 1 FROM users du WHERE du.username = ${userCol}
+        )
+        ON CONFLICT (username) DO NOTHING;
+      `;
+      await pool.query(syncSql);
+    }
+  } catch {
+    // Ignore public schema sync errors
+  }
+
+  // 2. If table has <= 1 user and not in test environment, seed standard accounts
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      const countRes = await safeQuery('SELECT COUNT(*) as count FROM users');
+      const currentCount = parseInt(countRes?.rows?.[0]?.count || '0', 10);
+      if (currentCount <= 1) {
+        const demoHash = '$2b$12$cq4oyVKGTSuk.0L8UmMnwudSgasDBW5MPte4G4xGvZbhadCOBGAAG';
+        const seedUsers = [
+          { username: 'dumpster10k@gmail.com', role: 'admin' },
+          { username: 'Seba', role: 'admin' },
+          { username: 'test@wp.pl', role: 'user' },
+          { username: 'sylwix', role: 'user' },
+          { username: 'jan_kowalski', role: 'user' },
+          { username: 'anna_nowak', role: 'user' }
+        ];
+        for (const su of seedUsers) {
+          await safeQuery(
+            'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING',
+            [su.username, demoHash, su.role]
+          );
+        }
+      }
+    } catch {
+      // Ignore user seeding errors
+    }
+  }
 }
 
 // Run migrations automatically when the module is loaded.

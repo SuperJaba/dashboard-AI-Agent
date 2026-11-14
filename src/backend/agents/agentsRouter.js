@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import * as agentsRepo from './agentsRepository.js';
+import * as consoleVarsRepo from './consoleVarsRepository.js';
 import * as settingsRepo from '../settings/settingsRepository.js';
 import { getBestAvailableModel } from '../utils/llm.js';
 
@@ -80,6 +81,38 @@ agentsRouter.get('/', async (req, res) => {
   try {
     const agents = await agentsRepo.getAgents();
     res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get console environment variables (token, model, IP)
+agentsRouter.get('/console-vars', async (req, res) => {
+  try {
+    const vars = await consoleVarsRepo.getConsoleVars();
+    res.json(vars);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save console environment variables to DB
+agentsRouter.post('/console-vars', async (req, res) => {
+  try {
+    const { token, model, ip } = req.body || {};
+    const result = await consoleVarsRepo.saveConsoleVars({ token, model, ip });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Test console variables connection
+agentsRouter.post('/console-vars/test', async (req, res) => {
+  try {
+    const { token, model, ip } = req.body || {};
+    const result = await consoleVarsRepo.testConsoleConnection({ token, model, ip });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

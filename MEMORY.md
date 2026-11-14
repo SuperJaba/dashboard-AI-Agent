@@ -1,0 +1,3 @@
+- [dual-axis-anti-pattern](memory/mw5jb8el_8dcbc1ff93e8.md) — Dual-axis charts to krytyczny błąd, używaj small multiples
+- [mark-specs-recharts](memory/mw5jbalv_d7918a1ae943.md) — Mark specs: 2px lines, 2px bar radius, 0.35 opacity
+- [cursor-hover-layer](memory/mw5jbcxk_f1f5152c8722.md) — Dodawaj cursor hover layer dla interaktywności

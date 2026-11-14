@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Bot, Search, Check, RefreshCw, Sparkles, 
-  Sliders, Settings, Info, Gauge, Zap, Trash2, X, Laptop, Key
+  Sliders, Settings, Info, Gauge, Zap, Trash2, X, Laptop, Key, Terminal
 } from 'lucide-react';
 import { apiFetch } from './shared/api-client';
 import { LlmServerManager } from './LlmServerManager';
 import { LocalWorkerModal } from './LocalWorkerModal';
+import { ConsoleVarsModal } from './components/ConsoleVarsModal';
 import { AntigravityCard } from './components/AntigravityCard';
 import { AgentSchedulerWidget } from './components/agent-scheduler-widget';
 
@@ -50,6 +51,7 @@ export function AgentsView() {
   const [llmTuneResult, setLlmTuneResult] = useState<LLMTuningResult | null>(null);
   const [showLLMModal, setShowLLMModal] = useState(false);
   const [showWorkerModal, setShowWorkerModal] = useState(false);
+  const [showConsoleVarsModal, setShowConsoleVarsModal] = useState(false);
   const [workersCount, setWorkersCount] = useState(0);
 
   const [editConfig, setEditConfig] = useState({ config_uri: '', llm_model: '', temperature: 0.7, max_tokens: 4096 });
@@ -87,13 +89,14 @@ export function AgentsView() {
       if (e.key === 'Escape') {
         if (isAdding) setIsAdding(false);
         if (showLLMModal) setShowLLMModal(false);
+        if (showConsoleVarsModal) setShowConsoleVarsModal(false);
       }
     };
-    if (isAdding || showLLMModal) {
+    if (isAdding || showLLMModal || showConsoleVarsModal) {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isAdding, showLLMModal]);
+  }, [isAdding, showLLMModal, showConsoleVarsModal]);
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -258,6 +261,16 @@ export function AgentsView() {
             >
               <Laptop size={16} color={workersCount > 0 ? '#10b981' : '#38bdf8'} />
               <span>Tunel PC / Socket {workersCount > 0 ? `(${workersCount})` : ''}</span>
+            </button>
+
+            <button
+              onClick={() => setShowConsoleVarsModal(true)}
+              className="btn btn-secondary"
+              title="Ustawienia zmiennych konsoli CLI: Token, Model, IP"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#c084fc', borderColor: 'rgba(192, 132, 252, 0.35)', background: 'rgba(192, 132, 252, 0.08)' }}
+            >
+              <Terminal size={16} color="#c084fc" />
+              <span>Zmienne konsoli</span>
             </button>
 
             <button
@@ -774,6 +787,15 @@ export function AgentsView() {
       <LocalWorkerModal 
         isOpen={showWorkerModal} 
         onClose={() => setShowWorkerModal(false)} 
+      />
+
+      <ConsoleVarsModal 
+        isOpen={showConsoleVarsModal} 
+        onClose={() => setShowConsoleVarsModal(false)}
+        onSaved={() => {
+          setNotification('Zmienne konsoli zaktualizowane w bazie danych.');
+          fetchAgents();
+        }}
       />
     </>
   );

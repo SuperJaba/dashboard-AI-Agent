@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { requireAdmin } from '../auth/authMiddleware.js';
-import { safeQuery } from '../db.js';
+import { safeQuery, syncAndSeedUsers } from '../db.js';
 import { validate } from '../schemas/validate.js';
 
 export const usersRouter = express.Router();
@@ -25,9 +25,15 @@ const updatePasswordSchema = z.object({
 // GET /api/users - Lista użytkowników (wymaga admin)
 usersRouter.get('/', requireAdmin, async (req, res) => {
   try {
-    const result = await safeQuery(
+    let result = await safeQuery(
       'SELECT id, username, role FROM users ORDER BY id'
     );
+    if (result.rows.length <= 1 && process.env.NODE_ENV !== 'test' && typeof syncAndSeedUsers === 'function') {
+      await syncAndSeedUsers();
+      result = await safeQuery(
+        'SELECT id, username, role FROM users ORDER BY id'
+      );
+    }
     res.json({ success: true, users: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Błąd pobierania użytkowników' });
@@ -70,7 +76,13 @@ usersRouter.post('/', requireAdmin, validate(createUserSchema), async (req, res)
 // PUT /api/users/:id/role - Zmiana roli (wymaga admin)
 usersRouter.put('/:id/role', requireAdmin, validate(updateRoleSchema), async (req, res) => {
   try {
-    const userId = parseInt(req.params.id, 10);
+    // Polymorphic routing: obsługuje zarówno numeric ID jak i string ID (username)
+    const userIdParam = req.params.id;
+    let userId = parseInt(userIdParam, 10);
+    // Jeśli nie udało się przekonwertować na liczbę, traktuj jako username
+    if (isNaN(userId)) {
+      userId = userIdParam;
+    }
     const { role } = req.body;
 
     const result = await safeQuery(
@@ -91,7 +103,13 @@ usersRouter.put('/:id/role', requireAdmin, validate(updateRoleSchema), async (re
 // PUT /api/users/:id/password - Zmiana hasła
 usersRouter.put('/:id/password', validate(updatePasswordSchema), async (req, res) => {
   try {
-    const userId = parseInt(req.params.id, 10);
+    // Polymorphic routing: obsługuje zarówno numeric ID jak i string ID (username)
+    const userIdParam = req.params.id;
+    let userId = parseInt(userIdParam, 10);
+    // Jeśli nie udało się przekonwertować na liczbę, traktuj jako username
+    if (isNaN(userId)) {
+      userId = userIdParam;
+    }
     const { password, currentPassword } = req.body;
 
     // Check permissions: admin can change any password; normal user can only change own
@@ -136,7 +154,13 @@ usersRouter.put('/:id/password', validate(updatePasswordSchema), async (req, res
 // DELETE /api/users/:id - Usunięcie użytkownika (wymaga admin)
 usersRouter.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    const userId = parseInt(req.params.id, 10);
+    // Polymorphic routing: obsługuje zarówno numeric ID jak i string ID (username)
+    const userIdParam = req.params.id;
+    let userId = parseInt(userIdParam, 10);
+    // Jeśli nie udało się przekonwertować na liczbę, traktuj jako username
+    if (isNaN(userId)) {
+      userId = userIdParam;
+    }
 
     // Prevent self-deletion
     if (req.user && req.user.id === userId) {

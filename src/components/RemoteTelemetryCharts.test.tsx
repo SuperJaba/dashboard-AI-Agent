@@ -25,7 +25,7 @@ function testTimeRange15m() {
   // Verify data renders without errors (charts should be visible)
   expect(screen.getByText(/Obciążenie CPU & Pamięć RAM/i)).toBeInTheDocument();
   expect(screen.getByText(/Procesy & Zadania w Tle/i)).toBeInTheDocument();
-  expect(screen.getByText(/Latencja SSH \(ms\) & Przepustowość/i)).toBeInTheDocument();
+  expect(screen.getByText(/Latencja SSH.*Przepustowość/i)).toBeInTheDocument();
 
   unmount();
 }
@@ -52,7 +52,7 @@ function testTimeRange1h() {
   // Verify data renders without errors (charts should be visible)
   expect(screen.getByText(/Obciążenie CPU & Pamięć RAM/i)).toBeInTheDocument();
   expect(screen.getByText(/Procesy & Zadania w Tle/i)).toBeInTheDocument();
-  expect(screen.getByText(/Latencja SSH \(ms\) & Przepustowość/i)).toBeInTheDocument();
+  expect(screen.getByText(/Latencja SSH.*Przepustowość/i)).toBeInTheDocument();
 
   unmount();
 }
@@ -79,7 +79,7 @@ function testTimeRange6h() {
   // Verify data renders without errors (charts should be visible)
   expect(screen.getByText(/Obciążenie CPU & Pamięć RAM/i)).toBeInTheDocument();
   expect(screen.getByText(/Procesy & Zadania w Tle/i)).toBeInTheDocument();
-  expect(screen.getByText(/Latencja SSH \(ms\) & Przepustowość/i)).toBeInTheDocument();
+  expect(screen.getByText(/Latencja SSH.*Przepustowość/i)).toBeInTheDocument();
 
   unmount();
 }
@@ -100,7 +100,7 @@ describe('RemoteTelemetryCharts Component', () => {
     expect(screen.getByText(/Live Stream SSH/i)).toBeInTheDocument();
     expect(screen.getByText(/Obciążenie CPU & Pamięć RAM/i)).toBeInTheDocument();
     expect(screen.getByText(/Procesy & Zadania w Tle/i)).toBeInTheDocument();
-    expect(screen.getByText(/Latencja SSH \(ms\) & Przepustowość/i)).toBeInTheDocument();
+    expect(screen.getByText(/Latencja SSH.*Przepustowość/i)).toBeInTheDocument();
     expect(screen.getByText(/Śr\. CPU: 34% · RAM: 62%/i)).toBeInTheDocument();
     expect(screen.getByText(/8 Cores · 5 App\(s\)/i)).toBeInTheDocument();
   });

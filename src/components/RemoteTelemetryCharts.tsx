@@ -163,23 +163,29 @@ export function RemoteTelemetryCharts({
               <AreaChart data={hostTelemetryData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="remoteCpuGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.05} />
                   </linearGradient>
                   <linearGradient id="remoteRamGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#818cf8" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#818cf8" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="#818cf8" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#818cf8" stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} domain={[0, 100]} unit="%" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--text-muted)" fontSize={10} domain={[0, 100]} unit="%" tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid var(--glass-border)', borderRadius: '8px', fontSize: '0.75rem' }}
+                  contentStyle={{
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem'
+                  }}
+                  cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1 }}
                 />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: '0.75rem', paddingTop: '4px' }} />
-                <Area type="monotone" dataKey="cpu" name="CPU Usage (%)" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#remoteCpuGrad)" />
-                <Area type="monotone" dataKey="ram" name="RAM Allocation (%)" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#remoteRamGrad)" />
+                <Area type="monotone" dataKey="cpu" name="CPU Usage (%)" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#remoteCpuGrad)" isAnimationActive={false} />
+                <Area type="monotone" dataKey="ram" name="RAM Allocation (%)" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#remoteRamGrad)" isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -200,47 +206,78 @@ export function RemoteTelemetryCharts({
           <div style={{ width: '100%', height: '220px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={serverProcessData} margin={{ top: 8, right: 12, left: -15, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="window" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="window" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid var(--glass-border)', borderRadius: '8px', fontSize: '0.75rem' }}
+                  contentStyle={{
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem'
+                  }}
                 />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: '0.75rem', paddingTop: '4px' }} />
-                <Bar dataKey="backgroundTasks" name="Wątki Systemowe (Tasks)" fill="#64748b" radius={[4, 4, 0, 0]} opacity={0.7} />
-                <Bar dataKey="activeWorkers" name="Aktywne Procesy Aplikacji" fill="#f87171" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="backgroundTasks" name="Wątki Systemowe (Tasks)" fill="#64748b" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="activeWorkers" name="Aktywne Procesy Aplikacji" fill="#f87171" radius={[2, 2, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Wykres 3: Latencja SSH & Przepustowość Sieciowa (KB/s) */}
+        {/* Wykres 3: Latencja SSH & Przepustowość - small multiples zamiast dual-axis */}
         <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Clock size={16} color="#fbbf24" />
-              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Latencja SSH (ms) & Przepustowość</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Latencja SSH & Przepustowość</span>
             </div>
             <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 600 }}>
               Uptime: {uptimeHours.toFixed(1)}h
             </span>
           </div>
 
-          <div style={{ width: '100%', height: '220px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sshLatencyData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis yAxisId="left" stroke="var(--text-muted)" fontSize={11} unit="ms" />
-                <YAxis yAxisId="right" orientation="right" stroke="var(--text-muted)" fontSize={11} unit=" KB/s" />
-                <Tooltip
-                  contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid var(--glass-border)', borderRadius: '8px', fontSize: '0.75rem' }}
-                />
-                <Legend iconSize={8} wrapperStyle={{ fontSize: '0.75rem', paddingTop: '4px' }} />
-                <Line yAxisId="left" type="monotone" dataKey="latencyMs" name="SSH Round-Trip (ms)" stroke="#fbbf24" strokeWidth={2} dot={{ r: 3 }} />
-                <Line yAxisId="right" type="monotone" dataKey="throughputKB" name="Transfer (KB/s)" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="3 3" />
-              </LineChart>
-            </ResponsiveContainer>
+          {/* Small multiples: oddzielne wykresy zamiast dual-axis */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1 }}>
+            {/* Latency chart */}
+            <div style={{ width: '100%', height: '110px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sshLatencyData} margin={{ top: 8, right: 12, left: 5, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--text-muted)" fontSize={10} unit="ms" tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'rgba(15, 23, 42, 0.95)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem'
+                    }}
+                  />
+                  <Line type="monotone" dataKey="latencyMs" name="Latencja SSH (ms)" stroke="#fbbf24" strokeWidth={2} dot={false} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Throughput chart */}
+            <div style={{ width: '100%', height: '110px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sshLatencyData} margin={{ top: 8, right: 12, left: 5, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--text-muted)" fontSize={10} unit="KB/s" tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'rgba(15, 23, 42, 0.95)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem'
+                    }}
+                  />
+                  <Line type="monotone" dataKey="throughputKB" name="Przepustowość" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="4 4" isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
