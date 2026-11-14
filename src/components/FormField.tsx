@@ -20,7 +20,7 @@ export function FormField({
   className = '',
 }: FormFieldProps) {
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex flex-col gap-1.5 py-1 ${className}`}>
       {label && (
         <label
           htmlFor={htmlFor}

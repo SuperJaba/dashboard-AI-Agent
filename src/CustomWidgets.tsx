@@ -1102,8 +1102,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
             </h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.15rem 0' }}>
+                <label style={{ display: 'block', marginBottom: '0.2rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {t('widget.name', 'Widget Name')}
                 </label>
                 <input 
@@ -1120,6 +1120,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                     color: 'white', 
                     outline: 'none',
                     fontSize: '0.9rem',
+                    boxSizing: 'border-box',
                     transition: 'border-color 0.2s'
                   }}
                   onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
@@ -1127,8 +1128,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 />
               </div>
               
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.15rem 0' }}>
+                <label style={{ display: 'block', marginBottom: '0.2rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {t('widget.command', 'Shell Command')}
                 </label>
                 <input 
@@ -1146,6 +1147,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                     outline: 'none', 
                     fontFamily: 'monospace',
                     fontSize: '0.85rem',
+                    boxSizing: 'border-box',
                     transition: 'border-color 0.2s'
                   }}
                   onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
@@ -1157,8 +1159,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 </span>
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.15rem 0' }}>
+                <label style={{ display: 'block', marginBottom: '0.2rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {t('widget.agentInstructions', 'Agent Instructions (Optional)')}
                 </label>
                 <textarea 
@@ -1174,6 +1176,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                     color: 'white', 
                     outline: 'none', 
                     fontSize: '0.85rem',
+                    boxSizing: 'border-box',
                     transition: 'border-color 0.2s',
                     minHeight: '60px',
                     resize: 'vertical'
@@ -1183,9 +1186,9 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ display: 'flex', gap: '1rem', padding: '0.15rem 0' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.2rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {t('widget.type', 'Type')}
                   </label>
                   <select 
@@ -1199,7 +1202,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                       borderRadius: '8px', 
                       color: 'white', 
                       outline: 'none',
-                      fontSize: '0.9rem'
+                      fontSize: '0.9rem',
+                      boxSizing: 'border-box'
                     }}
                   >
                     <option value="number" style={{ background: 'var(--bg-color)' }}>{t('widget.type.number', 'Counter (Number)')}</option>
