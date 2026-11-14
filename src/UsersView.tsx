@@ -442,7 +442,7 @@ export function UsersView() {
           /* =========================================================================
              WIDOK KAFELKÓW / KART (Duże, przejrzyste rekordy zagospodarowujące przestrzeń)
              ========================================================================= */
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 w-full auto-rows-min">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8 w-full auto-rows-min">
             {filteredUsers.map(u => {
               const isCurrent = currentUser?.id === u.id || currentUser?.username === u.username;
               const isAdmin = u.role === 'admin';
