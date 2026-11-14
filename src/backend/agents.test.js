@@ -112,4 +112,17 @@ describe('agentsRouter', () => {
     expect(Array.isArray(agentsRouter.KNOWN_AGENTS)).toBe(true);
     expect(agentsRouter.KNOWN_AGENTS.length).toBeGreaterThan(0);
   });
+
+  it('should have GET / endpoint handler', () => {
+    const router = agentsRouter.agentsRouter();
+    expect(router.stack.length).toBeGreaterThan(0);
+  });
+
+  it('should have POST /scan endpoint handler', () => {
+    const router = agentsRouter.agentsRouter();
+    const scanRouteFound = router.stack.some(layer =>
+      layer.route && layer.route.path === '/scan'
+    );
+    expect(scanRouteFound).toBe(true);
+  });
 });

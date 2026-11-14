@@ -10,7 +10,6 @@
     "db:migrate": "node scripts/migrate.js",
     "build": "vite build",
     "lint": "oxlint",
-    "node-cron": "^3.0.2",
     "preview": "vite preview",
     "test": "vitest run",
     "test:unit": "vitest run src/shared src/backend",
