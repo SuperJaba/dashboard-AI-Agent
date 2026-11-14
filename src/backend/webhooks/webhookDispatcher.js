@@ -16,7 +16,7 @@ const RETRY_DELAYS_MS = [1000, 2000, 4000];
  * @param {number} attempt - 0-based attempt index for logging
  * @returns {Promise<void>} Throws on failure.
  */
-async function attemptDelivery(url, secret, event, payload, attempt) {
+export async function attemptDelivery(url, secret, event, payload, attempt) {
   const isDiscord = url.includes('discord.com/api/webhooks') || url.includes('discordapp.com/api/webhooks');
   const body = isDiscord
     ? JSON.stringify(formatDiscordPayload(event, payload))
