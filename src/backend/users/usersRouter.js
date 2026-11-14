@@ -1,5 +1,5 @@
 import express from 'express';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { requireAdmin } from '../auth/authMiddleware.js';
 import { safeQuery, syncAndSeedUsers } from '../db.js';

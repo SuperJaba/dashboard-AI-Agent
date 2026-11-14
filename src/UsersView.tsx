@@ -316,7 +316,7 @@ export function UsersView() {
       </section>
 
       {/* Pasek narzędziowy: Wyszukiwanie, Filtry i Przełącznik widoku */}
-      <div className="glass-card p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in delay-2">
+      <div className="glass-card p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 w-full animate-in delay-2">
         <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
           {/* Input wyszukiwania */}
           <div className="relative flex-1 max-w-md">
@@ -442,7 +442,7 @@ export function UsersView() {
           /* =========================================================================
              WIDOK KAFELKÓW / KART (Duże, przejrzyste rekordy zagospodarowujące przestrzeń)
              ========================================================================= */
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 w-full auto-rows-min">
             {filteredUsers.map(u => {
               const isCurrent = currentUser?.id === u.id || currentUser?.username === u.username;
               const isAdmin = u.role === 'admin';
@@ -590,9 +590,9 @@ export function UsersView() {
           /* =========================================================================
              WIDOK TABELI (Przestronna, zoptymalizowana tabela na pełną szerokość)
              ========================================================================= */
-          <div className="glass-card rounded-2xl border border-white/[0.08] overflow-hidden">
+          <div className="glass-card rounded-2xl border border-white/[0.08] overflow-visible">
             <div className="overflow-x-auto">
-              <table className="responsive-table w-full border-collapse text-left">
+              <table className="responsive-table w-full table-fixed border-collapse text-left">
                 <thead>
                   <tr className="border-b border-white/[0.08] bg-slate-900/40 text-slate-400 text-xs font-semibold uppercase tracking-wider">
                     <th className="py-4 px-6 w-20">ID</th>

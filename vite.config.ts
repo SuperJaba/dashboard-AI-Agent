@@ -1,12 +1,17 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Load .env so VITE_* and plain vars are available at config-time
+  const env = loadEnv(mode, process.cwd(), '')
+  const backendPort = env.PORT || '3001'
+
+  return {
   plugins: [react()],
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3001',
+        target: `http://127.0.0.1:${backendPort}`,
         changeOrigin: true,
         configure: (proxy) => {
           proxy.on('error', (err: any, _req: any, res: any) => {
@@ -22,7 +27,7 @@ export default defineConfig({
         }
       },
       '/socket.io': {
-        target: 'http://127.0.0.1:3001',
+        target: `http://127.0.0.1:${backendPort}`,
         ws: true,
         changeOrigin: true,
         configure: (proxy) => {
@@ -59,7 +64,6 @@ export default defineConfig({
     ],
     globals: true,
     setupFiles: './src/setupTests.ts',
-    // exclude noise & generated placeholders
     exclude: ['**/node_modules/**', '**/playwright/**', '**/tests/**', '**/modernized/**', '**/__tests__/*.generated.test.ts'],
     coverage: {
       provider: 'v8',
@@ -76,26 +80,18 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('@xterm')) {
-              return 'vendor-xterm';
-            }
-            if (id.includes('recharts') || id.includes('d3-')) {
-              return 'vendor-charts';
-            }
-            if (id.includes('framer-motion')) {
-              return 'vendor-framer-motion';
-            }
-            if (id.includes('lucide-react')) {
-              return 'vendor-lucide';
-            }
-            if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-i18next') || id.includes('i18next')) {
-              return 'vendor-react';
-            }
+            if (id.includes('@xterm')) return 'vendor-xterm';
+            if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
+            if (id.includes('framer-motion')) return 'vendor-framer-motion';
+            if (id.includes('lucide-react')) return 'vendor-lucide';
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-i18next') || id.includes('i18next')) return 'vendor-react';
             return 'vendor-common';
           }
         }
       }
     }
   }
+  }
 })
+
 
