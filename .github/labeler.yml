@@ -1,0 +1,23 @@
+# Configuration for actions/labeler
+
+frontend:
+  - 'src/components/**'
+  - 'src/hooks/**'
+  - 'src/*.tsx'
+  - 'src/*.ts'
+  - 'src/*.css'
+
+backend:
+  - 'src/backend/**'
+  - 'server.js'
+
+ci:
+  - '.github/**'
+
+documentation:
+  - 'docs/**'
+  - '*.md'
+
+dependencies:
+  - 'package.json'
+  - 'package-lock.json'
