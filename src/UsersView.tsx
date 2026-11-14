@@ -592,18 +592,17 @@ export function UsersView() {
           /* =========================================================================
              WIDOK TABELI (Przestronna, zoptymalizowana tabela na pełną szerokość)
              ========================================================================= */
-          <div className="glass-card rounded-2xl border border-white/[0.08] overflow-visible">
-            <div className="overflow-x-auto">
-              <table className="responsive-table w-full table-fixed border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-white/[0.08] bg-slate-900/40 text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                    <th className="py-4 px-6 w-20">ID</th>
-                    <th className="py-4 px-6">Użytkownik</th>
-                    <th className="py-4 px-6">Rola w systemie</th>
-                    <th className="py-4 px-6">Szybka zmiana roli</th>
-                    <th className="py-4 px-6 text-right">Akcje administracyjne</th>
-                  </tr>
-                </thead>
+          <div className="glass-card rounded-2xl border border-white/[0.08] overflow-hidden w-full">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-white/[0.08] bg-slate-900/40 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  <th className="py-4 px-6 w-16">ID</th>
+                  <th className="py-4 px-6">Użytkownik</th>
+                  <th className="py-4 px-6 w-40">Rola w systemie</th>
+                  <th className="py-4 px-6 w-48">Szybka zmiana roli</th>
+                  <th className="py-4 px-6 w-48 text-right">Akcje administracyjne</th>
+                </tr>
+              </thead>
                 <tbody className="divide-y divide-white/[0.05]">
                   {filteredUsers.map(u => {
                     const isCurrent = currentUser?.id === u.id || currentUser?.username === u.username;
@@ -710,9 +709,8 @@ export function UsersView() {
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                 </tbody>
+            </table>
           </div>
         )}
       </main>
