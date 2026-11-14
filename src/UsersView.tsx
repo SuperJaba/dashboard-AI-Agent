@@ -460,8 +460,8 @@ export function UsersView() {
                   <div>
                     <div className="flex items-start justify-between gap-3 mb-4">
                       {/* Avatar z inicjałem */}
-                      <div className="flex items-center gap-3.5">
-                        <div className="relative">
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                        <div className="relative flex-none">
                           <div 
                             className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shadow-md border ${
                               isAdmin
@@ -481,13 +481,13 @@ export function UsersView() {
                           )}
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-bold text-white truncate group-hover:text-indigo-300 transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base font-bold text-white truncate group-hover:text-indigo-300 transition-colors min-w-0">
                               {u.username}
                             </span>
                             {isCurrent && (
-                              <span className="text-[11px] font-semibold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30">
+                              <span className="flex-none text-[11px] font-semibold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30">
                                 Ty
                               </span>
                             )}
@@ -499,12 +499,14 @@ export function UsersView() {
                       </div>
 
                       {/* Badge roli */}
-                      <Badge
-                        variant={isAdmin ? 'primary' : 'neutral'}
-                        icon={isAdmin ? <Shield size={12} /> : undefined}
-                      >
-                        {isAdmin ? 'Administrator' : 'Użytkownik'}
-                      </Badge>
+                      <div className="flex-none">
+                        <Badge
+                          variant={isAdmin ? 'primary' : 'neutral'}
+                          icon={isAdmin ? <Shield size={12} /> : undefined}
+                        >
+                          {isAdmin ? 'Administrator' : 'Użytkownik'}
+                        </Badge>
+                      </div>
                     </div>
 
                     {/* Szczegóły roli & opis uprawnień */}
