@@ -183,7 +183,7 @@ socket.on('worker_spawn_pty', ({ sessionId, command, args, cwd, env, scriptConte
       ].join(':');
 
     // Sanitize remote env: protect local host environment from being corrupted by remote server env
-    const sanitizedRemoteEnv = { ...(env || {}) };
+    const sanitizedRemoteEnv = { ...env };
     delete sanitizedRemoteEnv.HOME;
     delete sanitizedRemoteEnv.USER;
     delete sanitizedRemoteEnv.LOGNAME;

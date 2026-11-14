@@ -125,5 +125,10 @@
     "database",
     "context7",
     "playwright"
-  ]
+  ],
+  "skillOverrides": {
+    "ui-ux-pro-max": "off",
+    "find-skills": "off",
+    "web-design-guidelines": "user-invocable-only"
+  }
 }

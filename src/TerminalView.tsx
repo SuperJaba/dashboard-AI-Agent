@@ -61,7 +61,7 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     const fetchWorkers = () => {
       const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
       fetch('/api/agents/workers', {
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+        headers: (token ? { Authorization: `Bearer ${token}` } : {})
       })
         .then(res => res.ok ? res.json() : [])
         .then(data => {

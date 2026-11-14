@@ -277,7 +277,7 @@ io.on('connection', (socket) => {
         ].join(';')
         : process.env.PATH;
 
-      const sanitizedEnv = { ...(env || {}) };
+      const sanitizedEnv = { ...env };
       delete sanitizedEnv.HOME;
       delete sanitizedEnv.USER;
       delete sanitizedEnv.LOGNAME;
