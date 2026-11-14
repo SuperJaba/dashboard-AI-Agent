@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from './shared/api-client';
+import { usePreferences } from './preferences/PreferencesContext';
 import { 
   Plus, X, Activity, Terminal, RefreshCw, BarChart2, 
   Trash2, Cpu, Database, HardDrive, Globe, AlertTriangle, Edit2
@@ -82,6 +83,7 @@ interface NetworkWidgetData {
 }
 
 const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal }) => {
+  const { t } = usePreferences();
   // State for showing Agent Best Picks suggestions
   const [showBestPicks, setShowBestPicks] = useState(false);
 
@@ -355,7 +357,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
       setAgentInstructions('');
     } catch (e) {
       console.error(editingWidget ? 'Failed to update widget' : 'Failed to add widget', e);
-      alert(editingWidget ? 'Nie udało się zaktualizować widgetu.' : 'Failed to create widget. Please check the console for more details.');
+      alert(editingWidget ? t('widget.updateFailed', 'Nie udało się zaktualizować widgetu.') : t('widget.createFailed', 'Nie udało się utworzyć widgetu. Sprawdź konsolę po więcej szczegółów.'));
     }
   };
 
@@ -392,11 +394,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <h2 className="section-title" style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.025em' }}>
             <Activity size={24} style={{ color: 'var(--primary)', filter: 'drop-shadow(0 0 8px rgba(79,70,229,0.5))' }} />
-            Custom Widgets
+            {t('widget.customWidgets', 'Custom Widgets')}
           </h2>
-          <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-            Real-time server metrics and custom query outputs
-          </span>
         </div>
         <motion.button 
           whileHover={{ scale: 1.02 }}
@@ -412,7 +411,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
           }}
         >
           <Plus size={16} />
-          Add Widget
+          {t('widget.add', 'Add Widget')}
         </motion.button>
         {/* Agent Best Picks button */}
         <motion.button 
@@ -512,7 +511,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
               fontSize: '0.8rem'
             }}
           >
-            Create Widget
+            {t('button.createWidget', 'Create Widget')}
           </button>
         </div>
       ) : (
@@ -662,7 +661,8 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                         </button>
                         <button 
                           onClick={() => deleteWidget(w.id)}
-                          title="Delete widget"
+                          title={t('widget.delete', 'Delete widget')}
+                          aria-label={t('widget.delete', 'Delete widget')}
                           style={{ 
                             background: 'rgba(255,255,255,0.05)', 
                             border: 'none', 
@@ -1098,13 +1098,13 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
             
             <h3 style={{ margin: '0 0 1.5rem 0', color: 'white', display: 'flex', alignItems: 'center', gap: '0.65rem', fontSize: '1.25rem', fontWeight: 700 }}>
               <BarChart2 size={22} style={{ color: 'var(--primary)' }} />
-              {editingWidget ? 'Edytuj widget' : 'Dodaj widget'}
+              {editingWidget ? t('widget.edit', 'Edytuj widget') : t('widget.add', 'Dodaj widget')}
             </h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Widget Name
+                  {t('widget.name', 'Widget Name')}
                 </label>
                 <input 
                   type="text" 
@@ -1129,7 +1129,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
               
               <div>
                 <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Shell Command
+                  {t('widget.command', 'Shell Command')}
                 </label>
                 <input 
                   type="text" 
@@ -1153,13 +1153,13 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                 />
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                   <AlertTriangle size={12} style={{ color: 'var(--warning)' }} />
-                  Make sure this returns output safe to display.
+                  {t('widget.outputSafety', 'Make sure this returns output safe to display.')}
                 </span>
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Agent Instructions (Optional)
+                  {t('widget.agentInstructions', 'Agent Instructions (Optional)')}
                 </label>
                 <textarea 
                   value={agentInstructions} 
@@ -1186,7 +1186,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Type
+                    {t('widget.type', 'Type')}
                   </label>
                   <select 
                     value={newType} 
@@ -1202,16 +1202,16 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                       fontSize: '0.9rem'
                     }}
                   >
-                    <option value="number" style={{ background: 'var(--bg-color)' }}>Counter (Number)</option>
-                    <option value="text" style={{ background: 'var(--bg-color)' }}>Raw Text</option>
-                    <option value="bar-chart" style={{ background: 'var(--bg-color)' }}>Progress Bar (0-100)</option>
-                    <option value="network-chart" style={{ background: 'var(--bg-color)' }}>Network Chart (Download / Upload)</option>
+                    <option value="number" style={{ background: 'var(--bg-color)' }}>{t('widget.type.number', 'Counter (Number)')}</option>
+                    <option value="text" style={{ background: 'var(--bg-color)' }}>{t('widget.type.text', 'Raw Text')}</option>
+                    <option value="bar-chart" style={{ background: 'var(--bg-color)' }}>{t('widget.type.barChart', 'Progress Bar (0-100)')}</option>
+                    <option value="network-chart" style={{ background: 'var(--bg-color)' }}>{t('widget.type.networkChart', 'Network Chart (Download / Upload)')}</option>
                   </select>
                 </div>
                 
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Color Theme
+                    {t('widget.color', 'Color Theme')}
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <input 
@@ -1267,7 +1267,7 @@ const CustomWidgets: React.FC<CustomWidgetsProps> = ({ server, onLaunchTerminal 
                   fontWeight: 600
                 }}
               >
-                {editingWidget ? 'Zapisz zmiany' : 'Utwórz widget'}
+                {editingWidget ? t('button.saveChanges', 'Zapisz zmiany') : t('button.createWidget', 'Utwórz widget')}
               </motion.button>
             </div>
           </motion.div>

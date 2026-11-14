@@ -230,7 +230,7 @@ function App() {
             type="button"
             className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
             onClick={() => setIsMobileNavOpen(false)}
-            aria-label="Zamknij menu"
+            aria-label={t('sidebar.closeMenu', 'Zamknij menu')}
           >
             <X size={18} aria-hidden="true" />
           </button>
@@ -248,7 +248,7 @@ function App() {
             aria-current={activeView === 'dashboard' && activeProjectId === null ? 'page' : undefined}
           >
             <LayoutDashboard size={18} aria-hidden="true" />
-            <span>Dashboard</span>
+            <span>{t('sidebar.dashboard')}</span>
           </button>
           <button 
             type="button"
@@ -257,7 +257,7 @@ function App() {
             aria-current={activeView === 'agents' ? 'page' : undefined}
           >
             <Bot size={18} aria-hidden="true" />
-            <span>Agenci AI</span>
+            <span>{t('sidebar.agents')}</span>
           </button>
           <button 
             type="button"
@@ -269,7 +269,7 @@ function App() {
             aria-current={activeView === 'opsramp' ? 'page' : undefined}
           >
             <Activity size={18} aria-hidden="true" />
-            <span>OpsRamp AIOps</span>
+            <span>{t('sidebar.opsramp')}</span>
           </button>
           <button 
             type="button"
@@ -281,13 +281,13 @@ function App() {
             aria-current={activeView === 'users' ? 'page' : undefined}
           >
             <Users size={18} aria-hidden="true" />
-            <span>Użytkownicy</span>
+            <span>{t('sidebar.users')}</span>
           </button>
           <button 
             type="button"
             className="project-item"
             onClick={() => setShowWorkerModal(true)}
-            title="Komenda połączenia i aktualny token do Socket.IO"
+            title={t('sidebar.socketTooltip', 'Komenda połączenia i aktualny token do Socket.IO')}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -302,7 +302,7 @@ function App() {
               color: workersCount > 0 ? '#34d399' : '#94a3b8',
               fontWeight: 600
             }}>
-              {workersCount > 0 ? '● Online' : 'Offline'}
+              {workersCount > 0 ? t('status.online') : t('status.offline')}
             </span>
           </button>
         </nav>
@@ -318,7 +318,7 @@ function App() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <LayoutDashboard size={20} aria-hidden="true" />
-            <span>Workspaces</span>
+            <span>{t('sidebar.workspaces')}</span>
           </div>
           {isWorkspacesExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
         </button>
@@ -343,13 +343,13 @@ function App() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Czy na pewno chcesz usunąć projekt "${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}"?`)) {
+                    if (confirm(`${t('confirm.deleteProject')} "${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}"?`)) {
                       handleAddProject(proj.id, 'delete');
                     }
                   }}
                   style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
-                  aria-label={`Usuń projekt ${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}`}
-                  title="Usuń projekt"
+                  aria-label={`${t('label.deleteProject')} ${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}`}
+                  title={t('label.deleteProject')}
                 >
                   <Trash2 size={16} aria-hidden="true" />
                 </button>
@@ -358,11 +358,11 @@ function App() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.5rem' }}>
               <button className="btn-add-project" aria-label="Add Project" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem' }} onClick={handleAddProject} title="Add existing local project folder">
                 <Plus size={16} aria-hidden="true" />
-                Add Local
+                {t('button.addLocal')}
               </button>
               <button className="btn-add-project" aria-label="Clone Git" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }} onClick={() => { setShowCloneModal(true); setCloneError(null); }} title="Clone Git repository">
                 <DownloadCloud size={16} aria-hidden="true" />
-                Clone Git
+                {t('button.cloneGit')}
               </button>
             </div>
             {/* Hidden native browser folder picker (webkitdirectory). We only get a
@@ -392,7 +392,7 @@ function App() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <TerminalSquare size={20} aria-hidden="true" />
-            <span>Remote</span>
+            <span>{t('sidebar.remote')}</span>
           </div>
           {isRemoteExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
         </button>
@@ -423,7 +423,7 @@ function App() {
                       setupSshKey(server.id).then(() => {return ''});
                     }}
                     style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
-                    aria-label={`Skonfiguruj klucz SSH dla serwera ${server.name}`}
+                    aria-label={`${t('label.setupSshKey')} ${server.name}`}
                     onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
                     onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                   >
@@ -433,17 +433,17 @@ function App() {
                     type="button"
                     onClick={(e) => deleteServer(server.id, e)}
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}
-                    title="Usuń serwer"
-                    aria-label={`Usuń serwer ${server.name}`}
+                    title={t('label.deleteServer')}
+                    aria-label={`${t('label.deleteServer')} ${server.name}`}
                   >
                     <Trash2 size={13} aria-hidden="true" />
                   </button>
                 </div>
               </div>
             ))}
-            <button className="btn-add-project" onClick={() => setShowAddServer(true)}>
+            <button className="btn-add-project" aria-label="Add Server" onClick={() => setShowAddServer(true)}>
               <Plus size={18} aria-hidden="true" />
-              Add Server
+              {t('sidebar.addServer')}
             </button>
           </div>
         )}
@@ -452,7 +452,7 @@ function App() {
           <button 
             type="button"
             onClick={() => setShowWorkerModal(true)}
-            title="Pobierz komendę i token Socket.IO dla Local Workera"
+            title={t('sidebar.socketTooltip', 'Pobierz komendę i token Socket.IO dla Local Workera')}
             style={{ 
               display: 'flex', 
               gap: '0.5rem', 
@@ -471,7 +471,7 @@ function App() {
             }}
           >
             <Laptop size={16} aria-hidden="true" />
-            <span>{workersCount > 0 ? `Socket: Połączono (${workersCount})` : 'Socket / Tunel PC'}</span>
+            <span>{workersCount > 0 ? `${t('sidebar.socketConnected')} (${workersCount})` : t('sidebar.socketTunnel')}</span>
           </button>
           <button 
             type="button"
@@ -549,8 +549,8 @@ function App() {
           <ModelRoutingSettings />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>Domyślny Serwer LLM</span>
-            <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>{t('settings.defaultLlmServer')}</span>
+            <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>{t('label.serverName')}</label>
             <input 
               id="custom-llm-name"
               name="customLlmName"
@@ -561,7 +561,7 @@ function App() {
               onChange={(e) => setCustomLlmName(e.target.value)}
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontSize: '0.8rem' }}
             />
-            <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
+            <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>{t('label.apiServer')}</label>
             <input 
               id="custom-llm-url"
               name="customLlmUrl"
@@ -573,7 +573,7 @@ function App() {
               onChange={(e) => setCustomLlmUrl(e.target.value)}
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
             />
-            <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
+            <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>{t('label.baseModel')}</label>
             <input 
               id="custom-llm-model"
               name="customLlmModel"
@@ -585,7 +585,7 @@ function App() {
               onChange={(e) => setCustomLlmModel(e.target.value)}
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
             />
-            <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
+            <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>{t('label.apiKey')}</label>
             <input 
               id="custom-api-key"
               name="customApiKey"
@@ -604,7 +604,7 @@ function App() {
               style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
             >
               {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
-              {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
+              {settingsSaved ? t('button.saved') : t('button.save')}
             </button>
           </div>
 
@@ -1631,7 +1631,7 @@ function App() {
           }}
         >
           <WifiOff size={14} aria-hidden="true" />
-          <span>Brak połączenia z serwerem — ponawiam…</span>
+          <span>{t('status.disconnected')}</span>
         </div>
       )}
 

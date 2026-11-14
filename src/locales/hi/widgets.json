@@ -1,0 +1,23 @@
+{
+  "widget.kpiDashboard": "KPI डैशबोर्ड",
+  "widget.customWidgets": "कस्टम विजेट",
+  "widget.serverStats": "सर्वर सांख्यिकी",
+  "widget.repoStatus": "रिपोजिटरी स्थिति",
+  "widget.analytics": "एनालिटिक्स",
+  "widget.type.number": "काउंटर (संख्या)",
+  "widget.type.text": "कच्चा पाठ",
+  "widget.type.barChart": "प्रगति पट्टी (0-100)",
+  "widget.type.networkChart": "नेटवर्क चार्ट (डाउनलोड / अपलोड)",
+  "widget.add": "विजेट जोड़ें",
+  "widget.edit": "विजेट संपादित करें",
+  "widget.name": "विजेट का नाम",
+  "widget.command": "शेल कमांड",
+  "widget.color": "रंग थीम",
+  "widget.type": "प्रकार",
+  "widget.server": "सर्वर",
+  "widget.delete": "विजेट हटाएं",
+  "widget.agentInstructions": "एजेंट निर्देश (वैकल्पिक)",
+  "widget.outputSafety": "सुनिश्चित करें कि यह प्रदर्शित करने के लिए सुरक्षित आउटपुट देता है।",
+  "widget.updateFailed": "विजेट अपडेट करने में विफल।",
+  "widget.createFailed": "विजेट बनाने में विफल। कृपया अधिक विवरण के लिए कंसोल देखें।"
+}
