@@ -1,4 +1,6 @@
-import '@testing-library/jest-dom';
+if (typeof window !== 'undefined') {
+  await import('@testing-library/jest-dom');
+}
 
 // In Node 22+, globalThis.localStorage is undefined by default and shadows jsdom's window.localStorage.
 // Also jsdom Storage throws brand checks if instantiated via Object.create.

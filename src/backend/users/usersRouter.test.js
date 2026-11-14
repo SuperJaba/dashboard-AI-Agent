@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import { usersRouter } from './usersRouter.js';
 import { authMiddleware } from '../auth/authMiddleware.js';
 import { JWT_SECRET } from '../auth/jwtSecret.js';

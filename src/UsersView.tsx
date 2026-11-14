@@ -332,7 +332,7 @@ export function UsersView() {
       </section>
 
       {/* Pasek narzędziowy: Wyszukiwanie, Filtry i Przełącznik widoku */}
-      <div className="glass-card p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in delay-2">
+      <div className="glass-card p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 w-full animate-in delay-2">
         <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
           {/* Input wyszukiwania */}
           <div className="relative flex-1 max-w-md">
@@ -458,7 +458,7 @@ export function UsersView() {
           /* =========================================================================
              WIDOK KAFELKÓW / KART (Duże, przejrzyste rekordy zagospodarowujące przestrzeń)
              ========================================================================= */
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8 w-full auto-rows-min">
             {filteredUsers.users.map(u => {
               const isCurrent = currentUser?.id === u.id || currentUser?.username === u.username;
               const isAdmin = u.role === 'admin';
@@ -474,12 +474,12 @@ export function UsersView() {
                 >
                   {/* Nagłówek karty usera */}
                   <div>
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      {/* Avatar z inicjałem */}
-                      <div className="flex items-center gap-3.5">
-                        <div className="relative">
+                    <div className="flex items-start justify-between gap-2 mb-4">
+                      {/* Avatar z inicjałem + nazwa */}
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="relative flex-none">
                           <div 
-                            className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shadow-md border ${
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shadow-md border ${
                               isAdmin
                                 ? 'bg-gradient-to-br from-purple-500/30 to-indigo-600/20 text-purple-300 border-purple-500/40'
                                 : 'bg-gradient-to-br from-sky-500/30 to-blue-600/20 text-sky-300 border-sky-500/40'
@@ -489,21 +489,21 @@ export function UsersView() {
                           </div>
                           {isAdmin && (
                             <div 
-                              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-purple-600 text-white flex items-center justify-center shadow-sm"
+                              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-md bg-purple-600 text-white flex items-center justify-center shadow-sm"
                               title="Administrator"
                             >
-                              <Shield size={12} />
+                              <Shield size={10} />
                             </div>
                           )}
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-bold text-white truncate group-hover:text-indigo-300 transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm font-bold text-white truncate group-hover:text-indigo-300 transition-colors">
                               {u.username}
                             </span>
                             {isCurrent && (
-                              <span className="text-[11px] font-semibold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30">
+                              <span className="flex-none text-[10px] font-semibold text-indigo-300 bg-indigo-500/20 px-1.5 py-0.5 rounded-full border border-indigo-500/30">
                                 Ty
                               </span>
                             )}
@@ -515,12 +515,15 @@ export function UsersView() {
                       </div>
 
                       {/* Badge roli */}
-                      <Badge
-                        variant={isAdmin ? 'primary' : 'neutral'}
-                        icon={isAdmin ? <Shield size={12} /> : undefined}
-                      >
-                        {isAdmin ? 'Administrator' : 'Użytkownik'}
-                      </Badge>
+                      <div className="flex-none pt-0.5">
+                        <Badge
+                          variant={isAdmin ? 'primary' : 'neutral'}
+                          icon={isAdmin ? <Shield size={11} /> : undefined}
+                          size="sm"
+                        >
+                          {isAdmin ? 'Admin' : 'User'}
+                        </Badge>
+                      </div>
                     </div>
 
                     {/* Szczegóły roli & opis uprawnień */}
@@ -606,18 +609,17 @@ export function UsersView() {
           /* =========================================================================
              WIDOK TABELI (Przestronna, zoptymalizowana tabela na pełną szerokość)
              ========================================================================= */
-          <div className="glass-card rounded-2xl border border-white/[0.08] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="responsive-table w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-white/[0.08] bg-slate-900/40 text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                    <th className="py-4 px-6 w-20">ID</th>
-                    <th className="py-4 px-6">Użytkownik</th>
-                    <th className="py-4 px-6">Rola w systemie</th>
-                    <th className="py-4 px-6">Szybka zmiana roli</th>
-                    <th className="py-4 px-6 text-right">Akcje administracyjne</th>
-                  </tr>
-                </thead>
+          <div className="glass-card rounded-2xl border border-white/[0.08] overflow-hidden w-full">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-white/[0.08] bg-slate-900/40 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  <th className="py-4 px-6 w-16">ID</th>
+                  <th className="py-4 px-6">Użytkownik</th>
+                  <th className="py-4 px-6 w-40">Rola w systemie</th>
+                  <th className="py-4 px-6 w-48">Szybka zmiana roli</th>
+                  <th className="py-4 px-6 w-48 text-right">Akcje administracyjne</th>
+                </tr>
+              </thead>
                 <tbody className="divide-y divide-white/[0.05]">
                   {filteredUsers.users.map(u => {
                     const isCurrent = currentUser?.id === u.id || currentUser?.username === u.username;
@@ -724,9 +726,8 @@ export function UsersView() {
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                 </tbody>
+            </table>
           </div>
         )}
       </main>

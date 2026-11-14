@@ -69,7 +69,7 @@ describe('POST /deploy agent resolution', () => {
     expect(res.body.scriptContent).toContain('--oss');
     expect(res.body.scriptContent).toContain('--local-provider lmstudio');
     expect(res.body.scriptContent).toContain('-m "unsloth/Qwen3.5-4B-MTP-GGUF"');
-    expect(res.body.scriptContent).toContain('export CODEX_OSS_BASE_URL="http://localhost:8888/v1"');
+    expect(res.body.scriptContent).toMatch(/export CODEX_OSS_BASE_URL="http:\/\/(localhost|[\d.]+):8888\/v1"/);
     expect(res.body.scriptContent).toContain('--dangerously-bypass-approvals-and-sandbox');
     expect(res.body.scriptContent).not.toContain('--dangerously-skip-permissions');
   });

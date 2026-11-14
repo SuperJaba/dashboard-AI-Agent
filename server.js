@@ -108,7 +108,7 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(compression());
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3002;
 
 // Prometheus registry and metrics defined in src/backend/metrics.js
 

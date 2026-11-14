@@ -28,7 +28,7 @@ const LOCAL_API_KEY = process.env.LLM_LOCAL_API_KEY || 'sk-unsloth-2c3bc42606e2f
  * State machine: CLOSED (normal) → OPEN (failures exceeded threshold) → HALF_OPEN (testing recovery)
  * Prevents cascading failures when local model server is down.
  */
-class CircuitBreaker {
+export class CircuitBreaker {
   constructor(threshold = 3, resetTimeoutMs = 60_000) {
     this.threshold = threshold;
     this.resetTimeoutMs = resetTimeoutMs;
