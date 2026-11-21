@@ -55,7 +55,7 @@
     "recharts": "^3.10.1",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.4",
-    "tldts": "^7.4.19",
+    "tldts": "^7.5.4",
     "zod": "^4.6.6"
   },
   "devDependencies": {
