@@ -38,6 +38,28 @@ export function Modal({
     // Focus first interactive element or dialog
     const focusTimer = setTimeout(() => {
       if (dialogRef.current) {
+        // Do not steal focus if user has already focused an element inside the dialog
+        if (document.activeElement && dialogRef.current.contains(document.activeElement)) {
+          return;
+        }
+
+        // Prefer element with autofocus inside the dialog
+        const autoFocusEl = dialogRef.current.querySelector<HTMLElement>('[autofocus], [data-autofocus]');
+        if (autoFocusEl) {
+          autoFocusEl.focus();
+          return;
+        }
+
+        // Prefer first focusable element inside the modal body/content (skip the close 'X' button in header if possible)
+        const contentEl = dialogRef.current.querySelector<HTMLElement>('.overflow-y-auto');
+        if (contentEl) {
+          const contentFocusables = contentEl.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+          if (contentFocusables.length > 0) {
+            contentFocusables[0].focus();
+            return;
+          }
+        }
+
         const focusables = dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
         if (focusables.length > 0) {
           focusables[0].focus();
