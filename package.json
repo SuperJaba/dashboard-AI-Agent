@@ -74,7 +74,7 @@
     "@vitejs/plugin-react": "^6.3.0",
     "@vitest/coverage-v8": "^5.0.5",
     "@vitest/mocker": "^5.0.5",
-    "@vitest/ui": "^5.1.0",
+    "@vitest/ui": "^5.1.1",
     "autoprefixer": "^10.6.2",
     "cross-env": "^10.1.0",
     "jsdom": "^30.1.3",
