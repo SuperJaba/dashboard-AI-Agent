@@ -3,6 +3,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LlmServerManager } from './LlmServerManager';
 
 vi.mock('./shared/api-client', () => ({
+  apiClient: {
+    get: vi.fn().mockResolvedValue([]),
+    post: vi.fn().mockResolvedValue({}),
+    put: vi.fn().mockResolvedValue({}),
+    patch: vi.fn().mockResolvedValue({}),
+    delete: vi.fn().mockResolvedValue({}),
+  },
   apiFetch: vi.fn((url: string) => {
     if (url.includes('/api/llm-servers')) {
       return Promise.resolve({

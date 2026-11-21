@@ -230,7 +230,7 @@ function App() {
             type="button"
             className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
             onClick={() => setIsMobileNavOpen(false)}
-            aria-label="Zamknij menu"
+            aria-label={t('sidebar.closeMenu', 'Zamknij menu')}
           >
             <X size={18} aria-hidden="true" />
           </button>
@@ -248,7 +248,7 @@ function App() {
             aria-current={activeView === 'dashboard' && activeProjectId === null ? 'page' : undefined}
           >
             <LayoutDashboard size={18} aria-hidden="true" />
-            <span>Dashboard</span>
+            <span>{t('sidebar.dashboard')}</span>
           </button>
           <button 
             type="button"
@@ -257,7 +257,7 @@ function App() {
             aria-current={activeView === 'agents' ? 'page' : undefined}
           >
             <Bot size={18} aria-hidden="true" />
-            <span>Agenci AI</span>
+            <span>{t('sidebar.agents')}</span>
           </button>
           <button 
             type="button"
@@ -269,7 +269,7 @@ function App() {
             aria-current={activeView === 'opsramp' ? 'page' : undefined}
           >
             <Activity size={18} aria-hidden="true" />
-            <span>OpsRamp AIOps</span>
+            <span>{t('sidebar.opsramp')}</span>
           </button>
           <button 
             type="button"
@@ -281,13 +281,13 @@ function App() {
             aria-current={activeView === 'users' ? 'page' : undefined}
           >
             <Users size={18} aria-hidden="true" />
-            <span>Użytkownicy</span>
+            <span>{t('sidebar.users')}</span>
           </button>
           <button 
             type="button"
             className="project-item"
             onClick={() => setShowWorkerModal(true)}
-            title="Komenda połączenia i aktualny token do Socket.IO"
+            title={t('sidebar.socketTooltip', 'Komenda połączenia i aktualny token do Socket.IO')}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -302,7 +302,7 @@ function App() {
               color: workersCount > 0 ? '#34d399' : '#94a3b8',
               fontWeight: 600
             }}>
-              {workersCount > 0 ? '● Online' : 'Offline'}
+              {workersCount > 0 ? t('status.online') : t('status.offline')}
             </span>
           </button>
         </nav>
@@ -318,7 +318,7 @@ function App() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <LayoutDashboard size={20} aria-hidden="true" />
-            <span>Workspaces</span>
+            <span>{t('sidebar.workspaces')}</span>
           </div>
           {isWorkspacesExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
         </button>
@@ -343,13 +343,13 @@ function App() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Czy na pewno chcesz usunąć projekt "${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}"?`)) {
+                    if (confirm(`${t('confirm.deleteProject')} "${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}"?`)) {
                       handleAddProject(proj.id, 'delete');
                     }
                   }}
                   style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
-                  aria-label={`Usuń projekt ${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}`}
-                  title="Usuń projekt"
+                  aria-label={`${t('label.deleteProject')} ${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}`}
+                  title={t('label.deleteProject')}
                 >
                   <Trash2 size={16} aria-hidden="true" />
                 </button>
@@ -358,11 +358,11 @@ function App() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.5rem' }}>
               <button className="btn-add-project" aria-label="Add Project" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem' }} onClick={handleAddProject} title="Add existing local project folder">
                 <Plus size={16} aria-hidden="true" />
-                Add Local
+                {t('button.addLocal')}
               </button>
               <button className="btn-add-project" aria-label="Clone Git" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }} onClick={() => { setShowCloneModal(true); setCloneError(null); }} title="Clone Git repository">
                 <DownloadCloud size={16} aria-hidden="true" />
-                Clone Git
+                {t('button.cloneGit')}
               </button>
             </div>
             {/* Hidden native browser folder picker (webkitdirectory). We only get a
@@ -392,7 +392,7 @@ function App() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <TerminalSquare size={20} aria-hidden="true" />
-            <span>Remote</span>
+            <span>{t('sidebar.remote')}</span>
           </div>
           {isRemoteExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
         </button>
@@ -423,7 +423,7 @@ function App() {
                       setupSshKey(server.id).then(() => {return ''});
                     }}
                     style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px', marginRight: '4px' }}
-                    aria-label={`Skonfiguruj klucz SSH dla serwera ${server.name}`}
+                    aria-label={`${t('label.setupSshKey')} ${server.name}`}
                     onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
                     onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                   >
@@ -433,17 +433,17 @@ function App() {
                     type="button"
                     onClick={(e) => deleteServer(server.id, e)}
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 3px', borderRadius: '4px' }}
-                    title="Usuń serwer"
-                    aria-label={`Usuń serwer ${server.name}`}
+                    title={t('label.deleteServer')}
+                    aria-label={`${t('label.deleteServer')} ${server.name}`}
                   >
                     <Trash2 size={13} aria-hidden="true" />
                   </button>
                 </div>
               </div>
             ))}
-            <button className="btn-add-project" onClick={() => setShowAddServer(true)}>
+            <button className="btn-add-project" aria-label="Add Server" onClick={() => setShowAddServer(true)}>
               <Plus size={18} aria-hidden="true" />
-              Add Server
+              {t('sidebar.addServer')}
             </button>
           </div>
         )}
@@ -452,7 +452,7 @@ function App() {
           <button 
             type="button"
             onClick={() => setShowWorkerModal(true)}
-            title="Pobierz komendę i token Socket.IO dla Local Workera"
+            title={t('sidebar.socketTooltip', 'Pobierz komendę i token Socket.IO dla Local Workera')}
             style={{ 
               display: 'flex', 
               gap: '0.5rem', 
@@ -471,7 +471,7 @@ function App() {
             }}
           >
             <Laptop size={16} aria-hidden="true" />
-            <span>{workersCount > 0 ? `Socket: Połączono (${workersCount})` : 'Socket / Tunel PC'}</span>
+            <span>{workersCount > 0 ? `${t('sidebar.socketConnected')} (${workersCount})` : t('sidebar.socketTunnel')}</span>
           </button>
           <button 
             type="button"
@@ -507,14 +507,14 @@ function App() {
         maxWidth="480px"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.theme')}</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.2rem 0' }}>
+            <label className="info-label" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>{t('settings.theme')}</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 type="button"
                 onClick={() => setTheme('dark')}
                 aria-pressed={theme === 'dark'}
-                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'dark' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'dark' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: theme === 'dark' ? 'white' : 'var(--text-main)', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '0.6rem 0.75rem', borderRadius: '8px', border: theme === 'dark' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'dark' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: theme === 'dark' ? 'white' : 'var(--text-main)', cursor: 'pointer' }}
               >
                 {t('settings.theme.dark')}
               </button>
@@ -522,20 +522,20 @@ function App() {
                 type="button"
                 onClick={() => setTheme('light')}
                 aria-pressed={theme === 'light'}
-                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: theme === 'light' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'light' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: theme === 'light' ? 'white' : 'var(--text-main)', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '0.6rem 0.75rem', borderRadius: '8px', border: theme === 'light' ? '1px solid var(--primary)' : '1px solid var(--glass-border)', background: theme === 'light' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: theme === 'light' ? 'white' : 'var(--text-main)', cursor: 'pointer' }}
               >
                 {t('settings.theme.light')}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label htmlFor="language-select" className="info-label" style={{ fontSize: '0.8rem' }}>{t('settings.language')}</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.2rem 0' }}>
+            <label htmlFor="language-select" className="info-label" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>{t('settings.language')}</label>
             <select
               id="language-select"
               value={language}
               onChange={(e) => setLanguage(e.target.value as Language)}
-              style={{ background: 'var(--bg-surface, rgba(255,255,255,0.05))', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+              style={{ background: 'var(--bg-surface, rgba(255,255,255,0.05))', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.75rem', color: 'var(--text-main)' }}
             >
               <option value="pl" style={{ background: 'var(--bg-surface)', color: 'var(--text-main)' }}>Polski</option>
               <option value="en" style={{ background: 'var(--bg-surface)', color: 'var(--text-main)' }}>English</option>
@@ -548,63 +548,71 @@ function App() {
           {/* Konfiguracja routingu modeli */}
           <ModelRoutingSettings />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>Domyślny Serwer LLM</span>
-            <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0' }}>Nazwa Serwera</label>
-            <input 
-              id="custom-llm-name"
-              name="customLlmName"
-              autoComplete="off"
-              type="text" 
-              placeholder="np. AtomicChat" 
-              value={customLlmName}
-              onChange={(e) => setCustomLlmName(e.target.value)}
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontSize: '0.8rem' }}
-            />
-            <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Lokalny Serwer API</label>
-            <input 
-              id="custom-llm-url"
-              name="customLlmUrl"
-              autoComplete="off"
-              spellCheck={false}
-              type="text" 
-              placeholder="http://localhost:1337/v1" 
-              value={customLlmUrl}
-              onChange={(e) => setCustomLlmUrl(e.target.value)}
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-            />
-            <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>Model bazowy</label>
-            <input 
-              id="custom-llm-model"
-              name="customLlmModel"
-              autoComplete="off"
-              spellCheck={false}
-              type="text" 
-              placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
-              value={customLlmModel}
-              onChange={(e) => setCustomLlmModel(e.target.value)}
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-            />
-            <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.7rem', marginBottom: '0', marginTop: '0.2rem' }}>API Key (Opcjonalny)</label>
-            <input 
-              id="custom-api-key"
-              name="customApiKey"
-              autoComplete="off"
-              spellCheck={false}
-              type="password" 
-              placeholder="Brak" 
-              value={customApiKey}
-              onChange={(e) => setCustomApiKey(e.target.value)}
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.4rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.8rem' }}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.2rem 0' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>{t('settings.defaultLlmServer')}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.1rem 0' }}>
+              <label htmlFor="custom-llm-name" className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.15rem' }}>{t('label.serverName')}</label>
+              <input 
+                id="custom-llm-name"
+                name="customLlmName"
+                autoComplete="off"
+                type="text" 
+                placeholder="np. AtomicChat" 
+                value={customLlmName}
+                onChange={(e) => setCustomLlmName(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.75rem', color: 'var(--text-main)', fontSize: '0.85rem', outline: 'none' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.1rem 0' }}>
+              <label htmlFor="custom-llm-url" className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.15rem' }}>{t('label.apiServer')}</label>
+              <input 
+                id="custom-llm-url"
+                name="customLlmUrl"
+                autoComplete="off"
+                spellCheck={false}
+                type="text" 
+                placeholder="http://localhost:1337/v1" 
+                value={customLlmUrl}
+                onChange={(e) => setCustomLlmUrl(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.75rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.85rem', outline: 'none' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.1rem 0' }}>
+              <label htmlFor="custom-llm-model" className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.15rem' }}>{t('label.baseModel')}</label>
+              <input 
+                id="custom-llm-model"
+                name="customLlmModel"
+                autoComplete="off"
+                spellCheck={false}
+                type="text" 
+                placeholder="np. AtomicChat/qwen35-4b-Q8_0" 
+                value={customLlmModel}
+                onChange={(e) => setCustomLlmModel(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.75rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.85rem', outline: 'none' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.1rem 0' }}>
+              <label htmlFor="custom-api-key" className="info-label" style={{ fontSize: '0.75rem', marginBottom: '0.15rem' }}>{t('label.apiKey')}</label>
+              <input 
+                id="custom-api-key"
+                name="customApiKey"
+                autoComplete="off"
+                spellCheck={false}
+                type="password" 
+                placeholder="Brak" 
+                value={customApiKey}
+                onChange={(e) => setCustomApiKey(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.6rem 0.75rem', color: 'var(--text-main)', fontFamily: 'var(--mono)', fontSize: '0.85rem', outline: 'none' }}
+              />
+            </div>
             <button 
               type="button"
               onClick={saveSettings}
               aria-live="polite"
-              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.5rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 'bold', transition: '0.3s' }}
+              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', background: settingsSaved ? '#10B981' : 'var(--primary)', border: 'none', padding: '0.65rem 1rem', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '0.5rem', fontSize: '0.85rem', fontWeight: 'bold', transition: '0.3s' }}
             >
               {settingsSaved ? <CheckCircle2 size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
-              {settingsSaved ? 'Saved to DB!' : 'Zapisz Serwer'}
+              {settingsSaved ? t('button.saved') : t('button.save')}
             </button>
           </div>
 
@@ -1370,8 +1378,8 @@ function App() {
           <div className="glass-card" style={{ width: '400px', maxWidth: '90vw' }}>
             <h2 id="add-server-modal-title" style={{ marginBottom: '1.5rem' }}>Add Remote Server</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label htmlFor="new-server-name" className="info-label">Name</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.1rem 0' }}>
+                <label htmlFor="new-server-name" className="info-label" style={{ marginBottom: '0.2rem' }}>Name</label>
                 <input 
                   id="new-server-name"
                   name="serverName"
@@ -1381,11 +1389,11 @@ function App() {
                   onChange={e => setNewServer({...newServer, name: e.target.value})}
                   className="config-input" 
                   placeholder="Production Server"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.65rem 0.85rem', color: 'white', boxSizing: 'border-box' }}
                 />
               </div>
-              <div>
-                <label htmlFor="new-server-host" className="info-label">Host (IP or Domain)</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.1rem 0' }}>
+                <label htmlFor="new-server-host" className="info-label" style={{ marginBottom: '0.2rem' }}>Host (IP or Domain)</label>
                 <input 
                   id="new-server-host"
                   name="serverHost"
@@ -1396,12 +1404,12 @@ function App() {
                   onChange={e => setNewServer({...newServer, host: e.target.value})}
                   className="config-input" 
                   placeholder="192.168.1.100"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.65rem 0.85rem', color: 'white', boxSizing: 'border-box' }}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: '1rem' }}>
-                <div>
-                  <label htmlFor="new-server-username" className="info-label">Username</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: '1rem', padding: '0.1rem 0' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label htmlFor="new-server-username" className="info-label" style={{ marginBottom: '0.2rem' }}>Username</label>
                   <input 
                     id="new-server-username"
                     name="serverUsername"
@@ -1412,11 +1420,11 @@ function App() {
                     onChange={e => setNewServer({...newServer, username: e.target.value})}
                     className="config-input" 
                     placeholder="root"
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.65rem 0.85rem', color: 'white', boxSizing: 'border-box' }}
                   />
                 </div>
-                <div>
-                  <label htmlFor="new-server-port" className="info-label">Port</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label htmlFor="new-server-port" className="info-label" style={{ marginBottom: '0.2rem' }}>Port</label>
                   <input 
                     id="new-server-port"
                     name="serverPort"
@@ -1426,7 +1434,7 @@ function App() {
                     onChange={e => setNewServer({...newServer, port: parseInt(e.target.value)})}
                     className="config-input" 
                     placeholder="22"
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.65rem 0.85rem', color: 'white', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
@@ -1445,8 +1453,8 @@ function App() {
                 </label>
               </div>
               {/* Hasło SSH */}
-              <div>
-                <label htmlFor="new-server-ssh-password" className="info-label">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.1rem 0' }}>
+                <label htmlFor="new-server-ssh-password" className="info-label" style={{ marginBottom: '0.2rem' }}>
                   Hasło SSH&nbsp;<span style={{ color: '#6b7280', fontWeight: 400, fontSize: '0.75rem' }}>(opcjonalne — zamiast klucza)</span>
                 </label>
                 <div style={{ position: 'relative' }}>
@@ -1460,7 +1468,7 @@ function App() {
                     onChange={e => setNewServer({...newServer, ssh_password: e.target.value})}
                     className="config-input"
                     placeholder="Zostaw puste jeśli używasz klucza SSH"
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem 2.75rem 0.5rem 0.5rem', color: 'white', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.65rem 2.75rem 0.65rem 0.85rem', color: 'white', boxSizing: 'border-box' }}
                   />
                   <button
                     type="button"
@@ -1474,8 +1482,8 @@ function App() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" className="btn-secondary" style={{ flex: 1, padding: '0.5rem' }} onClick={() => setShowAddServer(false)}>Cancel</button>
-                <button type="button" className="btn-primary" style={{ flex: 1, padding: '0.5rem' }} onClick={handleAddServer}>Add Server</button>
+                <button type="button" className="btn-secondary" style={{ flex: 1, padding: '0.65rem 1rem' }} onClick={() => setShowAddServer(false)}>Cancel</button>
+                <button type="button" className="btn-primary" style={{ flex: 1, padding: '0.65rem 1rem' }} onClick={handleAddServer}>Add Server</button>
               </div>
             </div>
           </div>
@@ -1528,7 +1536,7 @@ function App() {
               }}
               className="config-input"
               placeholder="https://github.com/username/repository.git"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.65rem 0.85rem', color: 'var(--text-main)', boxSizing: 'border-box' }}
               autoFocus
             />
           </FormField>
@@ -1548,7 +1556,7 @@ function App() {
               onChange={e => setCloneTargetDir(e.target.value)}
               className="config-input"
               placeholder="~/projects/my-repo"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.65rem 0.85rem', color: 'var(--text-main)', boxSizing: 'border-box' }}
             />
           </FormField>
 
@@ -1565,7 +1573,7 @@ function App() {
               onChange={e => setCloneProjectName(e.target.value)}
               className="config-input"
               placeholder="Mój Projekt"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-main)' }}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.65rem 0.85rem', color: 'var(--text-main)', boxSizing: 'border-box' }}
             />
           </FormField>
 
@@ -1573,7 +1581,7 @@ function App() {
             <button
               type="button"
               className="btn-secondary"
-              style={{ flex: 1, padding: '0.5rem' }}
+              style={{ flex: 1, padding: '0.65rem 1rem' }}
               onClick={() => setShowCloneModal(false)}
               disabled={cloneLoading}
             >
@@ -1582,7 +1590,7 @@ function App() {
             <button
               type="button"
               className="btn-primary"
-              style={{ flex: 1, padding: '0.5rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
+              style={{ flex: 1, padding: '0.65rem 1rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
               disabled={!cloneRepoUrl.trim() || !cloneTargetDir.trim() || cloneLoading}
               onClick={async () => {
                 setCloneLoading(true);
@@ -1631,7 +1639,7 @@ function App() {
           }}
         >
           <WifiOff size={14} aria-hidden="true" />
-          <span>Brak połączenia z serwerem — ponawiam…</span>
+          <span>{t('status.disconnected')}</span>
         </div>
       )}
 

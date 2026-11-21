@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Activity, Clock, Zap, AlertTriangle, CheckCircle2, Server, Bot, RefreshCw, Cpu } from 'lucide-react';
+import { usePreferences } from '../preferences/PreferencesContext';
 import { MetricSummaryCard } from './MetricSummaryCard';
 import { TimeseriesSparkline } from './TimeseriesSparkline';
 import { TokenBurnBreakdown } from './TokenBurnBreakdown';
@@ -60,6 +61,7 @@ interface KpiData {
 }
 
 export function KpiDashboardPanel() {
+  const { t } = usePreferences();
   const [data, setData] = useState<KpiData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,12 +83,12 @@ export function KpiDashboardPanel() {
       setData(json);
       setError(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Błąd ładowania KPI');
+      setError(err instanceof Error ? err.message : t('kpi.error', 'Błąd ładowania KPI'));
     } finally {
       setLoading(false);
       if (isManual) setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchKpi();
@@ -118,7 +120,7 @@ export function KpiDashboardPanel() {
           style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
         >
           <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-          <span>Ponów</span>
+          <span>{t('button.retry', 'Ponów')}</span>
         </button>
       </div>
     );
@@ -173,35 +175,35 @@ export function KpiDashboardPanel() {
           gap: '0.6rem',
           borderLeft: '3px solid var(--primary, #38bdf8)'
         }}>
-          <span>Brak aktywności agentów w ostatnim okresie. Uruchom agenta, aby zebrać rzeczywiste dane telemetrii i zużycia tokenów.</span>
+          <span>{t('kpi.noActivity', 'Brak aktywności agentów w ostatnim okresie. Uruchom agenta, aby zebrać rzeczywiste dane telemetrii i zużycia tokenów.')}</span>
         </div>
       )}
 
       {/* Górne kafelki KPI — 100% realne metryki */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.6rem' }}>
         <MetricSummaryCard
-          title="Zadania dziś"
+          title={t('kpi.tasksToday', 'Zadania dziś')}
           value={data.today.tasks > 0 ? `${data.today.tasks}` : `${completedTasks} / ${totalTasks}`}
           subtitle={`${projectsCount} repozytoria · ${data.today.tasks} ukończone`}
           trend="up"
           icon={CheckCircle2}
         />
         <MetricSummaryCard
-          title="Skuteczność realizacji"
+          title={t('kpi.successRate', 'Skuteczność')}
           value={data.today.tasks > 0 ? `${data.today.successRate}%` : `${completionRate}%`}
           subtitle="Ukończono w projektach"
           trend={completionRate >= 50 ? 'up' : 'flat'}
           icon={Activity}
         />
         <MetricSummaryCard
-          title="Śr. latencja inferencji"
+          title={t('kpi.inferenceLatency', 'Śr. latencja inferencji')}
           value={data.today.avgDuration > 0 ? `${data.today.avgDuration.toFixed(1)}s` : `${data.today.avgDuration}s`}
           subtitle={`Circuit: ${data.systemOverview?.modelRouting?.circuitBreaker || 'CLOSED'}`}
           trend="flat"
           icon={Clock}
         />
         <MetricSummaryCard
-          title="Tokeny dziś"
+          title={t('kpi.tokensToday', 'Tokeny dziś')}
           value={data.tokenBurn.today.toLocaleString('en-US')}
           subtitle={`Tydzień: ${data.tokenBurn.week.toLocaleString('en-US')}`}
           trend="up"
@@ -265,9 +267,9 @@ export function KpiDashboardPanel() {
           {/* Serwery SSH */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <Server size={14} color="#38bdf8" />
-            <span style={{ color: 'var(--text-muted)' }}>Węzły SSH:</span>
+            <span style={{ color: 'var(--text-muted)' }}>{t('kpi.sshNodes', 'Węzły SSH:')}</span>
             <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
-              {data.systemOverview?.activeServersCount ?? 2} serwery (OMV, CT8)
+              {data.systemOverview?.activeServersCount ?? 2} {t('kpi.servers', 'serwery')} (OMV, CT8)
             </span>
           </div>
 

@@ -1,7 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { PreferencesProvider } from '../preferences/PreferencesContext';
 import { KpiDashboardPanel } from './KpiDashboardPanel';
+
+function renderWithPreferences(ui: React.ReactElement) {
+  return render(<PreferencesProvider>{ui}</PreferencesProvider>);
+}
 
 describe('KpiDashboardPanel', () => {
   beforeEach(() => {
@@ -32,7 +37,7 @@ describe('KpiDashboardPanel', () => {
       json: async () => mockZeroKpi,
     } as unknown as Response);
 
-    render(<KpiDashboardPanel />);
+    renderWithPreferences(<KpiDashboardPanel />);
 
     await waitFor(() => {
       expect(screen.getByText(/Brak aktywności agentów w ostatnim okresie/i)).toBeDefined();
@@ -65,7 +70,7 @@ describe('KpiDashboardPanel', () => {
       json: async () => mockActiveKpi,
     } as unknown as Response);
 
-    render(<KpiDashboardPanel />);
+    renderWithPreferences(<KpiDashboardPanel />);
 
     await waitFor(() => {
       expect(screen.getByText('18,450')).toBeDefined();
@@ -80,7 +85,7 @@ describe('KpiDashboardPanel', () => {
       status: 500,
     } as unknown as Response);
 
-    render(<KpiDashboardPanel />);
+    renderWithPreferences(<KpiDashboardPanel />);
 
     await waitFor(() => {
       expect(screen.getByText(/HTTP 500/i)).toBeDefined();

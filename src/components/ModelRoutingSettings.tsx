@@ -132,7 +132,7 @@ export function ModelRoutingSettings() {
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
                 borderRadius: '6px',
-                padding: '0.4rem 0.6rem 0.4rem 2rem',
+                padding: '0.6rem 0.75rem 0.6rem 2.2rem',
                 color: 'var(--text-main)',
                 fontSize: '0.78rem',
                 outline: 'none'
@@ -159,7 +159,7 @@ export function ModelRoutingSettings() {
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
                 borderRadius: '6px',
-                padding: '0.4rem 0.6rem',
+                padding: '0.6rem 0.75rem',
                 color: 'var(--text-main)',
                 fontSize: '0.78rem',
                 outline: 'none'
@@ -184,7 +184,7 @@ export function ModelRoutingSettings() {
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
                 borderRadius: '6px',
-                padding: '0.4rem 0.6rem',
+                padding: '0.6rem 0.75rem',
                 color: 'var(--text-main)',
                 fontSize: '0.78rem',
                 outline: 'none'
@@ -212,7 +212,7 @@ export function ModelRoutingSettings() {
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
                 borderRadius: '6px',
-                padding: '0.4rem 0.6rem 0.4rem 2rem',
+                padding: '0.6rem 0.75rem 0.6rem 2.2rem',
                 color: 'var(--text-main)',
                 fontSize: '0.78rem',
                 outline: 'none'

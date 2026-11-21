@@ -9,11 +9,15 @@
   "widget.type.barChart": "Pasek postępu (0-100)",
   "widget.type.networkChart": "Wykres sieci (Download/Upload)",
   "widget.add": "Dodaj widget",
-  "widget.name": "Nazwa",
+  "widget.edit": "Edytuj widget",
+  "widget.name": "Nazwa widgetu",
   "widget.command": "Polecenie shell",
   "widget.color": "Kolor motywu",
   "widget.type": "Typ",
   "widget.server": "Serwer",
   "widget.delete": "Usuń widget",
-  "widget.agentInstructions": "Instrukcje dla agenta (opcjonalne)"
+  "widget.agentInstructions": "Instrukcje dla agenta (opcjonalne)",
+  "widget.outputSafety": "Upewnij się, że polecenie zwraca dane bezpieczne do wyświetlenia.",
+  "widget.updateFailed": "Nie udało się zaktualizować widgetu.",
+  "widget.createFailed": "Nie udało się utworzyć widgetu. Sprawdź konsolę po więcej szczegółów."
 }

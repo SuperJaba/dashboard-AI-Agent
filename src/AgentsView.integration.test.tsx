@@ -10,6 +10,13 @@ import { apiFetch } from './shared/api-client';
 
 // Mock the API client **before** importing the component.
 vi.mock('./shared/api-client', () => ({
+  apiClient: {
+    get: vi.fn().mockResolvedValue([]),
+    post: vi.fn().mockResolvedValue({}),
+    put: vi.fn().mockResolvedValue({}),
+    patch: vi.fn().mockResolvedValue({}),
+    delete: vi.fn().mockResolvedValue({}),
+  },
   apiFetch: vi.fn((url: string, options?: any) => {
     const json = (data: unknown) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(data) });
 
