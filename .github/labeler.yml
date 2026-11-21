@@ -1,23 +1,32 @@
-# Configuration for actions/labeler
-
+# Configuration for actions/labeler v5
 frontend:
-  - 'src/components/**'
-  - 'src/hooks/**'
-  - 'src/*.tsx'
-  - 'src/*.ts'
-  - 'src/*.css'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/components/**'
+          - 'src/hooks/**'
+          - 'src/*.tsx'
+          - 'src/*.ts'
+          - 'src/*.css'
 
 backend:
-  - 'src/backend/**'
-  - 'server.js'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/backend/**'
+          - 'server.js'
 
 ci:
-  - '.github/**'
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
 
 documentation:
-  - 'docs/**'
-  - '*.md'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '*.md'
 
 dependencies:
-  - 'package.json'
-  - 'package-lock.json'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'package-lock.json'

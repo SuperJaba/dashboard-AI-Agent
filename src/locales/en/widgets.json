@@ -9,11 +9,15 @@
   "widget.type.barChart": "Progress Bar (0-100)",
   "widget.type.networkChart": "Network Chart (Download/Upload)",
   "widget.add": "Add widget",
-  "widget.name": "Name",
+  "widget.edit": "Edit widget",
+  "widget.name": "Widget Name",
   "widget.command": "Shell command",
   "widget.color": "Color theme",
   "widget.type": "Type",
   "widget.server": "Server",
   "widget.delete": "Delete widget",
-  "widget.agentInstructions": "Agent instructions (optional)"
+  "widget.agentInstructions": "Agent instructions (optional)",
+  "widget.outputSafety": "Make sure this returns output safe to display.",
+  "widget.updateFailed": "Failed to update widget.",
+  "widget.createFailed": "Failed to create widget. Please check the console for more details."
 }

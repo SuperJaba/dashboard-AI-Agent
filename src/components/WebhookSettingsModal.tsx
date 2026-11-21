@@ -144,7 +144,7 @@ export function WebhookSettingsModal({ token }: Props) {
       <form onSubmit={handleCreate} className="flex flex-col gap-3 p-3 rounded-lg border border-white/10 bg-white/5">
         <p className="text-xs text-gray-400 font-medium">Nowy webhook</p>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5 py-1">
           <label className="text-xs text-gray-400" htmlFor="wh-url">URL Webhooka (Discord, Telegram lub standardowy HTTP)</label>
           <input
             id="wh-url"
@@ -155,7 +155,7 @@ export function WebhookSettingsModal({ token }: Props) {
             value={formUrl}
             onChange={(e) => setFormUrl(e.target.value)}
             placeholder="https://discord.com/api/webhooks/… lub https://example.com/hook"
-            className="bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-400 focus-visible:border-purple-400"
+            className="bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-400 focus-visible:border-purple-400"
           />
           {formUrl.includes('discord.com/api/webhooks') && (
             <p className="text-[11px] text-indigo-400">
@@ -184,7 +184,7 @@ export function WebhookSettingsModal({ token }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5 py-1">
           <label className="text-xs text-gray-400" htmlFor="wh-secret">Sekret (HMAC, opcjonalny)</label>
           <input
             id="wh-secret"
@@ -195,7 +195,7 @@ export function WebhookSettingsModal({ token }: Props) {
             value={formSecret}
             onChange={(e) => setFormSecret(e.target.value)}
             placeholder="••••••••"
-            className="bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-400 focus-visible:border-purple-400"
+            className="bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-400 focus-visible:border-purple-400"
           />
         </div>
 
