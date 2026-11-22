@@ -304,5 +304,22 @@ describe('projectsRouter - deploy agent handling', () => {
       expect(res.body.terminalConfig).toBeDefined();
       expect(res.body.terminalConfig.command).toBe('bash');
     });
+
+    it('works when projectsRouter is mounted at /api (as in server.js)', async () => {
+      const serverApp = express();
+      serverApp.use(express.json());
+      serverApp.use('/api', projectsRouter);
+
+      fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({ scripts: { dev: 'vite' } }));
+      const getRes = await request(serverApp).get('/api/projects/42/run-command');
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.success).toBe(true);
+
+      const postRes = await request(serverApp)
+        .post('/api/projects/42/run-app')
+        .send({ useBrowserTerminal: true });
+      expect(postRes.status).toBe(200);
+      expect(postRes.body.browserTerminal).toBe(true);
+    });
   });
 });

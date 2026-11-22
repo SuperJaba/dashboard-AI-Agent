@@ -1421,7 +1421,7 @@ fi
 });
 
 // Run Application Route (Browser Terminal or Native Terminal)
-projectsRouter.get('/:id/run-command', async (req, res) => {
+projectsRouter.get(['/projects/:id/run-command', '/:id/run-command'], async (req, res) => {
   try {
     const projects = await projectsRepo.getProjects();
     const target = String(req.params.id || '').trim().toLowerCase();
@@ -1441,7 +1441,7 @@ projectsRouter.get('/:id/run-command', async (req, res) => {
   }
 });
 
-projectsRouter.post('/:id/run-app', async (req, res) => {
+projectsRouter.post(['/projects/:id/run-app', '/:id/run-app'], async (req, res) => {
   try {
     const projects = await projectsRepo.getProjects();
     const target = String(req.params.id || '').trim().toLowerCase();
