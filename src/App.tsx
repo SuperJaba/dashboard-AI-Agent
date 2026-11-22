@@ -4,7 +4,7 @@ import {
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings,
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
-  Files, Zap, FileText, Flame, Users, Menu, X
+  Files, Zap, FileText, Flame, Users, Menu, X, Play
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -119,7 +119,42 @@ function App() {
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [tunnelFeedback, setTunnelFeedback] = useState<string | null>(null);
   const [isDeployingApp, setIsDeployingApp] = useState(false);
+  const [isRunningApp, setIsRunningApp] = useState(false);
   const { connected: isSseConnected } = useLiveTelemetry();
+
+  const handleRunApp = async () => {
+    if (!activeProject) return;
+    setIsRunningApp(true);
+    try {
+      const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
+      const res = await fetch(`/api/projects/${activeProject.id}/run-app`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          useBrowserTerminal,
+          allowHeadless: true
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast.error(data.error || 'Nie udało się uruchomić aplikacji');
+      } else {
+        if (data.browserTerminal && data.terminalConfig) {
+          setTerminalConfig(data.terminalConfig);
+          toast.success(`Uruchomiono aplikację (${data.command})`);
+        } else {
+          toast.success(data.message || `Aplikacja uruchomiona (${data.command})`);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Błąd podczas uruchamiania aplikacji');
+    } finally {
+      setIsRunningApp(false);
+    }
+  };
 
   const handleTriggerTunnel = async (serverId: number) => {
     setTunnelFeedback('Konfigurowanie i uruchamianie tunelu...');
@@ -842,6 +877,35 @@ function App() {
                       </button>
                     </>
                   )}
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleRunApp}
+                    disabled={isRunningApp}
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '0.5rem 0.9rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: isRunningApp ? 'not-allowed' : 'pointer',
+                      opacity: isRunningApp ? 0.7 : 1,
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                    }}
+                    title={t('workspace.runApp', 'Uruchom Aplikację')}
+                  >
+                    {isRunningApp ? (
+                      <RefreshCw size={16} className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Play size={16} fill="currentColor" aria-hidden="true" />
+                    )}
+                    <span>{isRunningApp ? t('workspace.runningApp', 'Uruchamianie...') : t('workspace.runApp', 'Run App')}</span>
+                  </button>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
                     <input 
                       type="checkbox" 
@@ -913,7 +977,7 @@ function App() {
                       {activeProject.tech}
                     </div>
                   </div>
-                  <div className="antigravity-depth-sub">
+                  <div className="antigravity-depth-sub" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button 
                       type="button"
                       className="btn-add-project" 
@@ -923,6 +987,30 @@ function App() {
                     >
                       {deploying === 'analyze' && <RefreshCw size={14} className="animate-spin" />}
                       {deploying === 'analyze' ? 'Analyzing…' : 'Analyze Workspace'}
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn" 
+                      style={{ 
+                        marginTop: '1rem', 
+                        width: 'fit-content', 
+                        padding: '0.45rem 0.9rem', 
+                        fontSize: '0.85rem', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '0.4rem', 
+                        borderRadius: '8px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                        color: '#34d399',
+                        cursor: isRunningApp ? 'not-allowed' : 'pointer',
+                        fontWeight: 600
+                      }} 
+                      onClick={handleRunApp}
+                      disabled={isRunningApp}
+                    >
+                      {isRunningApp ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
+                      <span>{isRunningApp ? t('workspace.runningApp', 'Uruchamianie...') : t('workspace.runApp', 'Run App')}</span>
                     </button>
                   </div>
                 </AntigravityCard>
