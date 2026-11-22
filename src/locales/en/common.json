@@ -72,5 +72,7 @@
   "kpi.noActivity": "No agent activity in the recent period. Run an agent to collect real telemetry and token usage data.",
   "kpi.inferenceLatency": "Avg inference latency",
   "kpi.sshNodes": "SSH Nodes:",
-  "kpi.servers": "servers"
+  "kpi.servers": "servers",
+  "workspace.runApp": "Run App",
+  "workspace.runningApp": "Starting..."
 }

@@ -72,5 +72,7 @@
   "kpi.noActivity": "हाल की अवधि में कोई एजेंट गतिविधि नहीं। वास्तविक टेलीमेट्री डेटा एकत्र करने के लिए एजेंट चलाएं।",
   "kpi.inferenceLatency": "औसत इन्फेरेंस विलंबता",
   "kpi.sshNodes": "SSH नोड्स:",
-  "kpi.servers": "सर्वर"
+  "kpi.servers": "सर्वर",
+  "workspace.runApp": "ऐप चलाएं",
+  "workspace.runningApp": "शुरू हो रहा है..."
 }

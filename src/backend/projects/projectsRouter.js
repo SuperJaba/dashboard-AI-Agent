@@ -11,6 +11,7 @@ import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
 import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects, findMarkdownFiles, extractChecklistItems } from './tasksSyncService.js';
 import { detectTechnology } from './techDetector.js';
+import { detectRunCommand, prepareAppRunScript } from './appRunnerService.js';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../auth/jwtSecret.js';
 import { resolveDashboardUrl } from '../utils/network.js';
@@ -1412,6 +1413,102 @@ fi
       terminal: terminalConfig.command,
       message: `${agent} uruchomiony w lokalnym terminalu (${terminalConfig.command})`,
       scriptContent
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Run Application Route (Browser Terminal or Native Terminal)
+projectsRouter.get('/:id/run-command', async (req, res) => {
+  try {
+    const project = await resolveProject(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Projekt nie został znaleziony' });
+
+    const detected = detectRunCommand(project.path);
+    res.json({
+      success: true,
+      command: `${detected.command}${detected.args.length ? ' ' + detected.args.join(' ') : ''}`.trim(),
+      details: detected,
+      projectPath: project.path
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+projectsRouter.post('/:id/run-app', async (req, res) => {
+  try {
+    const project = await resolveProject(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Projekt nie został znaleziony' });
+
+    const targetDir = project.path;
+    if (!fs.existsSync(targetDir)) {
+      return res.status(400).json({ error: `Katalog projektu nie istnieje: ${targetDir}` });
+    }
+
+    const detected = detectRunCommand(targetDir);
+    const customCommand = req.body?.customCommand;
+    const effCommand = customCommand && typeof customCommand === 'string' && customCommand.trim()
+      ? customCommand.trim()
+      : `${detected.command}${detected.args.length ? ' ' + detected.args.join(' ') : ''}`.trim();
+
+    const scriptPath = prepareAppRunScript(targetDir, effCommand);
+    const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+
+    const useBrowserTerminal = Boolean(req.body?.useBrowserTerminal);
+    if (useBrowserTerminal) {
+      return res.json({
+        success: true,
+        browserTerminal: true,
+        command: effCommand,
+        terminalConfig: {
+          command: 'bash',
+          args: [scriptPath],
+          cwd: targetDir,
+          env: process.env,
+          scriptContent
+        }
+      });
+    }
+
+    const hasDisplay = Boolean(
+      process.env.DISPLAY ||
+      process.env.WAYLAND_DISPLAY ||
+      process.env.MIR_SOCKET
+    );
+
+    if (process.platform === 'linux' && !hasDisplay && !req.body?.allowHeadless) {
+      return res.status(400).json({
+        error: 'Nie wykryto dostępnego emulatora terminala ani aktywnej sesji graficznej (DISPLAY/WAYLAND_DISPLAY). Użyj terminala w przeglądarce lub przekaż flagę allowHeadless: true.'
+      });
+    }
+
+    const terminalConfig = (req.body?.allowHeadless && !hasDisplay)
+      ? { command: 'bash', args: [scriptPath] }
+      : resolveNativeTerminalCommand(scriptPath, targetDir);
+
+    const child = spawn(terminalConfig.command, terminalConfig.args, {
+      cwd: targetDir,
+      env: process.env,
+      detached: true,
+      stdio: 'ignore'
+    });
+
+    child.on('error', (err) => {
+      console.error(`Failed to spawn terminal process [${terminalConfig.command}]:`, err);
+    });
+
+    child.unref();
+
+    res.json({
+      success: true,
+      browserTerminal: false,
+      terminal: terminalConfig.command,
+      command: effCommand,
+      message: `Aplikacja uruchomiona w lokalnym terminalu (${terminalConfig.command})`
     });
   } catch (error) {
     console.error(error);

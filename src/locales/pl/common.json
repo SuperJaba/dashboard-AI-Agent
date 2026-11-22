@@ -72,5 +72,7 @@
   "kpi.noActivity": "Brak aktywności agentów w ostatnim okresie. Uruchom agenta, aby zebrać rzeczywiste dane telemetrii i zużycia tokenów.",
   "kpi.inferenceLatency": "Śr. latencja inferencji",
   "kpi.sshNodes": "Węzły SSH:",
-  "kpi.servers": "serwery"
+  "kpi.servers": "serwery",
+  "workspace.runApp": "Uruchom Aplikację",
+  "workspace.runningApp": "Uruchamianie..."
 }
