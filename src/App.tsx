@@ -4,7 +4,7 @@ import {
   Clock, Activity, ChevronDown, ChevronUp, Rocket, Save, CheckCircle2,
   Trash2, PlusCircle, LayoutDashboard, CircleDashed, Bot, LogOut, Key, Eye, EyeOff, Settings,
   RefreshCw, Circle, CheckCheck, Archive, RotateCcw, DownloadCloud, Laptop, WifiOff,
-  Files, Zap, FileText, Flame, Users, Menu, X, Play
+  Files, Zap, FileText, Flame, Users, Menu, X, Play, Square
 } from 'lucide-react';
 import './index.css';
 import { LocalWorkerModal } from './LocalWorkerModal';
@@ -120,9 +120,41 @@ function App() {
   const [tunnelFeedback, setTunnelFeedback] = useState<string | null>(null);
   const [isDeployingApp, setIsDeployingApp] = useState(false);
   const [isRunningApp, setIsRunningApp] = useState(false);
+  const [isStoppingApp, setIsStoppingApp] = useState(false);
+  const [projectRunningStatus, setProjectRunningStatus] = useState<{ isRunning: boolean; ports: number[]; pids: number[] } | null>(null);
+  const [projectRunCommand, setProjectRunCommand] = useState<string | null>(null);
   const { connected: isSseConnected } = useLiveTelemetry();
 
-  const handleRunApp = async () => {
+  useEffect(() => {
+    if (!activeProject?.id) {
+      setProjectRunningStatus(null);
+      setProjectRunCommand(null);
+      return;
+    }
+    const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
+    fetch(`/api/projects/${activeProject.id}/run-command`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.runningStatus) {
+          setProjectRunningStatus(data.runningStatus);
+        } else {
+          setProjectRunningStatus(null);
+        }
+        if (data?.command) {
+          setProjectRunCommand(data.command);
+        } else {
+          setProjectRunCommand(null);
+        }
+      })
+      .catch(() => {
+        setProjectRunningStatus(null);
+        setProjectRunCommand(null);
+      });
+  }, [activeProject?.id]);
+
+  const handleRunApp = async (force = false) => {
     if (!activeProject) return;
     setIsRunningApp(true);
     try {
@@ -135,12 +167,23 @@ function App() {
         },
         body: JSON.stringify({
           useBrowserTerminal,
-          allowHeadless: true
+          allowHeadless: true,
+          force
         })
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        toast.error(data.error || 'Nie udało się uruchomić aplikacji');
+        if (data.alreadyRunning) {
+          if (data.details) setProjectRunningStatus(data.details);
+          toast.warning(data.error || 'Aplikacja jest już uruchomiona w tle!', {
+            action: {
+              label: 'Uruchom mimo to',
+              onClick: () => handleRunApp(true)
+            }
+          });
+        } else {
+          toast.error(data.error || 'Nie udało się uruchomić aplikacji');
+        }
       } else {
         if (data.browserTerminal && data.terminalConfig) {
           setTerminalConfig(data.terminalConfig);
@@ -153,6 +196,32 @@ function App() {
       toast.error(err.message || 'Błąd podczas uruchamiania aplikacji');
     } finally {
       setIsRunningApp(false);
+    }
+  };
+
+  const handleStopApp = async () => {
+    if (!activeProject?.id) return;
+    setIsStoppingApp(true);
+    try {
+      const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
+      const res = await fetch(`/api/projects/${activeProject.id}/stop-app`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Aplikacja została zatrzymana');
+        setProjectRunningStatus(data.runningStatus?.isRunning ? data.runningStatus : null);
+      } else {
+        toast.error(data.error || 'Nie udało się zatrzymać aplikacji');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Błąd podczas zatrzymywania aplikacji');
+    } finally {
+      setIsStoppingApp(false);
     }
   };
 
@@ -360,36 +429,56 @@ function App() {
         
         {isWorkspacesExpanded && (
           <div id="workspaces-list" className="projects-list">
-            {projects.map(proj => (
-              <div
-                key={proj.id}
-                className={`project-item ${activeProjectId === proj.id ? 'active' : ''}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setActiveProjectId(proj.id)}
-                  style={{ flex: 1, textAlign: 'left' }}
+            {projects.map(proj => {
+              const displayName = proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name;
+              return (
+                <div
+                  key={proj.id}
+                  className={`project-item ${activeProjectId === proj.id ? 'active' : ''}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', justifyContent: 'space-between' }}
                 >
-                  <Folder size={18} aria-hidden="true" />
-                  <span>{proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`${t('confirm.deleteProject')} "${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}"?`)) {
-                      handleAddProject(proj.id, 'delete');
-                    }
-                  }}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
-                  aria-label={`${t('label.deleteProject')} ${proj.name.split(/[/\\]/).filter(Boolean).pop() || proj.name}`}
-                  title={t('label.deleteProject')}
-                >
-                  <Trash2 size={16} aria-hidden="true" />
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => setActiveProjectId(proj.id)}
+                    style={{
+                      flex: 1,
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      minWidth: 0,
+                      background: 'none',
+                      border: 'none',
+                      color: 'inherit',
+                      font: 'inherit',
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                    title={proj.path || displayName}
+                  >
+                    <Folder size={15} style={{ flexShrink: 0 }} aria-hidden="true" />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {displayName}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="project-delete-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`${t('confirm.deleteProject')} "${displayName}"?`)) {
+                        handleAddProject(proj.id, 'delete');
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', flexShrink: 0 }}
+                    aria-label={`${t('label.deleteProject')} ${displayName}`}
+                    title={t('label.deleteProject')}
+                  >
+                    <Trash2 size={13} aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.5rem' }}>
               <button className="btn-add-project" aria-label="Add Project" style={{ justifyContent: 'center', padding: '0.4rem 0.2rem', fontSize: '0.8rem' }} onClick={handleAddProject} title="Add existing local project folder">
                 <Plus size={16} aria-hidden="true" />
@@ -880,10 +969,12 @@ function App() {
                   <button
                     type="button"
                     className="btn"
-                    onClick={handleRunApp}
+                    onClick={() => handleRunApp(false)}
                     disabled={isRunningApp}
                     style={{
-                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      background: projectRunningStatus?.isRunning
+                        ? 'linear-gradient(135deg, #059669, #047857)'
+                        : 'linear-gradient(135deg, #10b981, #059669)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '8px',
@@ -895,17 +986,55 @@ function App() {
                       fontWeight: 600,
                       cursor: isRunningApp ? 'not-allowed' : 'pointer',
                       opacity: isRunningApp ? 0.7 : 1,
-                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                      boxShadow: projectRunningStatus?.isRunning
+                        ? '0 0 12px rgba(16, 185, 129, 0.45)'
+                        : '0 2px 8px rgba(16, 185, 129, 0.25)'
                     }}
-                    title={t('workspace.runApp', 'Uruchom Aplikację')}
+                    title={projectRunningStatus?.isRunning 
+                      ? `Aplikacja działa w tle ${projectRunningStatus.ports.length ? '(port ' + projectRunningStatus.ports.join(', ') + ')' : ''}` 
+                      : (projectRunCommand ? `${t('workspace.runApp', 'Uruchom Aplikację')} (${projectRunCommand})` : t('workspace.runApp', 'Uruchom Aplikację'))}
                   >
                     {isRunningApp ? (
                       <RefreshCw size={16} className="animate-spin" aria-hidden="true" />
+                    ) : projectRunningStatus?.isRunning ? (
+                      <Activity size={16} aria-hidden="true" />
                     ) : (
                       <Play size={16} fill="currentColor" aria-hidden="true" />
                     )}
-                    <span>{isRunningApp ? t('workspace.runningApp', 'Uruchamianie...') : t('workspace.runApp', 'Run App')}</span>
+                    <span>
+                      {isRunningApp 
+                        ? t('workspace.runningApp', 'Uruchamianie...') 
+                        : projectRunningStatus?.isRunning 
+                          ? `Działa w tle${projectRunningStatus.ports.length ? ` (${projectRunningStatus.ports.join(', ')})` : ''}` 
+                          : t('workspace.runApp', 'Run App')}
+                    </span>
                   </button>
+                  {projectRunningStatus?.isRunning && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={handleStopApp}
+                      disabled={isStoppingApp}
+                      style={{
+                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '0.5rem 0.75rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        cursor: isStoppingApp ? 'not-allowed' : 'pointer',
+                        boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)'
+                      }}
+                      title="Zatrzymaj działającą aplikację i zwolnij zajęte porty"
+                    >
+                      <Square size={14} fill="currentColor" aria-hidden="true" />
+                      <span>{isStoppingApp ? 'Zatrzymywanie...' : 'Zatrzymaj'}</span>
+                    </button>
+                  )}
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', paddingRight: '0.25rem' }}>
                     <input 
                       type="checkbox" 
@@ -1000,17 +1129,32 @@ function App() {
                         alignItems: 'center', 
                         gap: '0.4rem', 
                         borderRadius: '8px',
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                        background: projectRunningStatus?.isRunning ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.15)',
+                        border: projectRunningStatus?.isRunning ? '1px solid rgba(16, 185, 129, 0.7)' : '1px solid rgba(16, 185, 129, 0.4)',
                         color: '#34d399',
                         cursor: isRunningApp ? 'not-allowed' : 'pointer',
                         fontWeight: 600
                       }} 
-                      onClick={handleRunApp}
+                      onClick={() => handleRunApp(false)}
                       disabled={isRunningApp}
+                      title={projectRunningStatus?.isRunning 
+                        ? `Aplikacja działa w tle ${projectRunningStatus.ports.length ? '(port ' + projectRunningStatus.ports.join(', ') + ')' : ''}` 
+                        : t('workspace.runApp', 'Run App')}
                     >
-                      {isRunningApp ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
-                      <span>{isRunningApp ? t('workspace.runningApp', 'Uruchamianie...') : t('workspace.runApp', 'Run App')}</span>
+                      {isRunningApp ? (
+                        <RefreshCw size={14} className="animate-spin" />
+                      ) : projectRunningStatus?.isRunning ? (
+                        <Activity size={14} aria-hidden="true" />
+                      ) : (
+                        <Play size={14} fill="currentColor" />
+                      )}
+                      <span>
+                        {isRunningApp 
+                          ? t('workspace.runningApp', 'Uruchamianie...') 
+                          : projectRunningStatus?.isRunning 
+                            ? `Działa w tle${projectRunningStatus.ports.length ? ` (${projectRunningStatus.ports[0]})` : ''}` 
+                            : t('workspace.runApp', 'Run App')}
+                      </span>
                     </button>
                   </div>
                 </AntigravityCard>

@@ -105,28 +105,63 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
   useEffect(() => {
     if (!config || !terminalRef.current) return;
     
-    // Init Xterm with explicit dimensions and wrapping options
+    // Init Xterm with explicit dimensions and interactive PTY options
     const term = new Terminal({
       cursorBlink: true,
+      cursorStyle: 'bar',
       cols: 100,
       rows: 30,
-      convertEol: true,
+      convertEol: false,
       theme: {
         background: '#0f172a',
         foreground: '#f8fafc',
       },
       fontFamily: '"Fira Code", monospace',
       fontSize: 14,
+      scrollback: 5000,
     });
     
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(terminalRef.current);
-    fitAddon.fit();
+    try {
+      fitAddon.fit();
+    } catch {}
     term.focus();
     
     termInstance.current = term;
     fitAddonInstance.current = fitAddon;
+
+    let lastCols = term.cols;
+    let lastRows = term.rows;
+
+    const syncFitAndResize = () => {
+      try {
+        fitAddon.fit();
+        if (term.cols !== lastCols || term.rows !== lastRows) {
+          lastCols = term.cols;
+          lastRows = term.rows;
+          if (socketRef.current?.connected) {
+            socketRef.current.emit('terminal_resize', { cols: term.cols, rows: term.rows });
+          }
+        }
+      } catch {}
+    };
+
+    // Keep terminal geometry aligned with container changes (prevents prompt/cursor jitter)
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && terminalRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        syncFitAndResize();
+      });
+      resizeObserver.observe(terminalRef.current);
+    }
+
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(() => {
+        syncFitAndResize();
+      }).catch(() => {});
+    }
 
     // Connect to WebSocket /pty namespace with token authentication and fallback transports
     const token = localStorage.getItem('dashboard_token') || localStorage.getItem('token');
@@ -162,7 +197,9 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
           executionTarget: execTarget,
           targetWorkerId: config.targetWorkerId,
           scriptContent: config.scriptContent,
-          taskId: config.taskId
+          taskId: config.taskId,
+          cols: term.cols,
+          rows: term.rows
         });
       }
       
@@ -213,6 +250,9 @@ export function TerminalView({ config, onClose }: TerminalViewProps) {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       window.removeEventListener('resize', handleResize);
       hasSpawnedRef.current = false;
       socket.disconnect();

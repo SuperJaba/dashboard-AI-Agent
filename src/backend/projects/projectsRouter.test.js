@@ -290,6 +290,7 @@ describe('projectsRouter - deploy agent handling', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.command).toBe('npm run dev');
+      expect(res.body.runningStatus).toBeDefined();
     });
 
     it('POST /api/projects/:id/run-app returns browser terminal config when useBrowserTerminal is true', async () => {
@@ -320,6 +321,11 @@ describe('projectsRouter - deploy agent handling', () => {
         .send({ useBrowserTerminal: true });
       expect(postRes.status).toBe(200);
       expect(postRes.body.browserTerminal).toBe(true);
+
+      const stopRes = await request(serverApp)
+        .post('/api/projects/42/stop-app');
+      expect(stopRes.status).toBe(200);
+      expect(stopRes.body.success).toBe(true);
     });
   });
 });

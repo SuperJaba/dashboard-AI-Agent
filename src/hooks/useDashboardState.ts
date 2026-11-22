@@ -160,11 +160,10 @@ export function useDashboardState() {
     setDeploying(agent);
     try {
       const allTasks = activeProject.tasks || [];
-      const selectedTasks = selectedTaskIds.length > 0
+      // If user selected specific tasks, pass only those. If none are selected, launch the agent cleanly without tasks prompt.
+      const tasksToDeploy = selectedTaskIds.length > 0
         ? allTasks.filter((t: any) => selectedTaskIds.includes(t.id))
-        : allTasks.filter((t: any) => t.status !== 'completed');
-      
-      const tasksToDeploy = selectedTasks.length > 0 ? selectedTasks : allTasks;
+        : [];
 
       const data = await apiClient.post<any>('/api/deploy', { 
         agent, 

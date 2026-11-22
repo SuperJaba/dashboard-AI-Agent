@@ -205,25 +205,45 @@ button.project-item {
 .projects-list {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.2rem;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
 .project-item {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.7rem;
-  border-radius: 10px;
+  gap: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
   cursor: pointer;
   color: var(--text-muted);
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  line-height: 1.25;
 }
 
 .project-item:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-main);
+}
+
+.project-item .project-delete-btn {
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.project-item:hover .project-delete-btn,
+.project-item:focus-within .project-delete-btn {
+  opacity: 0.7;
+}
+
+.project-item .project-delete-btn:hover {
+  opacity: 1;
+  color: #ef4444 !important;
 }
 
 .project-item.active {

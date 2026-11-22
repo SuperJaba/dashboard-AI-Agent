@@ -11,7 +11,7 @@ import * as gitService from '../git/gitService.js';
 import { getBestAvailableModel } from '../utils/llm.js';
 import { updateTaskInWorkspaceFile, syncProjectTasks, syncAllProjects, findMarkdownFiles, extractChecklistItems } from './tasksSyncService.js';
 import { detectTechnology } from './techDetector.js';
-import { detectRunCommand, prepareAppRunScript } from './appRunnerService.js';
+import { detectRunCommand, prepareAppRunScript, checkAppRunning, stopApp } from './appRunnerService.js';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../auth/jwtSecret.js';
 import { resolveDashboardUrl } from '../utils/network.js';
@@ -1429,10 +1429,13 @@ projectsRouter.get(['/projects/:id/run-command', '/:id/run-command'], async (req
     if (!project) return res.status(404).json({ error: 'Projekt nie został znaleziony' });
 
     const detected = detectRunCommand(project.path);
+    const resolvedCommand = project.run_command || `${detected.command}${detected.args.length ? ' ' + detected.args.join(' ') : ''}`.trim();
+    const runningStatus = checkAppRunning(project.path);
     res.json({
       success: true,
-      command: `${detected.command}${detected.args.length ? ' ' + detected.args.join(' ') : ''}`.trim(),
+      command: resolvedCommand,
       details: detected,
+      runningStatus,
       projectPath: project.path
     });
   } catch (err) {
@@ -1453,14 +1456,31 @@ projectsRouter.post(['/projects/:id/run-app', '/:id/run-app'], async (req, res) 
       return res.status(400).json({ error: `Katalog projektu nie istnieje: ${targetDir}` });
     }
 
+    const force = Boolean(req.body?.force);
+    const runningStatus = checkAppRunning(targetDir);
+    if (runningStatus.isRunning && !force) {
+      const portInfo = runningStatus.ports.length > 0 ? ` (Port: ${runningStatus.ports.join(', ')})` : '';
+      return res.status(409).json({
+        success: false,
+        alreadyRunning: true,
+        error: `Aplikacja jest już uruchomiona w tle${portInfo}.`,
+        details: runningStatus
+      });
+    }
+
     const detected = detectRunCommand(targetDir);
     const customCommand = req.body?.customCommand;
     const effCommand = customCommand && typeof customCommand === 'string' && customCommand.trim()
       ? customCommand.trim()
-      : `${detected.command}${detected.args.length ? ' ' + detected.args.join(' ') : ''}`.trim();
+      : (project.run_command || `${detected.command}${detected.args.length ? ' ' + detected.args.join(' ') : ''}`.trim());
 
     const scriptPath = prepareAppRunScript(targetDir, effCommand);
     const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+
+    const secretEnvKeyPattern = /(KEY|TOKEN|SECRET|PASSWORD|PASS|PRIVATE|CREDENTIAL|AUTH|OPENAI|ANTHROPIC|GEMINI|AWS|AZURE|GCP|DB_|DATABASE|JWT|SESSION)/i;
+    const safeEnv = Object.fromEntries(
+      Object.entries(process.env || {}).filter(([key]) => !secretEnvKeyPattern.test(key) && key !== 'PORT')
+    );
 
     const useBrowserTerminal = Boolean(req.body?.useBrowserTerminal);
     if (useBrowserTerminal) {
@@ -1472,7 +1492,7 @@ projectsRouter.post(['/projects/:id/run-app', '/:id/run-app'], async (req, res) 
           command: 'bash',
           args: [scriptPath],
           cwd: targetDir,
-          env: process.env,
+          env: safeEnv,
           scriptContent
         }
       });
@@ -1496,7 +1516,7 @@ projectsRouter.post(['/projects/:id/run-app', '/:id/run-app'], async (req, res) 
 
     const child = spawn(terminalConfig.command, terminalConfig.args, {
       cwd: targetDir,
-      env: process.env,
+      env: safeEnv,
       detached: true,
       stdio: 'ignore'
     });
@@ -1513,6 +1533,26 @@ projectsRouter.post(['/projects/:id/run-app', '/:id/run-app'], async (req, res) 
       terminal: terminalConfig.command,
       command: effCommand,
       message: `Aplikacja uruchomiona w lokalnym terminalu (${terminalConfig.command})`
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+projectsRouter.post(['/projects/:id/stop-app', '/:id/stop-app'], async (req, res) => {
+  try {
+    const projects = await projectsRepo.getProjects();
+    const target = String(req.params.id || '').trim().toLowerCase();
+    const project = projects.find(p => String(p.id) === target || p.name?.toLowerCase() === target);
+    if (!project) return res.status(404).json({ error: 'Projekt nie został znaleziony' });
+
+    const result = stopApp(project.path);
+    const runningStatus = checkAppRunning(project.path);
+    res.json({
+      success: true,
+      ...result,
+      runningStatus
     });
   } catch (error) {
     console.error(error);

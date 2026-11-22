@@ -147,4 +147,52 @@ describe('Archive Tasks Feature', () => {
       })
     );
   });
+
+  it('deploys agent with empty tasks array when no tasks are selected', async () => {
+    (apiClient.post as any).mockResolvedValue({ success: true });
+
+    const { result } = renderHook(() => useDashboardState());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.deployAgent('claude');
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/deploy',
+      expect.objectContaining({
+        agent: 'claude',
+        tasks: []
+      })
+    );
+  });
+
+  it('deploys agent with only selected tasks when selectedTaskIds is not empty', async () => {
+    (apiClient.post as any).mockResolvedValue({ success: true });
+
+    const { result } = renderHook(() => useDashboardState());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.setSelectedTaskIds([101]);
+    });
+
+    await act(async () => {
+      await result.current.deployAgent('claude');
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/deploy',
+      expect.objectContaining({
+        agent: 'claude',
+        tasks: [expect.objectContaining({ id: 101 })]
+      })
+    );
+  });
 });

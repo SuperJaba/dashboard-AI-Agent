@@ -21,7 +21,7 @@ export async function deleteProject(id) {
   return { success: true };
 }
 
-export async function createProject({ name, desc, path, branch, tech, complete, tasks }) {
+export async function createProject({ name, desc, path, branch, tech, complete, tasks, run_command }) {
   let finalTech = tech;
   if ((!finalTech || finalTech === 'Unknown') && path) {
     const detected = detectTechnology(path);
@@ -31,8 +31,8 @@ export async function createProject({ name, desc, path, branch, tech, complete, 
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO projects (name, "desc", path, branch, tech, complete, tasks) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    `INSERT INTO projects (name, "desc", path, branch, tech, complete, tasks, run_command) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
     [
       name,
       desc,
@@ -40,13 +40,14 @@ export async function createProject({ name, desc, path, branch, tech, complete, 
       branch || 'main',
       finalTech || 'Unknown',
       complete || 0,
-      JSON.stringify(tasks || [])
+      JSON.stringify(tasks || []),
+      run_command || null
     ]
   );
   return rows[0];
 }
 
-export async function updateProject(id, { name, desc, path, tech, tasks, complete, branch }) {
+export async function updateProject(id, { name, desc, path, tech, tasks, complete, branch, run_command }) {
   const updates = [];
   const values = [];
   let paramIdx = 1;
@@ -78,6 +79,10 @@ export async function updateProject(id, { name, desc, path, tech, tasks, complet
   if (branch !== undefined) {
     updates.push(`branch = $${paramIdx++}`);
     values.push(branch);
+  }
+  if (run_command !== undefined) {
+    updates.push(`run_command = $${paramIdx++}`);
+    values.push(run_command);
   }
 
   if (updates.length === 0) {

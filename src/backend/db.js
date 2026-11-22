@@ -846,6 +846,7 @@ export async function migrate() {
     );`,
     'ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS token TEXT;',
     'ALTER TABLE cli_agents ADD COLUMN IF NOT EXISTS ip VARCHAR(512);',
+    'ALTER TABLE projects ADD COLUMN IF NOT EXISTS run_command TEXT;',
     `CREATE TABLE IF NOT EXISTS console_variables (
       id SERIAL PRIMARY KEY,
       token TEXT DEFAULT '',

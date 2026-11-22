@@ -122,7 +122,7 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
     let ptyProcess = null;
     let activeWorkerSocket = null;
 
-    socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent, taskId }) => {
+    socket.on('spawn_terminal', ({ command, args, cwd, env, executionTarget, targetWorkerId, scriptContent, taskId, cols, rows }) => {
       if (ptyProcess) {
         try {
           ptyProcess.kill();
@@ -149,6 +149,9 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
         }
       }
 
+      const initialCols = Number.isInteger(cols) && cols > 0 ? cols : 100;
+      const initialRows = Number.isInteger(rows) && rows > 0 ? rows : 30;
+
       if (workerToUse) {
         activeWorkerSocket = workerToUse.socket;
         logger.info({ sessionId: socket.id, worker: workerToUse.name, taskId }, 'Forwarding PTY spawn to local worker');
@@ -160,6 +163,8 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
           env,
           scriptContent,
           taskId,
+          cols: initialCols,
+          rows: initialRows,
         });
         return;
       }
@@ -204,15 +209,15 @@ export function registerPtyNamespace(ptyNsp, activeWorkers) {
 
         ptyProcess = pty.spawn(shellCmd, args || [], {
           name: 'xterm-256color',
-          cols: 100,
-          rows: 30,
+          cols: initialCols,
+          rows: initialRows,
           cwd: targetCwd,
           env: {
             ...process.env,
             ...sanitizedEnv,
             PATH: extendedPath,
-            COLUMNS: '100',
-            LINES: '30',
+            COLUMNS: String(initialCols),
+            LINES: String(initialRows),
             TERM: 'xterm-256color',
           },
           useConpty: false,
