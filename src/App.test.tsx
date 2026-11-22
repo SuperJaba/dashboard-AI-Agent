@@ -58,5 +58,29 @@ describe('App Component', () => {
 
     expect(screen.getByRole('button', { name: /^Mark Completed$/i })).toBeInTheDocument();
   });
+
+  it('renders Run App button in workspace when project is active', async () => {
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url && typeof url === 'string' && url.includes('/api/projects')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([
+            { id: 1, name: 'Test App Project', path: '/test-app', tasks: [], complete: 50, tech: 'React / Vite' }
+          ])
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({})
+      });
+    });
+
+    await act(async () => {
+      render(<PreferencesProvider><App /></PreferencesProvider>);
+    });
+
+    const runButtons = screen.getAllByRole('button', { name: /Run App|Uruchom Aplikację/i });
+    expect(runButtons.length).toBeGreaterThan(0);
+  });
 });
 

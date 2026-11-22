@@ -1423,7 +1423,9 @@ fi
 // Run Application Route (Browser Terminal or Native Terminal)
 projectsRouter.get('/:id/run-command', async (req, res) => {
   try {
-    const project = await resolveProject(req.params.id);
+    const projects = await projectsRepo.getProjects();
+    const target = String(req.params.id || '').trim().toLowerCase();
+    const project = projects.find(p => String(p.id) === target || p.name?.toLowerCase() === target);
     if (!project) return res.status(404).json({ error: 'Projekt nie został znaleziony' });
 
     const detected = detectRunCommand(project.path);
@@ -1441,7 +1443,9 @@ projectsRouter.get('/:id/run-command', async (req, res) => {
 
 projectsRouter.post('/:id/run-app', async (req, res) => {
   try {
-    const project = await resolveProject(req.params.id);
+    const projects = await projectsRepo.getProjects();
+    const target = String(req.params.id || '').trim().toLowerCase();
+    const project = projects.find(p => String(p.id) === target || p.name?.toLowerCase() === target);
     if (!project) return res.status(404).json({ error: 'Projekt nie został znaleziony' });
 
     const targetDir = project.path;
